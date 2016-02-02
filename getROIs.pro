@@ -1,0 +1,215 @@
+;ImageQC - quality control of medical images
+;Copyright (C) 2016  Ellen Wasbo, Stavanger University Hospital, Norway
+;ellen@wasbo.no
+;
+;This program is free software; you can redistribute it and/or
+;modify it under the terms of the GNU General Public License version 2
+;as published by the Free Software Foundation.
+;
+;This program is distributed in the hope that it will be useful,
+;but WITHOUT ANY WARRANTY; without even the implied warranty of
+;MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+;GNU General Public License for more details.
+;
+;You should have received a copy of the GNU General Public License
+;along with this program; if not, write to the Free Software
+;Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+
+;Placing rois for homogeneity 5 circles (center + 4 outer)
+;
+;imgSize = size of active image
+;imgCenterOffset = shift from the default imSz/2 (same as dxya if in use) [dx, dy, dAngle, (not used here)]
+;ROIsZ = radius of the circles (pix)
+;ROIdist = radius from center of image to center of circles (pix)
+
+function getHomogRois, imgSize, imgCenterOffset, ROIsz, ROIdist, mode
+
+  roiAll=INTARR(imgSize(0),imgSize(1),5)
+
+  center=imgSize/2+imgCenterOffset[0:1]
+  centers=INTARR(2,5); centerpositions x,y for all circles
+  
+  CASE mode OF
+    0:BEGIN ;CT
+      daRad=imgCenterOffset(2)/!radeg
+      dd=ROIdist*[cos(daRad),sin(daRad)]
+
+      centers[0:1,0]=center
+      centers[0:1,1]=center+[dd(1),dd(0)];12 o'clock
+      centers[0:1,2]=center+[dd(0),-dd(1)];15 o'clock
+      centers[0:1,3]=center+[-dd(1),-dd(0)];18 o'clock
+      centers[0:1,4]=center+[-dd(0),dd(1)];21 o'clock
+      END
+    1:BEGIN ; Xray
+      dx=imgSize(0)/4
+      dy=imgSize(1)/4
+      centers[0:1,0]=center
+      centers[0:1,1]=center+[-dx,dy];upper left
+      centers[0:1,2]=center+[-dx,-dy];lower left
+      centers[0:1,3]=center+[dx,dy];upper right
+      centers[0:1,4]=center+[dx,-dy];lower right
+      END
+    2:BEGIN ; NM
+        dx=ROIdist(0)
+        IF N_ELEMENTS(ROIdist) EQ 2 THEN BEGIN ; planar wb
+          dy=ROIdist(1)       
+          centers[0:1,0]=center+[-dx,-dy];lower left
+          centers[0:1,1]=center+[dx,-dy];lower right
+          centers[0:1,2]=center
+          centers[0:1,3]=center+[-dx,dy];upper left
+          centers[0:1,4]=center+[dx,dy];upper right
+        ENDIF ELSE BEGIN
+          daRad=imgCenterOffset(2)/!radeg
+          dd=ROIdist*[cos(daRad),sin(daRad)]
+
+          centers[0:1,0]=center
+          centers[0:1,1]=center+[dd(1),dd(0)];12 o'clock
+          centers[0:1,2]=center+[dd(0),-dd(1)];15 o'clock
+          centers[0:1,3]=center+[-dd(1),-dd(0)];18 o'clock
+          centers[0:1,4]=center+[-dd(0),dd(1)];21 o'clock
+        ENDELSE
+      END
+  ENDCASE
+
+
+  FOR i= 0,4 DO roiAll[*,*,i]=getROIcircle(imgSize, centers[0:1,i], ROIsz)
+
+  return, roiAll
+end
+
+;Placing ramps for slice thickness 4 lines
+;
+;imgSize = size of active CT image
+;offset = shift from the default imSz/2 (same as dxya if in use) [dx, dy, dAngle, (0)] in pix or deg
+;dist = distance from center to ramps (in pix)
+;len = length of ramps (pix)
+
+;return lines= INTARR(4,4) X1, Y1, X2, Y2 for each of the lines H-top,H-bottom,V1,V2
+
+function getRamps, imgSize, offset, dista, len
+
+  lines=INTARR(4,4)
+  daRad=offset(2)/!radeg
+  len2=ROUND(0.5*len)
+  imSz2=ROUND(0.5*imgSize)
+
+  ;first x1x2y1y2
+  IF offset(2) EQ 0 THEN BEGIN
+    ;H1
+    lines[0:1,0]=imSz2(0)+offset(0)+[-1,1]*len2
+    lines[2:3,0]=imSz2(1)+offset(1)+[1,1]*dista
+    ;H2
+    lines[0:1,1]=imSz2(0)+offset(0)+[-1,1]*len2
+    lines[2:3,1]=imSz2(1)+offset(1)-[1,1]*dista
+    ;V1
+    lines[0:1,2]=imSz2(0)+offset(0)-[1,1]*dista
+    lines[2:3,2]=imSz2(1)+offset(1)+[-1,1]*len2
+    ;V2
+    lines[0:1,3]=imSz2(0)+offset(0)+[1,1]*dista
+    lines[2:3,3]=imSz2(1)+offset(1)+[-1,1]*len2
+  ENDIF ELSE BEGIN
+    ;H1
+    lines[0:1,0]=imSz2(0)+offset(0)+dista*sin(daRad)+[-1,1]*len2*cos(daRad)
+    lines[2:3,0]=imSz2(1)+offset(1)+dista*cos(daRad)+[1,-1]*len2*sin(daRad)
+    ;H2
+    lines[0:1,1]=imSz2(0)+offset(0)-dista*sin(daRad)+[-1,1]*len2*cos(daRad)
+    lines[2:3,1]=imSz2(1)+offset(1)-dista*cos(daRad)+[1,-1]*len2*sin(daRad)
+    ;V1
+    lines[0:1,2]=imSz2(0)+offset(0)-dista*cos(daRad)+[-1,1]*len2*sin(daRad)
+    lines[2:3,2]=imSz2(1)+offset(1)+dista*sin(daRad)+[-1,1]*len2*cos(daRad)
+    ;V2
+    lines[0:1,3]=imSz2(0)+offset(0)+dista*cos(daRad)+[-1,1]*len2*sin(daRad)
+    lines[2:3,3]=imSz2(1)+offset(1)-dista*sin(daRad)+[-1,1]*len2*cos(daRad)
+  ENDELSE
+
+  lines2=INTARR(4,4)
+  lines2=lines
+  lines2[1,*]=lines[2,*]
+  lines2[2,*]=lines[1,*]
+
+  return, ROUND(lines2)
+
+end
+
+;Placing rois for CT linearity 8 circles
+;
+;imgSize = size of active CT image
+;imgCenter = shift from the default imSz/2 (same as dxya if in use) [dx, dy, dAngle, (0)]
+;radSample = radius of the 8 samples (circles)
+;radSample2 = radius from center of image to center of circles
+
+function getSampleRois, imgSize, imgCenter, radSample, radSample2
+
+  circle=getROIcircle([radSample*2+1,radSample*2+1], [radSample,radSample], radSample)
+
+  ;position the circles
+  radSampleLarge=radSample2+radSample
+  roi0=INTARR(radSampleLarge*2+1,radSampleLarge*2+1)
+  roi0[radSampleLarge-radSample:radSampleLarge+radSample, radSampleLarge*2-radSample*2:radSampleLarge*2]=circle
+  roi0=ROUND(ROT(FLOAT(roi0), imgCenter(2), Missing=0, cubic=-0.5)); add dAngle
+  roi90=ROTATE(roi0,3) &  roi180=ROTATE(roi0,2) &  roi270=ROTATE(roi0,1)
+  roi30=ROUND(ROT(FLOAT(roi0),30, Missing=0, cubic=-0.5))
+  roi150=ROUND(ROT(FLOAT(roi180),-30, Missing=0, cubic=-0.5))
+  roi210=ROUND(ROT(FLOAT(roi180),30, Missing=0, cubic=-0.5))
+  roi330=ROUND(ROT(FLOAT(roi0),-30, Missing=0, cubic=-0.5))
+
+  ;position circles on image
+  roiAll=INTARR(imgSize(0),imgSize(1),8)
+  x1=imgSize(0)/2+imgCenter(0)-radSampleLarge
+  x2=imgSize(0)/2+imgCenter(0)+radSampleLarge
+  y1=imgSize(1)/2+imgCenter(1)-radSampleLarge
+  y2=imgSize(1)/2+imgCenter(1)+radSampleLarge
+  IF x1 GE 0 AND x1 LT imgSize(0) AND x2 GT 0 AND x2 LT imgSize(0) AND y1 GE 0 AND y1 LT imgSize(1) AND y2 GT 0 AND y2 LT imgSize(1) THEN BEGIN
+    roiAll[x1:x2,y1:y2,0]=roi0
+    roiAll[x1:x2,y1:y2,1]=roi30
+    roiAll[x1:x2,y1:y2,2]=roi90
+    roiAll[x1:x2,y1:y2,3]=roi150
+    roiAll[x1:x2,y1:y2,4]=roi180
+    roiAll[x1:x2,y1:y2,5]=roi210
+    roiAll[x1:x2,y1:y2,6]=roi270
+    roiAll[x1:x2,y1:y2,7]=roi330
+  ENDIF ELSE sv=DIALOG_MESSAGE('ROIs fall outside image due to defined center or radii.')
+
+  return, roiAll
+end
+
+;Placing rois for NM contrast 6 circles
+;
+;imgSize = size of active image
+;imgCenter = shift from the default imSz/2 (same as dxya if in use) [dx, dy, dAngle, (0)]
+;radSample = radius of the circles
+;radSample2 = radius from center of image to center of circles
+
+function getConNMRois, imgSize, imgCenter, radSample, radSample2
+
+  circle=getROIcircle([radSample*2+1,radSample*2+1], [radSample,radSample], radSample)
+
+  ;position the circles
+  radSampleLarge=radSample2+radSample
+  roi0=INTARR(radSampleLarge*2+1,radSampleLarge*2+1)
+  roi0[radSampleLarge-radSample:radSampleLarge+radSample, radSampleLarge*2-radSample*2:radSampleLarge*2]=circle
+  roi0=ROUND(ROT(FLOAT(roi0), imgCenter(2), Missing=0, cubic=-0.5)); add dAngle
+  roi60=ROUND(ROT(FLOAT(roi0),60, Missing=0, cubic=-0.5))
+  roi120=ROUND(ROT(FLOAT(roi0),120, Missing=0, cubic=-0.5))
+  roi180=ROUND(ROT(FLOAT(roi0),180, Missing=0, cubic=-0.5))
+  roi240=ROUND(ROT(FLOAT(roi0),240, Missing=0, cubic=-0.5))
+  roi300=ROUND(ROT(FLOAT(roi0),300, Missing=0, cubic=-0.5))
+  background=INTARR(radSampleLarge*2+1,radSampleLarge*2+1)
+  background[radSampleLarge-radSample:radSampleLarge+radSample, radSampleLarge-radSample:radSampleLarge+radSample]=circle
+
+  ;position circles on image
+  roiAll=INTARR(imgSize(0),imgSize(1),7)
+  x1=imgSize(0)/2+imgCenter(0)-radSampleLarge
+  x2=imgSize(0)/2+imgCenter(0)+radSampleLarge
+  y1=imgSize(1)/2+imgCenter(1)-radSampleLarge
+  y2=imgSize(1)/2+imgCenter(1)+radSampleLarge
+  roiAll[x1:x2,y1:y2,0]=roi0
+  roiAll[x1:x2,y1:y2,1]=roi60
+  roiAll[x1:x2,y1:y2,2]=roi120
+  roiAll[x1:x2,y1:y2,3]=roi180
+  roiAll[x1:x2,y1:y2,4]=roi240
+  roiAll[x1:x2,y1:y2,5]=roi300
+  roiAll[x1:x2,y1:y2,6]=background
+
+  return, roiAll
+end
