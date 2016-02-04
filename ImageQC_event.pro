@@ -32,6 +32,8 @@ pro ImageQC_event, ev
     CASE uval OF
 
       'exit': WIDGET_CONTROL, ev.top, /DESTROY
+      'info': SPAWN, 'start https://github.com/EllenWasbo/ImageQC/wiki'
+      'about': imageqc_about, GROUP_LEADER=ev.top
       'close': clearAll
 
       ;---- new modal Preferences ---------------------------------------------------------------------------------------------------------
@@ -296,14 +298,13 @@ pro ImageQC_event, ev
             markedArr(sel)=0
             marked=WHERE(markedArr EQ 1)
             unmarked=WHERE(markedArr EQ 0)
-            ;IF marked(0) EQ -1 THEN stop
+
             IF nFrames EQ 0 THEN fileList=getListOpenFiles(structImgs,0,marked) ELSE fileList=getListFrames(structImgs.(0),marked)
 
             newSel=marked(0)
             If newSel EQ -1 THEN newSel=0
             oldTop=WIDGET_INFO(listFiles, /LIST_TOP)
             WIDGET_CONTROL, listFiles, SET_VALUE=fileList, SET_LIST_SELECT=newSel, SET_LIST_TOP=oldTop ; YSIZE=n_elements(fileList),
-            ;WIDGET_CONTROL, listFiles, SCR_YSIZE=170
             IF marked(0) EQ -1 THEN clearRes
             redrawImg,0,1 & updateInfo=1
           ENDIF
@@ -363,8 +364,6 @@ pro ImageQC_event, ev
           ENDIF
         ENDIF
       END
-
-
 
       ;-----button prev/next image------------------------------------------------------------------------------------------------------------------
       'next'  : BEGIN
@@ -449,7 +448,7 @@ pro ImageQC_event, ev
           '1, BASE,, /ROW', $
           '0, BUTTON, OK, QUIT, TAG=OK',$
           '2, BUTTON, Cancel, QUIT']
-        res=CW_FORM_2(box, /COLUMN, TAB_MODE=1, TITLE='Set treshold for object to center', XSIZE=300, YSIZE=200, FOCUSNO=3)
+        res=CW_FORM_2(box, /COLUMN, TAB_MODE=1, TITLE='Set treshold for object to center', XSIZE=200, YSIZE=150, FOCUSNO=3)
 
         IF res.OK THEN BEGIN
 
@@ -719,8 +718,6 @@ pro ImageQC_event, ev
           ENDIF ELSE sv=DIALOG_MESSAGE('Get pixel values first.')
         ENDIF
       END
-
-
 
       ;----analyse tab Homogeneity--------------------------------------------------------------------------------------------------
       'drawROIhomog': BEGIN
@@ -1124,8 +1121,7 @@ pro ImageQC_event, ev
             x1=ROUND(halfSz(0)+dxya(0)-ROIsz(0)) & x2=ROUND(halfSz(0)+dxya(0)+ROIsz(0))
             y1=ROUND(halfSz(1)+dxya(1)-ROIsz(1)) & y2=ROUND(halfSz(1)+dxya(1)+ROIsz(1))
 
-            ;nnImg=TOTAL(markedArr)
-            subMatrix=FLTARR(x2-x1+1,y2-y1+1);,nnImg)
+            subMatrix=FLTARR(x2-x1+1,y2-y1+1)
 
             IF N_ELEMENTS(stpRes) EQ 0 THEN stpRes=0
 
@@ -1607,7 +1603,6 @@ pro ImageQC_event, ev
                   maske=CTlinROIs[*,*,sr]
                   IMAGE_STATISTICS, tempImg, COUNT=nPix, MEAN=meanHU, STDDEV=stddevHU, MASK=maske
                   resArr(r,i)=meanHU
-                  ;resArr(szROI(2)+r+1,i)=stddevHU
                 ENDFOR
                 a0=REGRESS(resArr[0:szROI(2)-1,i],materialData.field5, MCORRELATION=mcorr)
                 resArr(szROI(2),i)=mcorr
@@ -1684,8 +1679,7 @@ pro ImageQC_event, ev
               
               ramps=getRamps(sizeThis, imgCenterOffset, rampDistPix/pix(0), lenPix/pix(0))
 
-              ;get line, FWHM and slice thickness
-              
+              ;get line, FWHM and slice thickness              
               FOR l=0, 3 DO BEGIN
 
                 vec=getProfile(tempImg,ramps[0:1,l],ramps[2:3,l])
@@ -1711,11 +1705,6 @@ pro ImageQC_event, ev
                 backGr=MEAN(bgVec)
 
                 halfmax=0.5*(MAX(vec)+backGr)
-                ;vec10=CONGRID(vec, szVec(0)*10, /CENTER, /INTERP);increase resolution x 10 to find FWHM more precise- TODO use getWidthAtTreshold???
-                ;above=WHERE(vec10 GE halfmax,nAbove)
-                ;first=above(0) & last=above(nAbove-1)
-                ;firstLast=0.1*[first,Last]
-                ;resArr[l+1,i]=0.1*0.42*(last-first)*pix(0)/cos(daRad); sliceThickness=FWHM*0.42 according to Catphan manual
                 res=getWidthAtThreshold(vec, halfmax)
                 resArr[l+1,i]=0.42*(res(0))*pix(0)/cos(daRad); sliceThickness=FWHM*0.42 according to Catphan manual
                 structTemp=CREATE_STRUCT('background',backGr,'nBackGr',nPixBackG,'vector',vec,'halfMax',halfMax,'firstLast',[res(1)-res(0)/2.,res(1)+res(0)/2.],'maxVal',MAX(vec))
@@ -1908,156 +1897,8 @@ pro ImageQC_event, ev
         ENDELSE
       ENDIF
     END
-
-    ;---------------------------------------------------------------------Export----------------------------------------------------------------------------
-;    'exportTbl': BEGIN
-;
-;      curMode=WIDGET_INFO(wtabModes, /TAB_CURRENT)
-;      CASE curMode OF
-;        0:curTab=WIDGET_INFO(wtabAnalysisCT, /TAB_CURRENT)
-;        1:curTab=WIDGET_INFO(wtabAnalysisXray, /TAB_CURRENT)
-;        2:curTab=WIDGET_INFO(wtabAnalysisNM, /TAB_CURRENT)
-;      ENDCASE
-;      IF results(curTab) EQ 1 THEN BEGIN
-;        WIDGET_CONTROL, resTab, GET_VALUE=resTable
-;        WIDGET_CONTROL, txtComment, GET_VALUE=comm
-;        IF nFrames EQ 0 THEN BEGIN
-;          files=getListOpenFiles(structImgs,1,marked)
-;          nImg=structImgs.(0).nFrames
-;        ENDIF ELSE BEGIN
-;          files=structImgs.(0).filename
-;          nImg=N_TAGS(structImgs)
-;        ENDELSE
-;        adr=DIALOG_PICKFILE(TITLE='Write results to file:',/WRITE, DEFAULT_EXTENSION='txt', FIX_FILTER='.txt',/OVERWRITE_PROMPT, PATH=defPath)
-;        IF adr NE '' THEN BEGIN
-;          OPENW, fileunit, adr, /GET_LUN
-;          PRINTF, fileunit, 'Results from ImageQC'
-;          PRINTF, fileunit, '-----------------------------------'
-;          PRINTF, fileunit, 'Comment:'
-;          PRINTF, fileunit, comm
-;          PRINTF, fileunit, ' '
-;          PRINTF, fileunit, 'List of files:'
-;          PRINTF, fileunit, FORMAT = '(a0)',files
-;          PRINTF, fileunit, ' '
-;
-;          szRes=SIZE(resTable,/DIMENSIONS)
-;          headers=STRING(INDGEN(szRes(0))+1,FORMAT='(i0)')
-;
-;          CASE curMode OF
-;
-;            0: BEGIN
-;              CASE analyseStringsCT(curTab+1) OF
-;                'DIM': headers=['zpos','Horisontal 1','Horisontal 2','Vertical 1','Vertical 2','Diagonal 1','Diagonal 2']
-;                'HOMOG': BEGIN
-;                  headers=['zpos','Center HU','Diff 12','Diff 15','Diff 18','Diff 21','Std center', 'Std 12','Std 15','Std 18','Std 21']
-;                  WIDGET_CONTROL, txtHomogROIsz, GET_VALUE=ROIsz
-;                  WIDGET_CONTROL,  txtHomogROIdist, GET_VALUE=ROIdist
-;                  PRINTF, fileunit, 'ROI radius (mm)', ROIsz
-;                  PRINTF, fileunit, 'Radius to ROIs (mm)', ROIdist
-;                  PRINTF, fileunit, ' '
-;                END
-;                'NOISE': BEGIN
-;                  headers=['zpos','CT number (HU)','Noise=Stdev (HU)','Diff avg noise(%)', 'Avg noise (HU)']
-;                  WIDGET_CONTROL, txtNoiseROIsz, GET_VALUE=ROIsz
-;                  PRINTF, fileunit, 'ROI radius (mm)', ROIsz
-;                  PRINTF, fileunit, ' '
-;                END
-;                'MTF': headers=['zpos','MTFx 50%','MTFx 10%','MTFx 2%','MTFy 50%','MTFy 10%','MTFy 2%']
-;                'NPS':
-;                'ROI': headers=['zpos','Min','Max','Avg','Stdev']
-;                'CTLIN': BEGIN
-;                  headers=['zpos',materialData.field1,'r^2']
-;                  WIDGET_CONTROL, txtLinROIrad, GET_VALUE=rad1
-;                  WIDGET_CONTROL, txtLinROIrad2, GET_VALUE=rad2
-;                  PRINTF, fileunit, 'ROI radius (mm)', rad1
-;                  PRINTF, fileunit, 'Radius to ROIs (mm)', rad2
-;                  PRINTF, fileunit, ' '
-;                END
-;                'SLICETHICK': BEGIN
-;                  headers=['zpos','Nominal','H1','H2','V1','V2','Avg','Diff (%)']
-;                  WIDGET_CONTROL, txtRampDist, GET_VALUE=rampDist
-;                  WIDGET_CONTROL, txtRampLen, GET_VALUE=len
-;                  WIDGET_CONTROL, txtRampBackG, GET_VALUE=rampBackG
-;                  WIDGET_CONTROL, txtRampFilter, GET_VALUE=rampFilter
-;                  PRINTF, fileunit, 'Center to ramp distance (mm)', rampDist
-;                  PRINTF, fileunit, 'Profile length (mm)', len
-;                  PRINTF, fileunit, 'Background from outer (mm)', rampBackG
-;                  PRINTF, fileunit, 'Median filter size to find max value (pix)', rampFilter
-;                  PRINTF, fileunit, ' '
-;                END
-;                'FWHM': headers=['zpos','FWHM','FWHM_korr','mCorr']
-;                ELSE:
-;              ENDCASE
-;            END
-;
-;            1: BEGIN
-;              CASE analyseStringsXray(curTab+1) OF
-;                'STP':BEGIN
-;                  headers=['image','Dose','Pixel Value']
-;                  WIDGET_CONTROL, txtStpROIsz, GET_VALUE=ROIsz
-;                  PRINTF, fileunit, 'ROI radius (mm)', ROIsz
-;                  PRINTF, fileunit, ' '
-;                END
-;                'HOMOG': BEGIN
-;                  headers=['image','Center','UpperLeft','LowerLeft','UpperRight','LowerRight','Std center', 'Std UL','Std LL','Std UR','Std LR']
-;                  WIDGET_CONTROL, txtHomogROIszX, GET_VALUE=ROIsz
-;                  PRINTF, fileunit, 'ROI radius (mm)', ROIsz
-;                  PRINTF, fileunit, ' '
-;                END
-;                'NOISE': headers=['image','Pixel value','Noise=Stdev']
-;                'MTF': headers=['image','X F50','X F10','X F2','Y F50','Y F10','Y F2']
-;                'NPS':
-;                'ROI': headers=['image','Min','Max','Avg','Stdev']
-;                ELSE:
-;              ENDCASE
-;            END
-;            2:CASE analyseStringsNM(curTab+1) OF
-;
-;            'ENERGYSPEC': headers=['Method','Max (counts)','keV at max','Stdev (keV)','FWHM','FWTM','Energy resolution']
-;            'HOMOG': BEGIN
-;              headers=['LowerLeft','LowerRight','Center','UpperLeft','UpperRight','Std LL', 'Std LR','Std Center','Std UL','Std UR','% LL','% LR','% C','% UL','% UR']
-;              WIDGET_CONTROL, txtHomogROIszNM, GET_VALUE=ROIsz
-;              WIDGET_CONTROL, txtHomogROIdistXNM, GET_VALUE=ROIdistX
-;              WIDGET_CONTROL, txtHomogROIdistYNM, GET_VALUE=ROIdistY
-;              PRINTF, fileunit, 'ROI radius (mm)', ROIsz
-;              PRINTF, fileunit, 'ROI distance X / Y (mm)', ROIdistX,' / ', ROIdistY
-;              PRINTF, fileunit, ' '
-;            END
-;
-;            ELSE:
-;          ENDCASE
-;          ELSE:
-;
-;        ENDCASE; export analyse
-;
-;        PRINTF, fileunit, 'Correction of center position:'
-;        IF dxya(3) EQ 0 THEN PRINTF, fileunit, 'Not used' ELSE BEGIN
-;          PRINTF, fileunit, 'dx/dy/da: ', STRING(dxya(0)),'/',STRING(dxya(1)),'/',STRING(dxya(2))
-;        ENDELSE
-;        PRINTF, fileunit, ' '
-;
-;        IF nFrames EQ 0 THEN BEGIN
-;          zposAll=FLTARR(N_ELEMENTS(tags))
-;          FOR i=0, nImg-1 DO BEGIN
-;            zposAll(i)=structImgs.(i).zpos
-;          ENDFOR
-;        ENDIF ELSE zposAll=structImgs.(0).zpos
-;
-;        IF marked(0) EQ -1 THEN zMarked=zposAll ELSE zMarked=zposAll(marked)
-;
-;        IF N_ELEMENTS(szRes) EQ 2 THEN resTable2=STRARR(szRes(0)+1,szRes(1)) ELSE resTable2=STRARR(szRes(0)+1)
-;        resTable2[1:szRes(0),*]=resTable
-;        resTable2[0,*]=TRANSPOSE(zMarked)
-;
-;        PRINTF, fileunit, FORMAT = '('+STRING(STRTRIM(szRes(0)+1))+'(a0,";",4X))', headers
-;        PRINTF, fileunit, FORMAT = '('+STRING(STRTRIM(szRes(0)+1))+'(a0,";",4X))', resTable2
-;
-;        CLOSE, fileunit
-;        FREE_LUN, fileunit
-;      ENDIF
-;
-;    ENDIF; no results for current tab
-;  END
+    
+    ;**************************************************** Copy to clipboard *******************************************
 
   'copyInfo':BEGIN
     tags=TAG_NAMES(structImgs)
@@ -2101,6 +1942,8 @@ pro ImageQC_event, ev
   END
 
   'copyCurve': updatePlot, 0,0,1
+  
+  ;**************************************************** Push data to iImage/iPlot *******************************************
 
   'iPlot': updatePlot, 0,0,2
 
@@ -2192,6 +2035,8 @@ pro ImageQC_event, ev
 
 
   END
+  
+  ;***********************************************************************************************
 
   'setRangeMinMaxX':updatePlot, 1,0,0
   'setRangeMinMaxY':updatePlot, 0,1,0
@@ -2626,7 +2471,6 @@ IF (TAG_NAMES(ev, /STRUCTURE_NAME) EQ 'WIDGET_DRAW') THEN BEGIN
 
   imgSz=SIZE(activeImg, /DIMENSIONS)
   maxSz=max(imgSz[0:1])
-  ;xx=ev.X*imgSz(0)/drawXY & yy = ev.Y*imgSz(1)/drawXY
   xx=ev.X*maxSz/drawXY & yy = ev.Y*maxSz/drawXY
 
   IF xx LT 0 THEN xx=0
@@ -2654,7 +2498,6 @@ IF (TAG_NAMES(ev, /STRUCTURE_NAME) EQ 'WIDGET_DRAW') THEN BEGIN
     WIDGET_CONTROL, txtMinWL, SET_VALUE=STRING(newLower,FORMAT='(i0)')
     WIDGET_CONTROL, txtMaxWL, SET_VALUE=STRING(newUpper,FORMAT='(i0)')
 
-    ;redrawImg,0,0
     lastXY=[ev.X,ev.Y]
     IF ev.release EQ 1 THEN BEGIN
       lastXYreleased=lastXY
@@ -2762,9 +2605,16 @@ IF N_ELEMENTS(adrFilesToOpen) GT 0 THEN BEGIN
     oldSel=WIDGET_INFO(listFiles, /LIST_SELECT)  & oldSel=oldSel(0)
     newSel=oldSel
     app=0 ; append
-    IF tagNames(0) EQ 'S0' AND nFrames EQ 0 THEN BEGIN
-      sv=DIALOG_MESSAGE('Keep the files already loaded? Append (Yes) or replace (No)',/QUESTION)
-      IF sv EQ 'Yes' THEN app=N_TAGS(structImgs)
+    IF tagNames(0) EQ 'S0' AND nFrames EQ 0 THEN BEGIN 
+      box=[$
+        '1, BASE,, /ROW', $
+        '2, LABEL, Keep loaded files?', $
+        '1, BASE,, /ROW', $
+        '0, BUTTON, Append, QUIT, TAG=Append',$
+        '2, BUTTON, Replace, QUIT, TAG=Replace']
+      res=CW_FORM_2(box, /COLUMN, TAB_MODE=1, TITLE='Append or replace', XSIZE=200, YSIZE=100, FOCUSNO=1)
+
+      IF res.Append THEN app=N_TAGS(structImgs) 
     ENDIF
     WIDGET_CONTROL, /HOURGLASS
     IF app EQ 0 THEN newSel=0
@@ -2912,9 +2762,6 @@ IF N_ELEMENTS(moveSelected) GT 0 THEN BEGIN
             WIDGET_CONTROL, listFiles, YSIZE=n_elements(fileList), SET_VALUE=fileList, SET_LIST_SELECT=newFirstSel, SET_LIST_TOP=0
             WIDGET_CONTROL, listFiles, SCR_YSIZE=170
             clearRes
-            ;              updateTable
-            ;              updatePlot, 0,0,0
-            ;              redrawImg,0,1
             updateInfo=1
           ENDIF
         ENDIF;newOrder for real
@@ -2931,12 +2778,10 @@ IF N_ELEMENTS(updateInfo) GT 0 THEN BEGIN
     sel=WIDGET_INFO(listFiles, /LIST_SELECT)  & sel=sel(0)
     IF sel NE -1 THEN BEGIN
       IF nFrames EQ 0 THEN tempStruct=structImgs.(sel) ELSE tempStruct=structImgs.(0)
-      ;activeImg=readImg(tempStruct.filename)
       tempImg=activeImg
       imSz=SIZE(tempImg,/DIMENSIONS)
       tab=STRING(9B)
 
-      ;(tempStruct.xx NE -1 ? STRING(tempStruct.xx, format='(f0.2)') : '-')
       CASE modality OF
         0: BEGIN
           infoString1=$
@@ -3029,5 +2874,26 @@ ENDIF
 IF TAG_NAMES(ev, /STRUCTURE_NAME) EQ 'WIDGET_KILL_REQUEST' THEN BEGIN
   WIDGET_CONTROL, ev.top, /DESTROY
 ENDIF
+
+end
+
+;##################### about ImageQC ######################################
+
+pro ImageQC_about, GROUP_LEADER = mainB
+
+  about_box = WIDGET_BASE(TITLE='About ImageQC', /COLUMN, $
+    XSIZE=350, YSIZE=200, XOFFSET=200, YOFFSET=200, GROUP_LEADER=mainB, /MODAL)
+
+  infoe=WIDGET_LABEL(about_box, /ALIGN_CENTER,VALUE=' ')
+  info0=WIDGET_LABEL(about_box, /ALIGN_CENTER, VALUE='ImageQC v1.0', FONT="Arial*ITALIC*24")
+  info1=WIDGET_LABEL(about_box, /ALIGN_CENTER, VALUE='Quality Control for medical imaging', FONT="Arial*ITALIC*16")
+  info2=WIDGET_LABEL(about_box, /ALIGN_CENTER,VALUE='---------------------------------')
+  info3=WIDGET_LABEL(about_box, /ALIGN_CENTER,VALUE='Implemented with IDL v 8.4+')
+  info9=WIDGET_LABEL(about_box, /ALIGN_CENTER,VALUE='')
+  info12=WIDGET_LABEL(about_box, /ALIGN_CENTER,VALUE='Ellen Wasb'+string(248B)+' 2016 (ellen@wasbo.net)')
+  info13=WIDGET_LABEL(about_box, /ALIGN_CENTER,VALUE='Stavanger University Hospital, Norway')
+
+  WIDGET_CONTROL, about_box, /REALIZE
+  XMANAGER, 'ImageQC_about', about_box
 
 end

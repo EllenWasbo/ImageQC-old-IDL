@@ -588,7 +588,7 @@ FUNCTION cw_form_2, parent, desc, $
 	
     temp = hasGroup ? group_leader : WIDGET_BASE()
     DEVICE, GET_SCREEN_SIZE=scrsize
-	p = WIDGET_BASE(TITLE=title, XOFFSET=scrsize(0)/2-100, YOFFSET=scrsize(1)/2-400, Column = column, row=row, $
+	p = WIDGET_BASE(TITLE=title, XOFFSET=scrsize(0)*0.3, YOFFSET=scrsize(1)*0.3, Column = column, row=row, $
                         /TLB_KILL_REQUEST, $
                         GROUP_LEADER=temp, /MODAL)
       if n_elements(xsize) gt 0 then WIDGET_CONTROL, p, XSIZE=xsize

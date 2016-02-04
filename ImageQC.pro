@@ -72,7 +72,7 @@ COMMON VARI,  $
   IF scsz(0) LT winX-150 THEN scX=scsz(0)-50 ELSE scX=winX-150
   IF scsz(1) LT winY-50 THEN scY=scsz(1)-50 ELSE scY=winY-50
   
-  bMain = WIDGET_BASE(TITLE='ImageQC', MBAR=bar, /COLUMN, XSIZE=winX, YSIZE=winY-50, XOFFSET=100, YOFFSET=100, X_SCROLL_SIZE=scX, Y_SCROLL_SIZE=scY, /TLB_KILL_REQUEST_EVENTS)
+  bMain = WIDGET_BASE(TITLE='ImageQC v1.0', MBAR=bar, /COLUMN, XSIZE=winX, YSIZE=winY-50, XOFFSET=100, YOFFSET=100, X_SCROLL_SIZE=scX, Y_SCROLL_SIZE=scY, /TLB_KILL_REQUEST_EVENTS)
   bLarge = WIDGET_BASE(bMain, /ROW)
   bLft = WIDGET_BASE(bLarge, XSIZE=winX/2-30, YSIZE=winY-100,/COLUMN)
   bRgt = WIDGET_BASE(bLarge, XSIZE=winX/2-50, YSIZE=winY-100,/COLUMN)
@@ -82,14 +82,13 @@ COMMON VARI,  $
   help_menu=WIDGET_BUTTON(bar, VALUe='Help', /MENU)
   ;file_menu
   btnOpen=WIDGET_BUTTON(file_menu, VALUE='Open DICOM file or series', UVALUE='open', ACCELERATOR='Ctrl+O')
-  ;btnExport=WIDGET_BUTTON(file_menu, VALUE='Export results', UVALUE='export', ACCELERATOR='Ctrl+E')
   btnPref=WIDGET_BUTTON(file_menu, VALUE='Preferences..', UVALUE='pref')
   btnDefPath=WIDGET_BUTTON(file_menu, VALUE='Define default path', UVALUE='defpath', /SEPARATOR)
   btnConfig=WIDGET_BUTTON(file_menu, VALUE='Save current default values to config file', UVALUE='config')
   btnClose=WIDGET_BUTTON(file_menu, VALUE='Close all images', UVALUE='close')
   btnExit=WIDGET_BUTTON(file_menu, VALUe='Exit', UVALUE='exit', ACCELERATOR='Ctrl+X', /SEPARATOR)
   ;help_menu
-  btnInfo=WIDGET_BUTTON(help_menu, VALUE='How ImageQC works...', UVALUE='info')
+  btnInfo=WIDGET_BUTTON(help_menu, VALUE='Wiki on GitHub.com', UVALUE='info')
   btnAbout=WIDGET_BUTTON(help_menu, VALUE='About ImageQC...',UVALUE='about')
 
   toolbarLft=WIDGET_BASE(bLft,/ROW,/TOOLBAR)
@@ -127,9 +126,6 @@ COMMON VARI,  $
   btnPrev = WIDGET_BUTTON(bPrevNext, VALUE=thisPath+'images\shift_up.bmp',/BITMAP,UVALUE='prev',TOOLTIP='Previous image in list')
   btnNext = WIDGET_BUTTON(bPrevNext, VALUE=thisPath+'images\shift_down.bmp', /BITMAP,UVALUE='next',TOOLTIP='Next image in list')
 
-  ;above image
-  ;bViz = WIDGET_BASE(bLft, /ROW)
-
   ;image
   bDraw = WIDGET_BASE(bLft, XSIZE=drawXY+150, YSIZE=drawXY+10, /ROW)
   drawLarge = WIDGET_DRAW(bDraw, XSIZE=drawXY, YSIZE=drawXY, KEYBOARD_EVENTS=1, /BUTTON_EVENTS, /MOTION_EVENTS, /WHEEL_EVENTS, GRAPHICS_LEVEL=2, RETAIN=2, SENSITIVE=0)
@@ -152,7 +148,6 @@ COMMON VARI,  $
   txtWidthWL=WIDGET_TEXT(bWindowCenterWidth, VALUE='400', /EDITABLE, XSIZE=5, SCR_YSIZE=20, /KBRD_FOCUS_EVENTS)
 
   bWLsetto=WIDGET_BASE(bViz, /ROW)
-  ;lblMl1= WIDGET_LABEL(bWLsetto, VALUE='', XSIZE=30)
   btnSetWLminmax=WIDGET_BUTTON(bWLsetto, VALUE=thisPath+'images\minmax.bmp', /BITMAP, UVALUE='WLminmax', TOOLTIP='Set Window Level to min/max in image')
   btnSetWLstdev=WIDGET_BUTTON(bWLsetto, VALUE=thisPath+'images\meanstdev.bmp', /BITMAP, UVALUE='WLmeanstdev', TOOLTIP='Set Window Level to mean+/-stdev of pixelvalues in selected image')
   
@@ -192,16 +187,13 @@ COMMON VARI,  $
   bUse=WIDGET_BASE(bCenterAngle, /NONEXCLUSIVE)
   useDelta=WIDGET_BUTTON(bUse, VALUE='Use correction', UVALUE='useDelta')
   WIDGET_CONTROL, useDelta, SET_BUTTON=1
-  ;btnShowDelta=WIDGET_BUTTON(bCenterAngle, VALUE='Show center/rot', UVALUE='showDelta')
   btnShowDelta=WIDGET_BUTTON(bCenterAngle, VALUE='Get center', UVALUE='getCenter')
-  btnShowDelta=WIDGET_BUTTON(bCenterAngle, VALUE='Set center', UVALUE='setCenter')
+  btnShowDelta=WIDGET_BUTTON(bCenterAngle, VALUE='Set center', UVALUE='setCenter', TOOLTIP='Sets center to the position of the last mouseclick in image')
 
   mlRgtimg2 = WIDGET_LABEL(bDrawRgt, VALUE='', YSIZE=10)
   ;iImage toolbar
   lbliImage=WIDGET_LABEL(bDrawRgt, VALUE='Send to iImage:')
   toolBarDraw = WIDGET_BASE(bDrawRgt, /ROW, /TOOLBAR)
-  ;lbliImage= WIDGET_LABEL(toolBarDraw, VALUE=' iImage:  ')
-  ;btnPushImg = WIDGET_BUTTON(toolBarDraw, VALUE=thisPath+'images\layer.bmp', /BITMAP, UVALUE='pushImg', TOOLTIP='Send image to separate window')
   btnAx = WIDGET_BUTTON(toolBarDraw, VALUE=thisPath+'images\ax.bmp', /BITMAP, UVALUE='ax', TOOLTIP='Send active image to iImage window')
   btnCor = WIDGET_BUTTON(toolBarDraw, VALUE=thisPath+'images\cor.bmp', /BITMAP, UVALUE='cor', TOOLTIP='Send coronal image found from image stack at defined senter to iImage window')
   btnSag = WIDGET_BUTTON(toolBarDraw, VALUE=thisPath+'images\sag.bmp', /BITMAP, UVALUE='sag', TOOLTIP='Send sagittal image found from image stack at defined senter to iImage window')
@@ -231,7 +223,9 @@ COMMON VARI,  $
 
   ;--------------- Linear dimensions DIM
   bDim=WIDGET_BASE(wtabAnalysisCT, TITLE='Dim', /COLUMN)
-  lblDimInfo=WIDGET_LABEL(bDim, VALUE='Find center of rod +/- 25mm from center with a margin of 10mm and calculate distance between rods')
+  lblDimInfoml0=WIDGET_LABEL(bDim, VALUE='')
+  lblDimInfo=WIDGET_LABEL(bDim, VALUE='Find center of rod +/-25 mm from center with a margin of 10 mm and calculate distance between rods')
+  lblDimInfoml1=WIDGET_LABEL(bDim, VALUE='')
   bDimBtns=WIDGET_BASE(bDim, /ROW) 
   btnDim=WIDGET_BUTTON(bDimBtns, VALUE='Calculate linear dimensions', UVALUE='dim')
 
@@ -306,7 +300,7 @@ COMMON VARI,  $
   btnNPS=WIDGET_BUTTON(bNPSbtns, VALUE='Calculate NPS', UVALUE='NPS')
   lblWarnMlNPS=WIDGET_LABEL(bNPS, VALUE='')
   lblWarnNPS0=WIDGET_LABEL(bNPS, VALUE='Warning: Consider test as "under construction".')
-  lblWarnNPS=WIDGET_LABEL(bNPS, VALUE='     The user must verify NPS results (normalization in particular) due to programmers lack of competence. ')
+  lblWarnNPS=WIDGET_LABEL(bNPS, VALUE='     The user must verify NPS results (normalization in particular) due to programmers fresh competence. ')
   
   ;----------------User defined ROI------------
   bROI=WIDGET_BASE(wtabAnalysisCT, TITLE='ROI',/COLUMN)
@@ -452,7 +446,7 @@ COMMON VARI,  $
   btnNPSX=WIDGET_BUTTON(bNPSbtnsX, VALUE='Calculate NPS', UVALUE='NPS')
   lblWarnMlNPSX=WIDGET_LABEL(bNPSX, VALUE='')
   lblWarnNPSX0=WIDGET_LABEL(bNPSX, VALUE='Warning: Consider test as "under construction".')
-  lblWarnNPSX=WIDGET_LABEL(bNPSX, VALUE='     The user must verify NPS results (normalization in particular) due to programmers lack of competence. ')
+  lblWarnNPSX=WIDGET_LABEL(bNPSX, VALUE='     The user must verify NPS results (normalization in particular) due to programmers fresh competence. ')
   
   ;----------------User defined ROI------------
   bROIX=WIDGET_BASE(wtabAnalysisXray, TITLE='ROI',/COLUMN)
@@ -542,7 +536,6 @@ COMMON VARI,  $
   
   ;----table-----------
   toolbarTable=WIDGET_BASE(bTableRes,/ROW,/TOOLBAR)
-  ;toolExportTbl=WIDGET_BUTTON(toolbarTable, VALUE=thisPath+'images\export.bmp',/BITMAP, TOOLTIP='Export results', UVALUE='exportTbl')
   toolCopyTbl=WIDGET_BUTTON(toolbarTable, VALUE=thisPath+'images\copy.bmp',/BITMAP, TOOLTIP='Copy table to clipboard', UVALUE='copyTbl')
 
   bResults = WIDGET_BASE(bTableRes, /COLUMN)
@@ -561,8 +554,6 @@ COMMON VARI,  $
   lblMlmRx= WIDGET_LABEL(bRangeX, VALUE=', ', XSIZE=10)
   txtMaxRangeX = WIDGET_TEXT(bRangeX, VALUE='1', /EDITABLE, XSIZE=10, SCR_YSIZE=20, /KBRD_FOCUS_EVENTS)
   setRangeMinMaxX = WIDGET_BUTTON(bRangeX, VALUE='Set to min/max', UVALUE='setRangeMinMaxX')
-  ;bRangeAcc=WIDGET_BASE(bRangeX, /NONEXCLUSIVE)
-  ;rangeAcc=WIDGET_BUTTON(bRangeAcc, VALUE='Use accurate', UVALUE='rangeAcc', SCR_YSIZE=20)
   
   bRangeY=WIDGET_BASE(bPlotRes, /ROW)
   lblRangeY = WIDGET_LABEL(bRangeY, VALUE='Vertical axis range (lower, upper)', XSIZE=170)
@@ -574,12 +565,7 @@ COMMON VARI,  $
   ;----image------------
   toolbarImageRes=WIDGET_BASE(bImageRes,/ROW,/TOOLBAR)
   toolIimageRes = WIDGET_BUTTON(toolbarImageRes, VALUE=thisPath+'images\ax.bmp', /BITMAP, UVALUE='iImageRes', TOOLTIP='Send result to iImage')
-  ;toolImageResCopy = WIDGET_BUTTON(toolbarImageRes, VALUE=thisPath+'images\snapshot.bmp', /BITMAP, UVALUE='snapRes', TOOLTIP='Copy image to clipboard')
   drawImageRes  = WIDGET_DRAW(bImageRes, XSIZE=450, YSIZE=450, RETAIN=2)
-  
-  ;bComment=WIDGET_BASE(bRgt,/COLUMN)
-  ;lblComment=WIDGET_LABEL(bComment, VALUE='Comment to exported results:')
-  ;txtComment= WIDGET_TEXT(bComment, VALUE='', XSIZE=350, YSIZE=5, /EDITABLE, SCR_XSIZE=winX/2-150)
   
   ;****************** BOTTOM Panel
   bDir=WIDGET_BASE(bMain,/ROW)
@@ -592,5 +578,3 @@ COMMON VARI,  $
   DEVICE, RETAIN=2, DECOMPOSED=0
 
 end
-
-
