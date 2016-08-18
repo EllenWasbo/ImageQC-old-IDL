@@ -167,7 +167,7 @@ pro updateTable
               resArrString=STRARR(nCols,nRows)
               multipRes=WHERE(TAG_NAMES(MTFres) EQ 'M0')
               IF multipRes(0) NE -1 THEN BEGIN
-                FOR i =0, nRows-1 DO resArrString[*,i]=STRING(MTFres.(markedTemp(i)).lpmm, FORMAT='(F0.2)')
+                FOR i =0, nRows-1 DO IF N_TAGS(MTFres.(markedTemp(i))) NE 1 THEN resArrString[*,i]=STRING(MTFres.(markedTemp(i)).lpmm, FORMAT='(F0.2)')
               ENDIF ELSE resArrString[*,0]=STRING(MTFres.lpmm, FORMAT='(F0.2)')
             END
             'NPS':

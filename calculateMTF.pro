@@ -15,7 +15,7 @@
 ;along with this program; if not, write to the Free Software
 ;Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
-function calculateMTF, submatrix, pix, center, typeMTF, backmatrix, cutLSF, cutW, cutF
+function calculateMTF, submatrix, pix, center, typeMTF, backmatrix, cutLSF, cutW, cutF, sampFreq
 ;typeMTF 0 = method from JAppl Clin Med Phys, Vol 14. No4, 2013, pp216..
 ;typeMTF 2 = extract edge from circular edge 
 fitWidthFactor=0.;how much of the profile to include in curvefit: factor*FWHM from center
@@ -275,7 +275,8 @@ END
 
   ;gauss to gauss continuous version:
   ;http://www.cse.yorku.ca/~kosta/CompVis_Notes/fourier_transform_Gaussian.pdf
-  kvals=FINDGEN(200)*0.05/A(2);sample 20 steps from 0 to 1 stdv MTF curve A0 (stdev=1/A(2))
+  nVals=CEIL(3./sampFreq); sample up to max frequency; TODO set max freq user editable
+  kvals=FINDGEN(nVals)*sampFreq*2*!pi;sample 20 steps from 0 to 1 stdv MTF curve A0 (stdev=1/A(2))
   Fgu0=calcGauss(kvals, 1/A(2),A(0)*A(2),0)
   IF N_ELEMENTS(A) EQ 4 THEN Fgu1=calcGauss(kvals, 1/A(3),A(1)*A(3),0) ELSE Fgu1=0.
   If sigmaF NE 0 THEN Ffilter=calcGauss(kvals,1./(sigmaF*pixNew),1.0,0) ELSE Ffilter=1.
@@ -316,11 +317,23 @@ END
     ENDIF
 
     factorArr2=LSFx*0.
-    IF firstF GT 0 AND lastF LT (nn-1) THEN BEGIN
+    IF firstF GE 0 AND lastF LE (nn-1) THEN BEGIN
        factorArr2[firstF:lastF-1]=factorArr
        LSFx=LSFx*factorArr2
     ENDIF ELSE BEGIN
-      sv=DIALOG_MESSAGE('Cut of LSF close to border of data. Not implemented yet... LSF preserved.')
+      ;sv=DIALOG_MESSAGE('Cut of LSF close to border of data. Not implemented yet... LSF preserved.')
+      A1=0 & B1=N_ELEMENTS(factorArr)-1
+      A2=firstF & B2=lastF-1
+      IF firstF LT 0 THEN BEGIN
+        A2=0
+        A1=ABS(firstF)
+      ENDIF
+      IF lastF GE nn THEN BEGIN
+        B2=nn-1
+        B1=B1-(lastF-(nn-1))+1
+      ENDIF
+      factorArr2[A2:B2]=factorArr[A1:B1]
+      LSFx=LSFx*factorArr2
     ENDELSE
 
   ENDIF

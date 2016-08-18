@@ -213,3 +213,29 @@ function getConNMRois, imgSize, imgCenter, radSample, radSample2
 
   return, roiAll
 end
+
+function getNPSrois, imgSize, imgCenter, ROIsz, ROIdistPix, subNN
+  ;first ROI at 12o'clock, rest +dAngle 
+  dAngle=2.*!pi/subNN
+  centerposX=0
+  centerposY=1
+  FOR i=1, subNN-1 DO BEGIN
+    centerposX=[centerposX, SIN(i*dAngle)]
+    centerposY=[centerposY, COS(i*dAngle)]
+  ENDFOR
+  
+  CC=[imgSize(0)/2+imgCenter(0),imgSize(1)/2+imgCenter(1)]
+  
+  centerposX=ROUND(ROIdistPix*centerposX+CC(0))
+  centerposY=ROUND(ROIdistPix*centerposY+CC(1))
+
+  ROIsz2=ROIsz/2
+
+  roiAll=-1
+  IF CC(0)+ROIdistPix+ROIsz2 LT imgSize(0) AND CC(0)-ROIdistPix-ROIsz2 GE 0 AND CC(1)+ROIdistPix+ROIsz2 LT imgSize(1) AND CC(1)-ROIdistPix-ROIsz2 GE 0 THEN BEGIN
+    roiAll=INTARR(imgSize(0), imgSize(1),subNN)
+    FOR i = 0, subNN-1 DO roiAll[centerposX(i)-ROIsz2:centerposX(i)+ROIsz2,centerposY(i)-ROIsz2:centerposY(i)+ROIsz2,i]=1
+  ENDIF ELSE sv=DIALOG_MESSAGE('ROIs fall outside image due to defined center or radius.')
+
+  return, roiAll
+end

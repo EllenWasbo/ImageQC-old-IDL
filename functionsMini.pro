@@ -104,6 +104,22 @@ function nDecimals, arr
   return, STRING(nDec, FORMAT='(i0)')
 end
 
+;smoothes irregularly sampled Y within +/- w
+function smoothIrreg, X, Y, w
+  IF w GT 0 THEN BEGIN
+    nY=N_ELEMENTS(Y)
+    smoothedY=0.0*Y
+    FOR i=0, nY-1 DO BEGIN
+      tempX=ABS(X-X(i))
+      idx=WHERE(tempX LE w, nidx)
+      fac=w-tempX(idx)
+      fac=fac/TOTAL(fac)
+      smoothedY(i)=TOTAL(fac*Y(idx))
+    ENDFOR
+  ENDIF ELSE smoothedY=Y
+  return, smoothedY
+end
+
 ;assure . not , for float-inputs
 function comma2pointFloat, txt
   txt=STRJOIN(STRSPLIT(txt, ',',/EXTRACT),'.')

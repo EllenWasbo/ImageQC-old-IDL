@@ -20,12 +20,17 @@ pro updatePlot, setRangeMinMaxX, setRangeMinMaxY, copyCurve
 
   COMMON VARI
 
+  WIDGET_CONTROL, drawImageRes, GET_VALUE = iDrawImageRes
+  WSET, iDrawImageRes
+  TVSCL, INTARR(550,550)
+
   WIDGET_CONTROL, drawPlot, GET_VALUE = iDrawPlot
   WSET, idrawPlot
   IF analyse NE 'NONE' THEN BEGIN
 
     valuesPlot=CREATE_STRUCT('empty',0); structure of plot values to be copied to clipboard (copyCurve = 1) or sent to iPlot (copyCurve =2), x/y pairs of vectors, tagname 'COPYXXX...' means that the vector (x values) is not included when copyCurve=1
     statTxt='';text to show in plot statistics (left of plot window)
+    WIDGET_CONTROL, statPlot, SET_VALUE=statTxt
 
     rowNo=-1
     tags=TAG_NAMES(structImgs)
@@ -108,16 +113,16 @@ pro updatePlot, setRangeMinMaxX, setRangeMinMaxY, copyCurve
                       yprof=MTFres.(sel).submatrixAll[ROUND(MTFres.(sel).centerPos(0)),*,0]
                       plot, MTFres.(sel).cdx,xprof,TITLE='Profile x and y centered', XRANGE=rangeX, YRANGE=rangeY, linestyle=0, XSTYLE=1, YSTYLE=1
                       oplot, MTFres.(sel).cdy,yprof, linestyle=1
-;                      IF N_ELEMENTS(szM) EQ 3 THEN BEGIN
-;                        LOADCT, 13, /SILENT
-;                        FOR i = 1, szM(2)-1 DO BEGIN
-;                          oplot, MTFres.(sel).cdx, MTFres.(sel).submatrixAll[*,ROUND(MTFres.(sel).centerPos(1)),i], LINESTYLE=0, COLOR=i*40
-;                          oplot,  MTFres.(sel).cdy, MTFres.(sel).submatrixAll[ROUND(MTFres.(sel).centerPos(0)),*,i], LINESTYLE=1, COLOR=i*40
-;                          valuesPlot=CREATE_STRUCT(valuesPlot, 'COPY'+STRING(i,FORMAT='(i03)')+'x',MTFres.(sel).cdx, 'Xprof'+STRING(i,FORMAT='(i0)'), MTFres.(sel).submatrixAll[*,ROUND(MTFres.centerPos(1)),i], 'COPY'+STRING(i,FORMAT='(i03)')+'y', MTFres.(sel).cdy,'Yprof'+STRING(i,FORMAT='(i0)'), MTFres.(sel).submatrixAll[ROUND(MTFres.centerPos(0)),*,i])
-;                        ENDFOR
-;                        LOADCT, 0, /SILENT
-;                      ENDIF
-                      
+                      ;                      IF N_ELEMENTS(szM) EQ 3 THEN BEGIN
+                      ;                        LOADCT, 13, /SILENT
+                      ;                        FOR i = 1, szM(2)-1 DO BEGIN
+                      ;                          oplot, MTFres.(sel).cdx, MTFres.(sel).submatrixAll[*,ROUND(MTFres.(sel).centerPos(1)),i], LINESTYLE=0, COLOR=i*40
+                      ;                          oplot,  MTFres.(sel).cdy, MTFres.(sel).submatrixAll[ROUND(MTFres.(sel).centerPos(0)),*,i], LINESTYLE=1, COLOR=i*40
+                      ;                          valuesPlot=CREATE_STRUCT(valuesPlot, 'COPY'+STRING(i,FORMAT='(i03)')+'x',MTFres.(sel).cdx, 'Xprof'+STRING(i,FORMAT='(i0)'), MTFres.(sel).submatrixAll[*,ROUND(MTFres.centerPos(1)),i], 'COPY'+STRING(i,FORMAT='(i03)')+'y', MTFres.(sel).cdy,'Yprof'+STRING(i,FORMAT='(i0)'), MTFres.(sel).submatrixAll[ROUND(MTFres.centerPos(0)),*,i])
+                      ;                        ENDFOR
+                      ;                        LOADCT, 0, /SILENT
+                      ;                      ENDIF
+
                       maxval=max(xprof)
                       minval=min(xprof)
                       resFWHM=getWidthAtThreshold(xprof,(maxval+minval)/2.)
@@ -155,7 +160,7 @@ pro updatePlot, setRangeMinMaxX, setRangeMinMaxY, copyCurve
                     IF v3d EQ 0 THEN BEGIN
                       IF N_TAGS(MTFres.(sel)) GT 1 THEN BEGIN
                         valuesPlot=CREATE_STRUCT('xpos mm',MTFres.(sel).dx, 'LSFx',MTFres.(sel).LSFx)
-                        
+
                         IF setRangeMinMaxX THEN rangeX=[min([MTFres.(sel).dx,MTFres.(sel).dy]),max([MTFres.(sel).dx,MTFres.(sel).dy])]
                         IF setRangeMinMaxY THEN rangeY=[min([MTFres.(sel).LSFx,MTFres.(sel).LSFy]),max([MTFres.(sel).LSFx,MTFres.(sel).LSFy])]
                         tagMTFres=tag_names(MTFres.(sel))
@@ -252,10 +257,49 @@ pro updatePlot, setRangeMinMaxX, setRangeMinMaxY, copyCurve
 
               'NPS': BEGIN
                 IF N_TAGS(NPSres.(sel)) GT 1 THEN BEGIN
-                  IF setRangeMinMaxX THEN rangeX=[0,1./(2*pix)]
-                  IF setRangeMinMaxY THEN rangeY=[0,max([NPSres.(sel).uNPS,NPSres.(sel).vNPS])]
-                  PLOT, NPSres.(sel).du,NPSres.(sel).uNPS, XTITLE='spatial frequency (mm-1)',YTITLE='NPS',linestyle=0, XRANGE=rangeX, YRANGE=rangeY, TITLE='NPS', XSTYLE=1, YSTYLE=1
-                  OPLOT, NPSres.(sel).du,NPSres.(sel).vNPS,linestyle=1
+                  v3d=WIDGET_INFO(btnNPSavg, /BUTTON_SET)
+                  IF v3d EQ 0 THEN BEGIN
+                    IF setRangeMinMaxX THEN rangeX=[0,max(NPSres.(sel).dr)]
+                    IF setRangeMinMaxY THEN rangeY=[0,max(NPSres.(sel).rNPS)]
+                    PLOT, NPSres.(sel).dr,NPSres.(sel).rNPS, XTITLE='spatial frequency (mm-1)',YTITLE='NPS',linestyle=0, XRANGE=rangeX, YRANGE=rangeY, TITLE='NPS', XSTYLE=1, YSTYLE=1
+                    valuesPlot=CREATE_STRUCT('frequency mm_1',NPSres.(sel).dr,'NPS',NPSres.(sel).rNPS)
+                    statTxt=[['AUC: '+STRING(NPSres.(sel).AUC, FORMAT='(f0.'+nDecimals(NPSres.(sel).AUC)+')')],$
+                      ['Integral NPS: '+STRING(NPSres.(sel).varianceIntNPS, FORMAT='(f0.'+nDecimals(NPSres.(sel).varianceIntNPS)+')')],$
+                      ['Avg var ROIs: '+STRING(NPSres.(sel).varianceImg^2, FORMAT='(f0.'+nDecimals(NPSres.(sel).varianceImg^2)+')')]]
+                  ENDIF ELSE BEGIN
+
+                    NPStot=0
+                    ftemp=0
+                    FOR i=0, nImg-1 DO BEGIN
+                      IF markedArr(i) THEN BEGIN
+                        IF N_ELEMENTS(NPStot) EQ 1 THEN BEGIN
+                          NPStot=NPSres.(i).rNPS
+                          ftemp=NPSres.(i).dr
+                        ENDIF ELSE NPStot=NPStot+NPSres.(i).rNPS
+                      ENDIF
+                    ENDFOR
+                    NPStot=NPStot/TOTAL(markedArr)
+                    IF setRangeMinMaxX THEN rangeX=[0,max(NPSres.(sel).dr)]
+                    IF setRangeMinMaxY THEN rangeY=[0,max(NPStot)]
+                    valuesPlot=CREATE_STRUCT('f',ftemp, 'NPStot', NPStot)
+                    plot,NPSres.(sel).dr,NPStot,XTITLE='spatial frequency (mm-1)',YTITLE='NPS',TITLE='NPS for each image and average', linestyle=0, THICK=2, XRANGE=rangeX, YRANGE=rangeY, XSTYLE=1, YSTYLE=1
+                    AUC=INT_TABULATED(NPSres.(sel).dr,NPStot)
+                    statTxt=[['AUC for average: '+STRING(AUC, FORMAT='(f0.'+nDecimals(AUC)+')')],$
+                      ['Integral NPS: '+STRING(NPSres.(sel).varianceIntNPS, FORMAT='(f0.'+nDecimals(NPSres.(sel).varianceIntNPS)+')')],$
+                      ['Avg variance ROIs: '+STRING(NPSres.(sel).varianceImg^2, FORMAT='(f0.'+nDecimals(NPSres.(sel).varianceImg^2)+')')]]
+                    IF TOTAL(markedArr) GT 1 THEN BEGIN
+                      LOADCT, 13, /SILENT
+                      FOR i=0, nImg-1 DO BEGIN
+                        IF markedArr(i) THEN BEGIN
+                          oplot, NPSres.(i).dr, NPSres.(i).rNPS, LINESTYLE=0, COLOR=i*40
+                          valuesPlot=CREATE_STRUCT(valuesPlot, 'COPY'+STRING(i,FORMAT='(i03)')+'f',NPSres.(i).dr, 'NPS'+STRING(i,FORMAT='(i0)'), NPSres.(i).rNPS)
+                        ENDIF
+                      ENDFOR
+                      LOADCT, 0, /SILENT
+                    ENDIF
+                    oplot, NPSres.(sel).dr,NPStot,linestyle=0, THICK=2
+                  ENDELSE
+
                   OPLOT, [nyqfr,nyqfr],[0,1],linestyle=1,thick=1.
 
                   WIDGET_CONTROL, drawImageRes, GET_VALUE = iDrawImageRes
@@ -265,9 +309,8 @@ pro updatePlot, setRangeMinMaxX, setRangeMinMaxY, copyCurve
                   szNPS=SIZE(activeResImg, /DIMENSIONS)
                   szX=450
                   szY=ROUND(szX*(szNPS(1)*1./szNPS(0)))
-                  TVSCL,congrid(adjustWindowLevel(tvRes, [0,100*max(NPSres.(sel).uNPS)]), szX, szY, /INTERP)
+                  TVSCL,congrid(adjustWindowLevel(tvRes, [0,100*max(NPSres.(sel).NPS)]), szX, szY, /INTERP)
 
-                  valuesPlot=CREATE_STRUCT('frequency mm_1',NPSres.(sel).du,'uNPS',NPSres.(sel).uNPS,'COPY000frequency mm_1',NPSres.(sel).du,'vNPS',NPSres.(sel).vNPS)
                 ENDIF ELSE TVSCL, INTARR(550,550)
               END
 
@@ -566,7 +609,19 @@ pro updatePlot, setRangeMinMaxX, setRangeMinMaxY, copyCurve
                 IF setRangeMinMaxY THEN rangeY=[0.,1.]
                 PLOT,INDGEN(6)+1, FLOAT(resArr[7:12,rowNo]), PSYM=4,  XTITLE='ROI number', YTITLE='Contrast' , XRANGE=rangeX, YRANGE=rangeY, XSTYLE=1, YSTYLE=1
               END
-
+              'RADIAL': BEGIN
+                WIDGET_CONTROL, txtRadialMedian, GET_VALUE=val
+                medfilt=LONG(val(0))
+                xvals=FINDGEN(N_ELEMENTS(radialRes[*,sel]))*0.1*pix; interpolated to 0.1*pix
+                yvals=radialRes[*,sel]
+                IF setRangeMinMaxX THEN rangeX=[min(xvals),max(xvals)]
+                IF setRangeMinMaxY THEN rangeY=[min(yvals),max(yvals)]
+                PLOT, xvals, yvals, XTITLE='Radial distance from center (mm)', YTITLE='Signal', TITLE='Radial profile of active image, interpolated to 0.1 pix + medianfiltered', XRANGE=rangeX, Yrange=rangeY, XSTYLE=1, YSTYLE=1
+                LOADCT, 13, /SILENT
+                OPLOT, xvals, MEDIAN(yvals,medfilt)
+                LOADCT, 0, /SILENT
+                valuesPlot=CREATE_STRUCT('Position mm',xvals, 'Signal', yvals, 'Median filtered',MEDIAN(yvals,medfilt))
+              END
               'MTF': BEGIN
                 resforeach=WHERE(TAG_NAMES(MTFres) EQ 'M0')
                 v3d=0

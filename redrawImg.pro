@@ -222,27 +222,31 @@ pro redrawImg, viewpl, newActive
         CASE curMode OF
           0: BEGIN
             WIDGET_CONTROL, txtNPSroiSz, GET_VALUE=ROIsz
-            WIDGET_CONTROL, txtNPSsubSz, GET_VALUE=subSz
+            WIDGET_CONTROL, txtNPSroiDist, GET_VALUE=ROIdist
+            WIDGET_CONTROL, txtNPSsubNN, GET_VALUE=subNN
+            contour0=OBJ_NEW('IDLgrContour',total(NPSrois,3),COLOR=255*([1,0,0]), C_VALUE=[1,2,3,4])
+            oModel->Add, Contour0
             END
           1: BEGIN
             WIDGET_CONTROL, txtNPSroiSzX, GET_VALUE=ROIsz
             WIDGET_CONTROL, txtNPSsubSzX, GET_VALUE=subSz
+            ROIsz=LONG(ROIsz(0)) & subSz=LONG(subSz(0))
+            x1=halfSz(0)+dxya(0)-ROIsz*subSz*0.5 & x2=halfSz(0)+dxya(0)+ROIsz*subSz*0.5
+            y1=halfSz(1)+dxya(1)-ROIsz*subSz*0.5 & y2=halfSz(1)+dxya(1)+ROIsz*subSz*0.5
+            lineROI = OBJ_NEW('IDLgrPolyline', [[x1,y1],[x2,y1],[x2,y2],[x1,y2],[x1,y1]], COLOR = 255*([1,0,0]), LINESTYLE=0)
+            oModel->Add, lineROI
+            x1=halfSz(0)+dxya(0)-ROIsz*0.5 & x2=halfSz(0)+dxya(0)+ROIsz*0.5
+            y1=halfSz(1)+dxya(1)-ROIsz*0.5 & y2=halfSz(1)+dxya(1)+ROIsz*0.5
+            lineROI2 = OBJ_NEW('IDLgrPolyline', [[x1,y1],[x2,y1],[x2,y2],[x1,y2],[x1,y1]], COLOR = 255*([1,0,0]), LINESTYLE=0)
+            oModel->Add, lineROI2
+            x1=halfSz(0)+dxya(0) & x2=halfSz(0)+dxya(0)+ROIsz
+            y1=halfSz(1)+dxya(1) & y2=halfSz(1)+dxya(1)+ROIsz
+            lineROI3= OBJ_NEW('IDLgrPolyline', [[x1,y1],[x2,y1],[x2,y2],[x1,y2],[x1,y1]], COLOR = 255*([1,0,0]), LINESTYLE=1)
+            oModel->Add, lineROI3
             END
           2:
         ENDCASE
-        ROIsz=LONG(ROIsz(0)) & subSz=LONG(subSz(0))
-        x1=halfSz(0)+dxya(0)-ROIsz*subSz*0.5 & x2=halfSz(0)+dxya(0)+ROIsz*subSz*0.5
-        y1=halfSz(1)+dxya(1)-ROIsz*subSz*0.5 & y2=halfSz(1)+dxya(1)+ROIsz*subSz*0.5
-        lineROI = OBJ_NEW('IDLgrPolyline', [[x1,y1],[x2,y1],[x2,y2],[x1,y2],[x1,y1]], COLOR = 255*([1,0,0]), LINESTYLE=0)
-        oModel->Add, lineROI
-        x1=halfSz(0)+dxya(0)-ROIsz*0.5 & x2=halfSz(0)+dxya(0)+ROIsz*0.5
-        y1=halfSz(1)+dxya(1)-ROIsz*0.5 & y2=halfSz(1)+dxya(1)+ROIsz*0.5
-        lineROI2 = OBJ_NEW('IDLgrPolyline', [[x1,y1],[x2,y1],[x2,y2],[x1,y2],[x1,y1]], COLOR = 255*([1,0,0]), LINESTYLE=0)
-        oModel->Add, lineROI2
-        x1=halfSz(0)+dxya(0) & x2=halfSz(0)+dxya(0)+ROIsz
-        y1=halfSz(1)+dxya(1) & y2=halfSz(1)+dxya(1)+ROIsz
-        lineROI3= OBJ_NEW('IDLgrPolyline', [[x1,y1],[x2,y1],[x2,y2],[x1,y2],[x1,y1]], COLOR = 255*([1,0,0]), LINESTYLE=1)
-        oModel->Add, lineROI3
+
       ENDIF
     ENDIF ELSE BEGIN
       lineX->SetProperty, DATA=[[0,halfSz(1)],[sizeAct(0)-1,halfSz(1)]]

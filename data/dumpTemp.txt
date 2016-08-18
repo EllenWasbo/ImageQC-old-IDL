@@ -1,232 +1,311 @@
    0 : (0002,0000) : UL : META Group Length : 4 : 162 
    1 : (0002,0001) : OB : META File Meta Information Version : 2 : 0 1 
-   2 : (0002,0002) : UI : META Media Stored SOP Class UID : 26 : 1.2.840.10008.5.1.4.1.1.2
-   3 : (0002,0003) : UI : META Media Stored SOP Instance UID : 54 : 1.2.840.113704.7.1.0.128163255195159164.1432905052.215
+   2 : (0002,0002) : UI : META Media Stored SOP Class UID : 30 : 1.2.840.10008.5.1.4.1.1.1.1.1
+   3 : (0002,0003) : UI : META Media Stored SOP Instance UID : 50 : 1.2.840.113704.7.1.0.146638714299181.1435906302.7
    4 : (0002,0010) : UI : META Transfer Syntax UID : 20 : 1.2.840.10008.1.2.1
    5 : (0002,0012) : UI : META Implementation Class UID : 20 : 1.2.840.113704.7.0.2
    6 : (0008,0005) : CS : ID Specific Character Set : 10 : ISO_IR 100
-   7 : (0008,0008) : CS : ID Image Type : 24 : ORIGINAL\SECONDARY\AXIAL
-   8 : (0008,0012) : DA : ID Instance Creation Date : 8 : 20150529
-   9 : (0008,0013) : TM : ID Instance Creation Time : 6 : 151052
-  10 : (0008,0016) : UI : ID SOP Class UID : 26 : 1.2.840.10008.5.1.4.1.1.2
-  11 : (0008,0018) : UI : ID SOP Instance UID : 54 : 1.2.840.113704.7.1.0.128163255195159164.1432905052.215
-  12 : (0008,0020) : DA : ID Study Date : 8 : 20150527
-  13 : (0008,0021) : DA : ID Series Date : 8 : 20150527
-  14 : (0008,0022) : DA : ID Acquisition Date : 8 : 20150527
-  15 : (0008,0023) : DA : ID Image Date : 8 : 20150527
-  16 : (0008,0030) : TM : ID Study Time : 6 : 105942
-  17 : (0008,0031) : TM : ID Series Time : 10 : 111755.968
-  18 : (0008,0032) : TM : ID Acquisition Time : 10 : 111751.550
-  19 : (0008,0033) : TM : ID Image Time : 10 : 111751.550
-  20 : (0008,0050) : SH : ID Accession Number : 4 : 322 
-  21 : (0008,0060) : CS : ID Modality : 2 : CT
-  22 : (0008,0061) : CS : ID Modalities in Study : 2 : CT
-  23 : (0008,0070) : LO : ID Manufacturer : 8 : TOSHIBA 
-  24 : (0008,0080) : LO : ID Institution Name : 18 : HAUGESUND SJUKEHUS
-  25 : (0008,0090) : PN : ID Referring Physician's Name : 0 : 
-  26 : (0008,1010) : SH : ID Station Name : 10 : Aquilion64
-  27 : (0008,1030) : LO : ID Study Description : 0 : 
-  28 : (0008,103E) : LO : ID Series Description : 10 : Brain 1.0 
-  29 : (0008,1040) : LO : ID Institutional Department Name : 14 : ID_DEPARTMENT 
-  30 : (0008,1060) : PN : ID Name of Physician(s) Reading Study : 0 : 
-  31 : (0008,1090) : LO : ID Manufacturer Model Name : 8 : Aquilion
-  32 : (0008,2111) : ST : ID Derivation Description : 124 :  ...
-  33 : (0008,2112) : SQ : ID Source Image Sequence : 114
-  34 : (0008,1150) : UI : ID Referenced SOP Class UID : 26 : 1.2.840.10008.5.1.4.1.1.2
-  35 : (0008,1155) : UI : ID Referenced SOP Instance UID : 64 : 1.3.12.2.1107.5.8.2.100013.2015052913480475719259788816.64607344
-  36 : (0010,0010) : PN : PAT Patient Name : 10 : XXXXXX-001
-  37 : (0010,0020) : LO : PAT Patient ID : 10 : 999999-001
-  38 : (0010,0021) : LO : PAT Issuer of Patient ID : 0 : 
-  39 : (0010,0030) : DA : PAT Patient Birthdate : 8 : 20150527
-  40 : (0010,0040) : CS : PAT Patient Sex : 0 : 
-  41 : (0010,1001) : PN : PAT Other Patient Names : 36 : XXXXXX-001 Statuskontroll\Xxxxxx-001
-  42 : (0010,1020) : DS : PAT Patient Size : 2 : 0 
-  43 : (0010,1030) : DS : PAT Patient Weight : 2 : 0 
-  44 : (0010,4000) : LT : PAT Comments : 0 : 
-  45 : (0018,0022) : CS : ACQ Scan Options : 10 : NORMAL_CT 
-  46 : (0018,0050) : DS : ACQ Slice Thickness : 4 : 1.0 
-  47 : (0018,0060) : DS : ACQ KVP : 4 : 120 
-  48 : (0018,0090) : DS : ACQ Data Collection Diameter : 6 : 400.00
-  49 : (0018,1000) : LO : ACQ Device Serial Number : 10 : HCA07Y2979
-  50 : (0018,1020) : LO : ACQ Software Version : 10 : V3.20GR010
-  51 : (0018,1030) : LO : ACQ Protocol Name : 18 : CTP404 linearitet 
-  52 : (0018,1074) : DS : ACQ Radionuclide Total Dose : 0 : 
-  53 : (0018,1100) : DS : ACQ Reconstruction Diameter : 6 : 250.00
-  54 : (0018,1120) : DS : ACQ Gantry/Detector Tilt : 4 : 0.0 
-  55 : (0018,1130) : DS : ACQ Table Height : 6 : 89.00 
-  56 : (0018,1140) : CS : ACQ Rotation Direction : 2 : CW
-  57 : (0018,1150) : IS : ACQ Exposure Time : 4 : 1000
-  58 : (0018,1151) : IS : ACQ X-ray Tube Current : 4 : 200 
-  59 : (0018,1152) : IS : ACQ Exposure : 4 : 200 
-  60 : (0018,1170) : IS : ACQ Generator Power : 2 : 24
-  61 : (0018,1190) : DS : ACQ Focal Spot : 8 : 0.9\0.8 
-  62 : (0018,1210) : SH : ACQ Convolution Kernel : 4 : FC62
-  63 : (0018,5100) : CS : ACQ Patient Position : 4 : FFS 
-  64 : (0018,9345) : FD :  : 8 : 190.700000 
-  65 : (0020,000D) : UI : REL Study Instance UID : 64 : 1.3.12.2.1107.5.8.2.100013.2015052913424094418923265646.64607344
-  66 : (0020,000E) : UI : REL Series Instance UID : 64 : 1.2.840.113704.7.32.000013.2015052913480475719259786333.64607344
-  67 : (0020,0010) : SH : REL Study ID : 4 : 322 
-  68 : (0020,0011) : IS : REL Series Number : 2 : 3 
-  69 : (0020,0012) : IS : REL Acquisition Number : 2 : 1 
-  70 : (0020,0013) : IS : REL Image Number : 2 : 1 
-  71 : (0020,0020) : CS : REL Patient Orientation : 4 : L\P 
-  72 : (0020,0032) : DS : REL Image Position Patient : 16 : -125\-125\201.5 
-  73 : (0020,0037) : DS : REL Image Orientation (Patient) : 12 : 1\0\0\0\1\0 
-  74 : (0020,0052) : UI : REL Frame of Reference UID : 58 : 1.2.392.200036.9116.2.6.1.48.1211465687.1432691983.941849
-  75 : (0020,1040) : LO : REL Position Reference Indicator : 0 : 
-  76 : (0020,1041) : DS : REL Slice Location : 8 : 1590.00 
-  77 : (0020,1208) : IS : REL Number of Study Related Instances : 4 : 1676
-  78 : (0028,0002) : US : IMG Samples Per Pixel : 2 : 1 
-  79 : (0028,0004) : CS : IMG Photometric Interpretation : 12 : MONOCHROME2 
-  80 : (0028,0006) : US : IMG Planar Configuration : 2 : 0 
-  81 : (0028,0008) : IS : IMG Number of Frames : 2 : 1 
-  82 : (0028,0010) : US : IMG Rows : 2 : 512 
-  83 : (0028,0011) : US : IMG Columns : 2 : 512 
-  84 : (0028,0030) : DS : IMG Pixel Spacing : 30 : 0.488000005484\0.488000005484 
-  85 : (0028,0100) : US : IMG Bits Allocated : 2 : 16 
-  86 : (0028,0101) : US : IMG Bits Stored : 2 : 16 
-  87 : (0028,0102) : US : IMG High Bit : 2 : 15 
-  88 : (0028,0103) : US : IMG Pixel Representation : 2 : 0 
-  89 : (0028,1050) : DS : IMG Window Center : 2 : 40
-  90 : (0028,1051) : DS : IMG Window Width : 4 : 120 
-  91 : (0028,1052) : DS : IMG Rescale Intercept : 6 : -2048 
-  92 : (0028,1053) : DS : IMG Rescale Slope : 2 : 1 
-  93 : (0028,1055) : LO : IMG Window Center & Width Explanation : 10 : Brukervalg
-  94 : (0028,1056) : CS :  : 6 : LINEAR
-  95 : (0032,4000) : LT : SDY Comments : 0 : 
-  96 : (0038,0300) : LO : VIS Current Patient Location : 0 : 
-  97 : (0040,0002) : DA : PRC Scheduled Procedure Step Start Date : 8 : 20150527
-  98 : (0040,0003) : TM : PRC Scheduled Procedure Step Start Time : 10 : 104246.000
-  99 : (0040,0004) : DA : PRC Scheduled Procedure Step End Date : 8 : 20150527
- 100 : (0040,0005) : TM : PRC Scheduled Procedure Step End Time : 10 : 111246.000
- 101 : (0040,0244) : DA : PRC PPS Start Date : 8 : 20150527
- 102 : (0040,0245) : TM : PRC PPS Start Time : 10 : 105942.000
- 103 : (0040,0253) : SH : PRC PPS ID : 6 : 366803
- 104 : (0088,0200) : SQ : MED Icon Image Sequence : 4218
- 105 : (0028,0002) : US : IMG Samples Per Pixel : 2 : 1 
- 106 : (0028,0004) : CS : IMG Photometric Interpretation : 12 : MONOCHROME2 
- 107 : (0028,0010) : US : IMG Rows : 2 : 64 
- 108 : (0028,0011) : US : IMG Columns : 2 : 64 
- 109 : (0028,0034) : IS : IMG Pixel Aspect Ratio : 4 : 1\1 
- 110 : (0028,0100) : US : IMG Bits Allocated : 2 : 8 
- 111 : (0028,0101) : US : IMG Bits Stored : 2 : 8 
- 112 : (0028,0102) : US : IMG High Bit : 2 : 7 
- 113 : (0028,0103) : US : IMG Pixel Representation : 2 : 0 
- 114 : (7FE0,0010) : OB : PXL Pixel Data : 4096 : 0 0 0 0 0 0 0 0 0 0 0 0 0 ...
- 115 : (0095,0010) : LO :  : 6 : SIENET
- 116 : (0099,0010) : LO :  : 6 : SIENET
- 117 : (00E1,0010) : LO :  : 8 : ELSCINT1
- 118 : (00E1,1014) : CS :  : 2 : N 
- 119 : (00E1,1022) : DS :  : 4 : 0\0 
- 120 : (00E1,1023) : DS :  : 4 : 1\1 
- 121 : (00E1,1024) : CS :  : 2 : N 
- 122 : (00E1,1025) : CS :  : 2 : N 
- 123 : (07A1,0010) : LO :  : 8 : ELSCINT1
- 124 : (07A1,1002) : UL :  : 4 : 1 
- 125 : (07A1,1010) : LO :  : 8 : 11.4.1.0
- 126 : (07A1,102A) : CS :  : 6 : UNREAD
- 127 : (07A1,1043) : IS :  : 2 : 1 
- 128 : (07A1,1047) : CS :  : 6 : AXIAL 
- 129 : (07A1,1050) : US :  : 2 : 0 
- 130 : (07A1,1058) : CS :  : 2 : A 
- 131 : (07A1,105F) : CS :  : 2 : N 
- 132 : (07A1,1075) : LO :  : 10 : 2D\PALETTE
- 133 : (07A1,1085) : UL :  : 4 : 3 
- 134 : (07A1,10D0) : LO :  : 14 : 8610383265793 
- 135 : (07A3,0010) : LO :  : 8 : ELSCINT1
- 136 : (07A3,1001) : LO :  : 8 : 11.4.1.0
- 137 : (07A3,1003) : CS :  : 2 : N 
- 138 : (07A3,1043) : DS :  : 14 : 0\0\0\0\1\0\0 
- 139 : (07A3,1055) : SH :  : 2 : N 
- 140 : (07A3,1062) : SQ :  : 630
- 141 : (07A3,0010) : LO :  : 8 : ELSCINT1
- 142 : (07A3,1061) : LT :  : 30 : annotation_current_indication 
- 143 : (07A3,0010) : LO :  : 8 : ELSCINT1
- 144 : (07A3,1061) : LT :  : 10 : Gjeldende 
- 145 : (07A3,0010) : LO :  : 8 : ELSCINT1
- 146 : (07A3,1061) : LT :  : 2 : 0 
- 147 : (07A3,0010) : LO :  : 8 : ELSCINT1
- 148 : (07A3,1061) : LT :  : 2 : 0 
- 149 : (07A3,0010) : LO :  : 8 : ELSCINT1
- 150 : (07A3,1061) : LT :  : 20 : loading_in_progress 
- 151 : (07A3,0010) : LO :  : 8 : ELSCINT1
- 152 : (07A3,1061) : LT :  : 0 : 
- 153 : (07A3,0010) : LO :  : 8 : ELSCINT1
- 154 : (07A3,1061) : LT :  : 2 : 4 
- 155 : (07A3,0010) : LO :  : 8 : ELSCINT1
- 156 : (07A3,1061) : LT :  : 2 : 1 
- 157 : (07A3,0010) : LO :  : 8 : ELSCINT1
- 158 : (07A3,1061) : LT :  : 8 : suvtype 
- 159 : (07A3,0010) : LO :  : 8 : ELSCINT1
- 160 : (07A3,1061) : LT :  : 0 : 
- 161 : (07A3,0010) : LO :  : 8 : ELSCINT1
- 162 : (07A3,1061) : LT :  : 2 : 8 
- 163 : (07A3,0010) : LO :  : 8 : ELSCINT1
- 164 : (07A3,1061) : LT :  : 2 : 2 
- 165 : (07A3,0010) : LO :  : 8 : ELSCINT1
- 166 : (07A3,1061) : LT :  : 18 : viewer_changimage 
- 167 : (07A3,0010) : LO :  : 8 : ELSCINT1
- 168 : (07A3,1061) : LT :  : 16 : Visningsprogram 
- 169 : (07A3,0010) : LO :  : 8 : ELSCINT1
- 170 : (07A3,1061) : LT :  : 2 : 2 
- 171 : (07A3,0010) : LO :  : 8 : ELSCINT1
- 172 : (07A3,1061) : LT :  : 2 : 99
- 173 : (07A3,1065) : CS :  : 2 : N 
- 174 : (07A3,1099) : CS :  : 2 : N 
- 175 : (07A3,109C) : CS :  : 2 : N 
- 176 : (07A3,10B4) : US :  : 2 : 1 
- 177 : (07A3,10B9) : CS :  : 2 : N 
- 178 : (07A3,10BB) : CS :  : 2 : N 
- 179 : (07A3,10C0) : SQ :  : 170
- 180 : (07A3,0010) : LO :  : 8 : ELSCINT1
- 181 : (07A3,10C1) : LO :  : 12 : PACSSA_GRID 
- 182 : (07A3,10C2) : CS :  : 8 : FAST_NET
- 183 : (07A3,10C3) : CS :  : 12 : REGULAR_CON 
- 184 : (07A3,10C4) : LO :  : 22 : svg-pacssa.ihelse.net 
- 185 : (07A3,10C5) : LO :  : 4 : 2104
- 186 : (07A3,10C8) : AE :  : 14 : svg-pacssaFIR 
- 187 : (07A3,10C9) : CS :  : 2 : N 
- 188 : (07A3,10CC) : LO :  : 8 : 1.0.0.0 
- 189 : (07A3,10C6) : SQ :  : 170
- 190 : (07A3,0010) : LO :  : 8 : ELSCINT1
- 191 : (07A3,10C1) : LO :  : 12 : PACSSA_GRID 
- 192 : (07A3,10C2) : CS :  : 8 : FAST_NET
- 193 : (07A3,10C3) : CS :  : 12 : REGULAR_CON 
- 194 : (07A3,10C4) : LO :  : 22 : svg-pacssa.ihelse.net 
- 195 : (07A3,10C5) : LO :  : 4 : 2104
- 196 : (07A3,10C8) : AE :  : 14 : svg-pacssaFIR 
- 197 : (07A3,10C9) : CS :  : 2 : N 
- 198 : (07A3,10CC) : LO :  : 8 : 1.0.0.0 
- 199 : (07A3,10CA) : SQ :  : 170
- 200 : (07A3,0010) : LO :  : 8 : ELSCINT1
- 201 : (07A3,10C1) : LO :  : 12 : PACSSA_GRID 
- 202 : (07A3,10C2) : CS :  : 8 : FAST_NET
- 203 : (07A3,10C3) : CS :  : 12 : REGULAR_CON 
- 204 : (07A3,10C4) : LO :  : 22 : svg-pacssa.ihelse.net 
- 205 : (07A3,10C5) : LO :  : 4 : 2104
- 206 : (07A3,10C8) : AE :  : 14 : svg-pacssaFIR 
- 207 : (07A3,10C9) : CS :  : 2 : N 
- 208 : (07A3,10CC) : LO :  : 8 : 1.0.0.0 
- 209 : (07A3,10CB) : SQ :  : 170
- 210 : (07A3,0010) : LO :  : 8 : ELSCINT1
- 211 : (07A3,10C1) : LO :  : 12 : PACSSA_GRID 
- 212 : (07A3,10C2) : CS :  : 8 : FAST_NET
- 213 : (07A3,10C3) : CS :  : 12 : REGULAR_CON 
- 214 : (07A3,10C4) : LO :  : 22 : svg-pacssa.ihelse.net 
- 215 : (07A3,10C5) : LO :  : 4 : 2104
- 216 : (07A3,10C8) : AE :  : 14 : svg-pacssaFIR 
- 217 : (07A3,10C9) : CS :  : 2 : N 
- 218 : (07A3,10CC) : LO :  : 8 : 1.0.0.0 
- 219 : (07A5,0010) : LO :  : 8 : ELSCINT1
- 220 : (07A5,1056) : CS :  : 2 : N 
- 221 : (07A5,1063) : CS :  : 28 : ORIGINAL\PRIMARY\AXIAL\AXIAL
- 222 : (6000,0010) : US : OLY Rows : 2 : 512 
- 223 : (6000,0011) : US : OLY Columns : 2 : 512 
- 224 : (6000,0022) : LO : OLY Overlay Description : 16 : ALG_ELEMENT_SET 
- 225 : (6000,0040) : CS : OLY Type : 2 : G 
- 226 : (6000,0050) : SS : OLY Origin : 4 : 0 0 
- 227 : (6000,0100) : US : OLY Overlay Bits Allocated : 2 : 1 
- 228 : (6000,0102) : US : OLY Overlay Bit Position : 2 : 0 
- 229 : (6000,3000) : OW : OLY Data : 32768 : 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 ...
- 230 : (7005,0010) : LO :  : 16 : TOSHIBA_MEC_CT3 
- 231 : (7FE0,0010) : OW : PXL Pixel Data : 524288 : 0 0 0 0 0 0 0 0 0 0 0 0 ...
+   7 : (0008,0008) : CS : ID Image Type : 18 : ORIGINAL\SECONDARY
+   8 : (0008,0012) : DA : ID Instance Creation Date : 8 : 20150703
+   9 : (0008,0013) : TM : ID Instance Creation Time : 6 : 085142
+  10 : (0008,0016) : UI : ID SOP Class UID : 30 : 1.2.840.10008.5.1.4.1.1.1.1.1
+  11 : (0008,0018) : UI : ID SOP Instance UID : 50 : 1.2.840.113704.7.1.0.146638714299181.1435906302.7
+  12 : (0008,0020) : DA : ID Study Date : 8 : 20150703
+  13 : (0008,0021) : DA : ID Series Date : 8 : 20150703
+  14 : (0008,0022) : DA : ID Acquisition Date : 8 : 20150703
+  15 : (0008,0023) : DA : ID Image Date : 8 : 20150703
+  16 : (0008,002A) : DT :  : 22 : 20150703081216.000000 
+  17 : (0008,0030) : TM : ID Study Time : 10 : 080907.000
+  18 : (0008,0031) : TM : ID Series Time : 10 : 080907.000
+  19 : (0008,0032) : TM : ID Acquisition Time : 10 : 081216.000
+  20 : (0008,0033) : TM : ID Image Time : 10 : 081216.000
+  21 : (0008,0050) : SH : ID Accession Number : 10 : 3430528401
+  22 : (0008,0060) : CS : ID Modality : 2 : DX
+  23 : (0008,0061) : CS : ID Modalities in Study : 2 : DX
+  24 : (0008,0068) : CS : ID Presentation Intent Type : 14 : FOR PROCESSING
+  25 : (0008,0070) : LO : ID Manufacturer : 14 : GE Healthcare 
+  26 : (0008,0080) : LO : ID Institution Name : 36 : Stavanger Universitetssykehus Lab 8 
+  27 : (0008,0081) : ST : ID Institution Address : 78 : Not Initialized
+Not Initialized
+Stavanger
+Not Initialized
+Not Initialized 
+  28 : (0008,0090) : PN : ID Referring Physician's Name : 0 : 
+  29 : (0008,1010) : SH : ID Station Name : 10 : NO1009RX11
+  30 : (0008,1030) : LO : ID Study Description : 10 : RG Abdomen
+  31 : (0008,103E) : LO : ID Series Description : 8 : Abdomen 
+  32 : (0008,1040) : LO : ID Institutional Department Name : 16 : Not Initialized 
+  33 : (0008,1050) : PN : ID Performing Physician's Name : 0 : 
+  34 : (0008,1090) : LO : ID Manufacturer Model Name : 16 : Discovery XR656 
+  35 : (0008,1110) : SQ : ID Referenced Study Sequence : 24
+  36 : (0008,1150) : UI : ID Referenced SOP Class UID : 0 : 
+  37 : (0008,1155) : UI : ID Referenced SOP Instance UID : 0 : 
+  38 : (0008,1120) : SQ : ID Referenced Patient Sequence : 24
+  39 : (0008,1150) : UI : ID Referenced SOP Class UID : 0 : 
+  40 : (0008,1155) : UI : ID Referenced SOP Instance UID : 0 : 
+  41 : (0008,2112) : SQ : ID Source Image Sequence : 106
+  42 : (0008,1150) : UI : ID Referenced SOP Class UID : 30 : 1.2.840.10008.5.1.4.1.1.1.1.1
+  43 : (0008,1155) : UI : ID Referenced SOP Instance UID : 52 : 1.2.840.113619.2.203.4.2147483647.1435903936.583950
+  44 : (0008,2218) : SQ : ID Anatomic Region of Interest Sequence : 52
+  45 : (0008,0100) : SH : ID Code Value : 8 : T-D4000 
+  46 : (0008,0102) : SH : ID Coding Scheme Designator : 4 : SNM3
+  47 : (0008,0104) : LO : ID Code Meaning : 8 : Abdomen 
+  48 : (0010,0010) : PN : PAT Patient Name : 22 : TESTOLINA^DEN FINA MR 
+  49 : (0010,0020) : LO : PAT Patient ID : 12 : 53011185101 
+  50 : (0010,0021) : LO : PAT Issuer of Patient ID : 0 : 
+  51 : (0010,0030) : DA : PAT Patient Birthdate : 8 : 20110113
+  52 : (0010,0032) : TM : PAT Patient Birth Time : 0 : 
+  53 : (0010,0040) : CS : PAT Patient Sex : 2 : M 
+  54 : (0010,1010) : AS : PAT Patient Age : 0 : 
+  55 : (0010,1020) : DS : PAT Patient Size : 2 : 0 
+  56 : (0010,1030) : DS : PAT Patient Weight : 2 : 0 
+  57 : (0011,0010) : LO :  : 20 : GEMS_GDXE_FALCON_04 
+  58 : (0018,0015) : CS : ACQ Body Part Examined : 8 : ABDOMEN 
+  59 : (0018,0060) : DS : ACQ KVP : 10 : 72.000000 
+  60 : (0018,1020) : LO : ACQ Software Version : 32 : dm_Platform_release-FW16_4-2013 
+  61 : (0018,1030) : LO : ACQ Protocol Name : 8 : ABDOMEN 
+  62 : (0018,1074) : DS : ACQ Radionuclide Total Dose : 0 : 
+  63 : (0018,1110) : DS : ACQ Distance Source-Detector : 12 : 1503.000000 
+  64 : (0018,1111) : DS : ACQ Distance Source-Patient : 12 : 1429.000000 
+  65 : (0018,1147) : CS : ACQ Field of View Shape : 10 : RECTANGLE 
+  66 : (0018,1149) : IS : ACQ Field of View Dimension(s) : 8 : 404\404 
+  67 : (0018,1150) : IS : ACQ Exposure Time : 4 : 100 
+  68 : (0018,1151) : IS : ACQ X-ray Tube Current : 4 : 203 
+  69 : (0018,1152) : IS : ACQ Exposure : 2 : 20
+  70 : (0018,1153) : IS :  : 6 : 20294 
+  71 : (0018,115E) : DS : ACQ X-Ray dose to which patient was exposed : 8 : 7.102794
+  72 : (0018,1160) : SH : ACQ Filter Type, extremity : 8 : MULTIPLE
+  73 : (0018,1164) : DS : ACQ Image Pixel Spacing : 18 : 0.190153\0.190153 
+  74 : (0018,1166) : CS : ACQ Grid (IN, NONE) : 4 : NONE
+  75 : (0018,1190) : DS : ACQ Focal Spot : 8 : 1.300000
+  76 : (0018,1405) : IS : ACQ Relative X-ray Exposure : 4 : 686 
+  77 : (0018,1411) : DS :  : 12 : 2185.445888 
+  78 : (0018,1412) : DS :  : 10 : 322.559993
+  79 : (0018,1413) : DS :  : 8 : 8.300000
+  80 : (0018,1508) : CS : ACQ Positioner Type : 0 : 
+  81 : (0018,1700) : CS : ACQ Collimator Shape : 10 : POLYGONAL 
+  82 : (0018,1720) : IS : ACQ Vertices of the Polygonal Collimator : 28 : 2021\2021\0\2021\0\0\2021\0 
+  83 : (0018,5101) : CS : ACQ View Position : 2 : AP
+  84 : (0018,6000) : DS : ACQ Sensitivity : 10 : 102.277511
+  85 : (0018,7000) : CS : ACQ Detector Conditions Nominal Flag : 4 : YES 
+  86 : (0018,7001) : DS : ACQ Detector Temperature : 10 : 36.099998 
+  87 : (0018,7004) : CS : ACQ Detector Type : 12 : SCINTILLATOR
+  88 : (0018,7005) : CS : ACQ Detector Configuration : 4 : AREA
+  89 : (0018,700A) : SH : ACQ Detector ID : 10 : UA46489-5 
+  90 : (0018,701A) : DS :  : 4 : 1\1 
+  91 : (0018,7020) : DS :  : 18 : 0.200000\0.200000 
+  92 : (0018,7022) : DS :  : 18 : 0.200000\0.200000 
+  93 : (0018,7024) : CS :  : 10 : RECTANGLE 
+  94 : (0018,7026) : DS :  : 22 : 409.600000\409.600000 
+  95 : (0018,7030) : DS :  : 18 : 0.000000\0.000000 
+  96 : (0018,7032) : DS :  : 2 : 0 
+  97 : (0018,7034) : CS :  : 2 : NO
+  98 : (0018,704C) : DS :  : 0 : 
+  99 : (0018,7050) : CS :  : 6 : COPPER
+ 100 : (0018,7052) : DS :  : 8 : 0.000000
+ 101 : (0018,7054) : DS :  : 8 : 0.000000
+ 102 : (0018,7060) : CS :  : 6 : MANUAL
+ 103 : (0018,7062) : LT :  : 0 : 
+ 104 : (0020,000D) : UI : REL Study Instance UID : 60 : 1.2.840.113564.9.1.20041208200808.20150703075939.23430528401
+ 105 : (0020,000E) : UI : REL Series Instance UID : 64 : 1.2.840.113704.7.32.0113619.2.203.4.2147483647.1435903747.871935
+ 106 : (0020,0010) : SH : REL Study ID : 10 : 3430528401
+ 107 : (0020,0011) : IS : REL Series Number : 4 : 6605
+ 108 : (0020,0013) : IS : REL Image Number : 2 : 1 
+ 109 : (0020,0062) : CS : REL Image Laterality : 2 : U 
+ 110 : (0020,1208) : IS : REL Number of Study Related Instances : 2 : 6 
+ 111 : (0028,0002) : US : IMG Samples Per Pixel : 2 : 1 
+ 112 : (0028,0004) : CS : IMG Photometric Interpretation : 12 : MONOCHROME1 
+ 113 : (0028,0010) : US : IMG Rows : 2 : 2022 
+ 114 : (0028,0011) : US : IMG Columns : 2 : 2024 
+ 115 : (0028,0030) : DS : IMG Pixel Spacing : 30 : 0.190153002739\0.190153002739 
+ 116 : (0028,0100) : US : IMG Bits Allocated : 2 : 16 
+ 117 : (0028,0101) : US : IMG Bits Stored : 2 : 14 
+ 118 : (0028,0102) : US : IMG High Bit : 2 : 13 
+ 119 : (0028,0103) : US : IMG Pixel Representation : 2 : 0 
+ 120 : (0028,0300) : CS : IMG Quality Control Image : 2 : NO
+ 121 : (0028,0301) : CS : IMG Burned In Annotation : 2 : NO
+ 122 : (0028,1040) : CS : IMG Pixel Intensity Relationship : 4 : LIN 
+ 123 : (0028,1041) : SS : IMG Pixel Intensity Relationship Sign : 2 : 1 
+ 124 : (0028,1050) : DS : IMG Window Center : 4 : 3875
+ 125 : (0028,1051) : DS : IMG Window Width : 4 : 6179
+ 126 : (0028,1052) : DS : IMG Rescale Intercept : 2 : 0 
+ 127 : (0028,1053) : DS : IMG Rescale Slope : 2 : 1 
+ 128 : (0028,1054) : LO : IMG Rescale Type : 2 : US
+ 129 : (0028,1055) : LO : IMG Window Center & Width Explanation : 10 : Brukervalg
+ 130 : (0028,1056) : CS :  : 6 : LINEAR
+ 131 : (0028,2110) : CS : IMG Lossy Image Compression : 2 : 00
+ 132 : (0032,1060) : LO : SDY Requested Procedure Description : 8 : Abdomen 
+ 133 : (0032,1064) : SQ : SDY Requested Procedure Code Seq : 62
+ 134 : (0008,0100) : SH : ID Code Value : 6 : SD0AA 
+ 135 : (0008,0102) : SH : ID Coding Scheme Designator : 8 : DSS_MESA
+ 136 : (0008,0103) : SH : ID Coding Scheme Version : 0 : 
+ 137 : (0008,0104) : LO : ID Code Meaning : 8 : Abdomen 
+ 138 : (0040,0244) : DA : PRC PPS Start Date : 8 : 20150703
+ 139 : (0040,0245) : TM : PRC PPS Start Time : 10 : 080907.000
+ 140 : (0040,0253) : SH : PRC PPS ID : 16 : 143590374772212 
+ 141 : (0040,0254) : LO : PRC PPS Description : 14 : Performed Desc
+ 142 : (0040,0260) : SQ : PRC Perf AI Sequence : 62
+ 143 : (0008,0100) : SH : ID Code Value : 6 : SD0AA 
+ 144 : (0008,0102) : SH : ID Coding Scheme Designator : 8 : DSS_MESA
+ 145 : (0008,0103) : SH : ID Coding Scheme Version : 0 : 
+ 146 : (0008,0104) : LO : ID Code Meaning : 8 : Abdomen 
+ 147 : (0040,0275) : SQ : PRC Request Attributes Seq : 112
+ 148 : (0040,0007) : LO : PRC Scheduled Step Description : 8 : Abdomen 
+ 149 : (0040,0008) : SQ : PRC Scheduled Action Item Code Sequence : 40
+ 150 : (0008,0100) : SH : ID Code Value : 0 : 
+ 151 : (0008,0102) : SH : ID Coding Scheme Designator : 0 : 
+ 152 : (0008,0103) : SH : ID Coding Scheme Version : 0 : 
+ 153 : (0008,0104) : LO : ID Code Meaning : 0 : 
+ 154 : (0040,0009) : SH : PRC Scheduled Procedure Step ID : 10 : 3430528401
+ 155 : (0040,1001) : SH : PRC Requested Procedure ID : 10 : 3430528401
+ 156 : (0040,0302) : US : PRC Entrance Dose : 2 : 0 
+ 157 : (0040,0310) : ST : PRC Comments on Radiation Dose : 4 : 125%
+ 158 : (0040,0555) : SQ : PRC Acquisition Context Sequence : 0
+ 159 : (0040,8302) : DS :  : 8 : 0.686676
+ 160 : (0045,0010) : LO :  : 14 : GEMS_FALCON_03
+ 161 : (0054,0220) : SQ : NMI View Code Sequence : 60
+ 162 : (0008,0100) : SH : ID Code Value : 8 : R-10206 
+ 163 : (0008,0102) : SH : ID Coding Scheme Designator : 4 : SNM3
+ 164 : (0008,0104) : LO : ID Code Meaning : 16 : antero-posterior
+ 165 : (0054,0410) : SQ : NMI Patient Orientation Code Sequence : 54
+ 166 : (0008,0100) : SH : ID Code Value : 8 : F-10450 
+ 167 : (0008,0102) : SH : ID Coding Scheme Designator : 4 : SNM3
+ 168 : (0008,0104) : LO : ID Code Meaning : 10 : recumbent 
+ 169 : (0054,0414) : SQ : NMI Patient Gantry Relationship Code Sequence : 54
+ 170 : (0008,0100) : SH : ID Code Value : 8 : F-10470 
+ 171 : (0008,0102) : SH : ID Coding Scheme Designator : 4 : SNM3
+ 172 : (0008,0104) : LO : ID Code Meaning : 10 : head-first
+ 173 : (0088,0200) : SQ : MED Icon Image Sequence : 4218
+ 174 : (0028,0002) : US : IMG Samples Per Pixel : 2 : 1 
+ 175 : (0028,0004) : CS : IMG Photometric Interpretation : 12 : MONOCHROME1 
+ 176 : (0028,0010) : US : IMG Rows : 2 : 64 
+ 177 : (0028,0011) : US : IMG Columns : 2 : 64 
+ 178 : (0028,0034) : IS : IMG Pixel Aspect Ratio : 4 : 1\1 
+ 179 : (0028,0100) : US : IMG Bits Allocated : 2 : 8 
+ 180 : (0028,0101) : US : IMG Bits Stored : 2 : 8 
+ 181 : (0028,0102) : US : IMG High Bit : 2 : 7 
+ 182 : (0028,0103) : US : IMG Pixel Representation : 2 : 0 
+ 183 : (7FE0,0010) : OB : PXL Pixel Data : 4096 : -1 -1 -1 -1 -1 -1 -1 -1 -1 ...
+ 184 : (00E1,0010) : LO :  : 8 : ELSCINT1
+ 185 : (00E1,1014) : CS :  : 2 : Y 
+ 186 : (00E1,1022) : DS :  : 4 : 0\0 
+ 187 : (00E1,1023) : DS :  : 4 : 1\1 
+ 188 : (00E1,1024) : CS :  : 2 : N 
+ 189 : (00E1,1025) : CS :  : 2 : N 
+ 190 : (07A1,0010) : LO :  : 8 : ELSCINT1
+ 191 : (07A1,1002) : UL :  : 4 : 6 
+ 192 : (07A1,1010) : LO :  : 8 : 11.4.1.0
+ 193 : (07A1,102A) : CS :  : 6 : UNREAD
+ 194 : (07A1,1040) : CS :  : 8 : ABDOMEN 
+ 195 : (07A1,1043) : IS :  : 2 : 1 
+ 196 : (07A1,1047) : CS :  : 8 : UNKNOWN 
+ 197 : (07A1,1050) : US :  : 2 : 0 
+ 198 : (07A1,1058) : CS :  : 2 : A 
+ 199 : (07A1,105D) : DT :  : 22 : 20150703082903.000000 
+ 200 : (07A1,105F) : CS :  : 2 : N 
+ 201 : (07A1,1075) : LO :  : 10 : 2D\PALETTE
+ 202 : (07A1,1085) : UL :  : 4 : 515 
+ 203 : (07A1,10D0) : LO :  : 14 : 9638466420739 
+ 204 : (07A3,0010) : LO :  : 8 : ELSCINT1
+ 205 : (07A3,1001) : LO :  : 8 : 11.4.1.0
+ 206 : (07A3,1003) : CS :  : 2 : N 
+ 207 : (07A3,1014) : ST :  : 6 : SD0AA 
+ 208 : (07A3,1017) : SH :  : 2 : CA
+ 209 : (07A3,1043) : DS :  : 14 : 0\0\0\0\1\0\0 
+ 210 : (07A3,1055) : SH :  : 2 : N 
+ 211 : (07A3,1062) : SQ :  : 630
+ 212 : (07A3,0010) : LO :  : 8 : ELSCINT1
+ 213 : (07A3,1061) : LT :  : 30 : annotation_current_indication 
+ 214 : (07A3,0010) : LO :  : 8 : ELSCINT1
+ 215 : (07A3,1061) : LT :  : 10 : Gjeldende 
+ 216 : (07A3,0010) : LO :  : 8 : ELSCINT1
+ 217 : (07A3,1061) : LT :  : 2 : 0 
+ 218 : (07A3,0010) : LO :  : 8 : ELSCINT1
+ 219 : (07A3,1061) : LT :  : 2 : 0 
+ 220 : (07A3,0010) : LO :  : 8 : ELSCINT1
+ 221 : (07A3,1061) : LT :  : 20 : loading_in_progress 
+ 222 : (07A3,0010) : LO :  : 8 : ELSCINT1
+ 223 : (07A3,1061) : LT :  : 0 : 
+ 224 : (07A3,0010) : LO :  : 8 : ELSCINT1
+ 225 : (07A3,1061) : LT :  : 2 : 4 
+ 226 : (07A3,0010) : LO :  : 8 : ELSCINT1
+ 227 : (07A3,1061) : LT :  : 2 : 1 
+ 228 : (07A3,0010) : LO :  : 8 : ELSCINT1
+ 229 : (07A3,1061) : LT :  : 8 : suvtype 
+ 230 : (07A3,0010) : LO :  : 8 : ELSCINT1
+ 231 : (07A3,1061) : LT :  : 0 : 
+ 232 : (07A3,0010) : LO :  : 8 : ELSCINT1
+ 233 : (07A3,1061) : LT :  : 2 : 8 
+ 234 : (07A3,0010) : LO :  : 8 : ELSCINT1
+ 235 : (07A3,1061) : LT :  : 2 : 2 
+ 236 : (07A3,0010) : LO :  : 8 : ELSCINT1
+ 237 : (07A3,1061) : LT :  : 18 : viewer_changimage 
+ 238 : (07A3,0010) : LO :  : 8 : ELSCINT1
+ 239 : (07A3,1061) : LT :  : 16 : Visningsprogram 
+ 240 : (07A3,0010) : LO :  : 8 : ELSCINT1
+ 241 : (07A3,1061) : LT :  : 2 : 2 
+ 242 : (07A3,0010) : LO :  : 8 : ELSCINT1
+ 243 : (07A3,1061) : LT :  : 2 : 99
+ 244 : (07A3,1065) : CS :  : 2 : N 
+ 245 : (07A3,1092) : DS :  : 6 : 3875.5
+ 246 : (07A3,1093) : DS :  : 4 : 6179
+ 247 : (07A3,1099) : CS :  : 2 : N 
+ 248 : (07A3,109C) : CS :  : 2 : N 
+ 249 : (07A3,10B4) : US :  : 2 : 0 
+ 250 : (07A3,10B9) : CS :  : 2 : N 
+ 251 : (07A3,10BB) : CS :  : 2 : N 
+ 252 : (07A3,10C0) : SQ :  : 170
+ 253 : (07A3,0010) : LO :  : 8 : ELSCINT1
+ 254 : (07A3,10C1) : LO :  : 12 : PACSSA_GRID 
+ 255 : (07A3,10C2) : CS :  : 8 : FAST_NET
+ 256 : (07A3,10C3) : CS :  : 12 : REGULAR_CON 
+ 257 : (07A3,10C4) : LO :  : 22 : svg-pacssa.ihelse.net 
+ 258 : (07A3,10C5) : LO :  : 4 : 2104
+ 259 : (07A3,10C8) : AE :  : 14 : svg-pacssaFIR 
+ 260 : (07A3,10C9) : CS :  : 2 : N 
+ 261 : (07A3,10CC) : LO :  : 8 : 1.0.0.0 
+ 262 : (07A3,10C6) : SQ :  : 170
+ 263 : (07A3,0010) : LO :  : 8 : ELSCINT1
+ 264 : (07A3,10C1) : LO :  : 12 : PACSSA_GRID 
+ 265 : (07A3,10C2) : CS :  : 8 : FAST_NET
+ 266 : (07A3,10C3) : CS :  : 12 : REGULAR_CON 
+ 267 : (07A3,10C4) : LO :  : 22 : svg-pacssa.ihelse.net 
+ 268 : (07A3,10C5) : LO :  : 4 : 2104
+ 269 : (07A3,10C8) : AE :  : 14 : svg-pacssaFIR 
+ 270 : (07A3,10C9) : CS :  : 2 : N 
+ 271 : (07A3,10CC) : LO :  : 8 : 1.0.0.0 
+ 272 : (07A3,10CA) : SQ :  : 170
+ 273 : (07A3,0010) : LO :  : 8 : ELSCINT1
+ 274 : (07A3,10C1) : LO :  : 12 : PACSSA_GRID 
+ 275 : (07A3,10C2) : CS :  : 8 : FAST_NET
+ 276 : (07A3,10C3) : CS :  : 12 : REGULAR_CON 
+ 277 : (07A3,10C4) : LO :  : 22 : svg-pacssa.ihelse.net 
+ 278 : (07A3,10C5) : LO :  : 4 : 2104
+ 279 : (07A3,10C8) : AE :  : 14 : svg-pacssaFIR 
+ 280 : (07A3,10C9) : CS :  : 2 : N 
+ 281 : (07A3,10CC) : LO :  : 8 : 1.0.0.0 
+ 282 : (07A3,10CB) : SQ :  : 170
+ 283 : (07A3,0010) : LO :  : 8 : ELSCINT1
+ 284 : (07A3,10C1) : LO :  : 12 : PACSSA_GRID 
+ 285 : (07A3,10C2) : CS :  : 8 : FAST_NET
+ 286 : (07A3,10C3) : CS :  : 12 : REGULAR_CON 
+ 287 : (07A3,10C4) : LO :  : 22 : svg-pacssa.ihelse.net 
+ 288 : (07A3,10C5) : LO :  : 4 : 2104
+ 289 : (07A3,10C8) : AE :  : 14 : svg-pacssaFIR 
+ 290 : (07A3,10C9) : CS :  : 2 : N 
+ 291 : (07A3,10CC) : LO :  : 8 : 1.0.0.0 
+ 292 : (07A5,0010) : LO :  : 8 : ELSCINT1
+ 293 : (07A5,1056) : CS :  : 2 : N 
+ 294 : (07A5,1063) : CS :  : 26 : ORIGINAL\PRIMARY\\UNKNOWN 
+ 295 : (07A5,1069) : LO :  : 8 : SVG-LAB8
+ 296 : (2050,0020) : CS : PLUT Presentation LUT Shape : 8 : INVERSE 
+ 297 : (6000,0010) : US : OLY Rows : 2 : 2022 
+ 298 : (6000,0011) : US : OLY Columns : 2 : 2016 
+ 299 : (6000,0022) : LO : OLY Overlay Description : 16 : ALG_ELEMENT_SET 
+ 300 : (6000,0040) : CS : OLY Type : 2 : G 
+ 301 : (6000,0050) : SS : OLY Origin : 4 : 0 0 
+ 302 : (6000,0100) : US : OLY Overlay Bits Allocated : 2 : 1 
+ 303 : (6000,0102) : US : OLY Overlay Bit Position : 2 : 0 
+ 304 : (6000,3000) : OW : OLY Data : 509544 : 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 ...
+ 305 : (7FDF,0010) : LO :  : 32 : GEMS_GDXE_ATHENAV2_INTERNAL_USE 
+ 306 : (7FE0,0010) : OW : PXL Pixel Data : 8185056 : 2392 2476 2516 2574 2618 ...

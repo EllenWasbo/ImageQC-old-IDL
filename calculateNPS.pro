@@ -14,74 +14,78 @@
 ;You should have received a copy of the GNU General Public License
 ;along with this program; if not, write to the Free Software
 ;Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
-function calculateNPS, subMatrix, ROIsz, nSub, pix, stp, imgNo
-  ;Code based on:
-  ; IEC 62220-1 (2003) & IPEM 32
-
-  subM=subMatrix
+function calculateNPS, noiseImg, NPSrois, pix, smoothWidth, sampFreq
+  ;based on ICRU87
   
-
-  IF SIZE(stp, /TNAME) EQ 'STRUCT' THEN BEGIN
-    subM=linearizeSTP(subM,stp)
-    ;Qval=stp.table[1,imgNo] 
-  ENDIF; ELSE stop; set STP : subM=(subM-17.2)/107.
-
-  szM=SIZE(subM,/DIMENSIONS)
-  IMAGE_STATISTICS, subM, MEAN=meanVal, STDDEV=stddevVal
-  ;subtract 2nd order 2d polynomial fit - to remove trend 
-  subtr=SFIT(subM, 2)
-  subM=subM-subtr;+meanVal?
+  szI=SIZE(noiseImg,/DIMENSIONS)
+  szN=SIZE(NPSrois,/DIMENSIONS)
+  nROIs=szN(2)
   
-  nROIs=(nSub*2-1)^2
-  ;NPS=FLTARR(3*ROIsz,3*ROIsz)
+  temp=TOTAL(NPSrois[*,*,0],2)
+  temp2=WHERE(temp GT 0, ROIsz)
+  
+  iSub=FLTARR(ROIsz,ROIsz,nROIs)
   NPS=FLTARR(ROIsz,ROIsz)
-  
-  ;2d fourier of each ROI
-  FOR i = 0, nSub*2-2 DO BEGIN
-    FOR j = 0, nSub*2-2 DO BEGIN
-      x1=0.5*i*ROIsz & x2=(0.5*i+1)*ROIsz-1
-      y1=0.5*j*ROIsz & y2=(0.5*j+1)*ROIsz-1
-      ;temp=FFT(zeroPadd3(subM[x1:x2,y1:y2]),/CENTER)
-      temp=FFT(subM[x1:x2,y1:y2],/CENTER)
-      NPSthis=REAL_PART(temp)^2+IMAGINARY(temp)^2
-      NPS=NPS+NPSthis
-    ENDFOR
+  thisSub=NPS
+  FOR i=0, nROIs-1 DO BEGIN
+    thisROI=NPSrois[*,*,i]
+    idx=WHERE(thisROI EQ 1)
+    thisSub[*,*]=noiseImg(idx)
+    subtr=SFIT(thisSub, 2);subtract 2nd order 2d polynomial fit - to remove trend
+    iSub[*,*,i]=thisSub-subtr
   ENDFOR
 
+  ;2d fourier of each ROI
+  stdevImg=0
+  FOR i = 0, nROIs-1 DO BEGIN
+      ;temp=FFT(zeroPadd3(iSub[*,*,i]),/CENTER)
+      temp=FFT(iSub[*,*,i],/CENTER)
+      stdevImg=stdevImg+STDEV(iSub[*,*,i])
+      NPSthis=REAL_PART(temp)^2+IMAGINARY(temp)^2
+      NPS=NPS+NPSthis
+  ENDFOR
+  stdevImg=stdevImg/nROIs
+
   NPS=ROIsz^2*((pix(0)*pix(1))/nROIs)*NPS
+  ;NPS=ROIsz^2*(1./nROIs)*NPS
 
-  nRows=7
-;  uNPS=NPS[*,ROIsz+ROIsz/2-nRows:ROIsz+ROIsz/2-1]+NPS[*,ROIsz+ROIsz/2+1:ROIsz+ROIsz/2+nRows]
-;  szuNPS=SIZE(uNPS, /DIMENSIONS)
-;  uNPS=TOTAL(uNPS,2)/szuNPS(1)
-;  vNPS=NPS[ROIsz+ROIsz/2-nRows:ROIsz+ROIsz/2-1,*]+NPS[ROIsz+ROIsz/2+1:ROIsz+ROIsz/2+nRows,*]
-;  vNPS=TOTAL(vNPS,1)/szuNPS(1)
-;
-;  uNPS=uNPS[ROIsz+ROIsz/2+1:3*ROIsz-1]
-;  vNPS=vNPS[ROIsz+ROIsz/2+1:3*ROIsz-1]
-;
-;  du=(FINDGEN(N_ELEMENTS(uNPS))+1)*(1./(3*ROIsz*pix(0)))
-
-  uNPS=[[NPS[*,ROIsz/2-nRows:ROIsz/2-1]],[NPS[*,ROIsz/2+1:ROIsz/2+nRows]]]
-  szuNPS=SIZE(uNPS, /DIMENSIONS)
-  uNPS=TOTAL(uNPS,2)/szuNPS(1)
-  vNPS=[NPS[ROIsz/2-nRows:ROIsz/2-1,*],NPS[ROIsz/2+1:ROIsz/2+nRows,*]]
-  vNPS=TOTAL(vNPS,1)/szuNPS(1)
-
-  uNPS=uNPS[ROIsz/2+1:ROIsz-1]
-  vNPS=vNPS[ROIsz/2+1:ROIsz-1]
-
-  du=(FINDGEN(N_ELEMENTS(uNPS))+1)*(1./(ROIsz*pix(0)))
+  ;radial binning
+  distCenter=NPS*0.0
+  centerPos=(1.0*ROIsz)/2-0.5
+  FOR i=0, ROIsz-1 DO BEGIN
+    FOR j=0, ROIsz-1 DO BEGIN
+      distCenter(i,j)=SQRT((i-centerPos)^2+(j-centerPos)^2)
+    ENDFOR
+  ENDFOR
+  sorting=SORT(distCenter)
+  dists=distCenter(sorting)
+  NPSvals=NPS(sorting)
   
-  uAUC=INT_TABULATED(du,uNPS)
-  vAUC=INT_TABULATED(du,vNPS)
+  ;avg over unique dists
+  uu=uniq(dists)
+  nvals=N_ELEMENTS(uu)
+  NPSvalsU=FLTARR(nvals)
+  NPSvalsU(0)=MEAN(NPSvals[0:uu(0)])
+  FOR i=1, nvals-1 DO NPSvalsU(i)=MEAN(NPSvals[uu(i-1):uu(i)])
+  newdists=dists[UNIQ(dists, SORT(dists))];keep only uniq dists
   
+  ;smooth irregularly sampled data within given width
+  unity=1./(ROIsz*pix(0))
+  width=smoothWidth/unity
+  NPSvalsU=smoothIrreg(newdists,NPSvalsU, width)
   
-  NPSstruct=CREATE_STRUCT('du',du,'uNPS',uNPS,'vNPS',vNPS,'NPS',NPS, 'largeAreaSignal', meanVal, 'AUC', [uAUC,vAUC], 'variance',stddevVal^2)
+  ;regular sampling
+  sampRelUnity=sampFreq/unity
+  newdistsReg=FINDGEN(ROUND(max(newdists)/sampRelUnity))*sampRelUnity
+  NPSvalsInterp=INTERPOL(NPSvalsU, newdists, newdistsReg); linear interpolation
+  nn=N_ELEMENTS(NPSValsInterp)
 
-  print, 'uAUC', uAUC
-  print, 'vAUC', vAUC
-  print, 'variance', stddevVal^2
+  dr=(FINDGEN(nn))*(sampRelUnity/(ROIsz*pix(0)))
+
+  AUC=INT_TABULATED(dr,NPSvalsInterp)
+  NPS2dintegral=TOTAL(NPS)*unity^2
+
+  NPSstruct=CREATE_STRUCT('dr',dr,'rNPS',NPSvalsInterp,'NPS',NPS, 'AUC', AUC, 'varianceIntNPS',NPS2dintegral,'varianceImg',stdevImg)
 
   return, NPSstruct
 end

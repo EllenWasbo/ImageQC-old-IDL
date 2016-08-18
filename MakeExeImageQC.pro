@@ -4,16 +4,18 @@ pro MakeExeImageQC
   MAKE_RT, 'ImageQC', exePath, /OVERWRITE, SAVEFILE=thisPath+'ImageQC.sav', /VM, /WIN32
 end
 ;create new default config
-;config=CREATE_STRUCT('defPath','I:\Felles\Straalevern\Kvalitetskontroll\',$ 
+;thisPath=FILE_DIRNAME(ROUTINE_FILEPATH('ImageQC'))+'\'
+;configDefault=CREATE_STRUCT('defPath','C:\',$ 
 ;  'typeROI',0,'typeROIX',0,$
-;  'MTFtype',2,'MTFtypeX',1,'MTFtypeNM',1,'plotMTF',3,'plotMTFX', 3, 'plotMTFNM',4,'MTFroiSz',13.0,'MTFroiSzX',[20.,50.],'MTFroiSzNM',[20.,20.],$
+;  'MTFtype',2,'MTFtypeX',1,'MTFtypeNM',1,'plotMTF',3,'plotMTFX', 3, 'plotMTFNM',4,'MTFroiSz',13.0,'MTFroiSzX',[20.,50.],'MTFroiSzNM',[20.,20.], $
+;  'cutLSF',0,'cutLSF1',3,'cutLSF2',1,$
 ;  'LinROIrad',3.,'LinROIrad2',58.5,$
 ;  'RampDist',38.,'RampLen',60.,'RampBackG',5.,'RampSearch',5,'RampAvg',1,$
 ;  'HomogROIsz',10., 'HomogROIszX',10.,'HomogROIdist',55.,'HomogROIszNM',25.,'HomogROIdistNM',[100.,200.],$
 ;  'NoiseROIsz',55., $
-;  'NPSroiSz', 100, 'NPSsubSz', 2, 'NPSroiSzX', 256, 'NPSsubSzX', 5, $
+;  'NPSroiSz', 50, 'NPSroiDist', 50., 'NPSsubNN', 20, 'NPSroiSzX', 256, 'NPSsubSzX', 5, 'NPSavg', 1, $
 ;  'STProiSz', 11.3, 'ScanSpeedAvg', 25, 'ScanSpeedHeight', 100., 'ScanSpeedFiltW', 15, 'ContrastRad1', 20., 'ContrastRad2', 58.)
-;SAVE, config, FILENAME=thisPath+'data\config.dat'
+;SAVE, configDefault, FILENAME=thisPath+'data\configDefault.dat'
 
 ;config=CREATE_STRUCT('defPath',defPath,$
 ;----------------------

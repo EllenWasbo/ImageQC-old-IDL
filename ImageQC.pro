@@ -28,7 +28,7 @@ COMMON VARI,  $
     drawPlot, statPlot,drawImageRes, txtMinRangeX, txtMaxRangeX, txtMinRangeY, txtMaxRangeY, rangeAcc, $
     ROIres, typeROI, typeROIX, $
     MTFres, $
-    cw_typeMTF, cw_plotMTF, txtMTFroiSz, btnCutLSF, txtcutLSFW, txtcutLSFW2, $
+    cw_typeMTF, cw_plotMTF, txtMTFroiSz, btnCutLSF, txtcutLSFW, txtcutLSFW2,txtfreqMTF, $
     cw_formLSFX, cw_plotMTFX,  txtMTFroiSzX, txtMTFroiSzY, btnCutLSFX, txtcutLSFWX, $
     cw_typeMTFNM, cw_plotMTFNM, txtMTFroiSzXNM, txtMTFroiSzYNM, btnCutLSFNM, txtcutLSFWNM, MTF3dNM, $
     CTlinRes, materialData, CTlinROIs, txtLinROIrad, txtLinROIrad2,  $
@@ -37,12 +37,17 @@ COMMON VARI,  $
     noiseRes, noiseROI, txtNoiseROIsz, $
     fwhmRes, dimRes, energyRes, $
     stpRes, txtStpROIsz, stpROI, txtRQA, Qvals, $
-    NPSres, NPSrois, txtNPSroiSz, txtNPSsubSz, lblNPSsubSzMM, lblNPStotpix, txtNPSroiSzX, txtNPSsubSzX, lblNPSsubSzMMX, lblNPStotpixX, $
+    NPSres, NPSrois, $
+    txtNPSroiSz, txtNPSroiDist, txtNPSsubNN, txtSmoothNPS, txtfreqNPS, btnNPSavg, $
+    txtNPSroiSzX, txtNPSsubSzX, lblNPSsubSzMMX, lblNPStotpixX, $
     txtNAvgSpeedNM, txtScanSpeedMedian, txtSpeedROIheight,$
-    contrastRes, conROIs, txtConR1NM, txtConR2NM
+    contrastRes, conROIs, txtConR1NM, txtConR2NM,$
+    radialRes, txtRadialMedian
 
   thisPath=FILE_DIRNAME(ROUTINE_FILEPATH('ImageQC'))+'\'
   RESTORE, thisPath+'data\config.dat'
+  RESTORE, thisPath+'data\configDefault.dat'
+  configTags=TAG_NAMES(config)
   defPath=config.defPath
   
   structImgs=CREATE_STRUCT('empty',0); images with attributes in memory
@@ -51,7 +56,7 @@ COMMON VARI,  $
   nFrames=0; if multiframe image loaded, nFrames=nImg
   analyseStringsCT=['NONE', 'DIM', 'HOMOG', 'NOISE','MTF', 'NPS','ROI', 'CTLIN', 'SLICETHICK','FWHM']
   analyseStringsXray=['NONE', 'STP','HOMOG', 'NOISE','MTF', 'NPS','ROI']
-  analyseStringsNM=['NONE','ENERGYSPEC','HOMOG','SCANSPEED','CONTRAST','MTF']
+  analyseStringsNM=['NONE','ENERGYSPEC','HOMOG','SCANSPEED','CONTRAST','MTF','RADIAL']
   analyse='NONE'
   modality=0; 0=CT, 1=Xray, 2=NM
   results=INTARR(9); set to 1 when analyse performed and results is available, keep analyseString and tab-order equal
@@ -69,13 +74,13 @@ COMMON VARI,  $
   
   DEVICE, GET_SCREEN_SIZE=scsz
   
-  IF scsz(0) LT winX-150 THEN scX=scsz(0)-50 ELSE scX=winX-150
-  IF scsz(1) LT winY-50 THEN scY=scsz(1)-50 ELSE scY=winY-50
+  IF scsz(0) LT winX THEN scX=scsz(0)-10 ELSE scX=winX
+  IF scsz(1) LT winY THEN scY=scsz(1)-50 ELSE scY=winY
   
   bMain = WIDGET_BASE(TITLE='ImageQC v1.0', MBAR=bar, /COLUMN, XSIZE=winX, YSIZE=winY-50, XOFFSET=100, YOFFSET=100, X_SCROLL_SIZE=scX, Y_SCROLL_SIZE=scY, /TLB_KILL_REQUEST_EVENTS)
   bLarge = WIDGET_BASE(bMain, /ROW)
   bLft = WIDGET_BASE(bLarge, XSIZE=winX/2-30, YSIZE=winY-100,/COLUMN)
-  bRgt = WIDGET_BASE(bLarge, XSIZE=winX/2-50, YSIZE=winY-100,/COLUMN)
+  bRgt = WIDGET_BASE(bLarge, XSIZE=winX/2, YSIZE=winY-100,/COLUMN)
 
   ;*****************MENU
   file_menu=WIDGET_BUTTON(bar, VALUE='File', /MENU)
@@ -234,7 +239,7 @@ COMMON VARI,  $
 
   bHomogSize=WIDGET_BASE(bHomog, /ROW)
   lblHomogROIsz = WIDGET_LABEL(bHomogSize, VALUE='ROI radius (mm)')
-  txtHomogROIsz = WIDGET_TEXT(bHomogSize, VALUE=STRING(config.HomogROIsz,FORMAT='(f0.1)'), /EDITABLE, XSIZE=4, SCR_YSIZE=20)
+  txtHomogROIsz = WIDGET_TEXT(bHomogSize, VALUE=STRING(config.HomogROIsz,FORMAT='(f0.1)') , /EDITABLE, XSIZE=4, SCR_YSIZE=20)
   mlH1=WIDGET_LABEL(bHomogSize, VALUE='', XSIZE=20)
   lblHomogROIdist = WIDGET_LABEL(bHomogSize, VALUE='Radius to ROIs (mm)')
   txtHomogROIdist = WIDGET_TEXT(bHomogSize, VALUE=STRING(config.HomogROIdist,FORMAT='(f0.1)'), /EDITABLE, XSIZE=4, SCR_YSIZE=20)
@@ -247,7 +252,7 @@ COMMON VARI,  $
 
   bNoiseROI=WIDGET_BASE(bNoise, /ROW)
   lblNoiseROIsz = WIDGET_LABEL(bNoiseROI, VALUE='ROI radius (mm)')
-  txtNoiseROIsz = WIDGET_TEXT(bNoiseROI, VALUE=STRING(config.NoiseROIsz,FORMAT='(f0.1)'), /EDITABLE, XSIZE=4, SCR_YSIZE=20)
+  txtNoiseROIsz = WIDGET_TEXT(bNoiseROI, VALUE= STRING(config.NoiseROIsz,FORMAT='(f0.1)') , /EDITABLE, XSIZE=4, SCR_YSIZE=20)
   bNoiseBtns=WIDGET_BASE(bNoise, /ROW)
   btnNoiseROI=WIDGET_BUTTON(bNoiseBtns, VALUE='Show/update ROI', UVALUE='drawROInoise')
   btnNoise=WIDGET_BUTTON(bNoiseBtns, VALUE='Calculated noise', UVALUE='noise')
@@ -266,12 +271,17 @@ COMMON VARI,  $
   bMTFrgt=WIDGET_BASE(bMTFsettings,/COLUMN)
   bCutLSF=WIDGET_BASE(bMTFrgt, /NONEXCLUSIVE, /ROW)
   btnCutLSF=WIDGET_BUTTON(bCutLSF, VALUE='Cut LSF tails', UVALUE='cutLSF')
+  WIDGET_CONTROL, btnCutLSF, SET_BUTTON=( TOTAL(WHERE(configTags EQ 'CUTLSF')) NE -1 ? config.cutLSF : 0 )
   bCutLSFW=WIDGET_BASE(bMTFrgt, /ROW)
   lblCutLSFW=WIDGET_LABEL( bCutLSFW, VALUE='Cut LSF from halfmax (#FWHM)')
-  txtCutLSFW=WIDGET_TEXT( bCutLSFW, VALUE='5', /EDITABLE, XSIZE=5, SCR_YSIZE=20)
+  txtCutLSFW=WIDGET_TEXT( bCutLSFW, VALUE=( TOTAL(WHERE(configTags EQ 'CUTLSF1')) NE -1 ? STRING(config.cutLSF1,FORMAT='(i0)') : STRING(configDefault.cutLSF1,FORMAT='(i0)') ), /EDITABLE, XSIZE=5, SCR_YSIZE=20)
   bCutLSFW2=WIDGET_BASE(bMTFrgt,/ROW)
   lblCutLSFW2=WIDGET_LABEL( bCutLSFW2, VALUE='Fade out cut within (#FWHM)')
-  txtCutLSFW2=WIDGET_TEXT( bCutLSFW2, VALUE='2', /EDITABLE, XSIZE=5, SCR_YSIZE=20)
+  txtCutLSFW2=WIDGET_TEXT( bCutLSFW2, VALUE=( TOTAL(WHERE(configTags EQ 'CUTLSF2')) NE -1 ? STRING(config.cutLSF2,FORMAT='(i0)') : STRING(configDefault.cutLSF2,FORMAT='(i0)') ), /EDITABLE, XSIZE=5, SCR_YSIZE=20)
+  bfreqMTF=WIDGET_BASE(bMTFrgt, /ROW)
+  lblfreqMTF=WIDGET_LABEL(bfreqMTF, VALUE='Sampling frequency gaussian MTF curve (mm-1)')
+  txtfreqMTF=WIDGET_TEXT(bfreqMTF, VALUE='0.010', /EDITABLE, XSIZE=5, SCR_YSIZE=20, /KBRD_FOCUS_EVENTS);( TOTAL(WHERE(configTags EQ 'MTFFREQ')) NE -1 ? STRING(config.MTFFREQ,FORMAT='(f0.3)') : STRING(configDefault.MTFFREQ,FORMAT='(f0.3)'))
+
 
   cw_plotMTF=CW_BGROUP(bMTFsettings, ['Centered xy profiles', 'Sorted pixelvalues', 'LSF', 'MTF'], /EXCLUSIVE, LABEL_TOP='Show plot...', /FRAME, SET_VALUE=config.plotMTF, UVALUE='cw_plotMTF')
   
@@ -283,25 +293,30 @@ COMMON VARI,  $
   bNPS=WIDGET_BASE(wtabAnalysisCT, TITLE='NPS',/Column)
   bNPSroiSz=WIDGET_BASE(bNPS, /ROW)
   lblNPSroiSz=WIDGET_LABEL(bNPSroiSz, VALUE='ROI size (pix)')
-  txtNPSroiSz=WIDGET_TEXT(bNPSroiSz, VALUE=STRING(config.NPSroiSz,FORMAT='(i0)'), /EDITABLE, XSIZE=5, SCR_YSIZE=20, /KBRD_FOCUS_EVENTS)
-  bNPSsubSz=WIDGET_BASE(bNPS, /ROW)
-  lblNPSsubSz=WIDGET_LABEL(bNPSsubSz, VALUE='Subimage size (pix)')
-  txtNPSsubSz=WIDGET_TEXT(bNPSsubSz, VALUE=STRING(config.NPSsubSz,FORMAT='(i0)'), /EDITABLE, XSIZE=5, SCR_YSIZE=20, /KBRD_FOCUS_EVENTS) 
-  lblNPSsubSz2=WIDGET_LABEL(bNPSsubSz, VALUE=' x ROI size = ')
-  lblNPSsubSzMM=WIDGET_LABEL(bNPSsubSz, VALUE='', XSIZE=20, SCR_XSIZE=20)
-  lblNPSsubSz3=WIDGET_LABEL(bNPSsubSz, VALUE=' mm')
-  bNPStotPix=WIDGET_BASE(bNPS, /ROW)
-  lblNPStotPix0=WIDGET_LABEL(bNPStotPix, VALUE='# independent pixels/image: ')
-  nn=((2*LONG(config.NPSsubSz)-1)*LONG(config.NPSroiSz))^2
-  lblNPStotPix=wIDGET_LABEL(bNPStotPix, VALUE=STRING(nn, FORMAT='(i0)'), /DYNAMIC_RESIZE)
-  
+  txtNPSroiSz=WIDGET_TEXT(bNPSroiSz, VALUE=( TOTAL(WHERE(configTags EQ 'NPSROISZ')) NE -1 ? STRING(config.NPSroiSz,FORMAT='(i0)') : STRING(configDefault.NPSroiSz,FORMAT='(i0)') ), /EDITABLE, XSIZE=5, SCR_YSIZE=20, /KBRD_FOCUS_EVENTS)
+  bNPSroiDist=WIDGET_BASE(bNPS, /ROW)
+  lblNPSroiDist=WIDGET_LABEL(bNPSroiDist, VALUE='Radius to center of ROIs (mm)')
+  txtNPSroiDist=WIDGET_TEXT(bNPSroiDist, VALUE=( TOTAL(WHERE(configTags EQ 'NPSROIDIST')) NE -1 ? STRING(config.NPSroiDist,FORMAT='(f0.1)') : STRING(configDefault.NPSroiDist,FORMAT='(f0.1)') ), /EDITABLE, XSIZE=5, SCR_YSIZE=20, /KBRD_FOCUS_EVENTS) ;STRING(config.NPSroiDist,FORMAT='(i0)')
+  bNPSsubNN=WIDGET_BASE(bNPS, /ROW)
+  lblNPSsubNN=WIDGET_LABEL(bNPSsubNN, VALUE='Number of ROIs')
+  txtNPSsubNN=WIDGET_TEXT(bNPSsubNN, VALUE=( TOTAL(WHERE(configTags EQ 'NPSSUBNN')) NE -1 ? STRING(config.NPSsubNN,FORMAT='(i0)') : STRING(configDefault.NPSsubNN,FORMAT='(i0)')), /EDITABLE, XSIZE=5, SCR_YSIZE=20, /KBRD_FOCUS_EVENTS);STRING(config.NPSsubNN,FORMAT='(i0)')
+  ;bNPSoverlap=WIDGET_BASE(bNPS, /ROW)
+  ;lblNPSoverl0=WIDGET_LABEL(bNPSoverlap, VALUE='% overlap of ROIs: ')
+  ;lblNPSoverlap=wIDGET_LABEL(bNPSoverlap, VALUE='', /DYNAMIC_RESIZE)
+  bSmoothNPS=WIDGET_BASE(bNPS, /ROW)
+  lblSmoothNPS=WIDGET_LABEL(bSmoothNPS, VALUE='Smooth NPS curve by width (mm-1)')
+  txtSmoothNPS=WIDGET_TEXT(bSmoothNPS, VALUE='0.050', /EDITABLE, XSIZE=5, SCR_YSIZE=20, /KBRD_FOCUS_EVENTS);( TOTAL(WHERE(configTags EQ 'NPSSMOOTH')) NE -1 ? STRING(config.NPSsmooth,FORMAT='(f0.3)') : STRING(configDefault.NPSsmooth,FORMAT='(f0.3)'))
+  bfreqNPS=WIDGET_BASE(bNPS, /ROW)
+  lblfreqNPS=WIDGET_LABEL(bfreqNPS, VALUE='Sampling frequency NPS curve (mm-1)')
+  txtfreqNPS=WIDGET_TEXT(bfreqNPS, VALUE='0.010', /EDITABLE, XSIZE=5, SCR_YSIZE=20, /KBRD_FOCUS_EVENTS);( TOTAL(WHERE(configTags EQ 'NPSFREQ')) NE -1 ? STRING(config.NPSFREQ,FORMAT='(f0.3)') : STRING(configDefault.NPSFREQ,FORMAT='(f0.3)'))
+
   bNPSbtns=WIDGET_BASE(bNPS, /ROW)
   btnNPSroi=WIDGET_BUTTON(bNPSbtns, VALUE='Show/update ROIs', UVALUE='drawNPSroi')
   btnNPS=WIDGET_BUTTON(bNPSbtns, VALUE='Calculate NPS', UVALUE='NPS')
-  lblWarnMlNPS=WIDGET_LABEL(bNPS, VALUE='')
-  lblWarnNPS0=WIDGET_LABEL(bNPS, VALUE='Warning: Consider test as "under construction".')
-  lblWarnNPS=WIDGET_LABEL(bNPS, VALUE='     The user must verify NPS results (normalization in particular) due to programmers fresh competence. ')
-  
+  bNPSavg=WIDGET_BASE(bNPSbtns, /NONEXCLUSIVE, /ROW)
+  btnNPSavg=WIDGET_BUTTON(bNPSavg, VALUE='Plot average', UVALUE='NPSavg')
+  WIDGET_CONTROL, btnNPSavg, SET_BUTTON=( TOTAL(WHERE(configTags EQ 'NPSAVG')) NE -1 ? config.NPSavg : 1 )
+
   ;----------------User defined ROI------------
   bROI=WIDGET_BASE(wtabAnalysisCT, TITLE='ROI',/COLUMN)
   typeROI=CW_BGROUP(bROI, ['Define new','Load saved ROI (.sav)'], /EXCLUSIVE, LABEL_TOP='Define ROI and get min/max/avg/stdev', /FRAME, SET_VALUE=config.typeROI, UVALUE='typeROI')
@@ -445,8 +460,8 @@ COMMON VARI,  $
   btnNPSroiX=WIDGET_BUTTON(bNPSbtnsX, VALUE='Show/update ROIs', UVALUE='drawNPSroi')
   btnNPSX=WIDGET_BUTTON(bNPSbtnsX, VALUE='Calculate NPS', UVALUE='NPS')
   lblWarnMlNPSX=WIDGET_LABEL(bNPSX, VALUE='')
-  lblWarnNPSX0=WIDGET_LABEL(bNPSX, VALUE='Warning: Consider test as "under construction".')
-  lblWarnNPSX=WIDGET_LABEL(bNPSX, VALUE='     The user must verify NPS results (normalization in particular) due to programmers fresh competence. ')
+  lblWarnNPSX0=WIDGET_LABEL(bNPSX, VALUE='Warning: Consider test as under construction')
+  lblWarnNPSX=WIDGET_LABEL(bNPSX, VALUE='     The user must verify NPS results (normalization in particular) due to programmers fresh and immature competence. ')
   
   ;----------------User defined ROI------------
   bROIX=WIDGET_BASE(wtabAnalysisXray, TITLE='ROI',/COLUMN)
@@ -459,19 +474,20 @@ COMMON VARI,  $
   btnLoadSpec=WIDGET_BUTTON(bEnergySpecBtns, VALUE='Load spectrum', UVALUE='loadSpectrum')
   
   ;---------------Homogeneity--------
-  bHomogNM=WIDGET_BASE(wtabAnalysisNM, Title='Homogeneity', /COLUMN)
+  bHomogNM=WIDGET_BASE(wtabAnalysisNM, Title='Uniformity', /COLUMN)
 
-  bHomogSizeNM=WIDGET_BASE(bHomogNM, /ROW)
+  bHomogNMlft=WIDGET_BASE(bHomogNM,/COLUMN)
+  bHomogSizeNM=WIDGET_BASE(bHomogNMlft, /ROW)
   lblHomogROIszNM = WIDGET_LABEL(bHomogSizeNM, VALUE='ROI radius (mm)')
   txtHomogROIszNM = WIDGET_TEXT(bHomogSizeNM, VALUE=STRING(config.HomogROIszNM,FORMAT='(f0.1)'), /EDITABLE, XSIZE=4, SCR_YSIZE=20)
-  bHomogDistNM=WIDGET_BASE(bHomogNM, /ROW)
+  bHomogDistNM=WIDGET_BASE(bHomogNMlft, /ROW)
   lblHomogROIdistNM = WIDGET_LABEL(bHomogDistNM, VALUE='ROI distance x, y (mm)')
   txtHomogROIdistXNM = WIDGET_TEXT(bHomogDistNM, VALUE=STRING(config.HomogROIdistNM(0),FORMAT='(f0.1)'), /EDITABLE, XSIZE=5, SCR_YSIZE=20)
   txtHomogROIdistYNM = WIDGET_TEXT(bHomogDistNM, VALUE=STRING(config.HomogROIdistNM(1),FORMAT='(f0.1)'), /EDITABLE, XSIZE=5, SCR_YSIZE=20)
-  cw_homogNM=CW_BGROUP(bHomogNM, ['Planar (WB)', 'SPECT'], /EXCLUSIVE, LABEL_TOP='Image type...', /FRAME, SET_VALUE=0, UVALUE='cw_homogNM')
-  bHomogBtnsNM=WIDGET_BASE(bHomogNM, /ROW)
+  cw_homogNM=CW_BGROUP(bHomogNMlft, ['Planar (WB)', 'SPECT'], /EXCLUSIVE, LABEL_TOP='Image type...', /FRAME, SET_VALUE=0, UVALUE='cw_homogNM')
+  bHomogBtnsNM=WIDGET_BASE(bHomogNMlft, /ROW)
   btnHomogROINM=WIDGET_BUTTON(bHomogBtnsNM, VALUE='Show/update ROI', UVALUE='drawROIhomog')
-  btnHomogNM=WIDGET_BUTTON(bHomogBtnsNM, VALUE='Calculate homogeneity', UVALUE='homog')
+  btnHomogNM=WIDGET_BUTTON(bHomogBtnsNM, VALUE='Calculate uniformity', UVALUE='homog')
   
   ;-----------Scan speed------------
   bScanSpeed=WIDGET_BASE(wtabAnalysisNM, Title='Scan Speed', /COLUMN)
@@ -524,6 +540,15 @@ COMMON VARI,  $
    bMTFbtnsNM=WIDGET_BASE(bMTFNM, /ROW)
    btnMTFroiNM=WIDGET_BUTTON(bMTFbtnsNM, VALUE='Show/update ROIs', UVALUE='drawMTFroi')
    btnMTFNM=WIDGET_BUTTON(bMTFbtnsNM, VALUE='Calculate MTF', UVALUE='MTFNM')
+   
+   ;----------Radial profiles---------------
+   bRadialProfile=WIDGET_BASE(wtabAnalysisNM, Title='Radial Profile', /COLUMN)
+
+   bRadialProf=WIDGET_BASE(bRadialProfile, /COLUMN)
+   bMedianRadialNM=WIDGET_BASE(bRadialProf, /ROW)
+   lblRadialMedian=WIDGET_LABEL(bMedianRadialNM, VALUE='Median filter width (pix)')
+   txtRadialMedian=WIDGET_TEXT(bMedianRadialNM, VALUE=STRING(5, FORMAT='(i0)'), /EDITABLE, XSIZE=4, SCR_YSIZE=20);config.radialFiltW
+   btnRadialProfNM=WIDGET_BUTTON(bRadialProf, VALUE='Calculate radial profile', UVALUE='radialProfile')
 
   ;******************************************************************************************
   ;********************* Result panel *********************************************************
@@ -578,3 +603,5 @@ COMMON VARI,  $
   DEVICE, RETAIN=2, DECOMPOSED=0
 
 end
+
+

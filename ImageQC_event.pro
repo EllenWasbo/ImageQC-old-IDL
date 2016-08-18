@@ -32,7 +32,13 @@ pro ImageQC_event, ev
     CASE uval OF
 
       'exit': WIDGET_CONTROL, ev.top, /DESTROY
-      'info': SPAWN, 'start https://github.com/EllenWasbo/ImageQC/wiki'
+      'info': BEGIN
+        url='https://github.com/EllenWasbo/ImageQC/wiki'
+        Case !version.os_family of
+          'Windows': SPAWN, 'start '+url
+          Else: if (!version.os_name eq 'Mac OS X') then SPAWN, 'open '+url
+        Endcase
+      END
       'about': imageqc_about, GROUP_LEADER=ev.top
       'close': clearAll
 
@@ -59,6 +65,8 @@ pro ImageQC_event, ev
         WIDGET_CONTROL, cw_typeMTF, GET_VALUE=typeMTF
         WIDGET_CONTROL, cw_plotMTF, GET_VALUE= plotWhich
         WIDGET_CONTROL, txtMTFroiSz, GET_VALUE=MTFroiSz
+        WIDGET_CONTROL, txtCutLSFW, GET_VALUE=LSFcut1
+        WIDGET_CONTROL, txtCutLSFW2, GET_VALUE=LSFcut2
         WIDGET_CONTROL, txtLinROIrad, GET_VALUE=rad1
         WIDGET_CONTROL, txtLinROIrad2, GET_VALUE=rad2
         WIDGET_CONTROL, txtRampDist, GET_VALUE=rampDist
@@ -67,10 +75,11 @@ pro ImageQC_event, ev
         WIDGET_CONTROL, txtRampSearch, GET_VALUE=rampSearch
         WIDGET_CONTROL, txtRampAverage, GET_VALUE=rampAvg
         WIDGET_CONTROL, txtHomogROIsz, GET_VALUE=homogROIsz
-        WIDGET_CONTROL,  txtHomogROIdist, GET_VALUE=homogROIdist
+        WIDGET_CONTROL, txtHomogROIdist, GET_VALUE=homogROIdist
         WIDGET_CONTROL, txtNoiseROIsz, GET_VALUE=noiseROIsz
         WIDGET_CONTROL, txtNPSroiSz, GET_VALUE=NPSroiSz
-        WIDGET_CONTROL, txtNPSsubSz, GET_VALUE=NPSsubSz
+        WIDGET_CONTROL, txtNPSroiDist, GET_VALUE=NPSroiDist
+        WIDGET_CONTROL, txtNPSsubNN, GET_VALUE=NPSsubNN
         ;Xray tests
         WIDGET_CONTROL, txtStpROIsz, GET_VALUE=STProiSz
         WIDGET_CONTROL, cw_formLSFX, GET_VALUE=typeMTFX
@@ -97,11 +106,12 @@ pro ImageQC_event, ev
         config=CREATE_STRUCT('defPath',defPath,$
           'typeROI',WIDGET_INFO(typeROI, /BUTTON_SET),'typeROIX',WIDGET_INFO(typeROIX, /BUTTON_SET),$
           'MTFtype',typeMTF,'MTFtypeX', typeMTFX, 'MTFtypeNM', typeMTFNM, 'plotMTF',plotWhich,'plotMTFX',plotWhichX,'plotMTFNM', plotWhichNM,'MTFroiSz',FLOAT(MTFroiSz(0)),'MTFroiSzX',[FLOAT(MTFroiSzX(0)),FLOAT(MTFroiSzY(0))],'MTFroiSzNM',[FLOAT(MTFroiSzXNM(0)),FLOAT(MTFroiSzYNM(0))],$
+          'cutLSF',WIDGET_INFO(btnCutLSF,/BUTTON_SET),'cutLSF1',LONG(LSFcut1),'cutLSF2',LONG(LSFcut2),$
           'LinROIrad',FLOAT(rad1(0)),'LinROIrad2',FLOAT(rad2(0)),$
           'RampDist',FLOAT(rampDist(0)),'RampLen',FLOAT(rampLen(0)),'RampBackG',FLOAT(rampBackG(0)),'RampSearch',LONG(RampSearch(0)),'RampAvg',LONG(rampAvg(0)),$
           'HomogROIsz',FLOAT(homogROIsz(0)), 'HomogROIszX',FLOAT(homogROIszX(0)),'HomogROIdist',FLOAT(homogROIdist(0)), 'HomogROIszNM',FLOAT(homogROIszNM(0)),'HomogROIdistNM',[FLOAT(homogROIdistXNM(0)),FLOAT(homogROIdistYNM(0))],$
           'NoiseROIsz',FLOAT(noiseROIsz(0)), $
-          'NPSroiSz', LONG(NPSroiSz(0)), 'NPSsubSz', LONG(NPSsubSz(0)), 'NPSroiSzX', LONG(NPSroiSzX(0)), 'NPSsubSzX', LONG(NPSsubSzX(0)), $
+          'NPSroiSz', LONG(NPSroiSz(0)), 'NPSroiDist', FLOAT(NPSroiDist(0)),'NPSsubNN', LONG(NPSsubNN(0)), 'NPSroiSzX', LONG(NPSroiSzX(0)), 'NPSsubSzX', LONG(NPSsubSzX(0)), 'NPSavg',WIDGET_INFO(btnNPSavg, /BUTTON_SET),$
           'STProiSz', FLOAT(STProiSz(0)), $
           'scanSpeedAvg',LONG(scanSpeedAvg(0)), 'scanSpeedHeight', FLOAT(scanSpeedHeight(0)), 'scanSpeedFiltW', LONG(scanSpeedFiltW(0)), $
           'contrastRad1', FLOAT(contrastRad1(0)), 'contrastRad2', FLOAT(contrastRad2(0)) )
@@ -241,9 +251,15 @@ pro ImageQC_event, ev
                   IF results(i) THEN BEGIN
                     CASE analyseStrings(i+1) OF
                       'DIM': dimRes=dimRes[*,remain]
-                      'STP': stpRes=!Null
+                      'STP': BEGIN
+                        stpRes=!Null
+                        analyse='NONE'
+                        END
                       'HOMOG': homogRes=homogRes[*,remain]
-                      'NOISE': noise=!Null; because avg dependent on rest - recalculation needed
+                      'NOISE': BEGIN
+                        noise=!Null; because avg dependent on rest - recalculation needed
+                        analyse='NONE'
+                        END
                       'MTF': MTFres=removeIDstructstruct(MTFres,sel)
                       'NPS': NPSres=removeIDstructstruct(NPSres,sel)
                       'ROI': ROIres=ROIres[*,remain]
@@ -603,9 +619,10 @@ pro ImageQC_event, ev
             nImg=N_ELEMENTS(tags)
             szROI=SIZE(stpROI, /DIMENSIONS)
 
-            resArr=FLTARR(4,nImg); mean, stdev all circles
+            resArr=FLTARR(4,nImg)-1; mean, stdev all circles
             markedArr=INTARR(nImg)
             IF marked(0) EQ -1 THEN markedArr=markedArr+1 ELSE markedArr(marked)=1
+            errStatus=0
             FOR i=0, nImg-1 DO BEGIN
               IF markedArr(i) THEN BEGIN
                 ;check if same size
@@ -615,12 +632,12 @@ pro ImageQC_event, ev
                   maske=stpROI
                   IMAGE_STATISTICS, tempImg, COUNT=nPix, MEAN=meanHU, STDDEV=stddevHU, MASK=maske
                   resArr(2,i)=meanHU & resArr(3,i)=stddevHU
-                ENDIF ELSE sv=DIALOG_MESSAGE('ROI size do not match image #'+STRING(i, FORMAT='(i0)')+'.',/INFORMATION)
+                ENDIF ELSE errstatus=1
               ENDIF
               WIDGET_CONTROL, lblProgress, SET_VALUE='Progress: '+STRING(i*100./nIMG, FORMAT='(i0)')+' %'
             ENDFOR
             WIDGET_CONTROL, lblProgress, SET_VALUE=''
-
+            If errstatus THEN sv=DIALOG_MESSAGE('The images have different size. Results restricted to images with same size as the first image.',/INFORMATION)
             stpRes=CREATE_STRUCT('table',resArr)
             results(getResNmb(WIDGET_INFO(wtabModes, /TAB_CURRENT),'STP',analyseStringsCT,analyseStringsXray,analyseStringsNM))=1
             updateTable
@@ -780,10 +797,11 @@ pro ImageQC_event, ev
             IF nFrames EQ 0 THEN nImg=N_ELEMENTS(tags) ELSE nImg=nFrames
             szROI=SIZE(homogROIs, /DIMENSIONS)
 
-            resArr=FLTARR(szROI(2)*2,nImg); mean, stdev all circles
+            resArr=FLTARR(szROI(2)*2,nImg)-1; mean, stdev all circles
             markedArr=INTARR(nImg)
             IF marked(0) EQ -1 THEN markedArr=markedArr+1 ELSE markedArr(marked)=1
 
+            errstatus=0
             FOR i=0, nImg-1 DO BEGIN
               IF markedArr(i) THEN BEGIN
                 ;check if same size
@@ -797,12 +815,13 @@ pro ImageQC_event, ev
                     resArr(r,i)=meanVal
                     resArr(r+5,i)=stddevVal
                   ENDFOR
-                ENDIF ELSE sv=DIALOG_MESSAGE('ROI size do not match image #'+STRING(i, FORMAT='(i0)')+'.',/INFORMATION)
+                ENDIF ELSE errstatus=1
               ENDIF
               WIDGET_CONTROL, lblProgress, SET_VALUE='Progress: '+STRING(i*100./nIMG, FORMAT='(i0)')+' %'
 
             ENDFOR
             WIDGET_CONTROL, lblProgress, SET_VALUE=''
+            If errstatus THEN sv=DIALOG_MESSAGE('The images have different size. Results restricted to images with same size.',/INFORMATION)
             homogRes=resArr
             results(getResNmb(WIDGET_INFO(wtabModes, /TAB_CURRENT),analyse,analyseStringsCT,analyseStringsXray,analyseStringsNM))=1
             updateTable
@@ -838,7 +857,8 @@ pro ImageQC_event, ev
           ELSE:
         ENDCASE
       END
-
+      
+      
       ;----analyse tab Noise--------------------------------------------------------------------------------------------------
       'drawROInoise': BEGIN
         IF tags(0) NE 'EMPTY' THEN BEGIN
@@ -884,10 +904,11 @@ pro ImageQC_event, ev
             IF nFrames EQ 0 THEN nImg=N_ELEMENTS(tags) ELSE nImg=nFrames
             szROI=SIZE(noiseROI, /DIMENSIONS)
 
-            resArr=FLTARR(2,nImg); mean, stdev all circles
+            resArr=FLTARR(2,nImg)-1; mean, stdev all circles
             markedArr=INTARR(nImg)
             totNoise=0.
             IF marked(0) EQ -1 THEN markedArr=markedArr+1 ELSE markedArr(marked)=1
+            errstatus=0
             FOR i=0, nImg-1 DO BEGIN
               IF markedArr(i) THEN BEGIN
                 ;check if same size
@@ -899,11 +920,12 @@ pro ImageQC_event, ev
                   resArr(0,i)=meanVal
                   resArr(1,i)=stddevVal
                   totNoise=totNoise+stddevVal
-                ENDIF ELSE sv=DIALOG_MESSAGE('ROI size do not match image #'+STRING(i, FORMAT='(i0)')+'.',/INFORMATION)
+                ENDIF ELSE errstatus=1
               ENDIF
               WIDGET_CONTROL, lblProgress, SET_VALUE='Progress: '+STRING(i*100./nIMG, FORMAT='(i0)')+' %'
             ENDFOR
             WIDGET_CONTROL, lblProgress, SET_VALUE=''
+            If errstatus THEN sv=DIALOG_MESSAGE('The images have different size. Results restricted to images with same size.',/INFORMATION)
             avgNoise=totNoise/TOTAL(markedArr)
 
             noiseRes=FLTARR(4,nImg)
@@ -962,6 +984,7 @@ pro ImageQC_event, ev
             WIDGET_CONTROL, txtMTFroiSz, GET_VALUE=ROIszPix
             WIDGET_CONTROL, txtCutLSFW, GET_VALUE=cutLSFW
             WIDGET_CONTROL, txtCutLSFW2, GET_VALUE=cutLSFWf
+            WIDGET_CONTROL, txtfreqMTF, GET_VALUE=sampFreq
 
             IF nFrames NE 0 THEN nImg=nFrames ELSE nImg=N_ELEMENTS(tags)
             markedArr=INTARR(nImg)
@@ -992,7 +1015,8 @@ pro ImageQC_event, ev
                 IF x1 GE 0 AND x2 LT szFirst(0)-1 AND y1 GE 0 AND y1-(ROIsz(0)*2+1) GE 0 AND y2 LT szFirst(1)-1 AND y2-(ROIsz(0)*2+1) LT szFirst(1)-1 THEN roiOk=1 ELSE roiOk=0
 
                 IF roiOK THEN BEGIN
-                  errStatus=0
+                  errBead=0
+                  errSize=0
                   FOR i=0, nImg-1 DO BEGIN
                     IF markedArr(i) THEN BEGIN
                       ;check if same size
@@ -1011,16 +1035,17 @@ pro ImageQC_event, ev
                         submatrix=tempImg[x1:x2,y1:y2]
                         backMatrix=tempImg[x1:x2,y1-(ROIsz(0)*2+1):y2-(ROIsz(0)*2+1)]
   
-                        MTF=calculateMTF(submatrix, curPix, dxya[0:1], typeMTF, backMatrix, WIDGET_INFO(btnCutLSF, /BUTTON_SET), FLOAT(cutLSFW(0)), FLOAT(cutLSFWf(0)))
-                        IF MTF.status EQ 0 THEN errStatus=errStatus+1 
+                        MTF=calculateMTF(submatrix, curPix, dxya[0:1], typeMTF, backMatrix, WIDGET_INFO(btnCutLSF, /BUTTON_SET), FLOAT(cutLSFW(0)), FLOAT(cutLSFWf(0)), FLOAT(sampFreq(0)))
+                        IF MTF.status EQ 0 THEN errBead=errBead+1 
                       ENDIF ELSE BEGIN
                         MTF=CREATE_STRUCT('empty',0)
-                        sv=DIALOG_MESSAGE('Image size for image #'+STRING(i, FORMAT='(i0)')+' do not match first image. Calculate MTF separately for images with the same size.',/INFORMATION)
+                        errSize=1
                       ENDELSE
                     ENDIF ELSE MTF=CREATE_STRUCT('empty',0)
                     IF i EQ 0 THEN MTFres=CREATE_STRUCT('M0',MTF) ELSE MTFres=CREATE_STRUCT(MTFres, 'M'+STRING(i, FORMAT='(i0)'), MTF)
                   ENDFOR
-                  IF errStatus GT 0 THEN sv=DIALOG_MESSAGE('Problem finding center of bead for '+STRING(errStatus, FORMAT='(i0)') +' of '+STRING(TOTAL(markedArr), FORMAT='(i0)') + ' images. Bead position assumed to be at the selected ROI center.')
+                  IF errBead GT 0 THEN sv=DIALOG_MESSAGE('Problem finding center of bead for '+STRING(errBead, FORMAT='(i0)') +' of '+STRING(TOTAL(markedArr), FORMAT='(i0)') + ' images. Bead position assumed to be at the selected ROI center.')
+                  If errSize THEN sv=DIALOG_MESSAGE('The images have different size. Results restricted to images with same size.',/INFORMATION)
                   results(getResNmb(WIDGET_INFO(wtabModes, /TAB_CURRENT),analyse,analyseStringsCT,analyseStringsXray,analyseStringsNM))=1
                   updateTable
                   updatePlot, 1,1,0
@@ -1029,7 +1054,7 @@ pro ImageQC_event, ev
 
               2: BEGIN ; circular edge (3d)
                   IF nFrames NE 0 THEN BEGIN
-                    tempImg=readImg(structImgs.(0).filename, i)
+                    tempImg=readImg(structImgs.(0).filename, 0)
                     pixFirst=structImgs.(0).pix(0)
                   ENDIF ELSE BEGIN
                     tempImg=readImg(structImgs.(first).filename, 0)
@@ -1065,7 +1090,7 @@ pro ImageQC_event, ev
                       counter=counter+1
                     ENDIF ELSE BEGIN
                       MTF=CREATE_STRUCT('empty',0)
-                      sv=DIALOG_MESSAGE('Image size for image #'+STRING(i, FORMAT='(i0)')+' do not match first image. Calculate MTF separately for images with the same size.',/INFORMATION)
+                      sv=DIALOG_MESSAGE('Image size for image #'+STRING(i+1, FORMAT='(i0)')+' do not match first image. Calculate MTF separately for images with the same size.',/INFORMATION)
                       proceed=0
                     ENDELSE
                   ENDIF
@@ -1073,7 +1098,7 @@ pro ImageQC_event, ev
                 ENDFOR
 
                 IF proceed THEN BEGIN
-                  MTFres=calculateMTF(subM, pixFirst, dxya[0:1], typeMTF, -1, WIDGET_INFO(btnCutLSF, /BUTTON_SET), FLOAT(cutLSFW(0)), FLOAT(cutLSFWf(0)))
+                  MTFres=calculateMTF(subM, pixFirst, dxya[0:1], typeMTF, -1, WIDGET_INFO(btnCutLSF, /BUTTON_SET), FLOAT(cutLSFW(0)), FLOAT(cutLSFWf(0)), FLOAT(sampFreq(0)))
                   IF MTFres.status EQ 0 THEN sv=DIALOG_MESSAGE('Problem finding center of circle for one or more images. Center of circle assumed to be at center of ROI.')
                   results(getResNmb(WIDGET_INFO(wtabModes, /TAB_CURRENT),analyse,analyseStringsCT,analyseStringsXray,analyseStringsNM))=1
                   updateTable
@@ -1125,6 +1150,7 @@ pro ImageQC_event, ev
 
             IF N_ELEMENTS(stpRes) EQ 0 THEN stpRes=0
 
+            errLogg=''
             FOR i=0, nImg-1 DO BEGIN
               IF markedArr(i) THEN BEGIN
                 tempImg=readImg(structImgs.(i).filename, 0)
@@ -1132,16 +1158,17 @@ pro ImageQC_event, ev
                 IF ARRAY_EQUAL(szThis[0:1], szFirst[0:1]) THEN BEGIN
                   submatrix[*,*]=tempImg[x1:x2,y1:y2]
                   MTF=calculateMTF_xray(submatrix, curPix, dxya[0:1],stpRes, formLSF, WIDGET_INFO(btnCutLSFX, /BUTTON_SET), FLOAT(cutLSFW(0)));, WIDGET_INFO(revProcMTFX, /BUTTON_SET))
+                  IF MTF.errMsg NE '' THEN errLogg=errLogg+'Warning image #'+STRING(i+1, FORMAT='(i0)')+'. '+MTF.errMsg+newline
                 ENDIF ELSE BEGIN
                   MTF=CREATE_STRUCT('empty',0)
-                  sv=DIALOG_MESSAGE('Image size for image #'+STRING(i, FORMAT='(i0)')+' do not match first image. Calculate MTF separately for images with the same size.',/INFORMATION)
+                  errLogg=errLogg+'Image size for image #'+STRING(i+1, FORMAT='(i0)')+' do not match first image. Calculate MTF separately for images with the same size.'+newline
                 ENDELSE
-                IF MTF.errMsg NE '' THEN sv=DIALOG_MESSAGE('Warning image #'+STRING(i, FORMAT='(i0)')+'. '+MTF.errMsg)
+                
               ENDIF ELSE MTF=CREATE_STRUCT('empty',0)
 
               IF i EQ 0 THEN MTFres=CREATE_STRUCT('M0',MTF) ELSE MTFres=CREATE_STRUCT(MTFres, 'M'+STRING(i, FORMAT='(i0)'), MTF)
             ENDFOR
-
+            IF errLogg NE '' THEN sv=DIALOG_MESSAGE(errLogg)
             results(getResNmb(WIDGET_INFO(wtabModes, /TAB_CURRENT),analyse,analyseStringsCT,analyseStringsXray,analyseStringsNM))=1
             updateTable
             updatePlot,1,1,0
@@ -1182,6 +1209,7 @@ pro ImageQC_event, ev
 
               0: BEGIN; point
                 errStatus=0
+                errSize=0
                 FOR i=0, nImg-1 DO BEGIN
                   IF markedArr(i) THEN BEGIN
                     ;check if same size
@@ -1205,12 +1233,13 @@ pro ImageQC_event, ev
                       IF MTF.status EQ 0 THEN errStatus=errStatus+1 
                     ENDIF ELSE BEGIN
                       MTF=CREATE_STRUCT('empty',0)
-                      sv=DIALOG_MESSAGE('Image size for image #'+STRING(i, FORMAT='(i0)')+' do not match first image. Calculate MTF separately for images with the same size.',/INFORMATION)
+                      errSize=1
                     ENDELSE
                   ENDIF ELSE MTF=CREATE_STRUCT('empty',0)
                   IF i EQ 0 THEN MTFres=CREATE_STRUCT('M0',MTF) ELSE MTFres=CREATE_STRUCT(MTFres, 'M'+STRING(i, FORMAT='(i0)'), MTF)
                 ENDFOR
                 IF errStatus GT 0 THEN sv=DIALOG_MESSAGE('Problem finding center of pointsource for '+STRING(errStatus, FORMAT='(i0)') +' of '+STRING(TOTAL(markedArr), FORMAT='(i0)') + ' images. Point position assumed to be at the selected ROI center.')
+                If errSize THEN sv=DIALOG_MESSAGE('The images have different size. Results restricted to images with same size.',/INFORMATION)
                 results(getResNmb(WIDGET_INFO(wtabModes, /TAB_CURRENT),analyse,analyseStringsCT,analyseStringsXray,analyseStringsNM))=1
                 updateTable
                 updatePlot, 1,1,0
@@ -1386,31 +1415,37 @@ pro ImageQC_event, ev
         WIDGET_CONTROL, txtDeltaA, SET_VALUE=STRING(dxya(2), FORMAT='(f0.1)')
         sel=WIDGET_INFO(listFiles, /LIST_SELECT)
         curPix=structImgs.(sel(0)).pix
+        proceed=1
 
         curMode=WIDGET_INFO(wtabModes, /TAB_CURRENT)
         CASE curMode OF
           0: BEGIN
             WIDGET_CONTROL, txtNPSroiSz, GET_VALUE=ROIsz
-            WIDGET_CONTROL, txtNPSsubSz, GET_VALUE=subSz
+            WIDGET_CONTROL, txtNPSroiDist, GET_VALUE=ROIdist
+            WIDGET_CONTROL, txtNPSsubNN, GET_VALUE=subNN
+            ROIsz=LONG(ROIsz(0)) & ROIdist=FLOAT(ROIdist(0)) & subNN=LONG(subNN(0))
+            NPSrois=getNPSrois(SIZE(tempImg,/DIMENSIONS), dxya[0:1], ROIsz, ROUND(ROIdist/curPix(0)), subNN)
+            IF max(NPSrois) NE 1 THEN proceed=0
           END
           1: BEGIN
             WIDGET_CONTROL, txtNPSroiSzX, GET_VALUE=ROIsz
             WIDGET_CONTROL, txtNPSsubSzX, GET_VALUE=subSz
+            ROIsz=LONG(ROIsz(0)) & subSz=LONG(subSz(0))
+            subSzMM=curPix(0)*ROIsz*subSz
+            WIDGET_CONTROL, lblNPSsubSzMMX, SET_VALUE=STRING(subSzMM, FORMAT='(f0.1)')
           END
           ELSE:
 
         ENDCASE
 
-        ROIsz=LONG(ROIsz(0)) & subSz=LONG(subSz(0))
-        subSzMM=curPix(0)*ROIsz*subSz
-        IF curMode EQ 1 THEN  WIDGET_CONTROL, lblNPSsubSzMMX, SET_VALUE=STRING(subSzMM, FORMAT='(f0.1)')
-
-        analyse = 'NPS'
-        results(getResNmb(WIDGET_INFO(wtabModes, /TAB_CURRENT),analyse,analyseStringsCT,analyseStringsXray,analyseStringsNM))=0
-        NPSres=CREATE_STRUCT('empty',0)
-        updateTable
-        updatePlot, 0,0,0
-        redrawImg,0,0
+        IF proceed THEN BEGIN
+          analyse = 'NPS'
+          results(getResNmb(WIDGET_INFO(wtabModes, /TAB_CURRENT),analyse,analyseStringsCT,analyseStringsXray,analyseStringsNM))=0
+          NPSres=CREATE_STRUCT('empty',0)
+          updateTable
+          updatePlot, 0,0,0
+          redrawImg,0,0
+        ENDIF ELSE analyse='NONE'
       ENDIF
     END
 
@@ -1420,21 +1455,6 @@ pro ImageQC_event, ev
         IF analyse NE 'NPS' THEN sv=DIALOG_MESSAGE('Show ROI first to verify size and position.',/INFORMATION) ELSE BEGIN
 
           WIDGET_CONTROL, /HOURGLASS
-          curMode=WIDGET_INFO(wtabModes, /TAB_CURRENT)
-          CASE curMode OF
-            0:BEGIN
-              WIDGET_CONTROL, txtNPSroiSz, GET_VALUE=ROIsz
-              WIDGET_CONTROL, txtNPSsubSz, GET_VALUE=nsubSz
-            END
-            1:BEGIN
-              WIDGET_CONTROL, txtNPSroiSzX, GET_VALUE=ROIsz
-              WIDGET_CONTROL, txtNPSsubSzX, GET_VALUE=nsubSz
-            END
-            ELSE:
-          ENDCASE
-          ROIsz=LONG(ROIsz(0)) & nsubSz=LONG(nsubSz(0))
-
-          subSz=ROIsz*nsubSz
 
           nImg=N_ELEMENTS(tags)
           markedArr=INTARR(nImg)
@@ -1443,15 +1463,29 @@ pro ImageQC_event, ev
           first=markedTemp(0)
           tempImg=readImg(structImgs.(first).filename, 0)
           szFirst=SIZE(tempImg, /DIMENSIONS)
-
-          halfSz=szFirst/2
-          x1=ROUND(halfSz(0)+dxya(0)-subSz/2) & x2=ROUND(halfSz(0)+dxya(0)+subSz/2)
-          y1=ROUND(halfSz(1)+dxya(1)-subSz/2) & y2=ROUND(halfSz(1)+dxya(1)+subSz/2)
-
           nnImg=TOTAL(markedArr)
-          subMatrix=FLTARR(x2-x1+1,y2-y1+1);,nnImg)
 
-          IF N_ELEMENTS(stpRes) EQ 0 THEN stpRes=0
+          curMode=WIDGET_INFO(wtabModes, /TAB_CURRENT)
+          CASE curMode OF
+            0:BEGIN
+              WIDGET_CONTROL, txtSmoothNPS, GET_VALUE=smNPS
+              WIDGET_CONTROL, txtFreqNPS, GET_VALUE=sampFreq
+              smNPSw=0.5*FLOAT(smNPS(0))
+              sampFreq=FLOAT(sampFreq(0))
+              END
+            1:BEGIN
+              WIDGET_CONTROL, txtNPSroiSzX, GET_VALUE=ROIsz
+              WIDGET_CONTROL, txtNPSsubSzX, GET_VALUE=nsubSz
+              ROIsz=LONG(ROIsz(0)) & nsubSz=LONG(nsubSz(0))
+              subSz=ROIsz*nsubSz
+              halfSz=szFirst/2
+              x1=ROUND(halfSz(0)+dxya(0)-subSz/2) & x2=ROUND(halfSz(0)+dxya(0)+subSz/2)
+              y1=ROUND(halfSz(1)+dxya(1)-subSz/2) & y2=ROUND(halfSz(1)+dxya(1)+subSz/2)
+              subMatrix=FLTARR(x2-x1+1,y2-y1+1);,nnImg)
+              IF N_ELEMENTS(stpRes) EQ 0 THEN stpRes=0
+            END
+            ELSE:
+          ENDCASE
 
           proceed=1
           FOR i=0, nImg-1 DO BEGIN
@@ -1459,7 +1493,11 @@ pro ImageQC_event, ev
               tempImg=readImg(structImgs.(i).filename, 0)
               szThis=SIZE(tempImg, /DIMENSIONS)
               IF ARRAY_EQUAL(szThis[0:1], szFirst[0:1]) THEN BEGIN
-                submatrix[*,*]=tempImg[x1:x2,y1:y2]
+                CASE curMode OF
+                  0: 
+                  1: submatrix[*,*]=tempImg[x1:x2,y1:y2]
+                ELSE:
+                ENDCASE
                 proceed=1
               ENDIF ELSE BEGIN
                 NPS=CREATE_STRUCT('empty',0)
@@ -1467,7 +1505,13 @@ pro ImageQC_event, ev
                 proceed=0
               ENDELSE
             ENDIF
-            IF proceed EQ 1 THEN NPS=calculateNPS(submatrix, ROIsz, nsubSz, structImgs.(first).pix, stpRes, i)
+            IF proceed EQ 1 THEN BEGIN
+              CASE curMode OF
+                0: NPS=calculateNPS(tempImg, NPSrois, structImgs.(first).pix, smNPSw, sampFreq)
+                1: NPS=calculateNPS_xray(submatrix, ROIsz, nsubSz, structImgs.(first).pix, stpRes, i)
+              ELSE:
+              ENDCASE
+            ENDIF
             IF i EQ 0 THEN NPSres=CREATE_STRUCT('N0',NPS) ELSE NPSres=CREATE_STRUCT(NPSres, 'N'+STRING(i, FORMAT='(i0)'), NPS)
           ENDFOR
 
@@ -1586,12 +1630,13 @@ pro ImageQC_event, ev
           IF nFrames EQ 0 THEN nImg=N_ELEMENTS(tags) ELSE nImg=nFrames
           szROI=SIZE(CTlinROIs, /DIMENSIONS)
 
-          resArr=FLTARR(szROI(2)+1,nImg);mean+stddev for all and #pix
+          resArr=FLTARR(szROI(2)+1,nImg)-1;mean+stddev for all and #pix
           materialData=read_csv(thisPath+'data\CTlinearity.csv')
           sorting=materialData.field6
 
           markedArr=INTARR(nImg)
           IF marked(0) EQ -1 THEN markedArr=markedArr+1 ELSE markedArr(marked)=1
+          errStatus=0
           FOR i=0, nImg-1 DO BEGIN
             IF markedArr(i) THEN BEGIN
               ;check if same size
@@ -1606,12 +1651,12 @@ pro ImageQC_event, ev
                 ENDFOR
                 a0=REGRESS(resArr[0:szROI(2)-1,i],materialData.field5, MCORRELATION=mcorr)
                 resArr(szROI(2),i)=mcorr
-              ENDIF ELSE sv=DIALOG_MESSAGE('ROI size do not match image #'+STRING(i, FORMAT='(i0)')+'.',/INFORMATION)
+              ENDIF ELSE errStatus=1
             ENDIF;markedArr
             WIDGET_CONTROL, lblProgress, SET_VALUE='Progress: '+STRING(i*100./nIMG, FORMAT='(i0)')+' %'
           ENDFOR
           WIDGET_CONTROL, lblProgress, SET_VALUE=''
-
+          If errstatus THEN sv=DIALOG_MESSAGE('The images have different size. Results restricted to images with same size.',/INFORMATION)
           CTlinRes=resArr
           results(getResNmb(WIDGET_INFO(wtabModes, /TAB_CURRENT),analyse,analyseStringsCT,analyseStringsXray,analyseStringsNM))=1
           updateTable
@@ -1754,6 +1799,7 @@ pro ImageQC_event, ev
         resArr=FLTARR(3,nImg); mean, stdev all circles
         markedArr=INTARR(nImg)
         IF marked(0) EQ -1 THEN markedArr=markedArr+1 ELSE markedArr(marked)=1
+        errStatus=0
         FOR i=0, nImg-1 DO BEGIN
           IF markedArr(i) THEN BEGIN
             ;check if same size
@@ -1762,12 +1808,12 @@ pro ImageQC_event, ev
             IF ARRAY_EQUAL(imszTemp[0:1], szImg[0:1]) THEN BEGIN
               res=get_fwhm(tempImg, center, pix(0))
               IF N_ELEMENTS(res) GT 1 THEN resArr[*,i]=res ELSE resArr[*,i]=-1
-            ENDIF ELSE sv=DIALOG_MESSAGE('ROI size do not match image #'+STRING(i, FORMAT='(i0)')+'.',/INFORMATION)
+            ENDIF ELSE errStatus=1
           ENDIF
           WIDGET_CONTROL, lblProgress, SET_VALUE='Progress: '+STRING(i*100./nIMG, FORMAT='(i0)')+' %'
         ENDFOR
         WIDGET_CONTROL, lblProgress, SET_VALUE=''
-
+        If errstatus THEN sv=DIALOG_MESSAGE('The images have different size. Results restricted to images with same size.',/INFORMATION)
         results(getResNmb(WIDGET_INFO(wtabModes, /TAB_CURRENT),analyse,analyseStringsCT,analyseStringsXray,analyseStringsNM))=1
         fwhmRes=resArr
         updateTable
@@ -1820,6 +1866,65 @@ pro ImageQC_event, ev
       ENDIF;adr ne ''
     END
     
+    'radialProfile': BEGIN
+
+      IF tags(0) NE 'EMPTY' THEN BEGIN
+        WIDGET_CONTROL, /HOURGLASS
+        
+        sel=WIDGET_INFO(listFiles, /LIST_SELECT)  & sel=sel(0)
+        IF nFrames EQ 0 THEN pix=structImgs.(sel).pix ELSE pix=structImgs.(0).pix
+        distCenter=activeImg*0.0
+        szM=SIZE(activeImg, /DIMENSIONS)
+        centerPos=0.5*szM[0:1]+dxya[0:1]*dxya(3)
+        FOR i=0, szM(0)-1 DO BEGIN
+          FOR j=0, szM(1)-1 DO BEGIN
+            distCenter(i,j)=SQRT((i-centerPos(0))^2+(j-centerPos(1))^2)
+          ENDFOR
+        ENDFOR
+        sorting=SORT(distCenter)
+        dists=distCenter(sorting)
+
+        IF nFrames EQ 0 THEN nImg=N_ELEMENTS(tags) ELSE nImg=nFrames
+        markedArr=INTARR(nImg)
+        IF marked(0) EQ -1 THEN markedArr=markedArr+1 ELSE markedArr(marked)=1
+
+        ;rebin to equally spaced resolution pix/10
+        radius=MIN([centerPos(0),szM(0)-centerPos(0),centerPos(1), szM(1)-centerPos(1)])-1; maximim radius with full dataset
+        newdists=FINDGEN(radius*10)*0.1*pix(0); regular x axis, cuts data at position where start to loose info due to less data in perpendicular directions
+        pixNew=.1*pix(0)
+        ;smooth by ~the new pix size if possible
+        test=WHERE(dists*pix(0) LT max(newdists))
+        smoothSz=ROUND(N_ELEMENTS(test)/N_ELEMENTS(newdists))     
+
+        radialRes=FLTARR(N_ELEMENTS(newdists), nImg)
+        errStatus=0
+        FOR i=0, nImg-1 DO BEGIN
+          IF markedArr(i) THEN BEGIN
+            ;check if same size
+            IF nFrames NE 0 THEN tempImg=readImg(structImgs.(0).filename, i) ELSE tempImg=readImg(structImgs.(i).filename, 0)
+            imszTemp=SIZE(tempImg, /DIMENSIONS)
+            IF ARRAY_EQUAL(imszTemp[0:1], szM[0:1]) THEN BEGIN
+              If smoothSz GT 2 THEN pixVals=SMOOTH(tempImg(sorting),smoothSz) ELSE pixVals=tempImg(sorting)
+              radialRes[*,i]=INTERPOL(pixVals, dists*pix(0), newdists); linear interpolation
+              radialRes[0:9,i]=radialRes[10,i];don't trust first 10 values (first original pix)
+            ENDIF ELSE errStatus=1
+          ENDIF
+          WIDGET_CONTROL, lblProgress, SET_VALUE='Progress: '+STRING(i*100./nIMG, FORMAT='(i0)')+' %'
+
+        ENDFOR
+        WIDGET_CONTROL, lblProgress, SET_VALUE=''
+        If errstatus THEN sv=DIALOG_MESSAGE('The images have different size. Results restricted to images with same size.',/INFORMATION)
+        analyse='RADIAL'
+        results(getResNmb(WIDGET_INFO(wtabModes, /TAB_CURRENT),'RADIAL',analyseStringsCT,analyseStringsXray,analyseStringsNM))=1
+        updateTable
+        updatePlot, 1,1,0
+        redrawImg, 0,0
+        WIDGET_CONTROL, wtabResult, SET_TAB_CURRENT=1
+      ENDIF
+
+    END
+
+    
     'plotScanSpeed':BEGIN
       IF tags(0) NE 'EMPTY' THEN BEGIN
         WIDGET_CONTROL, /HOURGLASS
@@ -1871,6 +1976,7 @@ pro ImageQC_event, ev
 
           markedArr=INTARR(nImg)
           IF marked(0) EQ -1 THEN markedArr=markedArr+1 ELSE markedArr(marked)=1
+          errStatus=0
           FOR i=0, nImg-1 DO BEGIN
             IF markedArr(i) THEN BEGIN
               ;check if same size
@@ -1883,12 +1989,12 @@ pro ImageQC_event, ev
                   resArr(r,i)=minVal
                   IF r EQ szROI(2)-1 THEN resArr(r,i)=meanVal
                 ENDFOR
-              ENDIF ELSE sv=DIALOG_MESSAGE('ROI size do not match image #'+STRING(i, FORMAT='(i0)')+'.',/INFORMATION)
+              ENDIF ELSE errStatus=1
             ENDIF;markedArr
             WIDGET_CONTROL, lblProgress, SET_VALUE='Progress: '+STRING(i*100./nIMG, FORMAT='(i0)')+' %'
           ENDFOR
           WIDGET_CONTROL, lblProgress, SET_VALUE=''
-
+          If errstatus THEN sv=DIALOG_MESSAGE('The images have different size. Results restricted to images with same size.',/INFORMATION)
           contrastRes=resArr
           results(getResNmb(WIDGET_INFO(wtabModes, /TAB_CURRENT),analyse,analyseStringsCT,analyseStringsXray,analyseStringsNM))=1
           updateTable
@@ -1960,15 +2066,16 @@ pro ImageQC_event, ev
     IF marked(0) EQ -1 THEN markedArr=markedArr+1 ELSE markedArr(marked)=1
     szAct=SIZE(activeImg, /DIMENSIONS)
     sumArr=FLTARR(szAct(0),szAct(1))
+    errStatus=0
     FOR i=0, nImg-1 DO BEGIN
       IF markedArr(i) THEN BEGIN
         ;check if same size
         IF nFrames NE 0 THEN tempImg=readImg(structImgs.(0).filename, i) ELSE tempImg=readImg(structImgs.(i).filename, 0)
         imszTemp=SIZE(tempImg, /DIMENSIONS)
-        IF ARRAY_EQUAL(imszTemp[0:1], szAct[0:1]) THEN sumArr=sumArr+tempImg ELSE sv=DIALOG_MESSAGE('Active image do not match size of image #'+STRING(i, FORMAT='(i0)')+'.',/INFORMATION)
+        IF ARRAY_EQUAL(imszTemp[0:1], szAct[0:1]) THEN sumArr=sumArr+tempImg ELSE errStatus=1
       ENDIF;markedArr
     ENDFOR
-
+    If errstatus THEN sv=DIALOG_MESSAGE('The images have different size. Sum of images restricted to those with same size.',/INFORMATION)
     iImage, sumArr, TITLE='Sum of axial images', ASPECT_RATIO=pix(1)/pix(0)
   END
 
@@ -2320,18 +2427,28 @@ IF (TAG_NAMES(ev, /STRUCTURE_NAME) EQ 'WIDGET_KBRD_FOCUS') OR (TAG_NAMES(ev, /ST
       txtNPSroiSz: BEGIN
         WIDGET_CONTROL, txtNPSroiSz, GET_VALUE=val
         val=LONG(val(0))
-        IF val LT 22 THEN val=22
+        IF val LE 0 THEN val=1
         WIDGET_CONTROL, txtNPSroiSz, SET_VALUE=STRING(val, FORMAT='(i0)')
-        WIDGET_CONTROL, txtNPSsubSz, GET_VALUE=valS
-        valS=LONG(valS(0))
-        nPix=((valS*2-1)*val)^2
-        WIDGET_CONTROL, lblNPStotPix, SET_VALUE=STRING(nPix, FORMAT='(i0)')
-        sel=WIDGET_INFO(listFiles, /LIST_SELECT)
-        IF sel(0) NE -1 THEN BEGIN
-          curPix=structImgs.(sel(0)).pix
-          subSzMM=curPix(0)*val*valS
-          WIDGET_CONTROL, lblNPSsubSzMM, SET_VALUE=STRING(subSzMM, FORMAT='(f0.1)')
-        ENDIF ELSE WIDGET_CONTROL, lblNPSsubSzMM, SET_VALUE=' '
+        clearRes, 'NPS'
+      END
+      txtNPSroiDist: BEGIN
+        WIDGET_CONTROL, txtNPSroiDist, GET_VALUE=val
+        val=ABS(FLOAT(comma2pointFloat(val(0))))
+        IF val EQ 0 THEN val=1.
+        WIDGET_CONTROL, txtNPSroiDist, SET_VALUE=STRING(val, FORMAT='(f0.1)')
+        clearRes, 'NPS'
+      END
+      txtNPSsubNN: BEGIN
+        WIDGET_CONTROL, txtNPSsubNN, GET_VALUE=val
+        val=LONG(val(0))
+        IF val LE 0 THEN val=1
+        WIDGET_CONTROL, txtNPSsubNN, SET_VALUE=STRING(val, FORMAT='(i0)')
+        clearRes, 'NPS'
+      END
+      txtSmoothNPS: BEGIN
+        WIDGET_CONTROL, txtSmoothNPS, GET_VALUE=val
+        val=ABS(FLOAT(comma2pointFloat(val(0))))
+        WIDGET_CONTROL, txtSmoothNPS, SET_VALUE=STRING(val, FORMAT='(f0.3)')
         clearRes, 'NPS'
       END
       txtNPSroiSzX: BEGIN
@@ -2351,21 +2468,6 @@ IF (TAG_NAMES(ev, /STRUCTURE_NAME) EQ 'WIDGET_KBRD_FOCUS') OR (TAG_NAMES(ev, /ST
         ENDIF ELSE WIDGET_CONTROL, lblNPSsubSzMMX, SET_VALUE=' '
         clearRes, 'NPS'
       END
-      txtNPSsubSz: BEGIN
-        WIDGET_CONTROL, txtNPSsubSz, GET_VALUE=val
-        val=LONG(val(0))
-        WIDGET_CONTROL, txtNPSsubSz, SET_VALUE=STRING(val, FORMAT='(i0)')
-        WIDGET_CONTROL, txtNPSroiSz, GET_VALUE=valR
-        nPix=((val*2-1)*LONG(valR(0)))^2
-        WIDGET_CONTROL, lblNPStotPix, SET_VALUE=STRING(nPix, FORMAT='(i0)')
-        sel=WIDGET_INFO(listFiles, /LIST_SELECT)
-        IF sel(0) NE -1 THEN BEGIN
-          curPix=structImgs.(sel(0)).pix
-          subSzMM=curPix(0)*valR*val
-          WIDGET_CONTROL, lblNPSsubSzMM, SET_VALUE=STRING(subSzMM, FORMAT='(f0.1)')
-        ENDIF ELSE WIDGET_CONTROL, lblNPSsubSzMM, SET_VALUE=' '
-        clearRes, 'NPS'
-      END
       txtNPSsubSzX: BEGIN
         WIDGET_CONTROL, txtNPSsubSzX, GET_VALUE=val
         val=LONG(val(0))
@@ -2380,7 +2482,8 @@ IF (TAG_NAMES(ev, /STRUCTURE_NAME) EQ 'WIDGET_KBRD_FOCUS') OR (TAG_NAMES(ev, /ST
           WIDGET_CONTROL, lblNPSsubSzMMX, SET_VALUE=STRING(subSzMM, FORMAT='(f0.1)')
         ENDIF ELSE WIDGET_CONTROL, lblNPSsubSzMMX, SET_VALUE=' '
         clearRes, 'NPS'
-      END     
+      END    
+       
       txtNAvgSpeedNM: BEGIN
         WIDGET_CONTROL, txtNAvgSpeedNM, GET_VALUE=val
         val=LONG(val(0))
@@ -2402,6 +2505,14 @@ IF (TAG_NAMES(ev, /STRUCTURE_NAME) EQ 'WIDGET_KBRD_FOCUS') OR (TAG_NAMES(ev, /ST
         IF val LT 1 THEN val=1
         WIDGET_CONTROL, txtScanSpeedMedian, SET_VALUE=STRING(val, FORMAT='(i0)')
         IF analyse EQ 'SCANSPEED' THEN updatePlot, 0,0,0
+      END
+      txtRadialMedian: BEGIN
+        WIDGET_CONTROL, txtRadialMedian, GET_VALUE=val
+        val=LONG(val(0))
+        IF val/2 EQ (val*1.0)/2 THEN val=val-1; assure odd number
+        IF val LT 1 THEN val=1
+        WIDGET_CONTROL, txtRadialMedian, SET_VALUE=STRING(val, FORMAT='(i0)')
+        IF analyse EQ 'RADIAL' THEN updatePlot, 0,0,0
       END
       txtConR1NM: BEGIN
         WIDGET_CONTROL, txtConR1NM, GET_VALUE=val
@@ -2497,6 +2608,11 @@ IF (TAG_NAMES(ev, /STRUCTURE_NAME) EQ 'WIDGET_DRAW') THEN BEGIN
     IF newLower GT newUpper-1 THEN newLower=newUpper-1
     WIDGET_CONTROL, txtMinWL, SET_VALUE=STRING(newLower,FORMAT='(i0)')
     WIDGET_CONTROL, txtMaxWL, SET_VALUE=STRING(newUpper,FORMAT='(i0)')
+    ;reset center/width
+    centerWL=(newLower+newUpper)/2
+    widthWL=newUpper-newLower
+    WIDGET_CONTROL, txtCenterWL, SET_VALUE=STRING(centerWL, FORMAT='(i0)')
+    WIDGET_CONTROL, txtWidthWL, SET_VALUE=STRING(widthWL, FORMAT='(i0)')
 
     lastXY=[ev.X,ev.Y]
     IF ev.release EQ 1 THEN BEGIN
@@ -2605,7 +2721,7 @@ IF N_ELEMENTS(adrFilesToOpen) GT 0 THEN BEGIN
     oldSel=WIDGET_INFO(listFiles, /LIST_SELECT)  & oldSel=oldSel(0)
     newSel=oldSel
     app=0 ; append
-    IF tagNames(0) EQ 'S0' AND nFrames EQ 0 THEN BEGIN 
+    IF tagNames(0) NE 'EMPTY' AND nFrames EQ 0 THEN BEGIN 
       box=[$
         '1, BASE,, /ROW', $
         '2, LABEL, Keep loaded files?', $
@@ -2697,6 +2813,8 @@ IF N_ELEMENTS(moveSelected) GT 0 THEN BEGIN
     IF nFrames EQ 0 THEN BEGIN
       sel=WIDGET_INFO(listFiles, /LIST_SELECT)
       newFirstSel=sel(0)
+      last=N_ELEMENTS(sel)-1
+      
       IF sel(0) NE -1 THEN BEGIN
         nImg=N_TAGS(structImgs)
         oldOrder=INDGEN(nImg)
@@ -2707,36 +2825,27 @@ IF N_ELEMENTS(moveSelected) GT 0 THEN BEGIN
         invSel=invSel(UNIQ(invSel))
         IF invSel(0) EQ -1 THEN invSel=invSel[1: N_ELEMENTS(invSel)-1]
         CASE moveSelected OF
-          0: BEGIN
+          0: BEGIN;top
             newOrder=[sel,invSel]
             newFirstSel=0
           END
-          1: BEGIN
-            IF sel(0) EQ 0 AND N_ELEMENTS(sel) EQ 1 THEN newOrder=oldOrder ELSE BEGIN
-              IF sel(0) EQ 0 THEN BEGIN
-                sel=sel[1:N_ELEMENTS(sel)-1]
-                invSel=[0,invSel]
-                newFirstSel=0
-              ENDIF ELSE newFirstSel=sel(0)-1
-              newOrder=oldOrder
-              newOrder(sel)=newOrder(sel)-1
-              newOrder(sel-1)=newOrder(sel-1)+1
-            ENDELSE
+          1: BEGIN;up
+            newOrder=oldOrder       
+            IF sel(0) GT 0 THEN BEGIN
+              newOrder[sel(0)-1:sel(last)-1]=oldOrder[sel(0)-1:sel(last)-1]+1
+              newOrder(sel(last))=oldOrder(sel(0)-1)
+              newFirstSel=sel-1
+            ENDIF 
           END
-          2:BEGIN
-            last=N_ELEMENTS(sel)-1
-            IF sel(last) EQ nImg-1 AND N_ELEMENTS(sel) EQ 1 THEN newOrder=oldOrder ELSE BEGIN
-              IF sel(last) EQ nImg-1 THEN BEGIN
-                sel=sel[0:N_ELEMENTS(sel)-2]
-                invSel=[invSel, nImg-1]
-              ENDIF
-              newOrder=oldOrder
-              newOrder(sel)=newOrder(sel)+1
-              newOrder(sel+1)=newOrder(sel+1)-1
-              newFirstSel=sel(0)+1
-            ENDELSE
+          2:BEGIN;down
+            newOrder=oldOrder
+            IF sel(last) NE nImg-1 THEN BEGIN
+              newOrder[sel(0)+1:sel(last)+1]=oldOrder[sel(0)+1:sel(last)+1]-1
+              newOrder(sel(0))=oldOrder(sel(last)+1)
+              newFirstSel=sel+1
+            ENDIF
           END
-          3: BEGIN
+          3: BEGIN;bottom
             newOrder=[invSel,sel]
             newFirstSel=N_ELEMENTS(invSel)
           END
@@ -2897,3 +3006,4 @@ pro ImageQC_about, GROUP_LEADER = mainB
   XMANAGER, 'ImageQC_about', about_box
 
 end
+
