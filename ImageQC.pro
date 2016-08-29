@@ -32,7 +32,7 @@ COMMON VARI,  $
     cw_formLSFX, cw_plotMTFX,  txtMTFroiSzX, txtMTFroiSzY, btnCutLSFX, txtcutLSFWX, $
     cw_typeMTFNM, cw_plotMTFNM, txtMTFroiSzXNM, txtMTFroiSzYNM, btnCutLSFNM, txtcutLSFWNM, MTF3dNM, $
     CTlinRes, materialData, CTlinROIs, txtLinROIrad, txtLinROIrad2,  $
-    sliceThickRes, sliceThickResTab,  ramps, txtRampDist, txtRampLen, txtRampBackG, txtRampSearch, txtRampAverage,  $
+    sliceThickRes, sliceThickResTab,  ramps, txtRampDist, txtRampLen, txtRampBackG, txtRampSearch, txtRampAverage, cw_ramptype,  $
     homogRes, homogROIs, txtHomogROIsz,  txtHomogROIszX, txtHomogROIdist, cw_homogNM, txtHomogROIszNM, txtHomogROIdistXNM, txtHomogROIdistYNM, $
     noiseRes, noiseROI, txtNoiseROIsz, $
     fwhmRes, dimRes, energyRes, $
@@ -339,25 +339,29 @@ COMMON VARI,  $
   btnLinearity=WIDGET_BUTTON(bLinButtons, VALUE='Get CT numbers', UVALUE='Linearity')
   
   ;---------------Slice thickness--------
-  bSliceThick=WIDGET_BASE(wtabAnalysisCT, Title='Slice thickness', /COLUMN)
-  bRampDist=WIDGET_BASE(bSliceThick, /ROW)
+  bSliceThick=WIDGET_BASE(wtabAnalysisCT, Title='Slice thickness', /ROW)
+  bSliceThickLft=WIDGET_BASE(bSliceThick, /COLUMN)
+  cw_ramptype=CW_BGROUP(bSliceThickLft, ['Wire ramp','Beaded ramp'], /EXCLUSIVE, LABEL_TOP='Ramp type...', /FRAME, SET_VALUE=0);, SET_VALUE=config.MTFtype)
+  bSliceThickRgt=WIDGET_BASE(bSliceThick, /COLUMN)
+  bRampDist=WIDGET_BASE(bSliceThickRgt, /ROW)
   lblRampDist = WIDGET_LABEL(bRampDist, VALUE='Center to ramp distance (mm)')
   txtRampDist = WIDGET_TEXT(bRampDist, VALUE=STRING(config.RampDist,FORMAT='(f0.1)'), /EDITABLE, XSIZE=4, SCR_YSIZE=20)
-  bRampLen=WIDGET_BASE(bSliceThick, /ROW)
+  lbl2RampDist = WIDGET_LABEL(bRampDist, VALUE='(ignored for beaded ramp, CTP591 geometry used)')
+  bRampLen=WIDGET_BASE(bSliceThickRgt, /ROW)
   lblRampLen = WIDGET_LABEL(bRampLen, VALUE='Profile length (mm)')
   txtRampLen = WIDGET_TEXT(bRampLen, VALUE=STRING(config.RampLen,FORMAT='(f0.1)'), /EDITABLE, XSIZE=4, SCR_YSIZE=20)
   bRampBack=WIDGET_BASE(bRampLen, /ROW)
   lblBackG = WIDGET_LABEL(bRampBack, VALUE='Background from outer (mm)')
   txtRampBackG = WIDGET_TEXT(bRampBack, VALUE=STRING(config.RampBackG,FORMAT='(f0.1)'), /EDITABLE, XSIZE=4, SCR_YSIZE=20)
-  bRampSearch=WIDGET_BASE(bSliceThick, /ROW)
+  bRampSearch=WIDGET_BASE(bSliceThickRgt, /ROW)
   lblRampSearch = WIDGET_LABEL(bRampSearch, VALUE='Search for maximum in profile')
   txtRampSearch = WIDGET_TEXT(bRampSearch, VALUE=STRING(config.RampSearch,FORMAT='(i0)'), /EDITABLE, XSIZE=4, SCR_YSIZE=20)
   lblRampSearch2 = WIDGET_LABEL(bRampSearch, VALUE='# pix from center of ramp')
-  bRampAverage=WIDGET_BASE(bSliceThick, /ROW)
+  bRampAverage=WIDGET_BASE(bSliceThickRgt, /ROW)
   lblRampAverage = WIDGET_LABEL(bRampAverage, VALUE='Use profile from average of ')
   txtRampAverage = WIDGET_TEXT(bRampAverage, VALUE=STRING(config.RampAvg,FORMAT='(i0)'), /EDITABLE, XSIZE=4, SCR_YSIZE=20)
   lblRampAverage2 = WIDGET_LABEL(bRampAverage, VALUE='# neighbour profiles from profile with max value')
-  bSliceThickBtns=WIDGET_BASE(bSliceThick, /ROW)
+  bSliceThickBtns=WIDGET_BASE(bSliceThickRgt, /ROW)
   btnSliceThickRamps=WIDGET_BUTTON(bSliceThickBtns, VALUE='Show/update ramps', UVALUE='drawRamps')
   btnSliceThick=WIDGET_BUTTON(bSliceThickBtns, VALUE='Get Slice Thickness', UVALUE='SliceThick')
 

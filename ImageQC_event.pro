@@ -1694,8 +1694,9 @@ pro ImageQC_event, ev
           WIDGET_CONTROL, txtRampDist, GET_VALUE=rampDist
           rampDistPix=FLOAT(rampDist(0))
           WIDGET_CONTROL, txtRampLen, GET_VALUE=len
-          lenPix=FLOAT(len(0))         
+          ;lenPix=FLOAT(len(0))         
           IF dxya(3) EQ 1 THEN imgCenterOffset=dxya ELSE imgCenterOffset=[0,0,0,0]
+          WIDGET_CONTROL, cw_ramptype, GET_VALUE=ramptype
           
           nSearch=LONG(nSearch(0))
           nAvg=LONG(nAvg(0))
@@ -1719,20 +1720,36 @@ pro ImageQC_event, ev
                 resArr[0,i]=structImgs.(i).sliceThick
               ENDELSE
               sizeThis=SIZE(tempImg,/DIMENSIONS)
-              len=ROUND(FLOAT(len(0))/pix(0)); length in pixels
+              lenPix=ROUND(FLOAT(len(0))/pix(0)); length in pixels
               nPixBackG=ROUND(rampBackG(0)/pix(0))
-              
-              ramps=getRamps(sizeThis, imgCenterOffset, rampDistPix/pix(0), lenPix/pix(0))
+
+              nRamps=4
+              CASE ramptype OF
+                0: ramps=getRamps(sizeThis, imgCenterOffset, rampDistPix/pix(0), lenPix)
+                1: BEGIN; beaded ramp
+                    ramps=getRamps(sizeThis, imgCenterOffset, 45./pix(0), lenPix)
+                    ramps2=getRamps(sizeThis, imgCenterOffset, 25./pix(0), lenPix)
+                    nRamps=6
+                  END
+              ELSE:ramps=getRamps(sizeThis, imgCenterOffset, rampDistPix/pix(0), lenPix)
+              ENDCASE
 
               ;get line, FWHM and slice thickness              
-              FOR l=0, 3 DO BEGIN
+              FOR l=0, nRamps-1 DO BEGIN 
 
-                vec=getProfile(tempImg,ramps[0:1,l],ramps[2:3,l])
+                IF l LE 3 THEN vec=getProfile(tempImg,ramps[0:1,l],ramps[2:3,l]) ELSE vec=getProfile(tempImg,ramps2[0:1,l-2],ramps2[2:3,l-2])
+
                 IF nSearch GT 0 THEN BEGIN
                   nLines=nSearch*2+1
+                  
                   vecTemp=FLTARR(N_ELEMENTS(vec),nLines)
                   FOR k=-nSearch, nSearch DO BEGIN
-                    IF l LE 1 THEN vecTemp[*,k+nSearch]=getProfile(tempImg,[ramps(0,l),ramps(1,l)+k],[ramps(2,l),ramps(3,l)+k]) ELSE vecTemp[*,k+nSearch]=getProfile(tempImg,[ramps(0,l)+k,ramps(1,l)],[ramps(2,l)+k,ramps(3,l)])
+                    IF l LE 1 THEN BEGIN
+                      vecTemp[*,k+nSearch]=getProfile(tempImg,[ramps(0,l),ramps(1,l)+k],[ramps(2,l),ramps(3,l)+k])
+                    ENDIF ELSE BEGIN
+                      IF l LE 3 THEN vecTemp[*,k+nSearch]=getProfile(tempImg,[ramps(0,l)+k,ramps(1,l)],[ramps(2,l)+k,ramps(3,l)])
+                      IF l GT 3 THEN vecTemp[*,k+nSearch]=getProfile(tempImg,[ramps2(0,l-2)+k,ramps2(1,l-2)],[ramps2(2,l-2)+k,ramps2(3,l-2)])
+                    ENDELSE
                   ENDFOR
                   vecSum=TOTAL(vecTemp,1)
                   maxProf=WHERE(vecSum EQ max(vecSum))
@@ -1742,24 +1759,49 @@ pro ImageQC_event, ev
                     IF maxProf-nAvg GE 0 AND maxProf+nAvg LT nLines THEN vec=TOTAL(vecTemp[*,maxProf-nAvg:maxProf+nAvg],2)/(nAvg*2+1) $
                     ELSE errLogg=errLogg+'Image '+STRING(i,FORMAT='(i0)')+', Line '+STRING(l,FORMAT='(i0)')+': Max profile to close to border of search-area. Single profile with max used (no averaging).'+newline
                   ENDIF
+                  
                 ENDIF
+                
                 szVec=SIZE(vec,/DIMENSIONS)
                 IF nPixBackG GT szVec(0) THEN nPixBackG= szVec(0)
                 ;find background
                 bgVec=[vec[0:nPixBackG],vec[szVec(0)-nPixBackG:szVec(0)-1]]
                 backGr=MEAN(bgVec)
 
-                halfmax=0.5*(MAX(vec)+backGr)
-                res=getWidthAtThreshold(vec, halfmax)
-                resArr[l+1,i]=0.42*(res(0))*pix(0)/cos(daRad); sliceThickness=FWHM*0.42 according to Catphan manual
+                halfmax=0.5*(MAX(vec)+backGr); 0.5(max-bg)+bg = 0.5(max+bg)
+                CASE ramptype OF
+                0: BEGIN; wire ramp
+                  res=getWidthAtThreshold(vec, halfmax)
+                  resArr[l+1,i]=0.42*(res(0))*pix(0)/cos(daRad); sliceThickness=FWHM*0.42 according to Catphan manual
+                  END  
+                1: BEGIN; bead ramp
+                  ;find upper envelope curve
+                  derived=vec-shift(vec,1)
+                  subz=where(derived LT 0)-1
+                  dsubz=subz-shift(subz,1)
+                  ss=INTARR(n_elements(dsubz))
+                  ss(1)=1
+                  FOR s=2, n_elements(dsubz)-1 DO IF dsubz(s) GT 1 THEN ss(s)=1
+                  idxes=WHERE(ss EQ 1)
+                  idxmax=subz(idxes)
+                  vecInt=INTERPOL(vec(idxmax),idxmax, INDGEN(N_ELEMENTS(vec)));interpolate to regular stepsize
+                  res=getWidthAtThreshold(vecInt, halfmax)
+                  IF l LE 3 THEN zinc=1. ELSE zinc=.25;1 or 0.25mm z spacing between beads
+                  resArr[l+1,i]=zinc/2.0*(res(0)*pix(0)/cos(daRad)) ; 2mm axial spacing
+                  END
+                ELSE:
+                ENDCASE
                 structTemp=CREATE_STRUCT('background',backGr,'nBackGr',nPixBackG,'vector',vec,'halfMax',halfMax,'firstLast',[res(1)-res(0)/2.,res(1)+res(0)/2.],'maxVal',MAX(vec))
                 IF l EQ 0 THEN lineStruct=CREATE_STRUCT('L0',structTemp) ELSE lineStruct=CREATE_STRUCT(lineStruct,'L'+STRING(l, FORMAT='(i0)'),structTemp)
               ENDFOR
+              
             ENDIF ELSE lineStruct=CREATE_STRUCT('empty',0)
             IF i EQ 0 THEN sliceThickRes=CREATE_STRUCT('img0',lineStruct) ELSE sliceThickRes=CREATE_STRUCT(sliceThickRes,'img'+STRING(i,FORMAT='(i0)'),lineStruct)
 
-            resArr[5,i]=MEAN(resArr[1:4,i])
-            resArr[6,i]=100.0*(resArr[5,i]-resArr[0,i])/resArr[0,i]
+            IF ramptype EQ 0 THEN BEGIN
+              resArr[5,i]=MEAN(resArr[1:4,i])
+              resArr[6,i]=100.0*(resArr[5,i]-resArr[0,i])/resArr[0,i]
+            ENDIF
 
             WIDGET_CONTROL, lblProgress, SET_VALUE='Progress: '+STRING(i*100./nIMG, FORMAT='(i0)')+' %'
           ENDFOR

@@ -328,19 +328,21 @@ pro updatePlot, setRangeMinMaxX, setRangeMinMaxY, copyCurve
                 tabSel=WIDGET_INFO(resTab,/TABLE_SELECT)
                 colNo=tabSel(0)
                 loadct, 12, /SILENT
-                colors=[200,50,100,255]
+                colors=[200,50,100,255,130,80]
+                WIDGET_CONTROL, cw_ramptype, GET_VALUE=ramptype
 
                 first=0
-                last=3
-                IF colNo GT 0 AND colNo LT 5 THEN BEGIN
+                IF ramptype EQ 0 THEN last=3 ELSE last=5
+                IF colNo GT 0 OR ( colNo LT 5 AND ramptype EQ 0 ) THEN BEGIN
                   first=colNo-1
                   last=first
                 ENDIF
 
-                lines=['H1','H2','V1','V2']
+                lines=['H1','H2','V1','V2','iV1','iV2']
                 FOR line=first,last DO BEGIN
                   vect=sliceThickRes.(sel).(line).vector
-                  IF line EQ first THEN valuesPlot=CREATE_STRUCT(lines(line), vect) ELSE valuesPlot=CREATE_STRUCT(valuesPlot, lines(line), vect)
+                  nPixVec=N_ELEMENTS(vect)
+                  IF line EQ first THEN valuesPlot=CREATE_STRUCT('pix',INDGEN(nPixVec),lines(line), vect) ELSE valuesPlot=CREATE_STRUCT(valuesPlot,'COPY'+STRING(line,FORMAT='(i03)')+'pix',INDGEN(nPixVec), lines(line), vect)
 
                   backGround=sliceThickRes.(sel).(line).background
                   lenVec=N_ELEMENTS(vect)

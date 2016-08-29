@@ -75,11 +75,12 @@ pro updateTable
 
           'SLICETHICK': BEGIN
             nCols=7
-            headers=['Nominal','H1','H2','V1','V2','Avg','Diff nominal (%)']
+            WIDGET_CONTROL, cw_ramptype, GET_VALUE=ramptype 
+            IF ramptype EQ 0 THEN headers=['Nominal','H1','H2','V1','V2','Avg','Diff nominal (%)'] ELSE headers=['Nominal','H1','H2','V1','V2','inner V1','inner V2']
             resArrString=STRARR(nCols,nRows)
             FOR i=0, nRows-1 DO BEGIN
               resArrString[0:5,i]=STRING(sliceThickResTab[0:5,markedTemp(i)], FORMAT='(f0.2)')
-              resArrString[6,i]=STRING(sliceThickResTab[6,markedTemp(i)], FORMAT='(f0.1)')
+              resArrString[6,i]=STRING(sliceThickResTab[6,markedTemp(i)], FORMAT='(f0.2)');f0.1? for only wired ramp?? 
             ENDFOR
           END
 
@@ -303,7 +304,7 @@ pro updateTable
     ENDIF
 
     IF nCols GT -1 THEN $
-      WIDGET_CONTROL, resTab, TABLE_XSIZE=nCols, TABLE_YSIZE=nRows, COLUMN_LABELS=headers, COLUMN_WIDTHS=INTARR(nCols)+570/nCols, SET_VALUE=resArrString, SET_TABLE_SELECT=tabSelect $
+      WIDGET_CONTROL, resTab, TABLE_XSIZE=nCols, TABLE_YSIZE=nRows, COLUMN_LABELS=headers, COLUMN_WIDTHS=INTARR(nCols)+550/nCols, SET_VALUE=resArrString, SET_TABLE_SELECT=tabSelect $
     ELSE WIDGET_CONTROL, resTab, TABLE_XSIZE=4, TABLE_YSIZE=2, COLUMN_LABELS=['0','1','2','3'], COLUMN_WIDTHS=[100,100,100,100], SET_VALUE=STRARR(4,5), SET_TABLE_SELECT=tabSelect
     WIDGET_CONTROL, resTab, SET_TABLE_VIEW=tabView
   ENDELSE
