@@ -21,7 +21,9 @@ function calculateNPS_xray, subMatrix, ROIsz, nSub, pix, stp, imgNo
   subM=subMatrix
 
   IF SIZE(stp, /TNAME) EQ 'STRUCT' THEN BEGIN
-    subM=linearizeSTP(subM,stp)
+    IF N_ELEMENTS(stp) GT 1 THEN BEGIN; might be only Empty,0
+      subM=linearizeSTP(subM,stp)
+    ENDIF
     ;Qval=stp.table[1,imgNo] 
   ENDIF; ELSE stop; set STP : subM=(subM-17.2)/107.
 

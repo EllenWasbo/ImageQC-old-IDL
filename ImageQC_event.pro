@@ -280,6 +280,7 @@ pro ImageQC_event, ev
                 updateInfo=1
                 updateTable
                 updatePlot, 0,0,0
+                WIDGET_CONTROL, lblLoadedN, SET_VALUE=STRING(n_elements(fileList), FORMAT='(i0)')+' )'
               ENDIF ELSE clearAll
 
             ENDIF
@@ -2829,6 +2830,7 @@ IF N_ELEMENTS(adrFilesToOpen) GT 0 THEN BEGIN
       WIDGET_CONTROL, listFiles, YSIZE=n_elements(fileList), SET_VALUE=fileList, SET_LIST_SELECT=newSel
       WIDGET_CONTROL, listFiles, SCR_YSIZE=170
       IF nFrames NE 0 THEN activeImg=readImg(structImgs.(0).filename, 0) ELSE activeImg=readImg(structImgs.(app).filename)
+      WIDGET_CONTROL, lblLoadedN, SET_VALUE=STRING(n_elements(fileList), FORMAT='(i0)')+' )'
 
       IF app EQ 0 THEN BEGIN
         wCenter=structImgs.(0).wCenter

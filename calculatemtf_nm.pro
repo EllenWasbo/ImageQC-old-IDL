@@ -300,13 +300,15 @@ function calculateMTF_NM, submatrix, pix, center, typeMTF, backmatrix, cutLSF, c
 
       ;gauss to gauss continuous version:
       ;http://www.cse.yorku.ca/~kosta/CompVis_Notes/fourier_transform_Gaussian.pdf
-      kvals=FINDGEN(200)*0.05/A(2);sample 20 steps from 0 to 1 stdv MTF curve A0 (stdev=1/A(2))
-      Fgu0=calcGauss(kvals, 1/A(2),A(0)*A(2),0)
-      IF N_ELEMENTS(A) EQ 4 THEN Fgu1=calcGauss(kvals, 1/A(3),A(1)*A(3),0) ELSE Fgu1=0.
-      If sigmaF NE 0 THEN Ffilter=calcGauss(kvals,1./(sigmaF*pixNew),1.0,0) ELSE Ffilter=1.
-      gMTFx=(Fgu0+Fgu1)/Ffilter
-      gfx=kvals/(2*!pi)
-      gMTFx=gMTFx/gMTFx(0)
+      IF N_ELEMENTS(A) GT 0 THEN BEGIN
+        kvals=FINDGEN(200)*0.05/A(2);sample 20 steps from 0 to 1 stdv MTF curve A0 (stdev=1/A(2))
+        Fgu0=calcGauss(kvals, 1/A(2),A(0)*A(2),0)
+        IF N_ELEMENTS(A) EQ 4 THEN Fgu1=calcGauss(kvals, 1/A(3),A(1)*A(3),0) ELSE Fgu1=0.
+        If sigmaF NE 0 THEN Ffilter=calcGauss(kvals,1./(sigmaF*pixNew),1.0,0) ELSE Ffilter=1.
+        gMTFx=(Fgu0+Fgu1)/Ffilter
+        gfx=kvals/(2*!pi)
+        gMTFx=gMTFx/gMTFx(0)
+      ENDIF
 
       LSFx=dLSF
       MTFx=dMTF
@@ -473,14 +475,16 @@ function calculateMTF_NM, submatrix, pix, center, typeMTF, backmatrix, cutLSF, c
 
       ;gauss to gauss continuous version:
       ;http://www.cse.yorku.ca/~kosta/CompVis_Notes/fourier_transform_Gaussian.pdf
-      kvals=FINDGEN(200)*0.05/A(2);sample 20 steps from 0 to 1 stdv MTF curve A0 (stdev=1/A(2))
-      Fgu0=calcGauss(kvals, 1/A(2),A(0)*A(2),0)
-      IF N_ELEMENTS(A) EQ 4 THEN Fgu1=calcGauss(kvals, 1/A(3),A(1)*A(3),0) ELSE Fgu1=0.
-      If sigmaF NE 0 THEN Ffilter=calcGauss(kvals,1./(sigmaF*pixNew),1.0,0) ELSE Ffilter=1.
-      gMTFx=(Fgu0+Fgu1)/Ffilter
-      gfx=kvals/(2*!pi)
-
-      gMTFx=gMTFx/gMTFx(0)
+      IF N_ELEMENTS(A) GT 0 THEN BEGIN
+        kvals=FINDGEN(200)*0.05/A(2);sample 20 steps from 0 to 1 stdv MTF curve A0 (stdev=1/A(2))
+        Fgu0=calcGauss(kvals, 1/A(2),A(0)*A(2),0)
+        IF N_ELEMENTS(A) EQ 4 THEN Fgu1=calcGauss(kvals, 1/A(3),A(1)*A(3),0) ELSE Fgu1=0.
+        If sigmaF NE 0 THEN Ffilter=calcGauss(kvals,1./(sigmaF*pixNew),1.0,0) ELSE Ffilter=1.
+        gMTFx=(Fgu0+Fgu1)/Ffilter
+        gfx=kvals/(2*!pi)
+  
+        gMTFx=gMTFx/gMTFx(0)
+      ENDIF
 
       smLSFx=lsf
       fitLSFx=LSFx

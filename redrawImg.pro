@@ -56,6 +56,8 @@ pro redrawImg, viewpl, newActive
     
     oPaletteCT=OBJ_NEW('IDLgrPalette')
     oPaletteCT->LoadCT, 0
+    oPaletteROI=OBJ_NEW('IDLgrPalette')
+    oPaletteROI->LoadCT, 0
     oImageCT = OBJ_NEW('IDLgrImage', tempAct, /GREYSCALE)
     oModel->Add, oImageCT
     
@@ -235,14 +237,11 @@ pro redrawImg, viewpl, newActive
       ENDIF
       IF analyse EQ 'NPS' THEN BEGIN
         CASE curMode OF
-          0: BEGIN
-            WIDGET_CONTROL, txtNPSroiSz, GET_VALUE=ROIsz
-            WIDGET_CONTROL, txtNPSroiDist, GET_VALUE=ROIdist
-            WIDGET_CONTROL, txtNPSsubNN, GET_VALUE=subNN
-            contour0=OBJ_NEW('IDLgrContour',total(NPSrois,3),COLOR=255*([1,0,0]), C_VALUE=[1,2,3,4])
-            oModel->Add, Contour0
+          0: BEGIN; CT
+            oImageROIs = OBJ_NEW('IDLgrImage', 50*total(NPSrois,3)+50 , BLEND_FUNCTION = [3, 4], ALPHA_CHANNEL=0.5, PALETTE=oPaletteROI)
+            oModel->Add, oImageROIs
             END
-          1: BEGIN
+          1: BEGIN; xray
             WIDGET_CONTROL, txtNPSroiSzX, GET_VALUE=ROIsz
             WIDGET_CONTROL, txtNPSsubSzX, GET_VALUE=subSz
             ROIsz=LONG(ROIsz(0)) & subSz=LONG(subSz(0))

@@ -18,7 +18,7 @@
 pro ImageQC,  GROUP_LEADER=bMain
 
 COMMON VARI,  $ 
-    lblDir, listFiles, marked,lblProgress, activeImg, activeResImg, nFrames, ROIs,  $
+    lblDir, listFiles, lblLoadedN, marked,lblProgress, activeImg, activeResImg, nFrames, ROIs,  $
     txtActive1, txtActive2, newline, $
     drawLarge, drawXY, txtMinWL, txtMaxWL, txtCenterWL, txtWidthWL, lblCursorValue, lblCursorPos,lblCursorPosMM, $  
     txtDeltaX, txtDeltaY, txtDeltaA, dxya, useDelta,$ 
@@ -77,7 +77,7 @@ COMMON VARI,  $
   IF scsz(0) LT winX THEN scX=scsz(0)-10 ELSE scX=winX
   IF scsz(1) LT winY THEN scY=scsz(1)-50 ELSE scY=winY
   
-  bMain = WIDGET_BASE(TITLE='ImageQC v1.0', MBAR=bar, /COLUMN, XSIZE=winX, YSIZE=winY-50, XOFFSET=100, YOFFSET=100, X_SCROLL_SIZE=scX, Y_SCROLL_SIZE=scY, /TLB_KILL_REQUEST_EVENTS)
+  bMain = WIDGET_BASE(TITLE='ImageQC v1.001', MBAR=bar, /COLUMN, XSIZE=winX, YSIZE=winY-50, XOFFSET=100, YOFFSET=100, X_SCROLL_SIZE=scX, Y_SCROLL_SIZE=scY, /TLB_KILL_REQUEST_EVENTS)
   bLarge = WIDGET_BASE(bMain, /ROW)
   bLft = WIDGET_BASE(bLarge, XSIZE=winX/2-30, YSIZE=winY-100,/COLUMN)
   bRgt = WIDGET_BASE(bLarge, XSIZE=winX/2, YSIZE=winY-100,/COLUMN)
@@ -115,7 +115,9 @@ COMMON VARI,  $
   ;list ++
   bList=WIDGET_BASE(bInfoLft, /ROW)
   bListLoaded=WIDGET_BASE(bList, /COLUMN)
-  lblLoaded=WIDGET_LABEL(bListLoaded, VALUE='Loaded images', /ALIGN_LEFT, FONT="Arial*ITALIC*16")
+  bListLoadedTitle=WIDGET_BASE(bListLoaded, /ROW)
+  lblLoaded=WIDGET_LABEL(bListLoadedTitle, VALUE='Loaded images ( ', /ALIGN_LEFT, FONT="Arial*ITALIC*16")
+  lblLoadedN=WIDGET_LABEL(bListLoadedTitle, VALUE='0 )', /ALIGN_LEFT, FONT="Arial*ITALIC*16", /DYNAMIC_RESIZE)
   listFiles=WIDGET_LIST(bListLoaded, XSIZE=winX/2-50, SCR_XSIZE=winX/2-200, YSIZE=1, SCR_YSIZE=170, MULTIPLE=1, UVALUE='filelist')
 
   bMarkSelect=WIDGET_BASE(bList, /COLUMN)
@@ -264,10 +266,6 @@ COMMON VARI,  $
   bMTFlft=WIDGET_BASE(bMTFsettings,/COLUMN)
   cw_typeMTF=CW_BGROUP(bMTFlft, ['Bead','Wire','Circular edge'], /EXCLUSIVE, LABEL_TOP='MTF method...', /FRAME, SET_VALUE=config.MTFtype)
 
-  bMTFroiSz=WIDGET_BASE(bMTFlft, /ROW)
-  lblMTFroiSz=WIDGET_LABEL(bMTFroiSz, VALUE='ROI size from center (mm)')
-  txtMTFroiSz=WIDGET_TEXT(bMTFroiSz, VALUE=STRING(config.MTFroiSz,FORMAT='(f0.1)'), /EDITABLE, XSIZE=5, SCR_YSIZE=20)
-
   bMTFrgt=WIDGET_BASE(bMTFsettings,/COLUMN)
   bCutLSF=WIDGET_BASE(bMTFrgt, /NONEXCLUSIVE, /ROW)
   btnCutLSF=WIDGET_BUTTON(bCutLSF, VALUE='Cut LSF tails', UVALUE='cutLSF')
@@ -281,7 +279,9 @@ COMMON VARI,  $
   bfreqMTF=WIDGET_BASE(bMTFrgt, /ROW)
   lblfreqMTF=WIDGET_LABEL(bfreqMTF, VALUE='Sampling frequency gaussian MTF curve (mm-1)')
   txtfreqMTF=WIDGET_TEXT(bfreqMTF, VALUE='0.010', /EDITABLE, XSIZE=5, SCR_YSIZE=20, /KBRD_FOCUS_EVENTS);( TOTAL(WHERE(configTags EQ 'MTFFREQ')) NE -1 ? STRING(config.MTFFREQ,FORMAT='(f0.3)') : STRING(configDefault.MTFFREQ,FORMAT='(f0.3)'))
-
+  bMTFroiSz=WIDGET_BASE(bMTFrgt, /ROW)
+  lblMTFroiSz=WIDGET_LABEL(bMTFroiSz, VALUE='ROI size from center (mm)')
+  txtMTFroiSz=WIDGET_TEXT(bMTFroiSz, VALUE=STRING(config.MTFroiSz,FORMAT='(f0.1)'), /EDITABLE, XSIZE=5, SCR_YSIZE=20)
 
   cw_plotMTF=CW_BGROUP(bMTFsettings, ['Centered xy profiles', 'Sorted pixelvalues', 'LSF', 'MTF'], /EXCLUSIVE, LABEL_TOP='Show plot...', /FRAME, SET_VALUE=config.plotMTF, UVALUE='cw_plotMTF')
   

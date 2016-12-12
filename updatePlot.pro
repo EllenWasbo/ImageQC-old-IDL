@@ -319,7 +319,7 @@ pro updatePlot, setRangeMinMaxX, setRangeMinMaxY, copyCurve
                 szTab=SIZE(resArr, /DIMENSIONS)
                 IF setRangeMinMaxX THEN rangeX=[min(FLOAT(resArr[*,rowNo])),max(FLOAT(resArr[*,rowNo]))]
                 IF setRangeMinMaxY THEN rangeY=[min(materialData.field5),max(materialData.field5)]
-                PLOT, FLOAT(resArr[*,rowNo]), materialData.field5, PSYM=4,  XTITLE='CT number (HU)', YTITLE='Rel. mass density' , TITLE='CT linearity for first image', XRANGE=rangeX, YRANGE=rangeY, XSTYLE=1, YSTYLE=1
+                PLOT, FLOAT(resArr[0:szTab(0)-2,rowNo]), materialData.field5, PSYM=4,  XTITLE='CT number (HU)', YTITLE='Rel. mass density' , TITLE='CT linearity for first image', XRANGE=rangeX, YRANGE=rangeY, XSTYLE=2, YSTYLE=2
                 a0=REGRESS(resArr[0:szTab(0)-2,rowNo],materialData.field5, YFIT=yfit)
                 OPLOT, resArr[0:szTab(0)-2,rowNo], yfit, LINESTYLE=0
               END
@@ -333,7 +333,7 @@ pro updatePlot, setRangeMinMaxX, setRangeMinMaxY, copyCurve
 
                 first=0
                 IF ramptype EQ 0 THEN last=3 ELSE last=5
-                IF colNo GT 0 OR ( colNo LT 5 AND ramptype EQ 0 ) THEN BEGIN
+                IF colNo GT 0 AND ( colNo LT 5 AND ramptype EQ 0 ) THEN BEGIN
                   first=colNo-1
                   last=first
                 ENDIF
@@ -537,11 +537,13 @@ pro updatePlot, setRangeMinMaxX, setRangeMinMaxY, copyCurve
                   WSET, iDrawImageRes
                   activeResImg=NPSres.(sel).NPS
                   tvRes=activeResImg
+                  tvRes[*,128]=0 & tvRes[128,*]=0
                   szNPS=SIZE(activeResImg, /DIMENSIONS)
                   szX=450
                   szY=ROUND(szX*(szNPS(1)*1./szNPS(0)))
-                  TVSCL,congrid(adjustWindowLevel(tvRes, [0,100*max(NPSres.(sel).uNPS)/(NPSres.(sel).largeAreaSignal^2)]), szX, szY, /INTERP)
+                  TVSCL,congrid(adjustWindowLevel(tvRes, [0,max(tvRes)]), szX, szY, /INTERP)
                   valuesPlot=CREATE_STRUCT('frequency mm_1',NPSres.(sel).du,'uNNPS', NPSres.(sel).uNPS/(NPSres.(sel).largeAreaSignal^2), 'COPY000frequency mm_1',NPSres.(sel).du, 'vNNPS', NPSres.(sel).vNPS/(NPSres.(sel).largeAreaSignal^2))
+                      
                 ENDIF ELSE TVSCL, INTARR(550,550)
               END
 
