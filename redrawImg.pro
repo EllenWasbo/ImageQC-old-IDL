@@ -86,33 +86,65 @@ pro redrawImg, viewpl, newActive
       oModel->Add, thisROI
     ENDIF
     
-    IF analyse EQ 'CTLIN' OR analyse EQ 'HOMOG' OR analyse EQ 'NOISE' OR analyse EQ 'STP' OR analyse EQ 'CONTRAST' THEN BEGIN
+    IF analyse EQ 'HOMOG' OR analyse EQ 'NOISE' OR analyse EQ 'STP' OR analyse EQ 'CONTRAST' OR analyse EQ 'CROSSCALIB' THEN BEGIN
       CASE analyse OF 
-      'CTLIN': ROIs=CTlinROIs
       'HOMOG': ROIs=homogROIs
       'NOISE': ROIs=noiseROI
+      'CROSSCALIB': ROIs=crossROI
       'STP': ROIs=stpROI
       'CONTRAST': ROIs=conROIs
       ELSE:
       ENDCASE
-      contour0=OBJ_NEW('IDLgrContour',ROIs[*,*,0],COLOR=255*([1,0,0]), C_VALUE=0.5, N_LEVELS=1)
+      colors=INTARR(3,5)
+      IF analyse EQ 'HOMOG' THEN BEGIN
+        colors[*,0]= [255,255,255]
+        colors[*,1]= [255,0,0]
+        colors[*,2]= [0,0,255]
+        colors[*,3]= [50,200,50]
+        colors[*,4]= [0,255,255]
+      ENDIF ELSE colors[0,*]=255
+      contour0=OBJ_NEW('IDLgrContour',ROIs[*,*,0],COLOR=colors[*,0], C_VALUE=0.5, N_LEVELS=1)
       oModel->Add, Contour0
-      IF analyse EQ 'CTLIN' OR analyse EQ 'HOMOG' OR analyse EQ 'CONTRAST' THEN BEGIN
-        contour1=OBJ_NEW('IDLgrContour',ROIs[*,*,1],COLOR=255*([1,0,0]), C_VALUE=0.5, N_LEVELS=1)
-        contour2=OBJ_NEW('IDLgrContour',ROIs[*,*,2],COLOR=255*([1,0,0]), C_VALUE=0.5, N_LEVELS=1)
-        contour3=OBJ_NEW('IDLgrContour',ROIs[*,*,3],COLOR=255*([1,0,0]), C_VALUE=0.5, N_LEVELS=1)
-        contour4=OBJ_NEW('IDLgrContour',ROIs[*,*,4],COLOR=255*([1,0,0]), C_VALUE=0.5, N_LEVELS=1)
+      IF analyse EQ 'HOMOG' OR analyse EQ 'CONTRAST' THEN BEGIN
+        contour1=OBJ_NEW('IDLgrContour',ROIs[*,*,1],COLOR=colors[*,1], C_VALUE=0.5, N_LEVELS=1)
+        contour2=OBJ_NEW('IDLgrContour',ROIs[*,*,2],COLOR=colors[*,2], C_VALUE=0.5, N_LEVELS=1)
+        contour3=OBJ_NEW('IDLgrContour',ROIs[*,*,3],COLOR=colors[*,3], C_VALUE=0.5, N_LEVELS=1)
+        contour4=OBJ_NEW('IDLgrContour',ROIs[*,*,4],COLOR=colors[*,4], C_VALUE=0.5, N_LEVELS=1)
         oModel->Add, Contour1 & oModel->Add, Contour2 & oModel->Add, Contour3 & oModel->Add, Contour4
       ENDIF
-      IF analyse EQ 'CTLIN' OR analyse EQ 'CONTRAST' THEN BEGIN
-        contour5=OBJ_NEW('IDLgrContour',ROIs[*,*,5],COLOR=255*([1,0,0]), C_VALUE=0.5, N_LEVELS=1)
-        contour6=OBJ_NEW('IDLgrContour',ROIs[*,*,6],COLOR=255*([1,0,0]), C_VALUE=0.5, N_LEVELS=1)
+      IF analyse EQ 'CONTRAST' THEN BEGIN
+        contour5=OBJ_NEW('IDLgrContour',ROIs[*,*,5],COLOR=colors[*,0], C_VALUE=0.5, N_LEVELS=1)
+        contour6=OBJ_NEW('IDLgrContour',ROIs[*,*,6],COLOR=colors[*,0], C_VALUE=0.5, N_LEVELS=1)
         oModel->Add, Contour5 & oModel->Add, Contour6
       ENDIF
-      IF analyse EQ 'CTLIN' THEN BEGIN
-        contour7=OBJ_NEW('IDLgrContour',ROIs[*,*,7],COLOR=255*([1,0,0]), C_VALUE=0.5, N_LEVELS=1)
-        oModel->Add, Contour7
+    ENDIF
+    
+    IF analyse EQ 'CTLIN' THEN BEGIN
+      ;search ROIs
+      szROIs=SIZE(CTlinROIs, /DIMENSIONS)
+      IF N_ELEMENTS(szROIs) GT 2 THEN searchROIall=TOTAL(CTlinROIs,3) ELSE  searchROIall=CTlinROIs
+      searchROIall=TOTAL(CTlinROIs,3)
+      contour0=OBJ_NEW('IDLgrContour',searchROIall,COLOR=255*([1,0,0]), C_VALUE=0.5, N_LEVELS=1)
+      oModel->Add, Contour0
+      
+      ;actual calculation ROIs
+      IF N_ELEMENTS(CTlinROIpos) GT 1 THEN BEGIN
+        WIDGET_CONTROL, txtLinROIrad, GET_VALUE=rad1
+        rad1=ROUND(FLOAT(rad1(0))/tempStruct.pix(0))
+        poss=CTlinROIpos[*,*,sel]
+        statROIs=getSampleRois(sizeAct, [-sizeAct(0)/2,-sizeAct(1)/2,0,0], rad1, poss)
+        statROIall=TOTAL(statROIs,3)
+        contour1=OBJ_NEW('IDLgrContour',statROIall,COLOR=255*([0,0,1]), C_VALUE=0.5, N_LEVELS=1)
+        oModel->Add, Contour1
       ENDIF
+    
+      ; material names
+      WIDGET_CONTROL, tblLin, GET_VALUE=linTable
+      szT=SIZE(linTable, /DIMENSIONS)
+      poss=INTARR(2,szT(1))
+      FOR ig=0, szT(1)-1 DO poss[*,ig]=ROUND(centroid(CTlinROIs[*,*,ig],0.5))
+      oTextLin = OBJ_NEW('IDLgrText', TRANSPOSE(linTable[0,*]), LOCATIONS =poss, COLOR = 255*([1,0,0]))
+      oModel->Add, oTextLin 
     ENDIF
     
     IF analyse EQ 'SLICETHICK' THEN BEGIN; slice thickness ramps
@@ -277,13 +309,12 @@ pro redrawImg, viewpl, newActive
     
     IF OBJ_VALID(contour0) THEN BEGIN
       OBJ_DESTROY, contour0
-      IF OBJ_VALID(contour1) THEN BEGIN
-        OBJ_DESTROY, contour1 &  OBJ_DESTROY, contour2 & OBJ_DESTROY, contour3 & OBJ_DESTROY, contour4
-      ENDIF
-      IF OBJ_VALID(contour5) THEN BEGIN
-        OBJ_DESTROY, contour5 &  OBJ_DESTROY, contour6        
-      ENDIF
-      IF OBJ_VALID(contour7) THEN OBJ_DESTROY, contour7
+      IF OBJ_VALID(contour1) THEN OBJ_DESTROY, contour1
+      IF OBJ_VALID(contour2) THEN OBJ_DESTROY, contour2
+      IF OBJ_VALID(contour3) THEN OBJ_DESTROY, contour3
+      IF OBJ_VALID(contour4) THEN OBJ_DESTROY, contour4
+      IF OBJ_VALID(contour5) THEN OBJ_DESTROY, contour5
+      IF OBJ_VALID(contour6) THEN OBJ_DESTROY, contour6
     ENDIF
     
     IF OBJ_VALID(lineROI) THEN BEGIN;2?
@@ -296,9 +327,6 @@ pro redrawImg, viewpl, newActive
     
     IF OBJ_VALID(H1) THEN BEGIN
       OBJ_DESTROY, H1 & OBJ_DESTROY, H1_1 & OBJ_DESTROY, H2 & OBJ_DESTROY, H2_1 &  OBJ_DESTROY, V1 &  OBJ_DESTROY, V1_1 & OBJ_DESTROY, V2 & OBJ_DESTROY, V2_1
-      ;IF OBJ_VALID(D1) THEN BEGIN
-      ;  OBJ_DESTROY, D1 & OBJ_DESTROY, D2
-      ;  ENDIF
       IF OBJ_VALID(V3) THEN BEGIN
         OBJ_DESTROY, V3 &  OBJ_DESTROY, V3_1 & OBJ_DESTROY, V4 & OBJ_DESTROY, V4_1
       ENDIF

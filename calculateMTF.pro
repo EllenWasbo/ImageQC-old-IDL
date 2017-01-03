@@ -382,8 +382,8 @@ szgy=SIZE(gMTFy, /TNAME)
 IF szgy EQ 'STRUCT' THEN MTFstruct=CREATE_STRUCT(MTFstruct, 'smLSFy',smLSFy,'fitLSFy',fitLSFy,'gfy', gMTFy.k,'gMTFy',gMTFy.MTF)
 
 
-;calculating 50,10,2%
-IF szg EQ 'STRUCT' THEN MTF=CREATE_STRUCT('fx',MTFstruct.gfx,'MTFx',MTFstruct.gMTFx) ELSE MTF=CREATE_STRUCT('fx',fx,'MTFx',MTFx)
+;calculating 50,10,2% (gaussian if exists)
+IF N_ELEMENTS(MTFstruct.gMTFx) GT 1 THEN MTF=CREATE_STRUCT('fx',MTFstruct.gfx,'MTFx',MTFstruct.gMTFx) ELSE MTF=CREATE_STRUCT('fx',fx,'MTFx',MTFx)
 CASE typeMTF OF
   0: BEGIN
     IF szgy EQ 'STRUCT' THEN MTF=CREATE_STRUCT(MTF,'fy',MTFstruct.gfy,'MTFy',MTFstruct.gMTFy) ELSE MTF=CREATE_STRUCT(MTF,'fy',fy,'MTFy',MTFy)

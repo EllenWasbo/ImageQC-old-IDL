@@ -66,6 +66,32 @@ pro updatePlot, setRangeMinMaxX, setRangeMinMaxY, copyCurve
 
             CASE analyseStringsCT(curTab+1) OF
 
+              'HOMOG':BEGIN
+                WIDGET_CONTROL, resTab, GET_VALUE=resArr
+                resArr=FLOAT(resArr[0:4,*])
+                colNo=5
+                zPosMarked=getZposMarked(structImgs, markedTemp)
+
+                IF setRangeMinMaxX THEN rangeX=[min(zPosMarked),max(zPosMarked)]
+                IF setRangeMinMaxY THEN rangeY=[min(resArr),max(resArr)]
+
+                valCenter=transpose(resArr[0,*])
+                val12=transpose(resArr[1,*])
+                val15=transpose(resArr[2,*])
+                val18=transpose(resArr[3,*])
+                val21=transpose(resArr[4,*])
+                valuesPlot=CREATE_STRUCT('zPos', zPosMarked, 'Center', valCenter, 'COPY0zPos',zPosMarked, 'at12', val12, 'COPY1zPos',zPosMarked, 'at15', val15, 'COPY2zPos',zPosMarked, 'at18', val18, 'COPY3zPos',zPosMarked, 'at21', val21)
+                PLOT, zPosMarked, valCenter, XTITLE='zPos (mm)', YTITLE='Mean pixel value in ROI' , TITLE='Mean in ROI for all (marked) images', XRANGE=rangeX, YRANGE=rangeY, XSTYLE=1, YSTYLE=1, COLOR=255
+                LOADCT, 12, /SILENT
+                OPLOT, zPosMarked, val12, COLOR=200;red
+                OPLOT, zPosMarked, val15, COLOR=100;blue
+                OPLOT, zPosMarked, val18, COLOR=40;green
+                OPLOT, zPosMarked, val21, COLOR=90;cyan
+                loadct, 0, /SILENT
+                OPLOT, rangeX, [5,5], LINESTYLE=1, COLOR=255
+                OPLOT, rangeX, [-5,-5], LINESTYLE=1, COLOR=255
+              END
+
               'MTF': BEGIN
                 resforeach=WHERE(TAG_NAMES(MTFres) EQ 'M0')
                 v3d=0
@@ -318,10 +344,12 @@ pro updatePlot, setRangeMinMaxX, setRangeMinMaxY, copyCurve
                 WIDGET_CONTROL, resTab, GET_VALUE=resArr
                 szTab=SIZE(resArr, /DIMENSIONS)
                 IF setRangeMinMaxX THEN rangeX=[min(FLOAT(resArr[*,rowNo])),max(FLOAT(resArr[*,rowNo]))]
-                IF setRangeMinMaxY THEN rangeY=[min(materialData.field5),max(materialData.field5)]
-                PLOT, FLOAT(resArr[0:szTab(0)-2,rowNo]), materialData.field5, PSYM=4,  XTITLE='CT number (HU)', YTITLE='Rel. mass density' , TITLE='CT linearity for first image', XRANGE=rangeX, YRANGE=rangeY, XSTYLE=2, YSTYLE=2
-                a0=REGRESS(resArr[0:szTab(0)-2,rowNo],materialData.field5, YFIT=yfit)
-                OPLOT, resArr[0:szTab(0)-2,rowNo], yfit, LINESTYLE=0
+                WIDGET_CONTROL, tblLin, GET_VALUE=linTable
+                densit=TRANSPOSE(FLOAT(linTable[3,*]))
+                IF setRangeMinMaxY THEN rangeY=[min(densit),max(densit)]
+                PLOT, FLOAT(resArr[0:szTab(0)-1,rowNo]), densit, PSYM=4,  XTITLE='CT number (HU)', YTITLE='Density' , TITLE='CT linearity for first image', XRANGE=rangeX, YRANGE=rangeY, XSTYLE=2, YSTYLE=2
+                a0=REGRESS(resArr[0:szTab(0)-1,rowNo],densit, YFIT=yfit)
+                OPLOT, resArr[0:szTab(0)-1,rowNo], yfit, LINESTYLE=0
               END
 
               'SLICETHICK': BEGIN
@@ -363,15 +391,7 @@ pro updatePlot, setRangeMinMaxX, setRangeMinMaxY, copyCurve
 
               'NOISE': BEGIN
                 WIDGET_CONTROL, resTab, GET_VALUE=resArr
-                tags=TAG_NAMES(structImgs)
-                nImg=N_ELEMENTS(tags)
-                zPos=FLTARR(nImg)
-                IF nFrames EQ 0 THEN BEGIN
-                  FOR i = 0, nImg -1 DO zPos(i)=structImgs.(i).zpos
-                ENDIF ELSE BEGIN
-                  zPos=structImgs.(0).zPos
-                ENDELSE
-                zPosMarked=zPos(markedTemp)
+                zPosMarked=getZposMarked(structImgs, markedTemp)
                 yValues = FLOAT(resArr[1,*])
                 IF setRangeMinMaxX THEN rangeX=[min(zPosMarked),max(zPosMarked)]
                 IF setRangeMinMaxY THEN rangeY=[min(yValues),max(yValues)]
@@ -856,18 +876,68 @@ pro updatePlot, setRangeMinMaxX, setRangeMinMaxY, copyCurve
                       OPLOT, [nyqfr,nyqfr]*mm2cm,[0,1],linestyle=0,thick=2.
                       OPLOT, [nyqfr,nyqfr]*mm2cm,[0,1],linestyle=1,thick=2.
                     ENDELSE
-                  END
+                  END; show MTF
                   ELSE: TVSCL, INTARR(550,550)
-                ENDCASE
+                ENDCASE; MTF test
               END
 
               ELSE:TVSCL, INTARR(550,550)
-            ENDCASE
+            ENDCASE; tests
 
           ENDIF ELSE TVSCL, INTARR(550,550)
         END
+        
+        ;******************************** PET *************************************************
+        3:BEGIN
+          curTab=WIDGET_INFO(wtabAnalysisPET, /TAB_CURRENT)
+          IF results(curTab) EQ 1 THEN BEGIN
+
+            CASE analyseStringsPET(curTab+1) OF
+              
+              'CROSSCALIB': BEGIN
+                WIDGET_CONTROL, resTab, GET_VALUE=resArr
+                zPosMarked=getZposMarked(structImgs, markedTemp)
+                yValues = FLOAT(resArr[0,*])
+                IF setRangeMinMaxX THEN rangeX=[min(zPosMarked),max(zPosMarked)]
+                IF setRangeMinMaxY THEN rangeY=[min(yValues),max(yValues)]
+                PLOT, zPosMarked, yValues,  XTITLE='zPos (mm)', YTITLE='Activity concentration (Bq/mL)' , TITLE='Activity concentration for all (marked) images', XRANGE=rangeX, YRANGE=rangeY, XSTYLE=1, YSTYLE=1
+                valuesPlot=CREATE_STRUCT('zPos', zPosMarked, 'Activity concentration', yValues)
+                END
+                
+              'HOMOG':BEGIN
+                WIDGET_CONTROL, resTab, GET_VALUE=resArr
+                resArr=FLOAT(resArr[5:9,*])
+                colNo=5
+                zPosMarked=getZposMarked(structImgs, markedTemp)
+                
+                IF setRangeMinMaxX THEN rangeX=[min(zPosMarked),max(zPosMarked)]
+                IF setRangeMinMaxY THEN rangeY=[-10,10]
+                       
+                valCenter=transpose(resArr[0,*])
+                val12=transpose(resArr[1,*])
+                val15=transpose(resArr[2,*])
+                val18=transpose(resArr[3,*])
+                val21=transpose(resArr[4,*])
+                valuesPlot=CREATE_STRUCT('zPos', zPosMarked, 'Center', valCenter, 'COPY0zPos',zPosMarked, 'at12', val12, 'COPY1zPos',zPosMarked, 'at15', val15, 'COPY2zPos',zPosMarked, 'at18', val18, 'COPY3zPos',zPosMarked, 'at21', val21)
+                PLOT, zPosMarked, valCenter, XTITLE='zPos (mm)', YTITLE='Difference (%)' , TITLE='Difference from mean of all (marked) images', XRANGE=rangeX, YRANGE=rangeY, XSTYLE=1, YSTYLE=1, COLOR=255
+                LOADCT, 12, /SILENT
+                OPLOT, zPosMarked, val12, COLOR=200;red
+                OPLOT, zPosMarked, val15, COLOR=100;blue
+                OPLOT, zPosMarked, val18, COLOR=40;green
+                OPLOT, zPosMarked, val21, COLOR=90;cyan
+                loadct, 0, /SILENT
+                OPLOT, rangeX, [5,5], LINESTYLE=1, COLOR=255
+                OPLOT, rangeX, [-5,-5], LINESTYLE=1, COLOR=255
+                END
+              
+              ELSE:
+            ENDCASE
+          ENDIF ELSE TVSCL, INTARR(550,550)
+        END
+        
         ELSE:
-      ENDCASE
+        
+      ENDCASE; modes
 
 
       IF setRangeMinMaxX THEN BEGIN

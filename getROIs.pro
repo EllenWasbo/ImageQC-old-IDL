@@ -30,16 +30,6 @@ function getHomogRois, imgSize, imgCenterOffset, ROIsz, ROIdist, mode
   centers=INTARR(2,5); centerpositions x,y for all circles
   
   CASE mode OF
-    0:BEGIN ;CT
-      daRad=imgCenterOffset(2)/!radeg
-      dd=ROIdist*[cos(daRad),sin(daRad)]
-
-      centers[0:1,0]=center
-      centers[0:1,1]=center+[dd(1),dd(0)];12 o'clock
-      centers[0:1,2]=center+[dd(0),-dd(1)];15 o'clock
-      centers[0:1,3]=center+[-dd(1),-dd(0)];18 o'clock
-      centers[0:1,4]=center+[-dd(0),dd(1)];21 o'clock
-      END
     1:BEGIN ; Xray
       dx=imgSize(0)/4
       dy=imgSize(1)/4
@@ -68,6 +58,16 @@ function getHomogRois, imgSize, imgCenterOffset, ROIsz, ROIdist, mode
           centers[0:1,3]=center+[-dd(1),-dd(0)];18 o'clock
           centers[0:1,4]=center+[-dd(0),dd(1)];21 o'clock
         ENDELSE
+      END
+    ELSE: BEGIN ;CT/PET
+        daRad=imgCenterOffset(2)/!radeg
+        dd=ROIdist*[cos(daRad),sin(daRad)]
+
+        centers[0:1,0]=center
+        centers[0:1,1]=center+[dd(1),dd(0)];12 o'clock
+        centers[0:1,2]=center+[dd(0),-dd(1)];15 o'clock
+        centers[0:1,3]=center+[-dd(1),-dd(0)];18 o'clock
+        centers[0:1,4]=center+[-dd(0),dd(1)];21 o'clock
       END
   ENDCASE
 
@@ -131,44 +131,28 @@ function getRamps, imgSize, offset, dista, len
 
 end
 
-;Placing rois for CT linearity 8 circles
+;Placing rois for CT number linearity
 ;
 ;imgSize = size of active CT image
 ;imgCenter = shift from the default imSz/2 (same as dxya if in use) [dx, dy, dAngle, (0)]
-;radSample = radius of the 8 samples (circles)
-;radSample2 = radius from center of image to center of circles
+;radSample = radius of the samples (circles)
+;posTable = x and y (pix) positions for all materials relative to imgCenter
 
-function getSampleRois, imgSize, imgCenter, radSample, radSample2
+function getSampleRois, imgSize, imgCenter, radSample, posTable
 
-  circle=getROIcircle([radSample*2+1,radSample*2+1], [radSample,radSample], radSample)
-
-  ;position the circles
-  radSampleLarge=radSample2+radSample
-  roi0=INTARR(radSampleLarge*2+1,radSampleLarge*2+1)
-  roi0[radSampleLarge-radSample:radSampleLarge+radSample, radSampleLarge*2-radSample*2:radSampleLarge*2]=circle
-  roi0=ROUND(ROT(FLOAT(roi0), imgCenter(2), Missing=0, cubic=-0.5)); add dAngle
-  roi90=ROTATE(roi0,3) &  roi180=ROTATE(roi0,2) &  roi270=ROTATE(roi0,1)
-  roi30=ROUND(ROT(FLOAT(roi0),30, Missing=0, cubic=-0.5))
-  roi150=ROUND(ROT(FLOAT(roi180),-30, Missing=0, cubic=-0.5))
-  roi210=ROUND(ROT(FLOAT(roi180),30, Missing=0, cubic=-0.5))
-  roi330=ROUND(ROT(FLOAT(roi0),-30, Missing=0, cubic=-0.5))
-
-  ;position circles on image
-  roiAll=INTARR(imgSize(0),imgSize(1),8)
-  x1=imgSize(0)/2+imgCenter(0)-radSampleLarge
-  x2=imgSize(0)/2+imgCenter(0)+radSampleLarge
-  y1=imgSize(1)/2+imgCenter(1)-radSampleLarge
-  y2=imgSize(1)/2+imgCenter(1)+radSampleLarge
-  IF x1 GE 0 AND x1 LT imgSize(0) AND x2 GT 0 AND x2 LT imgSize(0) AND y1 GE 0 AND y1 LT imgSize(1) AND y2 GT 0 AND y2 LT imgSize(1) THEN BEGIN
-    roiAll[x1:x2,y1:y2,0]=roi0
-    roiAll[x1:x2,y1:y2,1]=roi30
-    roiAll[x1:x2,y1:y2,2]=roi90
-    roiAll[x1:x2,y1:y2,3]=roi150
-    roiAll[x1:x2,y1:y2,4]=roi180
-    roiAll[x1:x2,y1:y2,5]=roi210
-    roiAll[x1:x2,y1:y2,6]=roi270
-    roiAll[x1:x2,y1:y2,7]=roi330
-  ENDIF ELSE sv=DIALOG_MESSAGE('ROIs fall outside image due to defined center or radii.')
+  szTab=SIZE(posTable, /DIMENSIONS)
+  IF N_ELEMENTS(szTab) EQ 1 THEN szTab=[szTab, 1]
+  roiAll=INTARR(imgSize(0),imgSize(1),szTab(1))
+  daRad=-imgCenter(2)/!radeg
+  FOR gg=0, szTab(1)-1 DO BEGIN
+    pos=posTable[*,gg]
+    IF imgCenter(2) NE 0 THEN BEGIN
+      posx=pos(0)*cos(daRad)-pos(1)*sin(daRad)
+      posy=pos(0)*sin(daRad)+pos(1)*cos(daRad)
+      pos=[posx,posy]
+    ENDIF
+    roiAll[*,*,gg]=getROIcircle(imgSize, imgSize/2+imgCenter[0:1]+pos, radSample)
+  ENDFOR
 
   return, roiAll
 end

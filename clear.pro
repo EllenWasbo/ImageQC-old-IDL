@@ -52,10 +52,12 @@ pro clearRes, analyseStr
     NPSres=!Null
     ROIres=!Null
     CTlinRes=!Null
+    CTlinROIs=0 & CTlinROIpos=0
     sliceThickRes=!Null
     sliceThickResTab=!Null
     fwhmRes=!Null
     energyRes=!Null
+    crossRes=!Null
 
     results=results*0
   ENDIF ELSE BEGIN
@@ -67,7 +69,10 @@ pro clearRes, analyseStr
       'MTF': MTFres=!Null
       'NPS': NPSres=!Null
       'ROI': ROIres=!Null
-      'CTLIN': CTlinres=!Null
+      'CTLIN': BEGIN
+        CTlinres=!Null
+        CTlinROIs=0 & CTlinROIpos=0
+        END
       'SLICETHICK': BEGIN
         sliceThickRes=!Null
         sliceThickResTab=!Null
@@ -76,6 +81,7 @@ pro clearRes, analyseStr
       'ENERGYSPEC': energyRes=!Null
       'SCANSPEED':
       'CONTRAST': contrastRes=!Null
+      'CROSSCALIB': crossRes=!Null
       ELSE:
     ENDCASE
     
@@ -84,6 +90,7 @@ pro clearRes, analyseStr
       0: analyseStrings=analyseStringsCT
       1: analyseStrings=analyseStringsXray
       2: analyseStrings=analyseStringsNM
+      3: analyseStrings=analyseStringsPET
     ENDCASE
 
     resNo=WHERE(analyseStrings EQ analyseStr)-1

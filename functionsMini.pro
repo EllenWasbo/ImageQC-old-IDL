@@ -391,60 +391,6 @@ function getGaussFit, X, Y, pix, fitWidthFactor; assume X already centered
       A(1)=0
     ENDIF
 
-;    tit='LSF smoothed by gaussfilter. The smoothing will be corrected in the MTF'
-;    window, 10, TITLE=tit
-;    plot, X, Y
-;    IF N_ELEMENTS(yfit) GT 0 THEN BEGIN
-;      LOADCT, 13, /SILENT
-;      oplot, X[ss1:ss2], yfit, COLOR=255
-;      LOADCT, 0, /SILENT
-;    ENDIF
-;  
-;    sv=DIALOG_MESSAGE('Accept current fit (Y) or adjust parameters manually (N)?',/QUESTION)
-;    IF sv EQ 'No' THEN BEGIN
-;      tryAgain=1
-;      IF N_ELEMENTS(A) EQ 3 THEN A=[A,1]
-;      WHILE tryAgain DO BEGIN
-;        box=[$
-;          '1, BASE,, /COLUMN', $
-;          '0, LABEL, Adjust parameters', $
-;          '1, BASE,, /COLUMN, ',$
-;          '0, FLOAT, '+STRING(A(0))+', LABEL_LEFT=Amplitude 1, TAG=A0', $
-;          '0, FLOAT, '+STRING(A(2))+', LABEL_LEFT=Sigma 1, TAG=A2', $
-;          '0, LABEL,  ', $
-;          '0, FLOAT, '+STRING(A(1))+', LABEL_LEFT=Amplitude 2, TAG=A1', $
-;          '2, FLOAT, '+STRING(A(3))+', LABEL_LEFT=Sigma 2, TAG=A3', $
-;          '1, BASE,, /ROW', $
-;          '0, BUTTON, OK, QUIT, TAG=OK',$
-;          '2, BUTTON, Cancel, QUIT']
-;        manAdj=CW_FORM_2(box, /COLUMN, TAB_MODE=1, TITLE='Adjust curvefit', XSIZE=300, YSIZE=300, FOCUSNO=3)
-;        
-;        IF manAdj.OK THEN BEGIN
-;          plot, X, Y
-;          LOADCT, 13, /SILENT
-;          Atemp=[FLOAT(manAdj.A0),FLOAT(manAdj.A1),FLOAT(manAdj.A2),FLOAT(manAdj.A3)]
-;          IF Atemp(2) LE 0 OR Atemp(3) LE 0 THEN BEGIN
-;            sv=DIALOG_MESSAGE('Negative sigma values set to 1.0')
-;            If Atemp(2) LE 0 THEN Atemp(2)=1.
-;            If Atemp(3) LE 0 THEN Atemp(3)=1.
-;          ENDIF
-;          IF N_ELEMENTS(yfit) GT 0 THEN oplot, X[ss1:ss2], yfit, COLOR=255
-;          yAdj=calcGauss(X[ss1:ss2], Atemp(2),Atemp(0),0)
-;          IF Atemp(1) NE 0 THEN yAdj=yAdj + calcGauss(X[ss1:ss2], Atemp(3),Atemp(1),0)
-;          oplot, X[ss1:ss2], yAdj, COLOR=150
-;          LOADCT, 0, /SILENT
-;          
-;          sv=DIALOG_MESSAGE('Accept adjusted fit green (Y) or adjust further (N)?',/QUESTION)
-;          IF sv EQ 'Yes' THEN BEGIN
-;            tryAgain=0
-;            yfit=yAdj
-;            A=Atemp
-;          ENDIF
-;        ENDIF ELSE tryAgain=0
-;      ENDWHILE
-;    ENDIF
-;
-;    WDELETE, 10
    ENDIF; res(0)=-1
    retStruct=CREATE_STRUCT('yfit',yfit,'A',A,'startpos',ss1)
     
@@ -574,11 +520,12 @@ function gaussFilter, sigmaF, nn
    return, filter
 end
 
-function getResNmb, tabNmb, stringElem, stringArr0, stringArr1, stringArr2
+function getResNmb, tabNmb, stringElem, stringArr0, stringArr1, stringArr2, stringArr3
   CASE tabNmb OF
     0: actStrings=stringArr0
     1: actStrings=stringArr1
     2: actStrings=stringArr2
+    3: actStrings=stringArr3
   ENDCASE
   i=WHERE(actStrings EQ stringElem)
   resNmb=i-1
@@ -606,4 +553,20 @@ function zeroPadd3, matrix
   padded[sz(0):sz(0)*2-1,sz(1):sz(1)*2-1]=matrix
 
   return, padded
+end
+
+function getZposMarked, struc, markedTemp
+  nFrames=0
+  IF struc.(0).nFrames GT 1 THEN BEGIN
+    nImg=struc.(0).nFrames
+    nFrames=nImg
+  ENDIF ELSE nImg=N_ELEMENTS(TAG_NAMES(struc))
+  zPos=FLTARR(nImg)
+  IF nFrames EQ 0 THEN BEGIN
+    FOR i = 0, nImg -1 DO zPos(i)=struc.(i).zpos
+  ENDIF ELSE BEGIN
+    zPos=struc.(0).zPos
+  ENDELSE
+  zPosMarked=zPos(markedTemp)
+  return, zPosMarked
 end

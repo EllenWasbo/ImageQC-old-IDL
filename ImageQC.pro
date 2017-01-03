@@ -17,23 +17,23 @@
 
 pro ImageQC,  GROUP_LEADER=bMain
 
-COMMON VARI,  $ 
+  COMMON VARI,  $
     lblDir, listFiles, lblLoadedN, marked,lblProgress, activeImg, activeResImg, nFrames, ROIs,  $
     txtActive1, txtActive2, newline, $
-    drawLarge, drawXY, txtMinWL, txtMaxWL, txtCenterWL, txtWidthWL, lblCursorValue, lblCursorPos,lblCursorPosMM, $  
-    txtDeltaX, txtDeltaY, txtDeltaA, dxya, useDelta,$ 
+    drawLarge, drawXY, txtMinWL, txtMaxWL, txtCenterWL, txtWidthWL, lblCursorValue, lblCursorPos,lblCursorPosMM, $
+    txtDeltaX, txtDeltaY, txtDeltaA, dxya, useDelta,$
     defPath, thisPath, structImgs, lastXY, lastXYreleased, mouseDown, $
-    modality, analyse, analyseStringsCT, analyseStringsXray, analyseStringsNM, results, $
-    resTab, wtabResult, wtabModes,wtabAnalysisCT,wtabAnalysisXray,wtabAnalysisNM, $
+    modality, analyse, analyseStringsCT, analyseStringsXray, analyseStringsNM, analyseStringsPET, results, $
+    resTab, wtabResult, wtabModes,wtabAnalysisCT,wtabAnalysisXray,wtabAnalysisNM, wtabAnalysisPET, $
     drawPlot, statPlot,drawImageRes, txtMinRangeX, txtMaxRangeX, txtMinRangeY, txtMaxRangeY, rangeAcc, $
     ROIres, typeROI, typeROIX, $
     MTFres, $
     cw_typeMTF, cw_plotMTF, txtMTFroiSz, btnCutLSF, txtcutLSFW, txtcutLSFW2,txtfreqMTF, $
     cw_formLSFX, cw_plotMTFX,  txtMTFroiSzX, txtMTFroiSzY, btnCutLSFX, txtcutLSFWX, $
     cw_typeMTFNM, cw_plotMTFNM, txtMTFroiSzXNM, txtMTFroiSzYNM, btnCutLSFNM, txtcutLSFWNM, MTF3dNM, $
-    CTlinRes, materialData, CTlinROIs, txtLinROIrad, txtLinROIrad2,  $
+    CTlinRes, CTlinROIs, CTlinROIpos, txtLinROIrad, txtLinROIradS, tblLin, linTabEdit, btnLinAvoidSearch, $
     sliceThickRes, sliceThickResTab,  ramps, txtRampDist, txtRampLen, txtRampBackG, txtRampSearch, txtRampAverage, cw_ramptype,  $
-    homogRes, homogROIs, txtHomogROIsz,  txtHomogROIszX, txtHomogROIdist, cw_homogNM, txtHomogROIszNM, txtHomogROIdistXNM, txtHomogROIdistYNM, $
+    homogRes, homogROIs, txtHomogROIsz, txtHomogROIszPET, txtHomogROIszX, txtHomogROIdist, txtHomogROIdistPET, cw_homogNM, txtHomogROIszNM, txtHomogROIdistXNM, txtHomogROIdistYNM, $
     noiseRes, noiseROI, txtNoiseROIsz, $
     fwhmRes, dimRes, energyRes, $
     stpRes, txtStpROIsz, stpROI, txtRQA, Qvals, $
@@ -42,42 +42,45 @@ COMMON VARI,  $
     txtNPSroiSzX, txtNPSsubSzX, lblNPSsubSzMMX, lblNPStotpixX, $
     txtNAvgSpeedNM, txtScanSpeedMedian, txtSpeedROIheight,$
     contrastRes, conROIs, txtConR1NM, txtConR2NM,$
-    radialRes, txtRadialMedian
+    radialRes, txtRadialMedian, $
+    crossRes, crossROI, txtCrossROIsz, txtCrossMeasAct,txtCrossMeasActT, txtCrossMeasRest, txtCrossMeasRT, txtCrossScanAct, txtCrossScanStart,$
+    txtCrossVol, txtCrossConc, txtCrossFactor
 
   thisPath=FILE_DIRNAME(ROUTINE_FILEPATH('ImageQC'))+'\'
   RESTORE, thisPath+'data\config.dat'
   RESTORE, thisPath+'data\configDefault.dat'
   configTags=TAG_NAMES(config)
   defPath=config.defPath
-  
+
   structImgs=CREATE_STRUCT('empty',0); images with attributes in memory
   activeImg=0 ; active (selected image)
   activeResImg=0 ; result-image (fx 2d NPS)
   nFrames=0; if multiframe image loaded, nFrames=nImg
-  analyseStringsCT=['NONE', 'DIM', 'HOMOG', 'NOISE','MTF', 'NPS','ROI', 'CTLIN', 'SLICETHICK','FWHM']
+  analyseStringsCT=['NONE', 'HOMOG', 'NOISE','CTLIN', 'SLICETHICK','DIM', 'MTF', 'NPS','ROI', 'FWHM']
   analyseStringsXray=['NONE', 'STP','HOMOG', 'NOISE','MTF', 'NPS','ROI']
   analyseStringsNM=['NONE','ENERGYSPEC','HOMOG','SCANSPEED','CONTRAST','MTF','RADIAL']
+  analyseStringsPET=['NONE','CROSSCALIB','HOMOG','CONTRAST','MTF']
   analyse='NONE'
   modality=0; 0=CT, 1=Xray, 2=NM
   results=INTARR(9); set to 1 when analyse performed and results is available, keep analyseString and tab-order equal
   dxya=[0,0,0.0,1]; [deltax,deltay,delta,show] for positioning of center/angle. Difference from imgSz/2 in pixels. Show (last param) used for redrawCT to overplot crosshair
-  CTlinROIs=0 & homogROIs=0 & noiseROI=0 & NPSrois=0 & conROIs=0; used to hold the rois for specific tests
+  CTlinROIs=0 & CTlinROIpos=0 & homogROIs=0 & noiseROI=0 & NPSrois=0 & conROIs=0 & crossROI=0; used to hold the rois for specific tests
   ramps=0; used to hold the 4 lines for slice thickness H-top,H-bottom,V1,V2
   lastXY=[-1,-1]; last mouseposition in draw window
   lastXYreleased=[-1,-1]
   mouseDown=0; If mouse pressed in draw window and still not released 1=true
   marked=-1; indexes of marked files
   if (!D.NAME eq 'WIN') then newline = string([13B, 10B]) else newline = string(10B)
-  
+
   winX=1400 &  winY=1000 ;actual winX not 1400 - adjusted down to 1250 - should be adapted to screen size (Todo)
   drawXY=500
-  
+
   DEVICE, GET_SCREEN_SIZE=scsz
-  
+
   IF scsz(0) LT winX THEN scX=scsz(0)-10 ELSE scX=winX
   IF scsz(1) LT winY THEN scY=scsz(1)-50 ELSE scY=winY
-  
-  bMain = WIDGET_BASE(TITLE='ImageQC v1.001', MBAR=bar, /COLUMN, XSIZE=winX, YSIZE=winY-50, XOFFSET=100, YOFFSET=100, X_SCROLL_SIZE=scX, Y_SCROLL_SIZE=scY, /TLB_KILL_REQUEST_EVENTS)
+
+  bMain = WIDGET_BASE(TITLE='ImageQC v1.002', MBAR=bar, /COLUMN, XSIZE=winX, YSIZE=winY-50, XOFFSET=100, YOFFSET=100, X_SCROLL_SIZE=scX, Y_SCROLL_SIZE=scY, /TLB_KILL_REQUEST_EVENTS)
   bLarge = WIDGET_BASE(bMain, /ROW)
   bLft = WIDGET_BASE(bLarge, XSIZE=winX/2-30, YSIZE=winY-100,/COLUMN)
   bRgt = WIDGET_BASE(bLarge, XSIZE=winX/2, YSIZE=winY-100,/COLUMN)
@@ -99,15 +102,15 @@ COMMON VARI,  $
   toolbarLft=WIDGET_BASE(bLft,/ROW,/TOOLBAR)
   toolOpen=WIDGET_BUTTON(toolbarLft, VALUE=thisPath+'images\open.bmp',/BITMAP, UVALUE='open', TOOLTIP='Open DICOM file(s)')
   toolOpenMultiple=WIDGET_BUTTON(toolbarLft, VALUE=thisPath+'images\openM.bmp',/BITMAP, UVALUE='openMulti', TOOLTIP='Open DICOM file(s) from multiple folders')
-  
+
   toolml3=WIDGET_LABEL(toolbarLft, VALUE='', XSIZE=20)
   btnImgTop=WIDGET_BUTTON(toolbarLft, VALUE=thisPath+'images\switch_top.bmp',/BITMAP, UVALUE='imgTop', TOOLTIP='Place selected image(s) at top of list')
   btnImgUp=WIDGET_BUTTON(toolbarLft, VALUE=thisPath+'images\switch_up.bmp',/BITMAP, UVALUE='imgUp', TOOLTIP='Move selected image(s) upwards in list')
   btnImgDown=WIDGET_BUTTON(toolbarLft, VALUE=thisPath+'images\switch_down.bmp',/BITMAP, UVALUE='imgDown', TOOLTIP='Move selected image(s) downwards of list')
   btnImgBottom=WIDGET_BUTTON(toolbarLft, VALUE=thisPath+'images\switch_bottom.bmp',/BITMAP, UVALUE='imgBottom', TOOLTIP='Place selected image(s) at bottom of list')
-  
+
   lblProgress = WIDGET_LABEL(toolbarLft, VALUE='', /DYNAMIC_RESIZE)
-  
+
   ;****************** left Panel
   bInfoLoaded=WIDGET_BASE(bLft, /ROW, YSIZE=220)
   bInfoLft=WIDGET_BASE(bInfoLoaded, /COLUMN)
@@ -138,7 +141,7 @@ COMMON VARI,  $
   drawLarge = WIDGET_DRAW(bDraw, XSIZE=drawXY, YSIZE=drawXY, KEYBOARD_EVENTS=1, /BUTTON_EVENTS, /MOTION_EVENTS, /WHEEL_EVENTS, GRAPHICS_LEVEL=2, RETAIN=2, SENSITIVE=0)
   ;rgt of image
   bDrawRgt = WIDGET_BASE(bDraw, Ysize=drawXY,XSIZE=200,/COLUMN)
-  
+
   ;window level
   bViz = WIDGET_BASE(bDrawRgt, /COLUMN)
   lblWL = WIDGET_LABEL(bViz, VALUE='Window level', /ALIGN_LEFT, FONT="Arial*ITALIC*16")
@@ -157,10 +160,10 @@ COMMON VARI,  $
   bWLsetto=WIDGET_BASE(bViz, /ROW)
   btnSetWLminmax=WIDGET_BUTTON(bWLsetto, VALUE=thisPath+'images\minmax.bmp', /BITMAP, UVALUE='WLminmax', TOOLTIP='Set Window Level to min/max in image')
   btnSetWLstdev=WIDGET_BUTTON(bWLsetto, VALUE=thisPath+'images\meanstdev.bmp', /BITMAP, UVALUE='WLmeanstdev', TOOLTIP='Set Window Level to mean+/-stdev of pixelvalues in selected image')
-  
+
   mlRgtimg0 = WIDGET_LABEL(bDrawRgt, VALUE='', YSIZE=20)
-  
-  ;rgt of image - cursor 
+
+  ;rgt of image - cursor
   bCursor=WIDGET_BASE(bDrawRgt, /COLUMN)
   bCursorPos=WIDGET_BASE(bCursor, /ROW)
   lblCursorPos0=WIDGET_LABEL(bCursorPos, VALUE='Cursor pos. (pix): ')
@@ -172,7 +175,7 @@ COMMON VARI,  $
   lblCursorValue0=WIDGET_LABEL(bCursorValue, VALUE='Cursor value: ')
   lblCursorValue=WIDGET_LABEL(bCursorValue, VALUE='-', XSIZE=50)
   mlRgtimg = WIDGET_LABEL(bDrawRgt, VALUE='', YSIZE=20)
-  
+
   ;rgt of image - center angle
   bCenterAngle = WIDGET_BASE(bDrawRgt, /COLUMN)
   titleCenterAngle = WIDGET_LABEL(bCenterAngle, VALUE='Correct center/rotation...')
@@ -211,34 +214,41 @@ COMMON VARI,  $
   txtActive1=WIDGET_TEXT(bInfoLow, XSIZE=100, YSIZE=100, VALUE='', SCR_XSIZE=320, SCR_YSIZE=130)
   txtActive2=WIDGET_TEXT(bInfoLow, XSIZE=100, YSIZE=100, VALUE='', SCR_XSIZE=250, SCR_YSIZE=130)
   toolBarInfo = WIDGET_BASE(bInfoLow, /COLUMN, /TOOLBAR)
-  btnClipBoardInfo=WIDGET_BUTTON(toolBarInfo, VALUE=thisPath+'images\copy.bmp',/BITMAP, TOOLTIP='Copy these parameters for all images to clipboard in tabular format', UVALUE='copyInfo')  
+  btnClipBoardInfo=WIDGET_BUTTON(toolBarInfo, VALUE=thisPath+'images\copy.bmp',/BITMAP, TOOLTIP='Copy these parameters for all images to clipboard in tabular format', UVALUE='copyInfo')
   toolDump=WIDGET_BUTTON(toolbarInfo, VALUE=thisPath+'images\dump.bmp', /BITMAP, TOOLTIP='DICOM dump of active file', UVALUE='dump')
 
-  
   ;Analysis tabs
   bAnalysis=WIDGET_BASE(bRgt, /COLUMN)
   wtabModes=WIDGET_TAB(bAnalysis, XSIZE=winX/2-50, YSIZE=250, UVALUE='tabModes')
   bCT=WIDGET_BASE(wtabModes, TITLE='CT', /COLUMN, UVALUE='tabCT')
   bX=WIDGET_BASE(wtabModes,TITLE='Xray', /COLUMN, UVALUE='tabXray')
   bNM=WIDGET_BASE(wtabModes, TITLE='NM',/COLUMN, UVALUE='tabNM')
-  
+  bPET=WIDGET_BASE(wtabModes, TITLE='PET', /COLUMN, UVALUE='tabPET')
+
   wtabAnalysisCT=WIDGET_TAB(bCT, XSIZE=winX/2-60, YSIZE=230)
   wtabAnalysisXray=WIDGET_TAB(bX, XSIZE=winX/2-60, YSIZE=230)
   wtabAnalysisNM=WIDGET_TAB(bNM, XSIZE=winX/2-60, YSIZE=230)
-  
+  wtabAnalysisPET=WIDGET_TAB(bPET, XSIZE=winX/2-60, YSIZE=230)
+
   ; *************************CT tests*****************************************************
+  bHomog=WIDGET_BASE(wtabAnalysisCT, Title='Homogeneity', /COLUMN)
+  bNoise=WIDGET_BASE(wtabAnalysisCT, Title='Noise', /COLUMN)
+  bLinearity=WIDGET_BASE(wtabAnalysisCT, Title='CT Number', /ROW)
+  bSliceThick=WIDGET_BASE(wtabAnalysisCT, Title='Slice thickness', /ROW)
+  bDim=WIDGET_BASE(wtabAnalysisCT, TITLE='Dim', /COLUMN)
+  bMTF=WIDGET_BASE(wtabAnalysisCT, TITLE='MTF',/Column)
+  bNPS=WIDGET_BASE(wtabAnalysisCT, TITLE='NPS',/Column)
+  bROI=WIDGET_BASE(wtabAnalysisCT, TITLE='ROI',/Column)
+  bFwhm=WIDGET_BASE(wtabAnalysisCT, Title='FWHM', /COLUMN)
 
   ;--------------- Linear dimensions DIM
-  bDim=WIDGET_BASE(wtabAnalysisCT, TITLE='Dim', /COLUMN)
   lblDimInfoml0=WIDGET_LABEL(bDim, VALUE='')
   lblDimInfo=WIDGET_LABEL(bDim, VALUE='Find center of rod +/-25 mm from center with a margin of 10 mm and calculate distance between rods')
   lblDimInfoml1=WIDGET_LABEL(bDim, VALUE='')
-  bDimBtns=WIDGET_BASE(bDim, /ROW) 
+  bDimBtns=WIDGET_BASE(bDim, /ROW)
   btnDim=WIDGET_BUTTON(bDimBtns, VALUE='Calculate linear dimensions', UVALUE='dim')
 
   ;---------------Homogeneity--------
-  bHomog=WIDGET_BASE(wtabAnalysisCT, Title='Homogeneity', /COLUMN)
-
   bHomogSize=WIDGET_BASE(bHomog, /ROW)
   lblHomogROIsz = WIDGET_LABEL(bHomogSize, VALUE='ROI radius (mm)')
   txtHomogROIsz = WIDGET_TEXT(bHomogSize, VALUE=STRING(config.HomogROIsz,FORMAT='(f0.1)') , /EDITABLE, XSIZE=4, SCR_YSIZE=20)
@@ -250,8 +260,6 @@ COMMON VARI,  $
   btnHomog=WIDGET_BUTTON(bHomogBtns, VALUE='Calculated homogeneity', UVALUE='homog')
 
   ;---------------Noise--------
-  bNoise=WIDGET_BASE(wtabAnalysisCT, Title='Noise', /COLUMN)
-
   bNoiseROI=WIDGET_BASE(bNoise, /ROW)
   lblNoiseROIsz = WIDGET_LABEL(bNoiseROI, VALUE='ROI radius (mm)')
   txtNoiseROIsz = WIDGET_TEXT(bNoiseROI, VALUE= STRING(config.NoiseROIsz,FORMAT='(f0.1)') , /EDITABLE, XSIZE=4, SCR_YSIZE=20)
@@ -260,9 +268,8 @@ COMMON VARI,  $
   btnNoise=WIDGET_BUTTON(bNoiseBtns, VALUE='Calculated noise', UVALUE='noise')
 
   ;----------------MTF------------------
-  bMTF=WIDGET_BASE(wtabAnalysisCT, TITLE='MTF',/Column)
   bMTFsettings=WIDGET_BASE(bMTF, /ROW)
-  
+
   bMTFlft=WIDGET_BASE(bMTFsettings,/COLUMN)
   cw_typeMTF=CW_BGROUP(bMTFlft, ['Bead','Wire','Circular edge'], /EXCLUSIVE, LABEL_TOP='MTF method...', /FRAME, SET_VALUE=config.MTFtype)
 
@@ -284,13 +291,12 @@ COMMON VARI,  $
   txtMTFroiSz=WIDGET_TEXT(bMTFroiSz, VALUE=STRING(config.MTFroiSz,FORMAT='(f0.1)'), /EDITABLE, XSIZE=5, SCR_YSIZE=20)
 
   cw_plotMTF=CW_BGROUP(bMTFsettings, ['Centered xy profiles', 'Sorted pixelvalues', 'LSF', 'MTF'], /EXCLUSIVE, LABEL_TOP='Show plot...', /FRAME, SET_VALUE=config.plotMTF, UVALUE='cw_plotMTF')
-  
+
   bMTFbtns=WIDGET_BASE(bMTF, /ROW)
   btnMTFroi=WIDGET_BUTTON(bMTFbtns, VALUE='Show/update ROIs', UVALUE='drawMTFroi')
   btnMTF=WIDGET_BUTTON(bMTFbtns, VALUE='Calculate MTF', UVALUE='MTF')
 
   ;------------ NPS ---------------------
-  bNPS=WIDGET_BASE(wtabAnalysisCT, TITLE='NPS',/Column)
   bNPSroiSz=WIDGET_BASE(bNPS, /ROW)
   lblNPSroiSz=WIDGET_LABEL(bNPSroiSz, VALUE='ROI size (pix)')
   txtNPSroiSz=WIDGET_TEXT(bNPSroiSz, VALUE=( TOTAL(WHERE(configTags EQ 'NPSROISZ')) NE -1 ? STRING(config.NPSroiSz,FORMAT='(i0)') : STRING(configDefault.NPSroiSz,FORMAT='(i0)') ), /EDITABLE, XSIZE=5, SCR_YSIZE=20, /KBRD_FOCUS_EVENTS)
@@ -318,28 +324,46 @@ COMMON VARI,  $
   WIDGET_CONTROL, btnNPSavg, SET_BUTTON=( TOTAL(WHERE(configTags EQ 'NPSAVG')) NE -1 ? config.NPSavg : 1 )
 
   ;----------------User defined ROI------------
-  bROI=WIDGET_BASE(wtabAnalysisCT, TITLE='ROI',/COLUMN)
   typeROI=CW_BGROUP(bROI, ['Define new','Load saved ROI (.sav)'], /EXCLUSIVE, LABEL_TOP='Define ROI and get min/max/avg/stdev', /FRAME, SET_VALUE=config.typeROI, UVALUE='typeROI')
   btnDefROI =WIDGET_BUTTON(bROI, VALUE = 'Define ROI', UVALUE='ROI')
+
+  ;-------------CT numbers linearity-------------
+  bLinSettings=WIDGET_BASE(bLinearity, /ROW)
+  bLinLft=WIDGET_BASE(bLinSettings, /COLUMN)
+  emLin=WIDGET_LABEL(bLinLft, VALUE='', YSIZE=20)
+  labLinearity=WIDGET_LABEL(bLinLft, VALUE='Calculate CT Numbers within ROIs for all loaded images')
+  emLin2=WIDGET_LABEL(bLinLft, VALUE='', YSIZE=20)
+  bLinSearchROI=WIDGET_BASE(bLinLft, /ROW)
+  lblLargeRad = WIDGET_LABEL(bLinSearchROI, VALUE='Radius of search ROIs (mm)')
+  txtLinROIradS = WIDGET_TEXT(bLinSearchROI, VALUE=(TOTAL(WHERE(configTags EQ 'LINROIRADS')) NE -1 ? STRING(config.LinROIradS,FORMAT='(f0.1)') : STRING(configDefault.LinROIradS,FORMAT='(f0.1)')), /EDITABLE, XSIZE=5, SCR_YSIZE=20)
+  bLinSzROI=WIDGET_BASE(bLinLft, /ROW)
+  lblSampleRad = WIDGET_LABEL(bLinSzROI, VALUE='ROI radius (mm)', XSIZE=80)
+  txtLinROIrad = WIDGET_TEXT(bLinSzROI, VALUE=STRING(config.LinROIrad,FORMAT='(f0.1)'), /EDITABLE, XSIZE=5, SCR_YSIZE=20)
+  bLinAvoidSearch=WIDGET_BASE(bLinlft, /NONEXCLUSIVE, /ROW)
+  btnLinAvoidSearch=WIDGET_BUTTON(bLinAvoidSearch, VALUE='Avoid search and use senter of search ROI', UVALUE='linAvoidSearch')
   
-  ;-------------CT linearity-------------
-  bLinearity=WIDGET_BASE(wtabAnalysisCT, Title='CT Number Linearity', /ROW)
-  bLinSettings=WIDGET_BASE(bLinearity, /COLUMN)
-  mlLin=WIDGET_LABEL(bLinSettings, VALUE='', YSIZE=20)
-  labLinearity=WIDGET_LABEL(bLinSettings, VALUE='Get CT Numbers for all loaded images')
-   mlLin1=WIDGET_LABEL(bLinSettings, VALUE='', YSIZE=20)
-  bLinConfig=WIDGET_BASE(bLinSettings, /ROW)
-  lblSampleRad = WIDGET_LABEL(bLinConfig, VALUE='ROI radius (mm)', XSIZE=80)
-  txtLinROIrad = WIDGET_TEXT(bLinConfig, VALUE=STRING(config.LinROIrad,FORMAT='(f0.1)'), /EDITABLE, XSIZE=5, SCR_YSIZE=20)
-  lblMlSR=WIDGET_LABEL(bLinConfig, VALUE='', XSIZE=20)
-  lblLargeRad = WIDGET_LABEL(bLinConfig, VALUE='Radius to ROIs (mm)', XSIZE=100)
-  txtLinROIrad2 = WIDGET_TEXT(bLinConfig, VALUE=STRING(config.LinROIrad2,FORMAT='(f0.1)'), /EDITABLE, XSIZE=5, SCR_YSIZE=20)
-  bLinButtons=WIDGET_BASE(bLinSettings, /ROW)
-  btnLinRois=WIDGET_BUTTON(bLinButtons, VALUE='Show/update ROIs', UVALUE='drawLinRois')
+  bLinButtons=WIDGET_BASE(bLinLft, /ROW)
+  btnLinRois=WIDGET_BUTTON(bLinButtons, VALUE='Show/update search ROIs', UVALUE='drawLinRois')
   btnLinearity=WIDGET_BUTTON(bLinButtons, VALUE='Get CT numbers', UVALUE='Linearity')
   
+  bLinRgt=WIDGET_BASE(bLinSettings, /COLUMN)
+  bLinTB=WIDGET_BASE(bLinRgt, /ROW, /TOOLBAR)
+  btnLinImport=WIDGET_BUTTON(bLinTB, VALUE='images\importd.bmp', /BITMAP,TOOLTIP='Import table from clipboard', UVALUE='impLinTab')
+  btnLinCopy=WIDGET_BUTTON(bLinTB, VALUE='images\copy.bmp', /BITMAP,TOOLTIP='Copy table to clipboard', UVALUE='copyLinTab')
+  btnLinAdd=WIDGET_BUTTON(bLinTB, VALUE='images\plus.bmp', /BITMAP, TOOLTIP='Add row to table', UVALUE='addRowLinTab')
+  btnLinDel=WIDGET_BUTTON(bLinTB, VALUE='images\delete.bmp', /BITMAP, TOOLTIP='Delete selected row(s) from table', UVALUE='delRowLinTab')
+  btnLinCenter=WIDGET_BUTTON(bLinTB, VALUE='images\center.bmp', /BITMAP, TOOLTIP='Set position of last mouse-click as senter for this material', UVALUE='centerLinTab')
+  tblLin=WIDGET_TABLE(bLinRgt, XSIZE=4, YSIZE=5, COLUMN_LABELS=['Material','ROI xpos (mm)', 'ROI ypos (mm)','Density'],COLUMN_WIDTHS=[80,80,80,80], /NO_ROW_HEADERS, SCR_XSIZE=winX/4, SCR_YSIZE=170, /ALL_EVENTS, /EDITABLE)
+  IF TOTAL(WHERE(configTags EQ 'LINTAB')) NE -1 THEN lintabStruc=config.LinTab ELSE lintabStruc=configDefault.LinTab
+  ysz=N_ELEMENTS(lintabStruc.Materials)
+  fillLin=STRARR(4,ysz)
+  fillLin[0,*]=TRANSPOSE(lintabStruc.Materials)
+  fillLin[1,*]=STRING(TRANSPOSE(lintabStruc.posX), FORMAT='(f0.1)')
+  fillLin[2,*]=STRING(TRANSPOSE(lintabStruc.posY), FORMAT='(f0.1)')
+  fillLin[3,*]=STRING(TRANSPOSE(lintabStruc.RelMassD), FORMAT='(f0.3)')
+  WIDGET_CONTROL, tblLin, TABLE_YSIZE=ysz, SET_VALUE=fillLin, SET_TABLE_SELECT=[-1,-1,-1,-1], SET_TABLE_VIEW=[0,0]
+  
   ;---------------Slice thickness--------
-  bSliceThick=WIDGET_BASE(wtabAnalysisCT, Title='Slice thickness', /ROW)
   bSliceThickLft=WIDGET_BASE(bSliceThick, /COLUMN)
   cw_ramptype=CW_BGROUP(bSliceThickLft, ['Wire ramp','Beaded ramp'], /EXCLUSIVE, LABEL_TOP='Ramp type...', /FRAME, SET_VALUE=0);, SET_VALUE=config.MTFtype)
   bSliceThickRgt=WIDGET_BASE(bSliceThick, /COLUMN)
@@ -366,20 +390,24 @@ COMMON VARI,  $
   btnSliceThick=WIDGET_BUTTON(bSliceThickBtns, VALUE='Get Slice Thickness', UVALUE='SliceThick')
 
   ;---------------FWHM---------------- move together with MTF later
-  bFwhm=WIDGET_BASE(wtabAnalysisCT, Title='FWHM', /COLUMN)
   lblFwhm=WIDGET_LABEL(bFWhm, VALUE='Code based on PSF.pro & CALCULATE_LSF_LIST.pro developed at DNR (Oslo, Norway) ')
   lblFwhm2=WIDGET_LABEL(bFWhm, VALUE=' by Arne Skretting, Wibeke Nordh'+string(248B)+'y, Alise Larsen and Kristine Eldevik')
   lblFwhmML=WIDGET_LABEL(bFWhm, VALUE='', YSIZE=20)
   lblFwhm3=WIDGET_LABEL(bFWhm, VALUE='FWHM calculated from average of 10 pixelrows.')
   lblFwhmML=WIDGET_LABEL(bFWhm, VALUE='', YSIZE=20)
   btnFwhm=WIDGET_BUTTON(bFwhm, VALUE='Calculate FWHM' , UVALUE='fwhm')
-  
+
 
   ;**********************X ray tests *******************************************************
-  
-  ;---------------STP--------
-  bSTP=WIDGET_BASE(wtabAnalysisXray, Title='STP', /COLUMN)
 
+  bSTP=WIDGET_BASE(wtabAnalysisXray, Title='STP', /COLUMN)
+  bHomogX=WIDGET_BASE(wtabAnalysisXray, Title='Homogeneity', /COLUMN)
+  bNoiseX=WIDGET_BASE(wtabAnalysisXray, Title='Noise', /COLUMN)
+  bMTFsettingsX=WIDGET_BASE(wtabAnalysisXray, TITLE='MTF',/COLUMN)
+  bNPSX=WIDGET_BASE(wtabAnalysisXray, TITLE='NPS',/Column)
+  bROIX=WIDGET_BASE(wtabAnalysisXray, TITLE='ROI',/COLUMN)
+
+  ;---------------STP--------
   bStpSettings=WIDGET_BASE(bSTP, /ROW)
   lblStpROIsz = WIDGET_LABEL(bStpSettings, VALUE='ROI radius (mm)')
   txtStpROIsz = WIDGET_TEXT(bStpSettings, VALUE=STRING(config.STProiSz,FORMAT='(f0.1)'), /EDITABLE, XSIZE=4, SCR_YSIZE=20)
@@ -400,8 +428,6 @@ COMMON VARI,  $
   lblWarnStp=WIDGET_LABEL(bSTP, VALUE='     Only linear fit implemented for STP, beam quality and Qvalue might not be used correctly')
 
   ;---------------Homogeneity--------
-  bHomogX=WIDGET_BASE(wtabAnalysisXray, Title='Homogeneity', /COLUMN)
-
   bHomogSizeX=WIDGET_BASE(bHomogX, /ROW)
   lblHomogROIszX = WIDGET_LABEL(bHomogSizeX, VALUE='ROI radius (mm)')
   txtHomogROIszX = WIDGET_TEXT(bHomogSizeX, VALUE=STRING(config.HomogROIszX,FORMAT='(f0.1)'), /EDITABLE, XSIZE=4, SCR_YSIZE=20)
@@ -410,8 +436,6 @@ COMMON VARI,  $
   btnHomogX=WIDGET_BUTTON(bHomogBtnsX, VALUE='Calculated homogeneity', UVALUE='homog')
 
   ;---------------Noise--------
-  bNoiseX=WIDGET_BASE(wtabAnalysisXray, Title='Noise', /COLUMN)
-
   bNoiseROIX=WIDGET_BASE(bNoiseX, /ROW)
   lblNoiseROIszX = WIDGET_LABEL(bNoiseROIX, VALUE='ROI 90 % of image area ')
   ;txtNoiseROIszX = WIDGET_TEXT(bNoiseROIX, VALUE=STRING(config.NoiseROIszX,FORMAT='(f0.0)'), /EDITABLE, XSIZE=4, SCR_YSIZE=20)
@@ -420,9 +444,8 @@ COMMON VARI,  $
   btnNoiseX=WIDGET_BUTTON(bNoiseBtnsX, VALUE='Calculated noise', UVALUE='noise')
 
   ;----------------MTF------------------
-  bMTFsettingsX=WIDGET_BASE(wtabAnalysisXray, TITLE='MTF',/COLUMN)
   bMTFX=WIDGET_BASE(bMTFsettingsX, /ROW)
-  cw_formLSFX=CW_BGROUP(bMTFX, ['Exponential','Gaussian','None'], /EXCLUSIVE, LABEL_TOP='LSF fit to...', /FRAME, SET_VALUE=config.MTFtypeX) 
+  cw_formLSFX=CW_BGROUP(bMTFX, ['Exponential','Gaussian','None'], /EXCLUSIVE, LABEL_TOP='LSF fit to...', /FRAME, SET_VALUE=config.MTFtypeX)
   bLSFfilterX=WIDGET_BASE(bMTFX, /COLUMN)
   bCutLSFX=WIDGET_BASE(bLSFfilterX, /NONEXCLUSIVE, /ROW)
   btnCutLSFX=WIDGET_BUTTON(bCutLSFX, VALUE='Cut LSF tails', UVALUE='cutLSF')
@@ -430,19 +453,18 @@ COMMON VARI,  $
   lblCutLSFWX=WIDGET_LABEL( bCutLSFWX, VALUE='Cut LSF from halfmax (#FWHM)')
   txtCutLSFWX=WIDGET_TEXT( bCutLSFWX, VALUE='5', /EDITABLE, XSIZE=5, SCR_YSIZE=20)
   cw_plotMTFX=CW_BGROUP(bMTFX, ['Edge position', 'Sorted pixelvalues', 'LSF', 'MTF'], /EXCLUSIVE, LABEL_TOP='Show plot...', /FRAME, SET_VALUE=config.plotMTFX, UVALUE='cw_plotMTFX')
-  
+
   bMTFroiSzX=WIDGET_BASE(bMTFsettingsX, /ROW)
   lblMTFroiSzX=WIDGET_LABEL(bMTFroiSzX, VALUE='ROI width x height (mm)')
   txtMTFroiSzX=WIDGET_TEXT(bMTFroiSzX, VALUE=STRING(config.MTFroiSzX(0),FORMAT='(f0.1)'), /EDITABLE, XSIZE=5, SCR_YSIZE=20)
   lblMTFx=WIDGET_LABEL(bMTFroiSzX, VALUE=' x ')
   txtMTFroiSzY=WIDGET_TEXT(bMTFroiSzX, VALUE=STRING(config.MTFroiSzX(1),FORMAT='(f0.1)'), /EDITABLE, XSIZE=5, SCR_YSIZE=20)
-  
+
   bMTFbtnsX=WIDGET_BASE(bMTFsettingsX, /ROW)
   btnMTFroiX=WIDGET_BUTTON(bMTFbtnsX, VALUE='Show/update ROIs', UVALUE='drawMTFroi')
   btnMTFX=WIDGET_BUTTON(bMTFbtnsX, VALUE='Calculate MTF', UVALUE='MTFX')
 
   ;----------------NPS------------------
-  bNPSX=WIDGET_BASE(wtabAnalysisXray, TITLE='NPS',/Column)
   bVarianceBtnsX=WIDGET_BASE(bNPSX,/ROW)
   btnVarImageX=WIDGET_BUTTON(bVarianceBtnsX, VALUE='Calculate variance image', UVALUE='varImage')
   lblVarX=WIDGET_LABEL(bVarianceBtnsX, VALUE='  to check that the variance is uniform and without major artifacts.')
@@ -466,20 +488,24 @@ COMMON VARI,  $
   lblWarnMlNPSX=WIDGET_LABEL(bNPSX, VALUE='')
   lblWarnNPSX0=WIDGET_LABEL(bNPSX, VALUE='Warning: Consider test as under construction')
   lblWarnNPSX=WIDGET_LABEL(bNPSX, VALUE='     The user must verify NPS results (normalization in particular) due to programmers fresh and immature competence. ')
-  
+
   ;----------------User defined ROI------------
-  bROIX=WIDGET_BASE(wtabAnalysisXray, TITLE='ROI',/COLUMN)
   typeROIX=CW_BGROUP(bROIX, ['Define new','Load saved ROI (.sav)'], /EXCLUSIVE, LABEL_TOP='Define ROI and get min/max/avg/stdev', /FRAME, SET_VALUE=config.typeROIX, UVALUE='typeROIX')
   btnDefROIX =WIDGET_BUTTON(bROIX, VALUE = 'Define ROI', UVALUE='ROI')
 
   ;***********************NM tests**********************************************************
   bEnergySpec=WIDGET_BASE(wtabAnalysisNM, TITLE='Energy spectrum', /COLUMN)
+  bHomogNM=WIDGET_BASE(wtabAnalysisNM, Title='Uniformity', /COLUMN)
+  bScanSpeed=WIDGET_BASE(wtabAnalysisNM, Title='Scan Speed', /COLUMN)
+  bContrastNM=WIDGET_BASE(wtabAnalysisNM, Title='Contrast', /COLUMN)
+  bMTFNM=WIDGET_BASE(wtabAnalysisNM, TITLE='MTF',/Column)
+  bRadialProfile=WIDGET_BASE(wtabAnalysisNM, Title='Radial Profile', /COLUMN)
+
+  ;------------energy spectrum--------------------
   bEnergySpecBtns=WIDGET_BASE(bEnergySpec, /ROW)
   btnLoadSpec=WIDGET_BUTTON(bEnergySpecBtns, VALUE='Load spectrum', UVALUE='loadSpectrum')
-  
-  ;---------------Homogeneity--------
-  bHomogNM=WIDGET_BASE(wtabAnalysisNM, Title='Uniformity', /COLUMN)
 
+  ;---------------Homogeneity--------
   bHomogNMlft=WIDGET_BASE(bHomogNM,/COLUMN)
   bHomogSizeNM=WIDGET_BASE(bHomogNMlft, /ROW)
   lblHomogROIszNM = WIDGET_LABEL(bHomogSizeNM, VALUE='ROI radius (mm)')
@@ -492,9 +518,8 @@ COMMON VARI,  $
   bHomogBtnsNM=WIDGET_BASE(bHomogNMlft, /ROW)
   btnHomogROINM=WIDGET_BUTTON(bHomogBtnsNM, VALUE='Show/update ROI', UVALUE='drawROIhomog')
   btnHomogNM=WIDGET_BUTTON(bHomogBtnsNM, VALUE='Calculate uniformity', UVALUE='homog')
-  
+
   ;-----------Scan speed------------
-  bScanSpeed=WIDGET_BASE(wtabAnalysisNM, Title='Scan Speed', /COLUMN)
   bAvgSpeedNM=WIDGET_BASE(bScanSpeed, /ROW)
   lblAvgSpeedNM=WIDGET_LABEL(bAvgSpeedNM, VALUE='Average over ROI with width (pix)' )
   txtNAvgSpeedNM=WIDGET_TEXT(bAvgSpeedNM, VALUE=STRING(config.scanSpeedAvg, FORMAT='(i0)'), /EDITABLE, XSIZE=5, SCR_YSIZE=20)
@@ -505,77 +530,131 @@ COMMON VARI,  $
   lblSpeedMedian=WIDGET_LABEL(bMedianSpeedNM, VALUE='Median filter width (pix)')
   txtScanSpeedMedian=WIDGET_TEXT(bMedianSpeedNM, VALUE=STRING(config.scanSpeedFiltW, FORMAT='(i0)'), /EDITABLE, XSIZE=4, SCR_YSIZE=20)
   btnPlotScanSpeed = WIDGET_BUTTON(bScanSpeed, VALUE='Plot y-profile and median filtered profile', UVALUE='plotScanSpeed')
-  
+
   ;-------------Contrast-------------
-   bContrastNM=WIDGET_BASE(wtabAnalysisNM, Title='Contrast', /COLUMN)
-   bConSettingsNM=WIDGET_BASE(bContrastNM, /ROW)
-   lblConR1NM = WIDGET_LABEL(bConSettingsNM, VALUE='ROI radius (mm)', XSIZE=80)
-   txtConR1NM = WIDGET_TEXT(bConSettingsNM, VALUE=STRING(config.contrastRad1,FORMAT='(f0.1)'), /EDITABLE, XSIZE=5, SCR_YSIZE=20)
-   lblMlConRNM=WIDGET_LABEL(bConSettingsNM, VALUE='', XSIZE=20)
-   lblConR2NM = WIDGET_LABEL(bConSettingsNM, VALUE='Radius to ROIs (mm)', XSIZE=100)
-   txtConR2NM = WIDGET_TEXT(bConSettingsNM, VALUE=STRING(config.contrastRad2,FORMAT='(f0.1)'), /EDITABLE, XSIZE=5, SCR_YSIZE=20)
-   bConButtonsNM=WIDGET_BASE(bContrastNM, /ROW)
-   btnConRoisNM=WIDGET_BUTTON(bConButtonsNM, VALUE='Show/update ROIs', UVALUE='drawConRoisNM')
-   btnContrastNM=WIDGET_BUTTON(bConButtonsNM, VALUE='Calculate contrast', UVALUE='contrastNM')
+  bConSettingsNM=WIDGET_BASE(bContrastNM, /ROW)
+  lblConR1NM = WIDGET_LABEL(bConSettingsNM, VALUE='ROI radius (mm)', XSIZE=80)
+  txtConR1NM = WIDGET_TEXT(bConSettingsNM, VALUE=STRING(config.contrastRad1,FORMAT='(f0.1)'), /EDITABLE, XSIZE=5, SCR_YSIZE=20)
+  lblMlConRNM=WIDGET_LABEL(bConSettingsNM, VALUE='', XSIZE=20)
+  lblConR2NM = WIDGET_LABEL(bConSettingsNM, VALUE='Radius to ROIs (mm)', XSIZE=100)
+  txtConR2NM = WIDGET_TEXT(bConSettingsNM, VALUE=STRING(config.contrastRad2,FORMAT='(f0.1)'), /EDITABLE, XSIZE=5, SCR_YSIZE=20)
+  bConButtonsNM=WIDGET_BASE(bContrastNM, /ROW)
+  btnConRoisNM=WIDGET_BUTTON(bConButtonsNM, VALUE='Show/update ROIs', UVALUE='drawConRoisNM')
+  btnContrastNM=WIDGET_BUTTON(bConButtonsNM, VALUE='Calculate contrast', UVALUE='contrastNM')
 
-   ;----------------MTF------------------
-   bMTFNM=WIDGET_BASE(wtabAnalysisNM, TITLE='MTF',/Column)
-   bMTFsettingsNM=WIDGET_BASE(bMTFNM, /ROW)
-   bMTFlftNM=WIDGET_BASE(bMTFsettingsNM,/COLUMN)
-   cw_typeMTFNM=CW_BGROUP(bMTFlftNM, ['Point','Line','Circular edge'], /EXCLUSIVE, LABEL_TOP='MTF method...', /FRAME, SET_VALUE=config.MTFtypeNM)
+  ;----------------MTF------------------
+  bMTFsettingsNM=WIDGET_BASE(bMTFNM, /ROW)
+  bMTFlftNM=WIDGET_BASE(bMTFsettingsNM,/COLUMN)
+  cw_typeMTFNM=CW_BGROUP(bMTFlftNM, ['Point','Line','Circular edge'], /EXCLUSIVE, LABEL_TOP='MTF method...', /FRAME, SET_VALUE=config.MTFtypeNM)
 
-   bMTFroiSzNM=WIDGET_BASE(bMTFlftNM, /ROW)
-   lblMTFroiSzXNM=WIDGET_LABEL(bMTFroiSzNM, VALUE='ROI width x height (mm)')
-   txtMTFroiSzXNM=WIDGET_TEXT(bMTFroiSzNM, VALUE=STRING(config.MTFroiSzNM(0),FORMAT='(f0.1)'), /EDITABLE, XSIZE=4, SCR_YSIZE=20)
-   lblMTFXNM=WIDGET_LABEL(bMTFroiSzNM, VALUE='x')
-   txtMTFroiSzYNM=WIDGET_TEXT(bMTFroiSzNM, VALUE=STRING(config.MTFroiSzNM(1),FORMAT='(f0.1)'), /EDITABLE, XSIZE=4, SCR_YSIZE=20)
-   bMTF3dNM=WIDGET_BASE(bMTFlftNM, /ROW, /NONEXCLUSIVE)
-   MTF3dNM=WIDGET_BUTTON(bMTF3dNM, VALUE='Analyse 3d')
+  bMTFroiSzNM=WIDGET_BASE(bMTFlftNM, /ROW)
+  lblMTFroiSzXNM=WIDGET_LABEL(bMTFroiSzNM, VALUE='ROI width x height (mm)')
+  txtMTFroiSzXNM=WIDGET_TEXT(bMTFroiSzNM, VALUE=STRING(config.MTFroiSzNM(0),FORMAT='(f0.1)'), /EDITABLE, XSIZE=4, SCR_YSIZE=20)
+  lblMTFXNM=WIDGET_LABEL(bMTFroiSzNM, VALUE='x')
+  txtMTFroiSzYNM=WIDGET_TEXT(bMTFroiSzNM, VALUE=STRING(config.MTFroiSzNM(1),FORMAT='(f0.1)'), /EDITABLE, XSIZE=4, SCR_YSIZE=20)
+  bMTF3dNM=WIDGET_BASE(bMTFlftNM, /ROW, /NONEXCLUSIVE)
+  MTF3dNM=WIDGET_BUTTON(bMTF3dNM, VALUE='Analyse 3d')
 
-   bMTFrgtNM=WIDGET_BASE(bMTFsettingsNM,/COLUMN)
-   bCutLSFNM=WIDGET_BASE(bMTFrgtNM, /NONEXCLUSIVE, /ROW)
-   btnCutLSFNM=WIDGET_BUTTON(bCutLSFNM, VALUE='Cut LSF tails', UVALUE='cutLSF')
-   bCutLSFWNM=WIDGET_BASE(bMTFrgtNM, /ROW)
-   lblCutLSFWNM=WIDGET_LABEL( bCutLSFWNM, VALUE='Cut LSF from halfmax (#FWHM)')
-   txtCutLSFWNM=WIDGET_TEXT( bCutLSFWNM, VALUE='5', /EDITABLE, XSIZE=3, SCR_YSIZE=20)
+  bMTFrgtNM=WIDGET_BASE(bMTFsettingsNM,/COLUMN)
+  bCutLSFNM=WIDGET_BASE(bMTFrgtNM, /NONEXCLUSIVE, /ROW)
+  btnCutLSFNM=WIDGET_BUTTON(bCutLSFNM, VALUE='Cut LSF tails', UVALUE='cutLSF')
+  bCutLSFWNM=WIDGET_BASE(bMTFrgtNM, /ROW)
+  lblCutLSFWNM=WIDGET_LABEL( bCutLSFWNM, VALUE='Cut LSF from halfmax (#FWHM)')
+  txtCutLSFWNM=WIDGET_TEXT( bCutLSFWNM, VALUE='5', /EDITABLE, XSIZE=3, SCR_YSIZE=20)
 
-   cw_plotMTFNM=CW_BGROUP(bMTFsettingsNM, ['Centered xy profiles', 'Line', 'Sorted pixelvalues', 'LSF', 'MTF'], /EXCLUSIVE, LABEL_TOP='Show plot...', /FRAME, SET_VALUE=config.plotMTFNM, UVALUE='cw_plotMTFNM')
+  cw_plotMTFNM=CW_BGROUP(bMTFsettingsNM, ['Centered xy profiles', 'Line', 'Sorted pixelvalues', 'LSF', 'MTF'], /EXCLUSIVE, LABEL_TOP='Show plot...', /FRAME, SET_VALUE=config.plotMTFNM, UVALUE='cw_plotMTFNM')
 
-   bMTFbtnsNM=WIDGET_BASE(bMTFNM, /ROW)
-   btnMTFroiNM=WIDGET_BUTTON(bMTFbtnsNM, VALUE='Show/update ROIs', UVALUE='drawMTFroi')
-   btnMTFNM=WIDGET_BUTTON(bMTFbtnsNM, VALUE='Calculate MTF', UVALUE='MTFNM')
-   
-   ;----------Radial profiles---------------
-   bRadialProfile=WIDGET_BASE(wtabAnalysisNM, Title='Radial Profile', /COLUMN)
+  bMTFbtnsNM=WIDGET_BASE(bMTFNM, /ROW)
+  btnMTFroiNM=WIDGET_BUTTON(bMTFbtnsNM, VALUE='Show/update ROIs', UVALUE='drawMTFroi')
+  btnMTFNM=WIDGET_BUTTON(bMTFbtnsNM, VALUE='Calculate MTF', UVALUE='MTFNM')
 
-   bRadialProf=WIDGET_BASE(bRadialProfile, /COLUMN)
-   bMedianRadialNM=WIDGET_BASE(bRadialProf, /ROW)
-   lblRadialMedian=WIDGET_LABEL(bMedianRadialNM, VALUE='Median filter width (pix)')
-   txtRadialMedian=WIDGET_TEXT(bMedianRadialNM, VALUE=STRING(5, FORMAT='(i0)'), /EDITABLE, XSIZE=4, SCR_YSIZE=20);config.radialFiltW
-   btnRadialProfNM=WIDGET_BUTTON(bRadialProf, VALUE='Calculate radial profile', UVALUE='radialProfile')
+  ;----------Radial profiles---------------
+  bRadialProf=WIDGET_BASE(bRadialProfile, /COLUMN)
+  bMedianRadialNM=WIDGET_BASE(bRadialProf, /ROW)
+  lblRadialMedian=WIDGET_LABEL(bMedianRadialNM, VALUE='Median filter width (pix)')
+  txtRadialMedian=WIDGET_TEXT(bMedianRadialNM, VALUE=STRING(5, FORMAT='(i0)'), /EDITABLE, XSIZE=4, SCR_YSIZE=20);config.radialFiltW
+  btnRadialProfNM=WIDGET_BUTTON(bRadialProf, VALUE='Calculate radial profile', UVALUE='radialProfile')
+
+  ;***********************PET tests**********************************************************
+
+  ;analyseStringsPET=['NONE','CROSSCALIB','HOMOG','CONTRAST','MTF']
+  bCross=WIDGET_BASE(wtabAnalysisPET, TITLE='Crosscalibration', /COLUMN)
+  bHomogPET=WIDGET_BASE(wtabAnalysisPET, TITLE='Uniformity', /COLUMN)
+
+  ;------------Crosscalibration--------------------
+  bCrossROI=WIDGET_BASE(bCross, /ROW)
+  lblCrossROIsz = WIDGET_LABEL(bCrossROI, VALUE='ROI radius (mm)')
+  txtCrossROIsz = WIDGET_TEXT(bCrossROI, VALUE= ( TOTAL(WHERE(configTags EQ 'CROSSROISZ')) NE -1 ? STRING(config.CROSSROISZ,FORMAT='(f0.1)') : STRING(configDefault.CROSSROISZ,FORMAT='(f0.1)') ) , /EDITABLE, XSIZE=4, SCR_YSIZE=20)
+
+  bCrossInput=WIDGET_BASE(bCross, /ROW)
+  bCrossInputLft=WIDGET_BASE(bCrossInput, /COLUMN, FRAME=1, XSIZE=320)
+  bCrossMeasA=WIDGET_BASE(bCrossInputLft, /ROW)
+  lblCrossMeasAct = WIDGET_LABEL(bCrossMeasA, VALUE='Activity before injection (MBq)')
+  txtCrossMeasAct = WIDGET_TEXT(bCrossMeasA, VALUE='0.0', /EDITABLE, XSIZE=7)
+  lblCrossMeasActT = WIDGET_LABEL(bCrossMeasA, VALUE='  time (hh:mm)')
+  txtCrossMeasActT = WIDGET_TEXT(bCrossMeasA, VALUE='00:00', /EDITABLE, XSIZE=5)
+  bCrossMeasR=WIDGET_BASE(bCrossInputLft, /ROW)
+  lblCrossMeasRest = WIDGET_LABEL(bCrossMeasR, VALUE='Rest activity after injection (MBq)')
+  txtCrossMeasRest = WIDGET_TEXT(bCrossMeasR, VALUE='0.0', /EDITABLE, XSIZE=5)
+  lblCrossMeasRT = WIDGET_LABEL(bCrossMeasR, VALUE='  time (hh:mm)')
+  txtCrossMeasRT = WIDGET_TEXT(bCrossMeasR, VALUE='00:00', /EDITABLE, XSIZE=5)
+  bCrossScanStart=WIDGET_BASE(bCrossInputLft, /ROW)
+  lblCrossScanStart = WIDGET_LABEL(bCrossScanStart, VALUE='Scan started (from first DICOM)')
+  txtCrossScanStart = WIDGET_TEXT(bCrossScanStart, VALUE='', XSIZE=10)
+  bCrossScanAct=WIDGET_BASE(bCrossInputLft, /ROW)
+  lblCrossScanAct = WIDGET_LABEL(bCrossScanAct, VALUE='Activity at start of scan (MBq)')
+  txtCrossScanAct = WIDGET_TEXT(bCrossScanAct, VALUE='', XSIZE=10)
+  bCrossInputRgt=WIDGET_BASE(bCrossInput, /COLUMN, FRAME=1, XSIZE=210)
+  bCrossVol=WIDGET_BASE(bCrossInputRgt, /ROW)
+  lblCrossVol = WIDGET_LABEL(bCrossVol, VALUE='Volume of container (mL)')
+  txtCrossVol = WIDGET_TEXT(bCrossVol, VALUE=( TOTAL(WHERE(configTags EQ 'CROSSVOL')) NE -1 ? STRING(config.CROSSVOL,FORMAT='(f0.1)') : STRING(configDefault.CROSSVOL,FORMAT='(f0.1)') ) ,/EDITABLE,  XSIZE=10, SCR_YSIZE=20)
+  bCrossConc = WIDGET_BASE(bCrossInputRgt, /ROW)
+  lblCrossConc = WIDGET_LABEL(bCrossConc, VALUE='Activity concentration (Bq/ml)')
+  txtCrossConc = WIDGET_TEXT(bCrossConc, VALUE='', XSIZE=10)
+  bCrossFactor=WIDGET_BASE(bCrossInputRgt, /ROW)
+  lblCrossFactor = WIDGET_LABEL(bCrossFactor, VALUE='Calibration factor  ')
+  txtCrossFactor = WIDGET_TEXT(bCrossFactor, VALUE='', XSIZE=10, SCR_YSIZE=20)
+
+  bCrossBtm=WIDGET_BASE(bCross, /ROW)
+  bCrossBtns=WIDGET_BASE(bCrossBtm, /ROW)
+  btnCrossROI=WIDGET_BUTTON(bCrossBtns, VALUE='Show/update ROI', UVALUE='drawROIcross')
+  btnCross=WIDGET_BUTTON(bCrossBtns, VALUE='Get values from ROI', UVALUE='cross')
+  btnCrossUpdate = WIDGET_BUTTON(bCrossBtns, VALUE='Update calculations', UVALUE='updateCross')
+  
+  ;---------------Uniformity--------
+  lblInfoUniPET=WIDGET_LABEL(bHomogPET, VALUE='Calculate mean pixelvalues in a central and four peripheral ROIs and how this value varies over the slices.')
+  bHomogSizePET=WIDGET_BASE(bHomogPET, /ROW)
+  lblHomogROIszPET = WIDGET_LABEL(bHomogSizePET, VALUE='ROI radius (mm)')
+  txtHomogROIszPET = WIDGET_TEXT(bHomogSizePET, VALUE=( TOTAL(WHERE(configTags EQ 'HOMOGROISZPET')) NE -1 ? STRING(config.HOMOGROISZPET,FORMAT='(f0.1)') : STRING(configDefault.HOMOGROISZPET,FORMAT='(f0.1)') ), /EDITABLE, XSIZE=4, SCR_YSIZE=20)
+  mlH11=WIDGET_LABEL(bHomogSizePET, VALUE='', XSIZE=20)
+  lblHomogROIdistPET = WIDGET_LABEL(bHomogSizePET, VALUE='Radius to ROIs (mm)')
+  txtHomogROIdistPET = WIDGET_TEXT(bHomogSizePET, VALUE=( TOTAL(WHERE(configTags EQ 'HOMOGROIDISTPET')) NE -1 ? STRING(config.HOMOGROIDISTPET,FORMAT='(f0.1)') : STRING(configDefault.HOMOGROIDISTPET,FORMAT='(f0.1)') ), /EDITABLE, XSIZE=4, SCR_YSIZE=20)
+  bHomogBtnsPET=WIDGET_BASE(bHomogPET, /ROW)
+  btnHomogROIPET=WIDGET_BUTTON(bHomogBtnsPET, VALUE='Show/update ROI', UVALUE='drawROIhomog')
+  btnHomogPET=WIDGET_BUTTON(bHomogBtnsPET, VALUE='Calculated uniformity', UVALUE='homog')
 
   ;******************************************************************************************
   ;********************* Result panel *********************************************************
   bPlot = WIDGET_BASE(bRgt, /COLUMN)
-  
+
   wtabResult=WIDGET_TAB(bPlot, XSIZE=winX/2-50, YSIZE=480, UVALUE='tabResults')
   bTableRes=WIDGET_BASE(wtabResult, TITLE='Table of results', /COLUMN, UVALUE='tabTableRes')
   bPlotRes=WIDGET_BASE(wtabResult, TITLE='Plot results', /COLUMN, UVALUE='tabPlotRes')
   bImageRes=WIDGET_BASE(wtabResult,TITLE='Image results', /COLUMN, UVALUE='tabImageRes')
-  
+
   ;----table-----------
   toolbarTable=WIDGET_BASE(bTableRes,/ROW,/TOOLBAR)
   toolCopyTbl=WIDGET_BUTTON(toolbarTable, VALUE=thisPath+'images\copy.bmp',/BITMAP, TOOLTIP='Copy table to clipboard', UVALUE='copyTbl')
 
   bResults = WIDGET_BASE(bTableRes, /COLUMN)
-  resTab=WIDGET_TABLE(bResults, XSIZE=4, YSIZE=5, COLUMN_WIDTHS=[100,100,100,100], /NO_ROW_HEADERS, SCR_XSIZE=winX/2-160, SCR_YSIZE=150, /ALL_EVENTS)
-  
+  resTab=WIDGET_TABLE(bResults, XSIZE=4, YSIZE=5, COLUMN_WIDTHS=[100,100,100,100], /NO_ROW_HEADERS, SCR_XSIZE=winX/2-160, SCR_YSIZE=380, /ALL_EVENTS)
+
   ;----plot------------
   toolbarPlot=WIDGET_BASE(bPlotRes,/ROW,/TOOLBAR)
   toolCopyCurve=WIDGET_BUTTON(toolbarPlot, VALUE=thisPath+'images\copy.bmp',/BITMAP, TOOLTIP='Copy curve to clipboard', UVALUE='copyCurve')
   tooliPlot=WIDGET_BUTTON(toolbarPlot, VALUE='iPlot', TOOLTIP='Send curves to iPlot for further analysis', UVALUE='iPlot')
   bDrawPlot=WIDGET_BASE(bPlotRes, /ROW)
-  drawPlot  = WIDGET_DRAW(bDrawPlot, XSIZE=450, YSIZE=380, RETAIN=2);GRAPHICS_LEVEL=2 hvis object graphics 
+  drawPlot  = WIDGET_DRAW(bDrawPlot, XSIZE=450, YSIZE=380, RETAIN=2);GRAPHICS_LEVEL=2 hvis object graphics
   statPlot = WIDGET_TEXT(bDrawPlot, XSIZE=50, YSIZE=10, VALUE='')
   bRangeX=WIDGET_BASE(bPlotRes, /ROW)
   lblRangeX = WIDGET_LABEL(bRangeX, VALUE='Horizontal axis range (lower, upper)', XSIZE=170)
@@ -583,26 +662,26 @@ COMMON VARI,  $
   lblMlmRx= WIDGET_LABEL(bRangeX, VALUE=', ', XSIZE=10)
   txtMaxRangeX = WIDGET_TEXT(bRangeX, VALUE='1', /EDITABLE, XSIZE=10, SCR_YSIZE=20, /KBRD_FOCUS_EVENTS)
   setRangeMinMaxX = WIDGET_BUTTON(bRangeX, VALUE='Set to min/max', UVALUE='setRangeMinMaxX')
-  
+
   bRangeY=WIDGET_BASE(bPlotRes, /ROW)
   lblRangeY = WIDGET_LABEL(bRangeY, VALUE='Vertical axis range (lower, upper)', XSIZE=170)
   txtMinRangeY = WIDGET_TEXT(bRangeY, VALUE='0', /EDITABLE, XSIZE=10, SCR_YSIZE=20, /KBRD_FOCUS_EVENTS)
   lblMlmRy= WIDGET_LABEL(bRangeY, VALUE=', ', XSIZE=10)
   txtMaxRangeY = WIDGET_TEXT(bRangeY, VALUE='1', /EDITABLE, XSIZE=10, SCR_YSIZE=20, /KBRD_FOCUS_EVENTS)
   setRangeMinMaxY = WIDGET_BUTTON(bRangeY, VALUE='Set to min/max', UVALUE='setRangeMinMaxY')
-  
+
   ;----image------------
   toolbarImageRes=WIDGET_BASE(bImageRes,/ROW,/TOOLBAR)
   toolIimageRes = WIDGET_BUTTON(toolbarImageRes, VALUE=thisPath+'images\ax.bmp', /BITMAP, UVALUE='iImageRes', TOOLTIP='Send result to iImage')
   drawImageRes  = WIDGET_DRAW(bImageRes, XSIZE=450, YSIZE=450, RETAIN=2)
-  
+
   ;****************** BOTTOM Panel
   bDir=WIDGET_BASE(bMain,/ROW)
   lblDirectory=WIDGET_LABEL(bDir, VALUE='Full path:  ')
   lblDir=WIDGET_LABEL(bDir, VALUE='',xSIZE=winX-170, YSIZE=18, /SUNKEN_FRAME)
-  
+
   loadct, 0, /SILENT
-  WIDGET_CONTROL, bMain, /REALIZE 
+  WIDGET_CONTROL, bMain, /REALIZE
   XMANAGER, 'ImageQC', bMain, /NO_BLOCK
   DEVICE, RETAIN=2, DECOMPOSED=0
 

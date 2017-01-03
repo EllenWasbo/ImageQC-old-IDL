@@ -28,12 +28,13 @@
 ;  .stationName
 ;  .patientName
 ;  .patientID
+;  .patientweight
 ;  .imageType (helical or axial)
 ;  .presType (presentation type FOR PRESENTATION, FOR PROCESSING...)
 ;  .studyDescr
 ;  .seriesName
-;  .seriesNmb
 ;  .protocolName
+;  .seriesNmb
 ;  .acqNmb
 ;  .acqtime
 ;  .sliceThick
@@ -50,16 +51,25 @@
 ;  .CTDIvol
 ;  .DAP
 ;  .EI
+;  .sensitivity
 ;  .filter
 ;  .zpos
 ;  .imgNo
 ;  .nFrames
 ;  .wCenter
 ;  .wWidth
-;   .collType
-;   .nEWindows
-;   .EWindowName
-;   .zoomFac
+;  .collType
+;  .nEWindows
+;  .EWindowName
+;  .zoomFactor
+;  .radius1 (gamma camera radius 1st detektor)
+;  .radius2 (gamma camera radius 2nd detektor)
+;  .units (of pixel values ex: HU, BQML ...)
+;  .radiopharmaca
+;  .reconMethod
+;  .attCorrMethod
+;  .scaCorrMethod
+;  .scatterFrac
 
 function readImgInfo, adr
 
@@ -223,12 +233,14 @@ function readImgInfo, adr
         test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
         singleCollW=*(test_peker[0])
       ENDIF ELSE singleCollW=-1
+      IF N_ELEMENTS(singleCollW) EQ 8 THEN singleCollW=fix(singleCollW, 0,1, type=5); 8 byte (64 bit) double precision floating number
 
       test=o->GetReference('0018'x,'9307'x)
       IF test(0) NE -1 THEN BEGIN
         test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
         totalCollW=*(test_peker[0])
       ENDIF ELSE totalCollW=-1
+      IF N_ELEMENTS(totalCollW) EQ 8 THEN totalCollW=fix(totalCollW, 0,1, type=5); 8 byte (64 bit) double precision floating number
 
       coll=[singleCollW,totalCollW]
 
@@ -237,6 +249,7 @@ function readImgInfo, adr
         test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
         pitch=*(test_peker[0])
       ENDIF ELSE pitch=-1
+      IF N_ELEMENTS(pitch) EQ 8 THEN pitch=fix(pitch, 0,1, type=5); 8 byte (64 bit) double precision floating number
 
       test=o->GetReference('0018'x,'1142'x)
       IF test(0) NE -1 THEN BEGIN
@@ -319,6 +332,9 @@ function readImgInfo, adr
       test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
       IF test(0) NE -1 THEN nEWindows=*(test_peker[0]) ELSE nEWindows=-1
 
+      test=o->GetReference('0054'x,'1001'x)
+      test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
+      IF test(0) NE -1 THEN units=*(test_peker[0]) ELSE units='-'
 
       test=o->GetReference('0054'x,'0018'x)
       test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
@@ -331,13 +347,40 @@ function readImgInfo, adr
       test=o->GetReference('0028'x,'0031'x); 1\1
       test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
       IF test(0) NE -1 THEN zoomFactor=*(test_peker[0]) ELSE zoomFactor='-'
+      
+      test=o->GetReference('0010'x,'1030'x); 
+      test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
+      IF test(0) NE -1 THEN patientWeight=*(test_peker[0]) ELSE patientWeight='-'
+      
+      ; PET only
+      
+      test=o->GetReference('0018'x,'0031'x);
+      test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
+      IF test(0) NE -1 THEN radiopharmaca=*(test_peker[0]) ELSE radiopharmaca='-'
+      
+      test=o->GetReference('0054'x,'1103'x);
+      test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
+      IF test(0) NE -1 THEN reconMethod=*(test_peker[0]) ELSE reconMethod='-'
+      
+      test=o->GetReference('0054'x,'1101'x);
+      test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
+      IF test(0) NE -1 THEN attCorrMethod=*(test_peker[0]) ELSE attCorrMethod='-'
+      
+      test=o->GetReference('0054'x,'1105'x);
+      test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
+      IF test(0) NE -1 THEN scaCorrMethod=*(test_peker[0]) ELSE scaCorrMethod='-'     
+
+      test=o->GetReference('0054'x,'1323'x);
+      test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
+      IF test(0) NE -1 THEN scatterFrac=*(test_peker[0]) ELSE scatterFrac='-'
 
       imgStruct=CREATE_STRUCT('filename',adr,'studyDate', studyDate, 'institution',institution,'modality', modality, 'modelName',modelName,'stationName',stationName,$
-        'patientName',patientName, 'patientID', patientID,'imageType',imageType,'presType',presType,'studyDescr',studyDescr,'seriesName',seriesName, 'protocolname', protocolname,$
+        'patientName',patientName, 'patientID', patientID, 'patientWeight', patientWeight, 'imageType',imageType,'presType',presType,'studyDescr',studyDescr,'seriesName',seriesName, 'protocolname', protocolname,$
         'seriesNmb',seriesNmb,'acqNmb',acqNmb, 'acqtime',acqtime,'sliceThick',sliceThick, 'pix', pix,'kVp',kVp,'dFOV',dFOV,'rekonFOV',rekonFOV,'mA',mA,'mAs',mAs,'time',time,'coll',coll,'pitch',pitch,$
         'ExModType',ExModType,'CTDIvol',CTDIvol,'DAP',DAP,'EI',EI,'sensitivity',sensitivity,'filter',filter,$
         'zpos', zpos, 'imgNo',imgNo,'nFrames',nFrames,'wCenter',wCenter,'wWidth',wWidth,$
-        'collType',collType,'nEWindows',nEWindows,'EWindowName',EWindowName,'zoomFactor',zoomFactor,'radius1',radPos1,'radius2',radPos2)
+        'collType',collType,'nEWindows',nEWindows,'EWindowName',EWindowName,'zoomFactor',zoomFactor,'radius1',radPos1,'radius2',radPos2,$
+        'units',units,'radiopharmaca',radiopharmaca,'reconMethod',reconMethod,'attCorrMethod',attCorrMethod,'scaCorrMethod',scaCorrMethod, 'scatterFrac',scatterFrac)
 
       OBJ_DESTROY, o
 
