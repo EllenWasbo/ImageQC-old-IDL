@@ -1,5 +1,5 @@
 ;ImageQC - quality control of medical images
-;Copyright (C) 2016  Ellen Wasbo, Stavanger University Hospital, Norway
+;Copyright (C) 2017  Ellen Wasbo, Stavanger University Hospital, Norway
 ;ellen@wasbo.no
 ;
 ;This program is free software; you can redistribute it and/or
@@ -20,12 +20,10 @@ function calculateMTF_NM, submatrix, pix, center, typeMTF, backmatrix, cutLSF, c
   ;typeMTF 2 = extract edge from circular edge
   fitWidthFactor=0.;how much of the profile to include in curvefit: factor*FWHM from center
   factorPad=3;x input size when zeropadding
-
   IF N_ELEMENTS(pix) EQ 1 THEN pix=[pix,pix]; no guarantee that non-isotropic pixels will work troughout the code, not tested
-
   MTFstruct=CREATE_STRUCT('empty',0)
-
   szM=size(submatrix,/DIMENSIONS)
+  errMsg=''
 
   CASE typeMTF OF
 
@@ -67,6 +65,10 @@ function calculateMTF_NM, submatrix, pix, center, typeMTF, backmatrix, cutLSF, c
       resX=getGaussFit(ddx,smLSFx,pix(0),fitWidthFactor)
       resY=getGaussFit(ddy,smLSFy,pix(1),fitWidthFactor)
       fitLSFx=resX.yfit & fitLSFy=resY.yfit
+      
+      IF sigmaF EQ 0 THEN BEGIN
+        smLSFx=-1 & smLSFy=-1
+      ENDIF
 
       IF N_ELEMENTS(fitLSFx) NE 1 THEN gMTFx=getMTFgauss(resX.A, sigmaF*pix(0))
       IF N_ELEMENTS(fitLSFy) NE 1 THEN gMTFy=getMTFgauss(resY.A, sigmaF*pix(1))
@@ -102,7 +104,6 @@ function calculateMTF_NM, submatrix, pix, center, typeMTF, backmatrix, cutLSF, c
       MTFy=FFTvector(LSFy, factorPad)
       Ny=N_ELEMENTS(MTFy)
       fy=FINDGEN(Ny)*(1./(szPadded*pix(1)))
-
     END
 
     1: BEGIN;line source
@@ -188,7 +189,7 @@ function calculateMTF_NM, submatrix, pix, center, typeMTF, backmatrix, cutLSF, c
         yy=slope*xx+interc
         MTFstruct=CREATE_STRUCT('edgePos',linePos,'edgeRow',FINDGEN(szM(1)),'edgeFitx',xx,'edgeFity',yy,'subMatrixAll',submatrix)
         angle=(180/!PI)*ATAN((xx(1)-xx(0))/(yy(1)-yy(0))) ; *pix(0)/pix(1) if pix not isotropic
-        IF ABS(angle) GT 8 OR ABS(angle) LT 2 THEN sv=DIALOG_MESSAGE('Line recommended to be 2-8 degrees rotated. This line is found to be ' + STRING(ABS(angle), FORMAT='(f0.1)') +' degrees rotated.')
+        IF ABS(angle) GT 8 OR ABS(angle) LT 2 THEN errMsg=errMsg+'Line recommended to be 2-8 degrees rotated. This line is found to be ' + STRING(ABS(angle), FORMAT='(f0.1)') +' degrees rotated.'
 
         ;sort pixels by distance normal to line
         distArr=FLTARR(szM(0),szM(1))
@@ -205,11 +206,11 @@ function calculateMTF_NM, submatrix, pix, center, typeMTF, backmatrix, cutLSF, c
         ;check if spacing > .1 pix
         ddists=SHIFT(dists,-1)-dists
         ddists=ddists[1:N_ELEMENTS(dists)-2]
-        IF max(ddists) GT 0.1 THEN  sv=DIALOG_MESSAGE('Limited data due to small angle and/or small ROI.')
+        IF max(ddists) GT 0.1 THEN  errMsg=errMsg+'Limited data due to small angle and/or small ROI.'
         wSm=FLOOR(N_ELEMENTS(pixVals)/N_ELEMENTS(newdists));*2
         smPixVals=SMOOTH(pixVals, wSm)
         smPixValsInterp=INTERPOL(smPixVals, dists*pix, newdists);smooth over pix/10 before interpolate
-        ;smPixValsInterp[0:9]=smPixValsInterp(10) & smPixValsInterp[nn-10:nn-1]=smPixValsInterp(nn-11)
+        ;   ;smPixValsInterp[0:9]=smPixValsInterp(10) & smPixValsInterp[nn-10:nn-1]=smPixValsInterp(nn-11)
         pixValsInterp=smPixValsInterp
 
       ENDELSE
@@ -238,7 +239,7 @@ function calculateMTF_NM, submatrix, pix, center, typeMTF, backmatrix, cutLSF, c
       fx=FINDGEN(N_ELEMENTS(dMTF))*(1./(szPadded*pixNew))
 
       ;smooth with gaussian
-      sigmaF=3 ; if sigmaF=5 , FWHM ~9 newpix = ~ 1 original pix
+      sigmaF=0 ; used to be 3, if sigmaF=5 , FWHM ~9 newpix = ~ 1 original pix
       If sigmaF NE 0 THEN BEGIN
         IF nn*.5 EQ nn/2 THEN odd=0 ELSE odd=1
         nnn=nn/2+odd
@@ -255,7 +256,9 @@ function calculateMTF_NM, submatrix, pix, center, typeMTF, backmatrix, cutLSF, c
       lsf=pixValsSmooth
       LSF=LSF/MAX(LSF)
 
-      MTFstruct=CREATE_STRUCT(MTFstruct,'distspix0',dists*pix(0),'pixValSort',pixVals,'pixValsSmooth',pixValsSmooth,'newdists',newdists,'pixValsInterp',pixValsInterp, 'angle',angle)
+      MTFstruct=CREATE_STRUCT(MTFstruct,'distspix0',dists*pix(0),'pixValSort',pixVals,'newdists',newdists,'pixValsInterp',pixValsInterp, 'angle',angle)
+      IF sigmaF NE 0 THEN MTFstruct=CREATE_STRUCT(MTFstruct,'pixValsSmooth',pixValsSmooth)
+
       X = newdists
       Y = lsf
       ;weights = 1.0/Y
@@ -286,7 +289,7 @@ function calculateMTF_NM, submatrix, pix, center, typeMTF, backmatrix, cutLSF, c
           yfit=gaussfit(X[ss1:ss2], lsf[ss1:ss2], A, ESTIMATES=[max(lsfSmTemp[ss1:ss2]),0,sigma1], NTERMS=3)
         ENDIF
 
-        smLSFx=Y[ss1:ss2]
+        IF sigmaF NE 0 THEN smLSFx=Y[ss1:ss2] ELSE smLSFx=-1
         fitLSFx=yfit
         ddx=X[ss1:ss2]
 
@@ -295,7 +298,7 @@ function calculateMTF_NM, submatrix, pix, center, typeMTF, backmatrix, cutLSF, c
         ss2=nn-1
         LSFx=lsf
         ddx=newdists
-        svar=DIALOG_MESSAGE('Failed to fit LSF. LSF used as is further. NB smoothed LSF!',/ERROR)
+        errMsg=errMsg+'Failed to fit LSF. LSF used as is further. NB smoothed LSF!'
       ENDELSE
 
       ;gauss to gauss continuous version:
@@ -416,9 +419,8 @@ function calculateMTF_NM, submatrix, pix, center, typeMTF, backmatrix, cutLSF, c
         lsfRaw=-lsfRaw
       ENDIF
 
-      MTFstruct=CREATE_STRUCT('distspix0',dists*pix(0),'pixValSort',pixValSort,'pixValsSmooth',pixValsSmooth,'newdists',newdists,'pixValsInterp',pixValsInterp, $
-        'centerPos', centerPos,'cdx',ddx,'cdy',ddy, 'subMatrixAll',subMatrixAll)
-
+      MTFstruct=CREATE_STRUCT('distspix0',dists*pix(0),'pixValSort',pixValSort,'newdists',newdists,'pixValsInterp',pixValsInterp, 'centerPos', centerPos,'cdx',ddx,'cdy',ddy, 'subMatrixAll',subMatrixAll)
+      IF sigmaF NE 0 THEN MTFstruct=CREATE_STRUCT(MTFstruct,'pixValsSmooth',pixValsSmooth)
       X = newdists
       Y = lsf
       ;weights = 1.0/Y
@@ -468,7 +470,7 @@ function calculateMTF_NM, submatrix, pix, center, typeMTF, backmatrix, cutLSF, c
         ss2=nn-1
         LSFx=lsf
         ddx=newdists
-        svar=DIALOG_MESSAGE('Failed to fit LSF to gaussian. LSF used as is further. NB smoothed LSF!',/ERROR)
+        errMsg=errMsg+'Failed to fit LSF to gaussian. LSF used as is further. NB smoothed LSF!'
       ENDELSE
 
       IF N_ELEMENTS(res) EQ 2 THEN ddx= newdists-res(1)*pixNew ELSE ddx=newdists
@@ -533,14 +535,16 @@ function calculateMTF_NM, submatrix, pix, center, typeMTF, backmatrix, cutLSF, c
 
   ENDCASE
 
-  MTFstruct=CREATE_STRUCT(MTFstruct, 'status', status, 'LSFx',LSFx,'dx',ddx,'LSFy',LSFy,'dy',ddy)
+  MTFstruct=CREATE_STRUCT(MTFstruct, 'status', status, 'errMsg',errMsg, 'LSFx',LSFx,'dx',ddx,'LSFy',LSFy,'dy',ddy)
 
   MTFstruct=CREATE_STRUCT(MTFstruct, 'MTFx',MTFx, 'fx',fx,'MTFy',MTFy,'fy',fy)
+  IF N_ELEMENTS(smLSFx) GT 1 THEN MTFstruct=CREATE_STRUCT(MTFstruct, 'smLSFx',smLSFx)
+  IF N_ELEMENTS(smLSFy) GT 1 THEN MTFstruct=CREATE_STRUCT(MTFstruct, 'smLSFy',smLSFy)
   szg=SIZE(gMTFx, /TNAME)
-  IF szg EQ 'STRUCT' THEN MTFstruct=CREATE_STRUCT(MTFstruct, 'smLSFx',smLSFx,'fitLSFx',fitLSFx,'gfx', gMTFx.k,'gMTFx',gMTFx.MTF)
-  IF szg EQ 'FLOAT' THEN MTFstruct=CREATE_STRUCT(MTFstruct, 'smLSFx',smLSFx,'fitLSFx',fitLSFx,'gfx', gfx,'gMTFx',gMTFx)
+  IF szg EQ 'STRUCT' THEN MTFstruct=CREATE_STRUCT(MTFstruct, 'fitLSFx',fitLSFx,'gfx', gMTFx.k,'gMTFx',gMTFx.MTF)
+  IF szg EQ 'FLOAT' THEN MTFstruct=CREATE_STRUCT(MTFstruct, 'fitLSFx',fitLSFx,'gfx', gfx,'gMTFx',gMTFx)
   szg=SIZE(gMTFy, /TNAME)
-  IF szg EQ 'STRUCT' THEN MTFstruct=CREATE_STRUCT(MTFstruct, 'smLSFy',smLSFy,'fitLSFy',fitLSFy,'gfy', gMTFy.k,'gMTFy',gMTFy.MTF)
+  IF szg EQ 'STRUCT' THEN MTFstruct=CREATE_STRUCT(MTFstruct, 'fitLSFy',fitLSFy,'gfy', gMTFy.k,'gMTFy',gMTFy.MTF)
 
   ;  IF szg EQ 'STRUCT' THEN MTF=CREATE_STRUCT('fx',MTFstruct.gfx,'MTFx',MTFstruct.gMTFx) ELSE MTF=CREATE_STRUCT('fx',fx,'MTFx',MTFx)
   ;  CASE typeMTF OF

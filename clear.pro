@@ -1,5 +1,5 @@
 ;ImageQC - quality control of medical images
-;Copyright (C) 2016  Ellen Wasbo, Stavanger University Hospital, Norway
+;Copyright (C) 2017 Ellen Wasbo, Stavanger University Hospital, Norway
 ;ellen@wasbo.no
 ;
 ;This program is free software; you can redistribute it and/or
@@ -15,14 +15,12 @@
 ;along with this program; if not, write to the Free Software
 ;Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 pro clearAll
-
   COMMON VARI
   WIDGET_CONTROL, drawLarge, SENSITIVE=0
   structImgs=CREATE_STRUCT('empty',0)
-
-  ;clear img
-  activeImg=INTARR(512,512)
   activeImg=0
+  WIDGET_CONTROL, drawLarge, GET_VALUE = iDrawLarge
+  iDrawLarge.select & iDrawLarge.erase
 
   ;clear list
   WIDGET_CONTROL, listFiles, YSIZE=1, SCR_YSIZE=170, SET_VALUE='';, SET_LIST_SELECT=-1; empty none selected
@@ -31,10 +29,9 @@ pro clearAll
   ;clear info
   WIDGET_CONTROL, txtActive1, SET_VALUE=''
   WIDGET_CONTROL, txtActive2, SET_VALUE=''
+  WIDGET_CONTROL, lblDir, SET_VALUE=''
 
-  redrawImg,0,1
   clearRes
-
 end
 
 pro clearRes, analyseStr
@@ -42,7 +39,14 @@ pro clearRes, analyseStr
   COMMON VARI
   WIDGET_CONTROL, resTab, XSIZE=4, YSIZE=5, COLUMN_WIDTHS=[100,100,100,100], COLUMN_LABELS=['1','2','3','4'], SET_VALUE=STRARR(4,5), SET_TABLE_VIEW=[0,0]
 
-    analyse='NONE'
+  curTab=WIDGET_INFO(wtabModes, /TAB_CURRENT)
+  CASE curTab OF
+    0: analyseStrings=analyseStringsCT
+    1: analyseStrings=analyseStringsXray
+    2: analyseStrings=analyseStringsNM
+    3: analyseStrings=analyseStringsPET
+  ENDCASE
+
   IF N_ELEMENTS(analyseStr) EQ 0 THEN BEGIN
     dimRes=!Null
     stpRes=!Null
@@ -52,7 +56,7 @@ pro clearRes, analyseStr
     NPSres=!Null
     ROIres=!Null
     CTlinRes=!Null
-    CTlinROIs=0 & CTlinROIpos=0
+    ;CTlinROIs=0 & CTlinROIpos=0
     sliceThickRes=!Null
     sliceThickResTab=!Null
     fwhmRes=!Null
@@ -69,10 +73,7 @@ pro clearRes, analyseStr
       'MTF': MTFres=!Null
       'NPS': NPSres=!Null
       'ROI': ROIres=!Null
-      'CTLIN': BEGIN
-        CTlinres=!Null
-        CTlinROIs=0 & CTlinROIpos=0
-        END
+      'CTLIN':CTlinres=!Null
       'SLICETHICK': BEGIN
         sliceThickRes=!Null
         sliceThickResTab=!Null
@@ -84,21 +85,18 @@ pro clearRes, analyseStr
       'CROSSCALIB': crossRes=!Null
       ELSE:
     ENDCASE
-    
-    curTab=WIDGET_INFO(wtabModes, /TAB_CURRENT)
-    CASE curTab OF
-      0: analyseStrings=analyseStringsCT
-      1: analyseStrings=analyseStringsXray
-      2: analyseStrings=analyseStringsNM
-      3: analyseStrings=analyseStringsPET
-    ENDCASE
 
-    resNo=WHERE(analyseStrings EQ analyseStr)-1
+    resNo=WHERE(analyseStrings EQ analyse)
     IF resNo(0) NE -1 THEN results(resNo)=0
   ENDELSE
 
-  redrawImg,0,0
-  updateTable
-  updatePlot, 0,0,0
+  WIDGET_CONTROL, resTab, TABLE_XSIZE=4, TABLE_YSIZE=2, COLUMN_LABELS=['0','1','2','3'], COLUMN_WIDTHS=[100,100,100,100], SET_VALUE=STRARR(4,5), SET_TABLE_SELECT=[-1,-1,-1,-1], SET_TABLE_VIEW=[0,0]
+  
+  WIDGET_CONTROL, drawPlot, GET_VALUE = iDrawPlot
+  iDrawPlot.SELECT & iDrawPlot.erase
+  
+  WIDGET_CONTROL, drawImageRes, GET_VALUE = iDrawImageRes
+  WSET, iDrawImageRes
+  TVSCL, INTARR(550,550)
 
 end

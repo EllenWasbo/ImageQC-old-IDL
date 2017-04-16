@@ -1,5 +1,5 @@
 ;ImageQC - quality control of medical images
-;Copyright (C) 2016  Ellen Wasbo, Stavanger University Hospital, Norway
+;Copyright (C) 2017  Ellen Wasbo, Stavanger University Hospital, Norway
 ;ellen@wasbo.no
 ;
 ;This program is free software; you can redistribute it and/or

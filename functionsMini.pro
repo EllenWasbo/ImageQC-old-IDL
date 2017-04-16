@@ -1,5 +1,5 @@
 ;ImageQC - quality control of medical images
-;Copyright (C) 2016  Ellen Wasbo, Stavanger University Hospital, Norway
+;Copyright (C) 2017  Ellen Wasbo, Stavanger University Hospital, Norway
 ;ellen@wasbo.no
 ;
 ;This program is free software; you can redistribute it and/or
@@ -88,20 +88,45 @@ function linearizeSTP, matrix, STP
 end
 
 ;adjust to resonable number of decimals
-function nDecimals, arr
-  nDec=8
+;function nDecimals, arr
+;  nDec=8
+;  maxa=MAX(ABS(arr))
+;
+;  IF maxa LT 0.0001 THEN nDec=7
+;  IF maxa LT 0.001 THEN nDec=6
+;  IF maxa LT 0.01 THEN nDec=5
+;  IF maxa LT 0.1 THEN nDec=4
+;  IF maxa LE 1 THEN nDec=3
+;  IF maxa GT 1 THEN nDec=3
+;  IF maxa GT 10 THEN nDec=2
+;  IF maxa GT 100 THEN nDec=1
+;
+;  return, STRING(nDec, FORMAT='(i0)')
+;end
+
+;adjust to resonable number of decimals
+function formatCode, arr
   maxa=MAX(ABS(arr))
 
-  IF maxa LT 0.0001 THEN nDec=7
-  IF maxa LT 0.001 THEN nDec=6
-  IF maxa LT 0.01 THEN nDec=5
-  IF maxa LT 0.1 THEN nDec=4
-  IF maxa LE 1 THEN nDec=3
-  IF maxa GT 1 THEN nDec=3
-  IF maxa GT 10 THEN nDec=2
-  IF maxa GT 100 THEN nDec=1
+  IF maxa LE 1 THEN BEGIN
+    strInner='f0.3'
+    IF maxa LT 0.1 THEN BEGIN
+      strInner='f0.4'
+      IF maxa LT 0.01 THEN BEGIN
+        strInner='f0.5'
+        IF maxa LT 0.001 THEN BEGIN
+          strInner='g0.2'
+        ENDIF
+      ENDIF
+    ENDIF
+  ENDIF
+  IF maxa GT 1 THEN strInner='f0.3'
+  IF maxa GT 10 THEN strInner='f0.2'
+  IF maxa GT 100 THEN strInner='f0.1'
+  IF maxa GT 99999 THEN strInner='g0.2'
+  strFormatCode='('+strInner+')'
 
-  return, STRING(nDec, FORMAT='(i0)')
+  return, strFormatCode
 end
 
 ;smoothes irregularly sampled Y within +/- w
@@ -528,7 +553,7 @@ function getResNmb, tabNmb, stringElem, stringArr0, stringArr1, stringArr2, stri
     3: actStrings=stringArr3
   ENDCASE
   i=WHERE(actStrings EQ stringElem)
-  resNmb=i-1
+  resNmb=i
 return, resNmb
 end
 

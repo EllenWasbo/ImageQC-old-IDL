@@ -12,7 +12,7 @@ unitv   = REPLICATE(1.,10)                      ; array, 10 elementer med verdie
 profile   = region # unitv                      ; array, 31 elementer med summen av de 10 y-verdiene for hver piksel i x-retning
 
 centerB=center
-centerB(1)=szImg(1)-center(1)
+centerB(1)=center(1)+ROUND(szImg(1)/4)
 
 regionB   = image[centerB(0)-15:centerB(0)+15, centerB(1)-5:centerB(1)+4]          ; bakgrunn med samme form og st�rrelse som signalet
 backgroundv = regionB # unitv                       ; summerer bakgrunnen slik som signalet

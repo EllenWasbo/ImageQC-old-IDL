@@ -1,5 +1,5 @@
 ;ImageQC - quality control of medical images
-;Copyright (C) 2016  Ellen Wasbo, Stavanger University Hospital, Norway
+;Copyright (C) 2017 Ellen Wasbo, Stavanger University Hospital, Norway
 ;ellen@wasbo.no
 ;
 ;This program is free software; you can redistribute it and/or
@@ -47,7 +47,10 @@ pro redrawImg, viewpl, newActive
     
     imgCenterOffset=[0,0,0,0]
     IF dxya(3) EQ 1 THEN imgCenterOffset=dxya
-       
+    
+    hideAnnot=WIDGET_INFO(btnHideAnnot, /BUTTON_SET)
+    annot=1 & IF hideAnnot THEN annot=0
+    
     ;display Img
     WIDGET_CONTROL, txtMinWL, GET_VALUE=lower
     WIDGET_CONTROL, txtMaxWL, GET_VALUE=upper
@@ -55,20 +58,21 @@ pro redrawImg, viewpl, newActive
     tempAct=adjustWindowLevel(tempAct, rangeWL)
     
     oPaletteCT=OBJ_NEW('IDLgrPalette')
-    oPaletteCT->LoadCT, 0
+    IF colTable EQ 0 THEN oPaletteCT->LoadCT, 0 ELSE oPaletteCT->LoadCT, coltable, FILE=thisPath+'data\colorsImageQC.tbl'
     oPaletteROI=OBJ_NEW('IDLgrPalette')
     oPaletteROI->LoadCT, 0
-    oImageCT = OBJ_NEW('IDLgrImage', tempAct, /GREYSCALE)
+    oImageCT = OBJ_NEW('IDLgrImage', tempAct, PALETTE=oPaletteCT)
     oModel->Add, oImageCT
     
     mmCT=tempStruct.pix*sizeAct
     
+    IF annot THEN BEGIN
     IF nFrames EQ 0 THEN BEGIN
       fileList=getListOpenFiles(structImgs,0,marked)
       IF tempStruct.modality EQ 'CT' THEN textZpos='z = '+ STRING(tempStruct.zpos,FORMAT='(f0.3)') ELSE textZpos ='' 
     ENDIF ELSE BEGIN
       fileList=getListFrames(structImgs.(0), marked)
-      textZpos='z = '+ STRING(structImgs.(0).zPos(sel),FORMAT='(f0.3)')
+      IF TOTAL(structImgs.(0).zPos) NE 0 THEN textZpos='z = '+ STRING(structImgs.(0).zPos(sel),FORMAT='(f0.3)') ELSE textZpos=''
     ENDELSE
     
     oTextZ = OBJ_NEW('IDLgrText', textZpos, LOCATIONS = [2,20], COLOR = 255*([1,0,0]))
@@ -95,12 +99,14 @@ pro redrawImg, viewpl, newActive
       'CONTRAST': ROIs=conROIs
       ELSE:
       ENDCASE
+      
+      IF N_ELEMENTS(ROIs) NE 1 THEN BEGIN
       colors=INTARR(3,5)
       IF analyse EQ 'HOMOG' THEN BEGIN
-        colors[*,0]= [255,255,255]
+        colors[*,0]= [255,255,0]
         colors[*,1]= [255,0,0]
         colors[*,2]= [0,0,255]
-        colors[*,3]= [50,200,50]
+        colors[*,3]= [0,255,0]
         colors[*,4]= [0,255,255]
       ENDIF ELSE colors[0,*]=255
       contour0=OBJ_NEW('IDLgrContour',ROIs[*,*,0],COLOR=colors[*,0], C_VALUE=0.5, N_LEVELS=1)
@@ -117,9 +123,10 @@ pro redrawImg, viewpl, newActive
         contour6=OBJ_NEW('IDLgrContour',ROIs[*,*,6],COLOR=colors[*,0], C_VALUE=0.5, N_LEVELS=1)
         oModel->Add, Contour5 & oModel->Add, Contour6
       ENDIF
+      ENDIF
     ENDIF
     
-    IF analyse EQ 'CTLIN' THEN BEGIN
+    IF analyse EQ 'CTLIN' AND N_ELEMENTS(CTlinROIs) NE 1 THEN BEGIN
       ;search ROIs
       szROIs=SIZE(CTlinROIs, /DIMENSIONS)
       IF N_ELEMENTS(szROIs) GT 2 THEN searchROIall=TOTAL(CTlinROIs,3) ELSE  searchROIall=CTlinROIs
@@ -131,8 +138,7 @@ pro redrawImg, viewpl, newActive
       IF N_ELEMENTS(CTlinROIpos) GT 1 THEN BEGIN
         WIDGET_CONTROL, txtLinROIrad, GET_VALUE=rad1
         rad1=ROUND(FLOAT(rad1(0))/tempStruct.pix(0))
-        poss=CTlinROIpos[*,*,sel]
-        statROIs=getSampleRois(sizeAct, [-sizeAct(0)/2,-sizeAct(1)/2,0,0], rad1, poss)
+        statROIs=getSampleRois(sizeAct, [-sizeAct(0)/2,-sizeAct(1)/2,0,0], rad1, CTlinROIpos)
         statROIall=TOTAL(statROIs,3)
         contour1=OBJ_NEW('IDLgrContour',statROIall,COLOR=255*([0,0,1]), C_VALUE=0.5, N_LEVELS=1)
         oModel->Add, Contour1
@@ -165,15 +171,15 @@ pro redrawImg, viewpl, newActive
 
       WIDGET_CONTROL, txtRampSearch, GET_VALUE=nRamps
       nRamps=LONG(nRamps(0))
-      
-      H1=OBJ_NEW('IDLgrPolyline', [ramps[0,0],ramps[2,0]],[ramps[1,0]+nRamps,ramps[3,0]+nRamps], COLOR = 255*([1,0,0]), LINESTYLE=0)
-      H1_1=OBJ_NEW('IDLgrPolyline', [ramps[0,0],ramps[2,0]],[ramps[1,0]-nRamps,ramps[3,0]-nRamps], COLOR = 255*([1,0,0]), LINESTYLE=0)
+     
+      H1=OBJ_NEW('IDLgrPolyline', [ramps[0,0],ramps[2,0]],[ramps[1,0]+nRamps,ramps[3,0]+nRamps], COLOR = 255*([0,0,0]), LINESTYLE=0)
+      H1_1=OBJ_NEW('IDLgrPolyline', [ramps[0,0],ramps[2,0]],[ramps[1,0]-nRamps,ramps[3,0]-nRamps], COLOR = 255*([0,0,0]), LINESTYLE=0)
       H2=OBJ_NEW('IDLgrPolyline', [ramps[0,1],ramps[2,1]],[ramps[1,1]+nRamps,ramps[3,1]+nRamps], COLOR = 255*([0,1,0]), LINESTYLE=0)
       H2_1=OBJ_NEW('IDLgrPolyline', [ramps[0,1],ramps[2,1]],[ramps[1,1]-nRamps,ramps[3,1]-nRamps], COLOR = 255*([0,1,0]), LINESTYLE=0)
       V1=OBJ_NEW('IDLgrPolyline', [ramps[0,2]+nRamps,ramps[2,2]+nRamps],[ramps[1,2],ramps[3,2]], COLOR = 255*([0,0,1]), LINESTYLE=0)
       V1_1=OBJ_NEW('IDLgrPolyline', [ramps[0,2]-nRamps,ramps[2,2]-nRamps],[ramps[1,2],ramps[3,2]], COLOR = 255*([0,0,1]), LINESTYLE=0)
-      V2=OBJ_NEW('IDLgrPolyline', [ramps[0,3]+nRamps,ramps[2,3]+nRamps],[ramps[1,3],ramps[3,3]], COLOR = 255*([1,1,1]), LINESTYLE=0)
-      V2_1=OBJ_NEW('IDLgrPolyline', [ramps[0,3]-nRamps,ramps[2,3]-nRamps],[ramps[1,3],ramps[3,3]], COLOR = 255*([1,1,1]), LINESTYLE=0)
+      V2=OBJ_NEW('IDLgrPolyline', [ramps[0,3]+nRamps,ramps[2,3]+nRamps],[ramps[1,3],ramps[3,3]], COLOR = 255*([1,0,0]), LINESTYLE=0)
+      V2_1=OBJ_NEW('IDLgrPolyline', [ramps[0,3]-nRamps,ramps[2,3]-nRamps],[ramps[1,3],ramps[3,3]], COLOR = 255*([1,0,0]), LINESTYLE=0)
       oModel->Add, H1 & oModel->Add, H1_1 & oModel->Add, H2 & oModel->Add, H2_1 & oModel->Add, V1 & oModel->Add, V1_1 & oModel->Add, V2 & oModel->Add, V2_1
       IF  ramptype EQ 1 THEN BEGIN
         V3=OBJ_NEW('IDLgrPolyline', [ramps2[0,2]+nRamps,ramps2[2,2]+nRamps],[ramps2[1,2],ramps2[3,2]], COLOR = 255*([1,0,1]), LINESTYLE=0)
@@ -196,7 +202,7 @@ pro redrawImg, viewpl, newActive
     IF analyse EQ 'FWHM' THEN BEGIN
       center=sizeAct/2+imgCenterOffset[0:1]
       centerB=center
-      centerB(1)=sizeAct(1)-center(1)
+      centerB(1)=center(1)+ROUND(sizeAct(1)/4)
       fwhmLine=OBJ_NEW('IDLgrPolyline', [[center(0)-15,center(1)-5],[center(0)-15,center(1)+4],[center(0)+15,center(1)+4],[center(0)+15,center(1)-5],[center(0)-15,center(1)-5]], COLOR = 255*([1,0,0]), /DOUBLE, LINESTYLE=0)
       fwhmBackLine=OBJ_NEW('IDLgrPolyline', [[centerB(0)-15,centerB(1)-5],[centerB(0)-15,centerB(1)+4],[centerB(0)+15,centerB(1)+4],[centerB(0)+15,centerB(1)-5],[centerB(0)-15,centerB(1)-5]], COLOR = 255*([1,0,0]), /DOUBLE, LINESTYLE=0)
       oModel->Add, fwhmLine & oModel->Add, fwhmBackLine
@@ -270,8 +276,10 @@ pro redrawImg, viewpl, newActive
       IF analyse EQ 'NPS' THEN BEGIN
         CASE curMode OF
           0: BEGIN; CT
+            IF N_ELEMENTS(NPSrois) NE 1 THEN BEGIN
             oImageROIs = OBJ_NEW('IDLgrImage', 50*total(NPSrois,3)+50 , BLEND_FUNCTION = [3, 4], ALPHA_CHANNEL=0.5, PALETTE=oPaletteROI)
             oModel->Add, oImageROIs
+            ENDIF
             END
           1: BEGIN; xray
             WIDGET_CONTROL, txtNPSroiSzX, GET_VALUE=ROIsz
@@ -291,6 +299,7 @@ pro redrawImg, viewpl, newActive
             oModel->Add, lineROI3
             END
           2:
+          ELSE:
         ENDCASE
 
       ENDIF
@@ -300,12 +309,15 @@ pro redrawImg, viewpl, newActive
     ENDELSE
     
     oModel->Add, lineX & oModel->Add, lineY
+    ENDIF;annot
     
     oView->Add,oModel
     
     iDrawLarge->Draw,oView
     
-     OBJ_DESTROY, oPaletteCT & OBJ_DESTROY, oTextZ & OBJ_DESTROY, oTextAdr & OBJ_DESTROY,lineX & OBJ_DESTROY,lineY
+     OBJ_DESTROY, oPaletteCT
+     IF annot THEN BEGIN
+      OBJ_DESTROY, oTextZ & OBJ_DESTROY, oTextAdr & OBJ_DESTROY,lineX & OBJ_DESTROY,lineY
     
     IF OBJ_VALID(contour0) THEN BEGIN
       OBJ_DESTROY, contour0
@@ -336,15 +348,8 @@ pro redrawImg, viewpl, newActive
     IF OBJ_VALID(fwhmLine) THEN OBJ_DESTROY, fwhmLine
     IF OBJ_VALID(fwhmBackLine) THEN OBJ_DESTROY, fwhmBackLine
     IF OBJ_VALID(speedLine) THEN OBJ_DESTROY, speedLine
-    
-   ENDIF ELSE BEGIN
-    oView=OBJ_NEW('IDLgrView', VIEWPLANE_RECT =[0.,0.,550,550])
-    oImageCT = OBJ_NEW('IDLgrImage', INTARR(550,550), /GREYSCALE)
-    oModel->Add, oImageCT
-    oView->Add,oModel
-    iDrawLarge->Draw,oView
-    
-   ENDELSE
-   OBJ_DESTROY, oView & OBJ_DESTROY, oModel & OBJ_DESTROY, oImageCT
-  
+    ENDIF;annot
+    OBJ_DESTROY, oView & OBJ_DESTROY, oModel & OBJ_DESTROY, oImageCT
+   ENDIF ELSE iDrawLarge.erase
+   
 end

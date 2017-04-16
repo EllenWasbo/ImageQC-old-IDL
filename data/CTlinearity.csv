@@ -1,9 +1,0 @@
-Material,HU Range1,HU Range2,RelativeEdensity,RelativeMdensity,Pos
-Teflon,941,1060,1.868,2.16,5
-Delrin,344,387,1.363,1.41,6
-Acrylic,92,137,1.147,1.18,7
-Water,-7,7,1,1,0
-Polystyrene,-65,-29,0.998,1.05,1
-LDPE,-121,-87,0.945,0.92,2
-PMP,-220,-172,0.853,0.83,3
-Air,-1046,-986,0.001,0,4

@@ -1,5 +1,5 @@
 ;ImageQC - quality control of medical images
-;Copyright (C) 2016  Ellen Wasbo, Stavanger University Hospital, Norway
+;Copyright (C) 2017  Ellen Wasbo, Stavanger University Hospital, Norway
 ;ellen@wasbo.no
 ;
 ;This program is free software; you can redistribute it and/or
@@ -277,13 +277,15 @@ END
   ;http://www.cse.yorku.ca/~kosta/CompVis_Notes/fourier_transform_Gaussian.pdf
   nVals=CEIL(3./sampFreq); sample up to max frequency; TODO set max freq user editable
   kvals=FINDGEN(nVals)*sampFreq*2*!pi;sample 20 steps from 0 to 1 stdv MTF curve A0 (stdev=1/A(2))
-  Fgu0=calcGauss(kvals, 1/A(2),A(0)*A(2),0)
-  IF N_ELEMENTS(A) EQ 4 THEN Fgu1=calcGauss(kvals, 1/A(3),A(1)*A(3),0) ELSE Fgu1=0.
-  If sigmaF NE 0 THEN Ffilter=calcGauss(kvals,1./(sigmaF*pixNew),1.0,0) ELSE Ffilter=1.
-  gMTFx=(Fgu0+Fgu1)/Ffilter
-  gfx=kvals/(2*!pi)
+  IF N_ELEMENTS(A) GT 0 THEN BEGIN
+    Fgu0=calcGauss(kvals, 1/A(2),A(0)*A(2),0)
+    IF N_ELEMENTS(A) EQ 4 THEN Fgu1=calcGauss(kvals, 1/A(3),A(1)*A(3),0) ELSE Fgu1=0.
+    If sigmaF NE 0 THEN Ffilter=calcGauss(kvals,1./(sigmaF*pixNew),1.0,0) ELSE Ffilter=1.
+    gMTFx=(Fgu0+Fgu1)/Ffilter
+    gfx=kvals/(2*!pi)
 
-  gMTFx=gMTFx/gMTFx(0)
+    gMTFx=gMTFx/gMTFx(0)
+  ENDIF
 
   smLSFx=lsf
   fitLSFx=LSFx
@@ -295,7 +297,7 @@ END
     IF N_ELEMENTS(yfit) NE 0 THEN BEGIN
       ppFWHM=2*A(2)/pixNew
       maxp=WHERE(fitLSFx EQ max(fitLSFx))
-      pp1=maxp-ppFWHM/2 & pp2=maxp+ppFWHM/2
+      pp1=maxp(0)-ppFWHM/2 & pp2=maxp(0)+ppFWHM/2
     ENDIF ELSE BEGIN
       smdLSF=SMOOTH(LSFx,5)
       smdLSF=smdLSF/max(smdLSF)
@@ -383,7 +385,8 @@ IF szgy EQ 'STRUCT' THEN MTFstruct=CREATE_STRUCT(MTFstruct, 'smLSFy',smLSFy,'fit
 
 
 ;calculating 50,10,2% (gaussian if exists)
-IF N_ELEMENTS(MTFstruct.gMTFx) GT 1 THEN MTF=CREATE_STRUCT('fx',MTFstruct.gfx,'MTFx',MTFstruct.gMTFx) ELSE MTF=CREATE_STRUCT('fx',fx,'MTFx',MTFx)
+tagMTFres=TAG_NAMES(MTFstruct)
+IF tagMTFres.hasValue('GMTFX') THEN MTF=CREATE_STRUCT('fx',MTFstruct.gfx,'MTFx',MTFstruct.gMTFx) ELSE MTF=CREATE_STRUCT('fx',fx,'MTFx',MTFx)
 CASE typeMTF OF
   0: BEGIN
     IF szgy EQ 'STRUCT' THEN MTF=CREATE_STRUCT(MTF,'fy',MTFstruct.gfy,'MTFy',MTFstruct.gMTFy) ELSE MTF=CREATE_STRUCT(MTF,'fy',fy,'MTFy',MTFy)
