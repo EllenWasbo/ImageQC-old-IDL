@@ -90,39 +90,65 @@ pro redrawImg, viewpl, newActive
       oModel->Add, thisROI
     ENDIF
     
-    IF analyse EQ 'HOMOG' OR analyse EQ 'NOISE' OR analyse EQ 'STP' OR analyse EQ 'CONTRAST' OR analyse EQ 'CROSSCALIB' THEN BEGIN
+    analyseArr=['HOMOG', 'NOISE','STP','CONTRAST','CROSSCALIB','RC']
+    IF analyseArr.HasValue(analyse) THEN BEGIN; EQ 'HOMOG' OR analyse EQ 'NOISE' OR analyse EQ 'STP' OR analyse EQ 'CONTRAST' OR analyse EQ 'CROSSCALIB' OR analyse EQ 'RC' THEN BEGIN
       CASE analyse OF 
       'HOMOG': ROIs=homogROIs
       'NOISE': ROIs=noiseROI
       'CROSSCALIB': ROIs=crossROI
       'STP': ROIs=stpROI
       'CONTRAST': ROIs=conROIs
+      'RC': ROIs=rcROIs
       ELSE:
       ENDCASE
       
       IF N_ELEMENTS(ROIs) NE 1 THEN BEGIN
-      colors=INTARR(3,5)
-      IF analyse EQ 'HOMOG' THEN BEGIN
-        colors[*,0]= [255,255,0]
-        colors[*,1]= [255,0,0]
-        colors[*,2]= [0,0,255]
-        colors[*,3]= [0,255,0]
-        colors[*,4]= [0,255,255]
-      ENDIF ELSE colors[0,*]=255
-      contour0=OBJ_NEW('IDLgrContour',ROIs[*,*,0],COLOR=colors[*,0], C_VALUE=0.5, N_LEVELS=1)
-      oModel->Add, Contour0
-      IF analyse EQ 'HOMOG' OR analyse EQ 'CONTRAST' THEN BEGIN
-        contour1=OBJ_NEW('IDLgrContour',ROIs[*,*,1],COLOR=colors[*,1], C_VALUE=0.5, N_LEVELS=1)
-        contour2=OBJ_NEW('IDLgrContour',ROIs[*,*,2],COLOR=colors[*,2], C_VALUE=0.5, N_LEVELS=1)
-        contour3=OBJ_NEW('IDLgrContour',ROIs[*,*,3],COLOR=colors[*,3], C_VALUE=0.5, N_LEVELS=1)
-        contour4=OBJ_NEW('IDLgrContour',ROIs[*,*,4],COLOR=colors[*,4], C_VALUE=0.5, N_LEVELS=1)
-        oModel->Add, Contour1 & oModel->Add, Contour2 & oModel->Add, Contour3 & oModel->Add, Contour4
-      ENDIF
-      IF analyse EQ 'CONTRAST' THEN BEGIN
-        contour5=OBJ_NEW('IDLgrContour',ROIs[*,*,5],COLOR=colors[*,0], C_VALUE=0.5, N_LEVELS=1)
-        contour6=OBJ_NEW('IDLgrContour',ROIs[*,*,6],COLOR=colors[*,0], C_VALUE=0.5, N_LEVELS=1)
-        oModel->Add, Contour5 & oModel->Add, Contour6
-      ENDIF
+        colors=INTARR(3,5)
+        IF analyse EQ 'HOMOG' THEN BEGIN
+          colors[*,0]= [255,255,0]
+          colors[*,1]= [255,0,0]
+          colors[*,2]= [0,0,255]
+          colors[*,3]= [0,255,0]
+          colors[*,4]= [0,255,255]
+        ENDIF ELSE colors[0,*]=255
+        contour0=OBJ_NEW('IDLgrContour',ROIs[*,*,0],COLOR=colors[*,0], C_VALUE=0.5, N_LEVELS=1)
+        oModel->Add, Contour0
+        IF analyse EQ 'HOMOG' OR analyse EQ 'CONTRAST' OR analyse EQ 'RC' THEN BEGIN
+          contour1=OBJ_NEW('IDLgrContour',ROIs[*,*,1],COLOR=colors[*,1], C_VALUE=0.5, N_LEVELS=1)
+          contour2=OBJ_NEW('IDLgrContour',ROIs[*,*,2],COLOR=colors[*,2], C_VALUE=0.5, N_LEVELS=1)
+          contour3=OBJ_NEW('IDLgrContour',ROIs[*,*,3],COLOR=colors[*,3], C_VALUE=0.5, N_LEVELS=1)
+          contour4=OBJ_NEW('IDLgrContour',ROIs[*,*,4],COLOR=colors[*,4], C_VALUE=0.5, N_LEVELS=1)
+          oModel->Add, Contour1 & oModel->Add, Contour2 & oModel->Add, Contour3 & oModel->Add, Contour4
+        ENDIF
+        IF analyse EQ 'CONTRAST' OR analyse EQ 'RC' THEN BEGIN
+          contour5=OBJ_NEW('IDLgrContour',ROIs[*,*,5],COLOR=colors[*,0], C_VALUE=0.5, N_LEVELS=1)       
+          oModel->Add, Contour5
+          
+          ;numbered ROIs
+          poss=INTARR(2,6)
+          FOR ig=0, 5 DO poss[*,ig]=ROUND(centroid(ROIs[*,*,ig],0.5))
+          oText = OBJ_NEW('IDLgrText', STRING(INDGEN(6)+1,FORMAT='(i0)'), LOCATIONS =poss, COLOR = 255*([1,0,0]))
+          oModel->Add, oText
+          
+            bgcol=255*([0,0,1])
+            contour6=OBJ_NEW('IDLgrContour',ROIs[*,*,6],COLOR=bgcol, C_VALUE=0.5, N_LEVELS=1)
+            oModel->Add, Contour6
+            IF analyse EQ 'RC' THEN BEGIN;background
+              contourb1=OBJ_NEW('IDLgrContour',ROIs[*,*,6+1],COLOR=bgcol, C_VALUE=0.5, N_LEVELS=1)
+              contourb2=OBJ_NEW('IDLgrContour',ROIs[*,*,6+2],COLOR=bgcol, C_VALUE=0.5, N_LEVELS=1)
+              contourb3=OBJ_NEW('IDLgrContour',ROIs[*,*,6+3],COLOR=bgcol, C_VALUE=0.5, N_LEVELS=1)
+              contourb4=OBJ_NEW('IDLgrContour',ROIs[*,*,6+4],COLOR=bgcol, C_VALUE=0.5, N_LEVELS=1)
+              contourb5=OBJ_NEW('IDLgrContour',ROIs[*,*,6+5],COLOR=bgcol, C_VALUE=0.5, N_LEVELS=1)
+              contourb6=OBJ_NEW('IDLgrContour',ROIs[*,*,6+6],COLOR=bgcol, C_VALUE=0.5, N_LEVELS=1)
+              contourb7=OBJ_NEW('IDLgrContour',ROIs[*,*,6+7],COLOR=bgcol, C_VALUE=0.5, N_LEVELS=1)
+              contourb8=OBJ_NEW('IDLgrContour',ROIs[*,*,6+8],COLOR=bgcol, C_VALUE=0.5, N_LEVELS=1)
+              contourb9=OBJ_NEW('IDLgrContour',ROIs[*,*,6+9],COLOR=bgcol, C_VALUE=0.5, N_LEVELS=1)
+              contourb10=OBJ_NEW('IDLgrContour',ROIs[*,*,6+10],COLOR=bgcol, C_VALUE=0.5, N_LEVELS=1)
+              contourb11=OBJ_NEW('IDLgrContour',ROIs[*,*,6+11],COLOR=bgcol, C_VALUE=0.5, N_LEVELS=1)
+            ENDIF
+            oModel->Add, Contourb1 & oModel->Add, Contourb2 & oModel->Add, Contourb3 & oModel->Add, Contourb4 & oModel->Add, Contourb5 & oModel->Add, Contourb6
+            oModel->Add, Contourb7 & oModel->Add, Contourb8 & oModel->Add, Contourb9 &  oModel->Add, Contourb10 & oModel->Add, Contourb11  
+        ENDIF
       ENDIF
     ENDIF
     
@@ -208,6 +234,15 @@ pro redrawImg, viewpl, newActive
       oModel->Add, fwhmLine & oModel->Add, fwhmBackLine
       oTextBG = OBJ_NEW('IDLgrText', 'Background', LOCATIONS = [centerB(0)+20,centerB(1)], COLOR = 255*([1,0,0]))
       oModel->Add, oTextBG
+    ENDIF
+    
+    IF analyse EQ 'VARI' THEN BEGIN
+      center=sizeAct/2+imgCenterOffset[0:1]
+      WIDGET_CONTROL, txtVarImageROIsz, GET_VALUE=ROIszMM
+      ROIrad=ROUND((FLOAT(ROIszMM(0))/2)/tempstruct.pix(0))     
+      roiLine=OBJ_NEW('IDLgrPolyline', [[center(0)-ROIrad,center(1)-ROIrad],[center(0)-ROIrad,center(1)+ROIrad],[center(0)+ROIrad,center(1)+ROIrad],$
+        [center(0)+ROIrad,center(1)-ROIrad],[center(0)-ROIrad,center(1)-ROIrad]], COLOR = 255*([1,0,0]), /DOUBLE, LINESTYLE=0)
+      oModel->Add, roiLine
     ENDIF
     
     IF analyse EQ 'SCANSPEED' THEN BEGIN
@@ -348,6 +383,7 @@ pro redrawImg, viewpl, newActive
     IF OBJ_VALID(fwhmLine) THEN OBJ_DESTROY, fwhmLine
     IF OBJ_VALID(fwhmBackLine) THEN OBJ_DESTROY, fwhmBackLine
     IF OBJ_VALID(speedLine) THEN OBJ_DESTROY, speedLine
+    IF OBJ_VALID(roiLine) THEN OBJ_DESTROY, roiLine
     ENDIF;annot
     OBJ_DESTROY, oView & OBJ_DESTROY, oModel & OBJ_DESTROY, oImageCT
    ENDIF ELSE iDrawLarge.erase

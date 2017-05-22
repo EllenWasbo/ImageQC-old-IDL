@@ -158,6 +158,27 @@ pro updateROI
         ROIsz=ROUND(FLOAT(ROIsz(0))/pix(0)) ; assume x,y pix equal ! = normal
         crossROI=getROIcircle(szImg, center, ROIsz)
       END
+      
+      'RC': BEGIN
+;        WIDGET_CONTROL, txtrcR1, GET_VALUE=rad1
+;        WIDGET_CONTROL, txtrcR2, GET_VALUE=rad2
+        rad1=37.0
+        rad2=57.2
+        rad1=ROUND(FLOAT(rad1(0)/2)/pix(0)) & rad2=ROUND(FLOAT(rad2(0))/pix(0)); assume x,y pix equal ! = normal
+        rcROIsSph=getConNMRois(szImg, imgCenterOffset, rad1,rad2)
+        rcROIback=getRCbackRois(szImg, imgCenterOffset, rad1, pix(0))
+        rcROIs=INTARR(szImg(0), szImg(1), 6+12)
+        rev=WIDGET_INFO(btnRCrev, /BUTTON_SET)
+        IF rev THEN BEGIN
+          rcROIs[*,*,0:5]=rcROIsSph[*,*,0:5]
+        ENDIF ELSE BEGIN
+          FOR i=0,5 DO rcROIs[*,*,i]=rcROIsSph[*,*,5-i]
+        ENDELSE
+        WIDGET_CONTROL,cwRCexclude, GET_VALUE=back
+        exBack=ABS(back-1)
+        FOR i=0, 11 DO rcROIback[*,*,i]=rcROIback[*,*,i]*exBack(i)
+        rcROIs[*,*,6:17]=rcROIback 
+      END
       ELSE:
     ENDCASE; analyse
 

@@ -8,7 +8,7 @@
 ;
 ;This program is distributed in the hope that it will be useful,
 ;but WITHOUT ANY WARRANTY; without even the implied warranty of
-;MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+;MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See thef
 ;GNU General Public License for more details.
 ;
 ;You should have received a copy of the GNU General Public License
@@ -630,6 +630,8 @@ pro ImageQC_event, ev
       'useDelta': BEGIN
         IF dxya(3) EQ 0 THEN dxya(3)=1 ELSE dxya(3)=0
         clearRes
+        updateROI
+        redrawImg, 0,0
       END
       ;      'showDelta': BEGIN
       ;        redrawImg,0,0
@@ -681,32 +683,32 @@ pro ImageQC_event, ev
       'minusDx': BEGIN
         dxya(0)=dxya(0)-1
         WIDGET_CONTROL, txtDeltaX, SET_VALUE=STRING(dxya(0), FORMAT='(i0)')
-        dxya(3)=1 & IF TOTAL(results) GT 0 THEN clearRes & redrawImg,0,0
+        dxya(3)=1 & IF TOTAL(results) GT 0 THEN clearRes & updateROI & redrawImg,0,0
       END
       'plusDx': BEGIN
         dxya(0)=dxya(0)+1
         WIDGET_CONTROL, txtDeltaX, SET_VALUE=STRING(dxya(0), FORMAT='(i0)')
-        dxya(3)=1 & IF TOTAL(results) GT 0 THEN clearRes & redrawImg,0,0
+        dxya(3)=1 & IF TOTAL(results) GT 0 THEN clearRes & updateROI & redrawImg,0,0
       END
       'minusDy': BEGIN
         dxya(1)=dxya(1)-1
         WIDGET_CONTROL, txtDeltaY, SET_VALUE=STRING(dxya(1), FORMAT='(i0)')
-        dxya(3)=1 & IF TOTAL(results) GT 0 THEN clearRes & redrawImg,0,0
+        dxya(3)=1 & IF TOTAL(results) GT 0 THEN clearRes & updateROI & redrawImg,0,0
       END
       'plusDy': BEGIN
         dxya(1)=dxya(1)+1
         WIDGET_CONTROL, txtDeltaY, SET_VALUE=STRING(dxya(1), FORMAT='(i0)')
-        dxya(3)=1 & IF TOTAL(results) GT 0 THEN clearRes & redrawImg,0,0
+        dxya(3)=1 & IF TOTAL(results) GT 0 THEN clearRes & updateROI & redrawImg,0,0
       END
       'minusDa': BEGIN
         dxya(2)=dxya(2)-0.1
         WIDGET_CONTROL, txtDeltaA, SET_VALUE=STRING(dxya(2), FORMAT='(f0.1)')
-        dxya(3)=1 & IF TOTAL(results) GT 0 THEN clearRes & redrawImg,0,0
+        dxya(3)=1 & IF TOTAL(results) GT 0 THEN clearRes & updateROI & redrawImg,0,0
       END
       'plusDa': BEGIN
         dxya(2)=dxya(2)+0.1
         WIDGET_CONTROL, txtDeltaA, SET_VALUE=STRING(dxya(2), FORMAT='(f0.1)')
-        dxya(3)=1 & IF TOTAL(results) GT 0 THEN clearRes & redrawImg,0,0
+        dxya(3)=1 & IF TOTAL(results) GT 0 THEN clearRes & updateROI & redrawImg,0,0
       END
       'hideAnnot': redrawImg, 0,0
 
@@ -974,7 +976,6 @@ pro ImageQC_event, ev
       ;----analyse tab Noise--------------------------------------------------------------------------------------------------
       'noise': BEGIN
         IF tags(0) NE 'EMPTY' THEN BEGIN
-          ;IF analyse NE 'NOISE' THEN sv=DIALOG_MESSAGE('Show ROIs first to verify size and positions.',/INFORMATION) ELSE BEGIN
 
           WIDGET_CONTROL, /HOURGLASS
           IF nFrames EQ 0 THEN nImg=N_ELEMENTS(tags) ELSE nImg=nFrames
@@ -1026,7 +1027,6 @@ pro ImageQC_event, ev
           updateTable
           updatePlot, 1,1,0
           WIDGET_CONTROL, wtabResult, SET_TAB_CURRENT=1
-          ;ENDELSE
         ENDIF
       END
 
@@ -1105,6 +1105,48 @@ pro ImageQC_event, ev
                 updatePlot, 1,1,0
                 WIDGET_CONTROL, wtabResult, SET_TAB_CURRENT=1
               ENDIF ELSE sv=DIALOG_MESSAGE('ROIs outside image. Calculation not possible.',/INFORMATION)
+            END
+
+            1:BEGIN
+              ;MTFres=calculateMTF(generateTestMatrixWire(), pixFirst, dxya[0:1], typeMTF, -1, WIDGET_INFO(btnCutLSF, /BUTTON_SET), FLOAT(cutLSFW(0)), FLOAT(cutLSFWf(0)), FLOAT(sampFreq(0)))
+              IF nFrames NE 0 THEN pixFirst=structImgs.(0).pix(0) ELSE pixFirst=structImgs.(first).pix(0)
+              ROIsz=ROUND(ROIszPix(0)/pixFirst)
+              halfSz=szFirst/2
+              x1=ROUND(halfSz(0)+dxya(0)-ROIsz) & x2=ROUND(halfSz(0)+dxya(0)+ROIsz)
+              y1=ROUND(halfSz(1)+dxya(1)-ROIsz) & y2=ROUND(halfSz(1)+dxya(1)+ROIsz)
+
+              nnImg=TOTAL(markedArr)
+              subM=FLTARR(x2-x1+1,y2-y1+1,nnImg)
+
+              proceed=1
+              counter=0
+
+              FOR i=0, nImg-1 DO BEGIN
+                IF markedArr(i) THEN BEGIN
+                  IF nFrames NE 0 THEN tempImg=readImg(structImgs.(0).filename, i) ELSE tempImg=readImg(structImgs.(i).filename, 0)
+                  szThis=SIZE(tempImg, /DIMENSIONS)
+                  IF ARRAY_EQUAL(szThis[0:1], szFirst[0:1]) THEN BEGIN
+                    subM[*,*,counter]=tempImg[x1:x2,y1:y2]
+                    proceed=1
+                    counter=counter+1
+                  ENDIF ELSE BEGIN
+                    MTF=CREATE_STRUCT('empty',0)
+                    sv=DIALOG_MESSAGE('Image size for image #'+STRING(i, FORMAT='(i0)')+' do not match first image. Calculate MTF separately for images with the same size.',/INFORMATION)
+                    proceed=0
+                  ENDELSE
+                ENDIF ELSE MTF=CREATE_STRUCT('empty',0)
+                IF proceed EQ 0 THEN BREAK
+              ENDFOR
+
+              IF proceed THEN BEGIN
+                MTFres=calculateMTF(subM, pixFirst, dxya[0:1], typeMTF, -1, WIDGET_INFO(btnCutLSF, /BUTTON_SET), FLOAT(cutLSFW(0)), FLOAT(cutLSFWf(0)), FLOAT(sampFreq(0)))
+                IF MTFres.status EQ 0 THEN sv=DIALOG_MESSAGE('Problem finding location of line for one or more images. Location assumed to be at center of ROI.')
+
+                results(getResNmb(modality,analyse,analyseStringsCT,analyseStringsXray,analyseStringsNM,analyseStringsPET))=1
+                updateTable
+                updatePlot,1,1,0
+                WIDGET_CONTROL, wtabResult, SET_TAB_CURRENT=1
+              ENDIF
             END
 
             2: BEGIN ; circular edge (3d)
@@ -1231,7 +1273,6 @@ pro ImageQC_event, ev
           updateTable
           updatePlot,1,1,0
           WIDGET_CONTROL, wtabResult, SET_TAB_CURRENT=1
-          ;ENDELSE; analyse=MTF
         ENDIF; empty
       END
 
@@ -1451,43 +1492,7 @@ pro ImageQC_event, ev
       END
       ;-----analyse-tab NPS --------------------------------------------------------------------------------------------------------------------
 
-      'varImage': BEGIN
-        IF N_ELEMENTS(activeImg) GT 1 THEN BEGIN
-          WIDGET_CONTROL, /HOURGLASS
-          sel=WIDGET_INFO(listFiles, /LIST_SELECT)  & sel=sel(0)
-          tempImg=activeImg
-          szImg=SIZE(tempImg,/DIMENSIONS)
-          pix=structImgs.(sel).pix
-
-          ;ROI size should be user-editable
-          ;first uneditable defaults: 2x2mm (IPEM, recommended 10x10 pix, for xray 2x2 mm, mammo 0.7x0.7mm)
-
-          ;traverse image with ROI and calculate variance
-          ROIrad=5; npix radius of ROI
-          varianceImg=FLTARR(szImg)
-
-          FOR i=ROIrad, szImg(0)-1-ROIrad DO BEGIN
-            FOR j=ROIrad, szImg(1)-1-ROIrad DO BEGIN
-              IMAGE_STATISTICS, tempImg[i-ROIrad:i+ROIrad,j-ROIrad:j+ROIrad], VARIANCE=var
-              varianceImg(i,j)=var
-            ENDFOR
-          ENDFOR
-
-          ;show image
-          ;evaluate example IPEM 32, page 82
-          IMAGE_STATISTICS, varianceImg[szImg(0)*0.25:szImg(0)*0.75,szImg(1)*0.25:szImg(1)*0.75], MEAN=meanVal, STDDEV=stddevVal, MAX=maxxVal, MIN=minnVal
-          minVal=meanVal-stddevVal;min(varianceImg[ROIrad:szImg(0)-1-ROIrad,ROIrad:szImg(1)-1-ROIrad])
-          maxVal=meanVal+stddevVal;max(varianceImg[ROIrad:szImg(0)-1-ROIrad,ROIrad:szImg(1)-1-ROIrad])
-          IF minVal LT 0 THEN BEGIN
-            minVal=minnVal & maxVal=maxxVal
-          ENDIF
-          szX=drawXY
-          szY=ROUND(szX*(szImg(1)*1./szImg(0)))
-          IF nFrames EQ 0 THEN fileList=getListOpenFiles(structImgs,0,marked) ELSE fileList=getListFrames(structImgs.(0), marked)
-
-          im=IMAGE(adjustWindowLevel(varianceImg, [minVal,maxVal]), WINDOW_TITLE='Variance image from file: '+STRMID(fileList(sel),2) )
-        ENDIF ELSE sv=DIALOG_MESSAGE('No active image')
-      END
+     
 
       'NPS': BEGIN
         IF tags(0) NE 'EMPTY' THEN BEGIN
@@ -1559,6 +1564,52 @@ pro ImageQC_event, ev
           updatePlot, 1,1,0
           WIDGET_CONTROL, wtabResult, SET_TAB_CURRENT=1
         ENDIF; empty
+      END
+      
+      ;------------------- Variance image-------------------
+      'varImage': BEGIN
+        IF N_ELEMENTS(activeImg) GT 1 THEN BEGIN
+          WIDGET_CONTROL, /HOURGLASS
+          sel=WIDGET_INFO(listFiles, /LIST_SELECT)  & sel=sel(0)
+          tempImg=activeImg
+          szImg=SIZE(tempImg,/DIMENSIONS)
+          pix=structImgs.(sel).pix
+
+          ;ROI size should be user-editable
+          ;first uneditable defaults: 2x2mm (IPEM, recommended 10x10 pix, for xray 2x2 mm, mammo 0.7x0.7mm)
+          WIDGET_CONTROL, txtVarImageROIsz, GET_VALUE=ROIszMM
+          ;traverse image with ROI and calculate variance
+          ROIrad=ROUND((FLOAT(ROIszMM(0))/2)/pix(0)); npix radius of ROI
+          IF ROIrad LE 0 THEN BEGIN
+            ROIrad=1
+            WIDGET_CONTROL, txtVarImageROIsz, SET_VALUE=STRING(pix(0)*ROIrad*3, FORMAT='(f0.1)')
+          ENDIF
+          varianceImg=FLTARR(szImg)
+
+          WIDGET_CONTROL,lblProgressVarX,SET_VALUE='Progress: 0 %'
+          FOR i=ROIrad, szImg(0)-1-ROIrad DO BEGIN
+            FOR j=ROIrad, szImg(1)-1-ROIrad DO BEGIN
+              IMAGE_STATISTICS, tempImg[i-ROIrad:i+ROIrad,j-ROIrad:j+ROIrad], VARIANCE=var
+              varianceImg(i,j)=var
+            ENDFOR
+            WIDGET_CONTROL,lblProgressVarX,SET_VALUE='Progress: '+STRING(i*100./(szImg(0)-1-2*ROIrad), FORMAT='(i0)')+' %'
+          ENDFOR
+          WIDGET_CONTROL,lblProgressVarX,SET_VALUE=''
+
+          ;show image
+          ;evaluate example IPEM 32, page 82
+          IMAGE_STATISTICS, varianceImg[szImg(0)*0.25:szImg(0)*0.75,szImg(1)*0.25:szImg(1)*0.75], MEAN=meanVal, STDDEV=stddevVal, MAX=maxxVal, MIN=minnVal
+          minVal=meanVal-stddevVal;min(varianceImg[ROIrad:szImg(0)-1-ROIrad,ROIrad:szImg(1)-1-ROIrad])
+          maxVal=meanVal+stddevVal;max(varianceImg[ROIrad:szImg(0)-1-ROIrad,ROIrad:szImg(1)-1-ROIrad])
+          IF minVal LT 0 THEN BEGIN
+            minVal=minnVal & maxVal=maxxVal
+          ENDIF
+          szX=drawXY
+          szY=ROUND(szX*(szImg(1)*1./szImg(0)))
+          IF nFrames EQ 0 THEN fileList=getListOpenFiles(structImgs,0,marked) ELSE fileList=getListFrames(structImgs.(0), marked)
+
+          im=IMAGE(adjustWindowLevel(varianceImg, [minVal,maxVal]), WINDOW_TITLE='Variance image from file: '+STRMID(fileList(sel),2) )
+        ENDIF ELSE sv=DIALOG_MESSAGE('No active image')
       END
 
       ;--------------------------- ROI ---------------------------------------------------
@@ -2203,7 +2254,7 @@ pro ImageQC_event, ev
           updatePlot, 1,1,3
           WIDGET_CONTROL, wtabResult, SET_TAB_CURRENT=0
         ENDIF
-      END
+      END;cross
 
       'updateCross': BEGIN
 
@@ -2254,7 +2305,72 @@ pro ImageQC_event, ev
 
         IF errMsg NE '' THEN sv=DIALOG_MESSAGE(errMsg)
         errMsg=''
-      END
+      END;updateCross
+      
+      'rcRev': BEGIN
+        clearRes, 'RC'
+        updateROI
+        redrawImg, 0,0
+        END
+      'rcBackExclude':BEGIN
+        clearRes, 'RC'
+        updateROI
+        redrawImg, 0,0
+        END
+      'recovCoeff': BEGIN
+         IF tags(0) NE 'EMPTY' THEN BEGIN
+
+          WIDGET_CONTROL, /HOURGLASS
+          IF nFrames EQ 0 THEN nImg=N_ELEMENTS(tags) ELSE nImg=nFrames
+          
+          markedArr=INTARR(nImg)
+          IF marked(0) EQ -1 THEN markedArr=markedArr+1 ELSE markedArr(marked)=1
+          
+          tttt=[1,5]
+          IF tttt.HasValue(TOTAL(markedArr)) THEN BEGIN
+            szROI=SIZE(rcROIs, /DIMENSIONS)
+            resArr=FLTARR(7);values for all 6 ROIs + background
+            
+            errStatus=0
+            resArrTemp=FLTARR(7,nImg)
+            FOR i=0, nImg-1 DO BEGIN
+              IF markedArr(i) THEN BEGIN
+                ;check if same size
+                IF nFrames NE 0 THEN tempImg=readImg(structImgs.(0).filename, i) ELSE tempImg=readImg(structImgs.(i).filename, 0)
+                imszTemp=SIZE(tempImg, /DIMENSIONS)
+                IF ARRAY_EQUAL(imszTemp[0:1], szROI[0:1]) THEN BEGIN
+                  FOR r=0, 5 DO BEGIN
+                    maske=rcROIs[*,*,r]
+                    IMAGE_STATISTICS, tempImg, COUNT=nPix, MAXIMUM=maxVal, MASK=maske
+                    resArrTemp(r,i)=maxVal
+                  ENDFOR
+                  bg=FLTARR(12)
+                  FOR bb=0,11 DO BEGIN
+                    maske=rcROIs[*,*,bb+6]
+                    IF total(maske) NE 0 THEN BEGIN
+                      IMAGE_STATISTICS, tempImg, COUNT=nPix, MEAN=meanVal, MASK=maske
+                      bg(bb)=meanVal
+                    ENDIF ELSE bg(bb)=-1
+                  ENDFOR
+                  usedBg=WHERE(bg NE -1)
+                  IF usedBg(0) NE -1 THEN resArrTemp(6,i)=MEAN(bg(usedBg))
+                ENDIF ELSE errStatus=1
+              ENDIF;markedArr
+              WIDGET_CONTROL, lblProgress, SET_VALUE='Progress: '+STRING(i*100./TOTAL(markedArr), FORMAT='(i0)')+' %'
+            ENDFOR
+            FOR r=0,5 DO resArr(r)=MAX(resArrTemp[r,*])
+            markedTemp=WHERE(markedArr EQ 1)
+            resArr(6)=MEAN(resArrTemp[6,markedTemp])
+            WIDGET_CONTROL, lblProgress, SET_VALUE=''
+            If errstatus THEN sv=DIALOG_MESSAGE('The images have different size. Results restricted to images with same size.',/INFORMATION)
+            rcRes=resArr
+            results(getResNmb(modality,analyse,analyseStringsCT,analyseStringsXray,analyseStringsNM,analyseStringsPET))=1
+            updateTable
+            updatePlot, 1,1,0
+            WIDGET_CONTROL, wtabResult, SET_TAB_CURRENT=1
+          ENDIF ELSE sv=DIALOG_MESSAGE('Expecting 1 or 5 (marked) images for the analysis')
+        ENDIF;tags emtpy
+      END;recovCoeff
 
       ;**************************************************** Copy to clipboard *******************************************
 
@@ -2415,6 +2531,10 @@ pro ImageQC_event, ev
 
   ;********************************************* Radiobutton changed ***********************************************************
   IF ev.ID EQ cw_typeMTF OR ev.ID EQ cw_formLSFX OR ev.ID EQ cw_typeMTFNM THEN clearRes, 'MTF'
+  IF ev.ID EQ cw_rampType THEN BEGIN
+    clearRes, 'SLICETHICK'
+    redrawImg, 0,0
+  ENDIF
 
   ;********************************************* Textfield changed **************************************************************
   IF (TAG_NAMES(ev, /STRUCTURE_NAME) EQ 'WIDGET_KBRD_FOCUS') OR (TAG_NAMES(ev, /STRUCTURE_NAME) EQ 'WIDGET_TEXT_CH') THEN BEGIN
@@ -2432,20 +2552,18 @@ pro ImageQC_event, ev
           dx=LONG(dx(0))
           WIDGET_CONTROL, txtDeltaX, SET_VALUE=STRING(dx, FORMAT='(i0)')
           dxya(0)=dx & dxya(3)=1
-          IF TOTAL(results) GT 0 THEN BEGIN
-            clearRes
-            redrawImg,0,0
-          ENDIF
+          IF TOTAL(results) GT 0 THEN clearRes
+          updateROI
+          redrawImg,0,0
         END
         txtDeltaY: BEGIN
           WIDGET_CONTROL, txtDeltaY, GET_VALUE=dy
           dy=LONG(dy(0))
           WIDGET_CONTROL, txtDeltaY, SET_VALUE=STRING(dy, FORMAT='(i0)')
           dxya(1)=dy & dxya(3)=1
-          IF TOTAL(results) GT 0 THEN BEGIN
-            clearRes
-            redrawImg,0,0
-          ENDIF
+          IF TOTAL(results) GT 0 THEN clearRes
+          updateROI
+          redrawImg,0,0
         END
         txtDeltaA: BEGIN
           WIDGET_CONTROL, txtDeltaA, GET_VALUE=da
@@ -2454,10 +2572,9 @@ pro ImageQC_event, ev
           WIDGET_CONTROL, txtDeltaA, GET_VALUE=da
           da=FLOAT(da(0))
           dxya(2)=da & dxya(3)=1
-          IF TOTAL(results) GT 0 THEN BEGIN
-            clearRes
-            redrawImg,0,0
-          ENDIF
+          IF TOTAL(results) GT 0 THEN clearRes
+          updateROI
+          redrawImg,0,0
         END
         txtMinWL: BEGIN
           WIDGET_CONTROL, txtMinWL, GET_VALUE=minWL
@@ -2710,7 +2827,7 @@ pro ImageQC_event, ev
         txtNPSsubNN: BEGIN
           WIDGET_CONTROL, txtNPSsubNN, GET_VALUE=val
           val=LONG(val(0))
-          IF val LE 0 THEN val=1
+          IF val LE 1 THEN val=2
           WIDGET_CONTROL, txtNPSsubNN, SET_VALUE=STRING(val, FORMAT='(i0)')
           clearRes, 'NPS' & updateROI & redrawImg,0,0
         END
@@ -2720,6 +2837,12 @@ pro ImageQC_event, ev
           WIDGET_CONTROL, txtSmoothNPS, SET_VALUE=STRING(val, FORMAT='(f0.3)')
           clearRes, 'NPS'
         END
+        txtVarImageROIsz: BEGIN
+          WIDGET_CONTROL, txtVarImageROIsz, GET_VALUE=val
+          val=ABS(FLOAT(comma2pointFloat(val(0))))
+          WIDGET_CONTROL, txtVarImageROIsz, SET_VALUE=STRING(val, FORMAT='(f0.1)')
+          redrawImg, 0,0
+          END
         txtNPSroiSzX: BEGIN
           WIDGET_CONTROL, txtNPSroiSzX, GET_VALUE=val
           val=LONG(val(0))
@@ -2858,7 +2981,30 @@ pro ImageQC_event, ev
           WIDGET_CONTROL, txtCrossFactorPrev, SET_VALUE=STRING(valV, FORMAT='(f0.3)')
           WIDGET_CONTROL, txtCrossFactor, SET_VALUE='-'
         END
-
+        txtrcR1: BEGIN
+          WIDGET_CONTROL, txtrcR1, GET_VALUE=val
+          val=ABS(FLOAT(comma2pointFloat(val(0))))
+          WIDGET_CONTROL, txtrcR1, SET_VALUE=STRING(val, FORMAT='(f0.1)')
+          clearRes, 'RC' & updateROI & redrawImg,0,0
+        END
+        txtrcR2: BEGIN
+          WIDGET_CONTROL, txtrcR2, GET_VALUE=val
+          val=ABS(FLOAT(comma2pointFloat(val(0))))
+          WIDGET_CONTROL, txtrcR2, SET_VALUE=STRING(val, FORMAT='(f0.1)')
+          clearRes, 'RC' & updateROI & redrawImg,0,0
+        END
+        txtRCconcSph: BEGIN
+          WIDGET_CONTROL, txtRCconcSph, GET_VALUE=val
+          val=ABS(FLOAT(comma2pointFloat(val(0))))
+          WIDGET_CONTROL, txtRCconcSph, SET_VALUE=STRING(val, FORMAT='(f0.1)')
+          clearRes, 'RC'
+        END
+        txtRCconcBack: BEGIN
+          WIDGET_CONTROL, txtRCconcBack, GET_VALUE=val
+          val=ABS(FLOAT(comma2pointFloat(val(0))))
+          WIDGET_CONTROL, txtRCconcBack, SET_VALUE=STRING(val, FORMAT='(f0.1)')
+          clearRes, 'RC'
+        END
         ELSE:
       ENDCASE
     ENDIF
@@ -3384,19 +3530,19 @@ pro ImageQC_event, ev
               'PatientID:'+tab+ tab+tempStruct.PatientID, $
               'Modality:'+tab+tab+tempStruct.modality, $
               'SeriesName:'+tab+ tempStruct.seriesName, $
-              'Study Description:'+tab+ tempStruct.studyDescr,$
-              'PatientWeight:'+tab+tempStruct.patientWeight]
+              'PatientWeight:'+tab+tempStruct.patientWeight,$
+              'Inj.act.(Bq) /time: '+ tempStruct.admDose +' / '+STRING(tempStruct.admDoseTime, FORMAT='(a06)')]
 
             infoString2=$
               ['PixelSize:'+tab+tab+ string(tempStruct.pix[0],format='(f0.2)')+', '+string(tempStruct.pix[1],format='(f0.2)'), $
               'ImageSize:'+tab+string(imSz[0],format='(i0)')+', '+string(imSz[1],format='(i0)'), $
               'SliceThick:'+tab+ (tempStruct.SliceThick NE -1 ? string(tempStruct.SliceThick, format='(f0.2)') : '-'), $
-              'Radiopharmaceutical:  '+tempStruct.radiopharmaca, $
-              'Units:'+tab+tempStruct.units,$
-              'Att corr method:  '+tempStruct.attCorrMethod,$
-              'Recon method/filter:  '+tempStruct.reconMethod+'/'+tempStruct.filter,$
-              'Scatter corr method:  '+tempStruct.scaCorrMethod,$
-              'Scatter fraction:'+tab+tempStruct.scatterFrac]
+              'Radiopharmaceutical: '+tempStruct.radiopharmaca, $
+              'Units:'+tab+tempStruct.units, $
+              'Att corr: '+tempStruct.attCorrMethod,$
+              'Recon: '+tempStruct.reconMethod+'/'+tempStruct.filter,$
+              'Scatter corr: '+tempStruct.scaCorrMethod,$
+              'Scatter fraction: '+tab+tempStruct.scatterFrac]
           END
           ELSE:
         ENDCASE

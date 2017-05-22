@@ -97,7 +97,7 @@ function generateTestmatrixX
 ;    fx=FINDGEN(szM(0)/2)*(1./(szM(0)*pix));resol = 1/NT + mm to cm
 ;    MTFkComplex=FFT(lsfKern,/CENTER)
 ;    MTFk=szM(0)*SQRT(REAL_PART(MTFkComplex)^2+IMAGINARY(MTFkComplex)^2); modulus of Fouriertransform * size of submatrix (divided by 1/N during FFT)
-;    MTFk=MTFk[szM(0)/2+1:szM(0)-1]
+;    MTFk=MTFk[szM(0)/2:szM(0)-1]
 ;    MTFk=MTFk/max(MTFk)
     ;stop
   ;ENDIF

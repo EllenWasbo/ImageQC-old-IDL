@@ -114,6 +114,188 @@ CASE typeMTF OF
 
 END
 
+1: BEGIN; wire (3d)
+
+  ;for testing:
+  ;pix=[0.5,0.5]
+  ;submatrix=submatrix[10:40,10:40,*]
+  
+  szM=size(submatrix,/DIMENSIONS)
+  
+  background=MEAN(subMatrix[0,0,*]);MEAN([MEAN(submatrix[*,0,*]),MEAN(submatrix[*,szM(1)-1,*]),MEAN(submatrix[0,*,*]),MEAN(submatrix[szM(0)-1,*,*])])
+
+    MTFstruct=CREATE_STRUCT('subMatrixAll',submatrix)
+
+    distArrX=FLTARR(szM(0),szM(2))
+    distArrY=FLTARR(szM(1),szM(2))
+    LSFarrX=FLTARR(szM(0),szM(2))
+    LSFarrY=FLTARR(szM(1),szM(2))
+    FOR i=0, szM(2)-1 DO BEGIN
+      LSFx=1.0*TOTAL(submatrix[*,*,i],2)
+      LSFy=1.0*TOTAL(submatrix[*,*,i],1)
+      ;IF N_ELEMENTS(backMatrix) GT 1 THEN background=MEAN(1.0*TOTAL(backMatrix,2)) ELSE background=backMatrix
+
+      halfmax=0.5*[MAX(submatrix[*,*,i])+MIN(submatrix[*,*,i])]
+      centerPos=centroid(submatrix[*,*,i], halfmax)
+      IF MIN(centerPos) EQ -1 THEN BEGIN
+        status=0
+        centerPos=0.5*szM[0:1]
+      ENDIF ELSE status=1
+      distArrX[*,i]=(FINDGEN(szM(0))-centerPos(0));*pix(0)
+      distArrY[*,i]=(FINDGEN(szM(1))-centerPos(1));*pix(1)
+
+      LSFx=LSFx-background*szM(1)
+      LSFarrX[*,i]=LSFx/TOTAL(LSFx)
+      LSFy=LSFy-background*szM(0)
+      LSFarrY[*,i]=LSFy/TOTAL(LSFy)
+    ENDFOR
+
+    ;sort LSF values by distance to center
+    distArr=[[distArrX],[distArrY]]
+    LSFarr=[[LSFarrX],[LSFarrY]]
+    sorting=SORT(distArr)
+    dists=distArr(sorting)
+    lsfSortVals=LSFarr(sorting)
+    pixVals=lsfSortVals
+
+    ;rebin to equally spaced resolution pix/10
+    pix=pix(0) & pixNew=.1*pix
+    ;ddists=SHIFT(dists,-1)-dists
+    ;ddists=ddists[1:N_ELEMENTS(dists)-2]
+
+    newdists=(FINDGEN((MAX(dists)-MIN(dists)+1)*10)+(MIN(dists)-0.5)*10)*pixNew
+    nn=N_ELEMENTS(newdists)
+
+    ;smooth by ~the new pix size if possible
+    test=WHERE(dists*pix(0) LT max(newdists))
+    smoothSz=ROUND(N_ELEMENTS(test)/N_ELEMENTS(newdists))
+    If smoothSz GT 2 THEN pixVals=SMOOTH(pixVals,smoothSz)
+    lsfSortValsInterp=INTERPOL(pixVals, dists*pix, newdists);smooth over pix/10 before interpolate
+    lsfSortValsInterp[0:9]=lsfSortValsInterp(10) & lsfSortValsInterp[nn-10:nn-1]=lsfSortValsInterp(nn-11)
+    pixValsInterp=lsfSortValsInterp
+
+    angle=-1
+
+  ;discrete MTF
+  dLSF=pixValsInterp
+  szPadded=nn
+  dLSF=dLSF/MAX(dLSF)
+
+  IF cutLSF THEN BEGIN
+    smdLSF=SMOOTH(dLSF,5)
+    smdLSF=smdLSF/max(smdLSF)
+    over05=WHERE(smdLSF GT 0.5, nover05)
+    pp1=over05(0) & pp2=over05(nover05-1)
+    ppFWHM=pp2-pp1
+    first=ROUND(pp1-cutW*ppFWHM)
+    last=ROUND(pp2+cutW*ppFWHM)
+    IF first GT 0 THEN dLSF[0:first]=0
+    IF last LT (nn-1) THEN dLSF[last:nn-1]=0
+  ENDIF
+
+  dMTFcomplex=FFT(dLSF,/CENTER)
+  dMTF=szPadded*SQRT(REAL_PART(dMTFcomplex)^2+IMAGINARY(dMTFcomplex)^2); modulus of Fouriertransform * size of submatrix (divided by 1/N during FFT)
+  dMTF=dMTF[szPadded/2:szPadded-1]
+  dMTF=dMTF/dMTF(0)
+  fx=FINDGEN(N_ELEMENTS(dMTF))*(1./(szPadded*pixNew))
+
+  ;smooth with gaussian
+  sigmaF=0 ; used to be 3, if sigmaF=5 , FWHM ~9 newpix = ~ 1 original pix
+  If sigmaF NE 0 THEN BEGIN
+    IF nn*.5 EQ nn/2 THEN odd=0 ELSE odd=1
+    nnn=nn/2+odd
+    xf=FINDGEN(nnn)
+    yf=EXP(-0.5*xf^2/sigmaF^2)
+    filter=[reverse(yf[1:nnn-1]),yf]
+    IF odd EQ 0 THEN filter=[0,filter]
+    filter=filter/TOTAL(filter)
+    nonZeros=WHERE(filter NE 0.)
+    filter=filter(nonZeros)
+    pixValsSmooth=CONVOL(pixValsInterp,filter,/CENTER,/EDGE_TRUNCATE)
+  ENDIF ELSE pixValsSmooth=pixValsInterp
+
+  lsf=pixValsSmooth
+  LSF=LSF/MAX(LSF)
+
+  MTFstruct=CREATE_STRUCT(MTFstruct,'distspix0',dists*pix(0),'pixValSort',pixVals,'newdists',newdists,'pixValsInterp',pixValsInterp, 'angle',angle)
+  IF sigmaF NE 0 THEN MTFstruct=CREATE_STRUCT(MTFstruct,'pixValsSmooth',pixValsSmooth)
+
+  X = newdists
+  Y = lsf
+  ;weights = 1.0/Y
+  weights= FLTARR(nn)+1.
+  res=getWidthAtThreshold(Y,max(lsf)/2)
+  IF res(0) NE -1 THEN BEGIN
+    FWHM1=res(0)*pixNew
+    center=res(1)*pixNew
+    ;X=(FINDGEN(N_ELEMENTS(X)))*pixNew-center;(FINDGEN(N_ELEMENTS(X))+0.5)*pixNew-center ; tatt bort +0.5 ift korreksjon getWidhtAtThreshold....center korrigert med -0.5
+    ;X=X-center
+    lsfSmTemp=lsf
+    sigma1=FWHM1/(2*SQRT(2*ALOG(2)))
+    vec=lsfSmTemp
+
+    res2=getWidthAtThreshold(vec,min(vec)/2)
+    IF res2(0) NE -1 THEN BEGIN
+      FWHM2=res2(0)*pixNew
+      sigma2=FWHM2/(2*SQRT(2*ALOG(2)))
+      IF sigma2 LT sigma1 THEN sigma2=2.*sigma1
+    ENDIF ELSE sigma2=2.*sigma1
+
+    ss1=0
+    ss2=nn-1
+
+    A = [max(lsfSmTemp[ss1:ss2])-min(lsfSmTemp[ss1:ss2]),1.5*min(lsfSmTemp[ss1:ss2]),sigma1, sigma2];first guess parameters for curvefit gaussFitAdd2
+    yfit = CURVEFIT(X[ss1:ss2], Y[ss1:ss2], weights[ss1:ss2], A, FUNCTION_NAME='gaussFitAdd2', ITER=iter, CHISQ=chisq, TOL=1.0*10^(-4));, ITMAX=100)
+
+    IF A(1) GT A(0) THEN BEGIN
+      ;resort such that highest amp first
+      newA=[A(1),A(0),A(3),A(2)]
+      A=newA
+    ENDIF
+    A(2)=ABS(A(2)) & A(3)=ABS(A(3))
+
+    IF ABS(A[3]) GT 10.*A[2] OR A[3] LT 0 THEN BEGIN; retry with single gaussfit - allow double gauss with both terms positive
+      ;IF A(1) GT 0 OR ABS(A[3]) GT 10.*A[2] THEN BEGIN; retry with single gaussfit - double is for sharp filters
+      yfit=gaussfit(X[ss1:ss2], lsf[ss1:ss2], A, ESTIMATES=[max(lsfSmTemp[ss1:ss2]),0,sigma1], NTERMS=3)
+    ENDIF
+
+    IF sigmaF NE 0 THEN smLSFx=Y[ss1:ss2] ELSE smLSFx=-1
+    fitLSFx=yfit
+    ddx=X[ss1:ss2]
+
+  ENDIF ELSE BEGIN
+    ss1=0
+    ss2=nn-1
+    LSFx=lsf
+    ddx=newdists
+    svar=DIALOG_MESSAGE('Failed to fit LSF to gaussian. LSF used as is further. NB smoothed LSF!',/ERROR)
+  ENDELSE
+
+  ;gauss to gauss continuous version:
+  ;http://www.cse.yorku.ca/~kosta/CompVis_Notes/fourier_transform_Gaussian.pdf
+  nVals=CEIL(3./sampFreq)
+  kvals=FINDGEN(nVals)*sampFreq*2*!pi
+  IF N_ELEMENTS(A) GT 0 THEN BEGIN
+    ;kvals=FINDGEN(200)*0.05/A(2);sample 20 steps from 0 to 1 stdv MTF curve A0 (stdev=1/A(2))
+    Fgu0=calcGauss(kvals, 1/A(2),A(0)*A(2),0)
+    IF N_ELEMENTS(A) EQ 4 THEN Fgu1=calcGauss(kvals, 1/A(3),A(1)*A(3),0) ELSE Fgu1=0.
+    If sigmaF NE 0 THEN Ffilter=calcGauss(kvals,1./(sigmaF*pixNew),1.0,0) ELSE Ffilter=1.
+    gMTFx=(Fgu0+Fgu1)/Ffilter
+    gfx=kvals/(2*!pi)
+    gMTFx=gMTFx/gMTFx(0)
+  ENDIF
+
+  LSFx=dLSF
+  MTFx=dMTF
+
+  LSFy=-1
+  ddy=-1
+  MTFy=-1
+  fy=-1
+
+END
+
+
 2: BEGIN
   ;method from Richard et al: Towards task-based assessment of CT performance, Med Phys 39(7) 2012
   ;sort all pixels regarding distance to centerposition
@@ -349,18 +531,6 @@ END
  
   MTFx=MTFx[szPadded/2:szPadded-1]
   MTFx=MTFx/MTFx(0) 
-;  mtftemp=MTFx
-;  mtftemp[0:10]=0 & mtftemp[N_ELEMENTS(mtftemp)-11:N_ELEMENTS(mtftemp)-1]=0
-; ress=getWidthAtThreshold(smooth(mtftemp,5),max(smooth(mtftemp,5))/2)
-;  IF ress(1) NE -1 THEN BEGIN
-;    ende=ROUND(ress(1)+3*ress(0)) & IF ende GT N_ELEMENTS(MTFx)-1 THEN ende=N_ELEMENTS(MTFx)-1
-;    MTFx=MTFx[ROUND(ress(1))-1:ende]
-;    MTFx=MTFx/MTFx(0)
-;  ENDIF ELSE BEGIN
-;    stop; shol
-;    sv=DIALOG_MESSAGE('Failed finding center of discrete MTF. Too much noise? Discrete MTF not shown.')
-;    MTFx=MTFx*0
-;  ENDELSE
 
   fx=FINDGEN(N_ELEMENTS(MTFx))*(1./(szPadded*0.1*pix(0))); 0.1 x pix, mm to cm = 0.01
   
@@ -391,10 +561,7 @@ CASE typeMTF OF
   0: BEGIN
     IF szgy EQ 'STRUCT' THEN MTF=CREATE_STRUCT(MTF,'fy',MTFstruct.gfy,'MTFy',MTFstruct.gMTFy) ELSE MTF=CREATE_STRUCT(MTF,'fy',fy,'MTFy',MTFy)
     END
-  2: BEGIN
-    MTF=CREATE_STRUCT(MTF,'fy',0,'MTFy',0)
-    END
-  ELSE:
+  ELSE: MTF=CREATE_STRUCT(MTF,'fy',0,'MTFy',0)
 ENDCASE
 
 lim=[.5,.1,.02]

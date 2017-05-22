@@ -84,7 +84,7 @@ fx=FINDGEN(szPadded/2)*(1./(szPadded*0.1*pix));resol = 1/NT + mm to cm
 lsfk=lsfKern[1:549]
 MTFkComplex=FFT(LSFk,/CENTER)
 MTFk=szPadded*SQRT(REAL_PART(MTFkComplex)^2+IMAGINARY(MTFkComplex)^2); modulus of Fouriertransform * size of submatrix (divided by 1/N during FFT)
-MTFk=MTFk[szPadded/2+1:szPadded-1]
+MTFk=MTFk[szPadded/2:szPadded-1]
 MTFk=MTFk/MTFk(0)
 stop
 

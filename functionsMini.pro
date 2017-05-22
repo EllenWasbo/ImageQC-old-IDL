@@ -189,6 +189,7 @@ function centerProfile, vec
       x2=last+dx
       sHalf=(x1+x2)/2
       IF sHalf GT nVec-1 THEN sHalf=-1
+      IF sHalf LT 0 THEN sHalf=-1
     ENDIF
   ENDIF
   

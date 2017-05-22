@@ -198,6 +198,72 @@ function getConNMRois, imgSize, imgCenter, radSample, radSample2
   return, roiAll
 end
 
+function getRCbackRois, imgSize, imgCenter, radSample, pix
+  circle=getROIcircle([radSample*2+1,radSample*2+1], [radSample,radSample], radSample)
+  
+  roiAll=INTARR(imgSize(0),imgSize(1),12)
+  ;position the circles assuming NEMA NU2 phantom centered in lung insert
+  
+  ; relative to frontal part of phantom
+  imgCenterTemp=imgCenter
+  imgCenterTemp(1)=imgCenter(1)-35./pix 
+  radSampleLarge=(147.-15.)/pix
+  roi0=INTARR(radSampleLarge*2+1,radSampleLarge*2+1)
+  roi0[radSampleLarge-radSample:radSampleLarge+radSample, radSampleLarge*2-radSample*2:radSampleLarge*2]=circle
+  roi25=ROUND(ROT(FLOAT(roi0),25, Missing=0, cubic=-0.5))
+  roi50=ROUND(ROT(FLOAT(roi0),50, Missing=0, cubic=-0.5))
+  roi75=ROUND(ROT(FLOAT(roi0),75, Missing=0, cubic=-0.5))
+  roi100=ROUND(ROT(FLOAT(roi0),100, Missing=0, cubic=-0.5))
+  roi260=ROUND(ROT(FLOAT(roi0),260, Missing=0, cubic=-0.5))
+  roi285=ROUND(ROT(FLOAT(roi0),285, Missing=0, cubic=-0.5))
+  roi310=ROUND(ROT(FLOAT(roi0),310, Missing=0, cubic=-0.5))
+  roi335=ROUND(ROT(FLOAT(roi0),335, Missing=0, cubic=-0.5))
+  x1=ROUND(imgSize(0)/2+imgCenter(0)-radSampleLarge)
+  x2=x1+radSampleLarge*2
+  y1=ROUND(imgSize(1)/2+imgCenterTemp(1)-radSampleLarge)
+  y2=y1+radSampleLarge*2
+  roiAll[x1:x2,y1:y2,0]=roi0
+  roiAll[x1:x2,y1:y2,1]=roi25
+  roiAll[x1:x2,y1:y2,2]=roi50
+  roiAll[x1:x2,y1:y2,3]=roi75
+  roiAll[x1:x2,y1:y2,4]=roi100
+  roiAll[x1:x2,y1:y2,8]=roi260
+  roiAll[x1:x2,y1:y2,9]=roi285
+  roiAll[x1:x2,y1:y2,10]=roi310
+  roiAll[x1:x2,y1:y2,11]=roi335
+  
+;  ; relative to dorsal-right part of phantom
+;  imgCenterTemp=imgCenter
+;  imgCenterTemp(0)=imgCenter(0)-70./pix
+;  imgCenterTemp(1)=imgCenter(1)-35./pix 
+;  radSampleLarge=(77.-15.)/pix-radSample
+;  roi0=INTARR(radSampleLarge*2+1,radSampleLarge*2+1)
+;  roi0[radSampleLarge-radSample:radSampleLarge+radSample, radSampleLarge*2-radSample*2:radSampleLarge*2]=circle
+;  roi180=ROUND(ROT(FLOAT(roi0),180, Missing=0, cubic=-0.5))
+;
+;  x1=ROUND(imgSize(0)/2+imgCenterTemp(0)-radSampleLarge)
+;  x2=ROUND(imgSize(0)/2+imgCenterTemp(0)+radSampleLarge)-1
+;  y1=ROUND(imgSize(1)/2+imgCenterTemp(1)-radSampleLarge)
+;  y2=ROUND(imgSize(1)/2+imgCenterTemp(1)+radSampleLarge)-1
+;  roiAll[x1:x2,y1:y2,8]=roi180
+;  
+;  ; relative to dorsal-left part of phantom
+;  imgCenterTemp(0)=imgCenter(0)+70./pix
+;  x2=ROUND(imgSize(0)/2+imgCenterTemp(0)+radSampleLarge)-1
+;  x1=ROUND(imgSize(0)/2+imgCenterTemp(0)-radSampleLarge)
+;  roiAll[x1:x2,y1:y2,6]=roi180
+  
+  ;bottom
+  cent=[imgSize(0)/2+imgCenter(0),imgSize(1)/2+imgCenter(1)-35./pix-((77.-15)/pix-radSample)]
+  roiAll[cent(0)-radSample:cent(0)+radSample,cent(1)-radSample:cent(1)+radSample,6]=circle
+  roiAll[cent(0)+55./pix-radSample:cent(0)+55./pix+radSample,cent(1)-radSample:cent(1)+radSample,5]=circle
+  roiAll[cent(0)-55./pix-radSample:cent(0)-55./pix+radSample,cent(1)-radSample:cent(1)+radSample,7]=circle
+
+  ;roi number 5 and 9 not filled
+
+  return, roiAll
+end
+
 function getNPSrois, imgSize, imgCenter, ROIsz, ROIdistPix, subNN
   ;first ROI at 12o'clock, rest +dAngle 
   dAngle=2.*!pi/subNN

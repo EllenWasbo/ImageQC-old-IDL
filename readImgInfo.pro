@@ -66,6 +66,8 @@
 ;  .radius2 (gamma camera radius 2nd detektor)
 ;  .units (of pixel values ex: HU, BQML ...)
 ;  .radiopharmaca
+;  .admDose
+;  .admDoseTime
 ;  .reconMethod
 ;  .attCorrMethod
 ;  .scaCorrMethod
@@ -215,11 +217,20 @@ function readImgInfo, adr
       test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
       IF test(0) NE -1 THEN mAs=*(test_peker[0]) ELSE mAs=-1
 
-      test=o->GetReference('0018'x,'1150'x)
-      test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
-      IF test(0) NE -1 THEN BEGIN
-        time=*(test_peker[0])
-      ENDIF ELSE time=-1
+
+      IF modality EQ 'PT' THEN BEGIN
+        test=o->GetReference('0018'x,'1242'x)
+        test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
+        IF test(0) NE -1 THEN BEGIN
+          time=*(test_peker[0])
+        ENDIF ELSE time=-1
+      ENDIF ELSE BEGIN
+        test=o->GetReference('0018'x,'1150'x)
+        test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
+        IF test(0) NE -1 THEN BEGIN
+          time=*(test_peker[0])
+        ENDIF ELSE time=-1
+      ENDELSE
 
       test=o->GetReference('0018'x,'9323'x)
       test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
@@ -358,6 +369,22 @@ function readImgInfo, adr
       test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
       IF test(0) NE -1 THEN radiopharmaca=*(test_peker[0]) ELSE radiopharmaca='-'
       
+      test=o->GetReference('0018'x,'1074'x);
+      test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY);siemens PET, two instances and first emtpy...
+      IF test(0) NE -1 THEN BEGIN
+        admDose=*(test_peker[0]) 
+        IF admDose EQ '' THEN BEGIN
+          IF N_ELEMENTS(test) EQ 2 THEN BEGIN
+            test_peker=o->GetValue(REFERENCE=test[1],/NO_COPY);siemens PET, two instances and first emtpy...
+            admDose=*(test_peker[0])
+          ENDIF ELSE admDose='-'
+        ENDIF
+      ENDIF ELSE admDose='-'
+      
+      test=o->GetReference('0018'x,'1072'x);
+      test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
+      IF test(0) NE -1 THEN admDoseTime=*(test_peker[0]) ELSE admDoseTime='-'
+      
       test=o->GetReference('0054'x,'1103'x);
       test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
       IF test(0) NE -1 THEN reconMethod=*(test_peker[0]) ELSE reconMethod='-'
@@ -373,14 +400,16 @@ function readImgInfo, adr
       test=o->GetReference('0054'x,'1323'x);
       test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
       IF test(0) NE -1 THEN scatterFrac=*(test_peker[0]) ELSE scatterFrac='-'
+      
+      
 
       imgStruct=CREATE_STRUCT('filename',adr,'studyDate', studyDate, 'institution',institution,'modality', modality, 'modelName',modelName,'stationName',stationName,$
         'patientName',patientName, 'patientID', patientID, 'patientWeight', patientWeight, 'imageType',imageType,'presType',presType,'studyDescr',studyDescr,'seriesName',seriesName, 'protocolname', protocolname,$
-        'seriesNmb',seriesNmb,'acqNmb',acqNmb, 'acqtime',acqtime,'sliceThick',sliceThick, 'pix', pix,'kVp',kVp,'dFOV',dFOV,'rekonFOV',rekonFOV,'mA',mA,'mAs',mAs,'time',time,'coll',coll,'pitch',pitch,$
+        'seriesNmb',seriesNmb,'acqNmb',acqNmb, 'acqtime',acqtime,'sliceThick',sliceThick, 'pix', pix,'kVp',kVp,'FOV',dFOV,'rekonFOV',rekonFOV,'mA',mA,'mAs',mAs,'time',time,'coll',coll,'pitch',pitch,$
         'ExModType',ExModType,'CTDIvol',CTDIvol,'DAP',DAP,'EI',EI,'sensitivity',sensitivity,'filter',filter,$
         'zpos', zpos, 'imgNo',imgNo,'nFrames',nFrames,'wCenter',wCenter,'wWidth',wWidth,$
         'collType',collType,'nEWindows',nEWindows,'EWindowName',EWindowName,'zoomFactor',zoomFactor,'radius1',radPos1,'radius2',radPos2,$
-        'units',units,'radiopharmaca',radiopharmaca,'reconMethod',reconMethod,'attCorrMethod',attCorrMethod,'scaCorrMethod',scaCorrMethod, 'scatterFrac',scatterFrac)
+        'units',units,'radiopharmaca',radiopharmaca,'admDose',admDose,'admDoseTime',admDoseTime,'reconMethod',reconMethod,'attCorrMethod',attCorrMethod,'scaCorrMethod',scaCorrMethod, 'scatterFrac',scatterFrac)
 
       OBJ_DESTROY, o
 
