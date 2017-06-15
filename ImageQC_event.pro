@@ -1316,8 +1316,14 @@ pro ImageQC_event, ev
           markedTemp=WHERE(markedArr EQ 1)
           first=markedTemp(0)
           IF nFrames NE 0 THEN tempImg=readImg(structImgs.(0).filename, first) ELSE tempImg=readImg(structImgs.(first).filename, 0)
-
+          IF nFrames NE 0 THEN curPix=structImgs.(0).pix(0) ELSE curPix=structImgs.(first).pix(0)
+          
           szFirst=SIZE(tempImg, /DIMENSIONS)
+          ROIszMM=FLOAT([ROIszX(0),ROIszY(0)])/2.
+          ROIsz=ROIszMM/curPix
+          halfSz=szFirst/2
+          x1=ROUND(halfSz(0)+dxya(0)-ROIsz(0)) & x2=ROUND(halfSz(0)+dxya(0)+ROIsz(0))
+          y1=ROUND(halfSz(1)+dxya(1)-ROIsz(1)) & y2=ROUND(halfSz(1)+dxya(1)+ROIsz(1))
 
           CASE typeMTF OF
 
@@ -1334,7 +1340,7 @@ pro ImageQC_event, ev
                   szImg=SIZE(tempImg, /DIMENSIONS)
                   IF ARRAY_EQUAL(szImg[0:1], szFirst[0:1]) THEN BEGIN
 
-                    IF nFrames EQ 0 THEN curPix=structImgs.(i).pix(0) ELSE curPix=structImgs.(0).pix(0)
+                    IF nFrames EQ 0 THEN curPix=structImgs.(i).pix(0)
                     ROIszMM=FLOAT([ROIszX(0),ROIszY(0)])/2.
                     ROIsz=ROIszMM/curPix
                     halfSz=szFirst/2
@@ -1366,14 +1372,8 @@ pro ImageQC_event, ev
             END
 
             1: BEGIN; line (in plane or z dir)
-
-              IF nFrames NE 0 THEN curPix=structImgs.(0).pix(0) ELSE curPix=structImgs.(first).pix(0)
-              ROIszMM=FLOAT([ROIszX(0),ROIszY(0)])/2.
-              ROIsz=ROIszMM/curPix
-              halfSz=szFirst/2
-              x1=ROUND(halfSz(0)+dxya(0)-ROIsz(0)) & x2=ROUND(halfSz(0)+dxya(0)+ROIsz(0))
-              y1=ROUND(halfSz(1)+dxya(1)-ROIsz(1))
-              IF v3d THEN y2=y1+x2-x1 ELSE y2=ROUND(halfSz(1)+dxya(1)+ROIsz(1));ensure quadratic for v3d
+             
+              IF v3d THEN y2=y1+x2-x1;ensure quadratic for v3d
 
               nnImg=TOTAL(markedArr)
               subM=FLTARR(x2-x1+1,y2-y1+1,nnImg)
@@ -1425,13 +1425,39 @@ pro ImageQC_event, ev
               ENDIF
             END
 
-            2: BEGIN ; circular edge (2d or 3d)
-              IF nFrames NE 0 THEN curPix=structImgs.(0).pix(0) ELSE curPix=structImgs.(first).pix(0)
-              ROIszMM=FLOAT([ROIszX(0),ROIszY(0)])/2.
-              ROIsz=ROIszMM/curPix
-              halfSz=szFirst/2
-              x1=ROUND(halfSz(0)+dxya(0)-ROIsz(0)) & x2=ROUND(halfSz(0)+dxya(0)+ROIsz(0))
-              y1=ROUND(halfSz(1)+dxya(1)-ROIsz(1)) & y2=ROUND(halfSz(1)+dxya(1)+ROIsz(1))
+            2: BEGIN ;straight edge
+              szFirst=SIZE(tempImg, /DIMENSIONS)
+
+              subMatrix=FLTARR(x2-x1+1,y2-y1+1)
+
+              errLogg=''
+              FOR i=0, nImg-1 DO BEGIN
+                IF markedArr(i) THEN BEGIN
+                  IF nFrames NE 0 THEN tempImg=readImg(structImgs.(0).filename, i) ELSE tempImg=readImg(structImgs.(i).filename, 0)
+                  szThis=SIZE(tempImg, /DIMENSIONS)
+                  IF ARRAY_EQUAL(szThis[0:1], szFirst[0:1]) THEN BEGIN
+                    submatrix[*,*]=tempImg[x1:x2,y1:y2]
+                    MTF=calculateMTF_NM(submatrix, curPix, dxya[0:1], typeMTF, -1, WIDGET_INFO(btnCutLSFNM, /BUTTON_SET), FLOAT(cutLSFW(0)), v3d)
+                    IF MTF.errMsg NE '' THEN errLogg=errLogg+'Warning image #'+STRING(i+1, FORMAT='(i0)')+'. '+MTF.errMsg+newline
+                  ENDIF ELSE BEGIN
+                    MTF=CREATE_STRUCT('empty',0)
+                    errLogg=errLogg+'Image size for image #'+STRING(i+1, FORMAT='(i0)')+' do not match first image. Calculate MTF separately for images with the same size.'+newline
+                  ENDELSE
+
+                ENDIF ELSE MTF=CREATE_STRUCT('empty',0)
+
+                IF i EQ 0 THEN MTFres=CREATE_STRUCT('M0',MTF) ELSE MTFres=CREATE_STRUCT(MTFres, 'M'+STRING(i, FORMAT='(i0)'), MTF)
+              ENDFOR
+              IF errLogg NE '' THEN sv=DIALOG_MESSAGE(errLogg)
+              results(getResNmb(modality,analyse,analyseStringsCT,analyseStringsXray,analyseStringsNM,analyseStringsPET))=1
+              updateTable
+              updatePlot,1,1,0
+              WIDGET_CONTROL, wtabResult, SET_TAB_CURRENT=1
+              
+
+              END
+
+            3: BEGIN ; circular edge (2d or 3d)
 
               nnImg=TOTAL(markedArr)
               subM=FLTARR(x2-x1+1,y2-y1+1,nnImg)
@@ -2317,6 +2343,7 @@ pro ImageQC_event, ev
         updateROI
         redrawImg, 0,0
         END
+      'cw_rcType': updateTable
       'recovCoeff': BEGIN
          IF tags(0) NE 'EMPTY' THEN BEGIN
 
@@ -2329,21 +2356,18 @@ pro ImageQC_event, ev
           tttt=[1,5]
           IF tttt.HasValue(TOTAL(markedArr)) THEN BEGIN
             szROI=SIZE(rcROIs, /DIMENSIONS)
-            resArr=FLTARR(7);values for all 6 ROIs + background
-            
+            resArr=FLTARR(7+6);values for all 6 ROIs + background
+
             errStatus=0
-            resArrTemp=FLTARR(7,nImg)
+            resArrTemp=FLTARR(7+6,nImg)
+            
+            ;max & background
             FOR i=0, nImg-1 DO BEGIN
               IF markedArr(i) THEN BEGIN
                 ;check if same size
                 IF nFrames NE 0 THEN tempImg=readImg(structImgs.(0).filename, i) ELSE tempImg=readImg(structImgs.(i).filename, 0)
                 imszTemp=SIZE(tempImg, /DIMENSIONS)
                 IF ARRAY_EQUAL(imszTemp[0:1], szROI[0:1]) THEN BEGIN
-                  FOR r=0, 5 DO BEGIN
-                    maske=rcROIs[*,*,r]
-                    IMAGE_STATISTICS, tempImg, COUNT=nPix, MAXIMUM=maxVal, MASK=maske
-                    resArrTemp(r,i)=maxVal
-                  ENDFOR
                   bg=FLTARR(12)
                   FOR bb=0,11 DO BEGIN
                     maske=rcROIs[*,*,bb+6]
@@ -2354,13 +2378,43 @@ pro ImageQC_event, ev
                   ENDFOR
                   usedBg=WHERE(bg NE -1)
                   IF usedBg(0) NE -1 THEN resArrTemp(6,i)=MEAN(bg(usedBg))
+                  FOR r=0, 5 DO BEGIN
+                    maske=rcROIs[*,*,r]
+                    IMAGE_STATISTICS, tempImg, COUNT=nPix, MAXIMUM=maxVal, MASK=maske
+                    resArrTemp(r,i)=maxVal
+                    
+                  ENDFOR
                 ENDIF ELSE errStatus=1
               ENDIF;markedArr
               WIDGET_CONTROL, lblProgress, SET_VALUE='Progress: '+STRING(i*100./TOTAL(markedArr), FORMAT='(i0)')+' %'
             ENDFOR
             FOR r=0,5 DO resArr(r)=MAX(resArrTemp[r,*])
+            
             markedTemp=WHERE(markedArr EQ 1)
             resArr(6)=MEAN(resArrTemp[6,markedTemp])
+            
+            ;A50
+            valStruc=CREATE_STRUCT('emty',0)
+            FOR r=0, 5 DO BEGIN
+              maske=rcROIs[*,*,r]
+              valstemp=0
+              FOR i=0, nImg-1 DO BEGIN
+                IF markedArr(i) THEN BEGIN
+                  ;check if same size
+                  IF nFrames NE 0 THEN tempImg=readImg(structImgs.(0).filename, i) ELSE tempImg=readImg(structImgs.(i).filename, 0)
+                  imszTemp=SIZE(tempImg, /DIMENSIONS)
+                  IF ARRAY_EQUAL(imszTemp[0:1], szROI[0:1]) THEN BEGIN
+                    v50=0.5*(resArr(r)+resArr(6)); mean of max and background
+                    inMask=WHERE(maske EQ 1)
+                    valsInMask=tempImg(inMask)
+                    A50=WHERE(valsInMask GT v50)
+                    IF A50(0) NE -1 THEN valstemp=[valstemp, valsInMask(A50)]
+                  ENDIF
+                ENDIF
+                ENDFOR
+                resArr(7+r)=MEAN(valstemp)
+                ENDFOR
+                
             WIDGET_CONTROL, lblProgress, SET_VALUE=''
             If errstatus THEN sv=DIALOG_MESSAGE('The images have different size. Results restricted to images with same size.',/INFORMATION)
             rcRes=resArr
@@ -2803,6 +2857,18 @@ pro ImageQC_event, ev
           WIDGET_CONTROL, txtHomogROIdistYNM, SET_VALUE=STRING(val, FORMAT='(f0.1)')
           clearRes, 'HOMOG' & updateROI & redrawImg,0,0
         END
+        txtHomogROIszPET:BEGIN
+          WIDGET_CONTROL, txtHomogROIszPET, GET_VALUE=val
+          val=ABS(FLOAT(comma2pointFloat(val(0))))
+          WIDGET_CONTROL, txtHomogROIszPET, SET_VALUE=STRING(val, FORMAT='(f0.1)')
+          clearRes, 'HOMOG' & updateROI & redrawImg,0,0
+        END
+        txtHomogROIdistPET:BEGIN
+          WIDGET_CONTROL, txtHomogROIdistPET, GET_VALUE=val
+          val=ABS(FLOAT(comma2pointFloat(val(0))))
+          WIDGET_CONTROL, txtHomogROIdistPET, SET_VALUE=STRING(val, FORMAT='(f0.1)')
+          clearRes, 'HOMOG' & updateROI & redrawImg,0,0
+        END
         txtNoiseROIsz:BEGIN
           WIDGET_CONTROL, txtNoiseROIsz, GET_VALUE=val
           val=ABS(FLOAT(comma2pointFloat(val(0))))
@@ -2981,30 +3047,7 @@ pro ImageQC_event, ev
           WIDGET_CONTROL, txtCrossFactorPrev, SET_VALUE=STRING(valV, FORMAT='(f0.3)')
           WIDGET_CONTROL, txtCrossFactor, SET_VALUE='-'
         END
-        txtrcR1: BEGIN
-          WIDGET_CONTROL, txtrcR1, GET_VALUE=val
-          val=ABS(FLOAT(comma2pointFloat(val(0))))
-          WIDGET_CONTROL, txtrcR1, SET_VALUE=STRING(val, FORMAT='(f0.1)')
-          clearRes, 'RC' & updateROI & redrawImg,0,0
-        END
-        txtrcR2: BEGIN
-          WIDGET_CONTROL, txtrcR2, GET_VALUE=val
-          val=ABS(FLOAT(comma2pointFloat(val(0))))
-          WIDGET_CONTROL, txtrcR2, SET_VALUE=STRING(val, FORMAT='(f0.1)')
-          clearRes, 'RC' & updateROI & redrawImg,0,0
-        END
-        txtRCconcSph: BEGIN
-          WIDGET_CONTROL, txtRCconcSph, GET_VALUE=val
-          val=ABS(FLOAT(comma2pointFloat(val(0))))
-          WIDGET_CONTROL, txtRCconcSph, SET_VALUE=STRING(val, FORMAT='(f0.1)')
-          clearRes, 'RC'
-        END
-        txtRCconcBack: BEGIN
-          WIDGET_CONTROL, txtRCconcBack, GET_VALUE=val
-          val=ABS(FLOAT(comma2pointFloat(val(0))))
-          WIDGET_CONTROL, txtRCconcBack, SET_VALUE=STRING(val, FORMAT='(f0.1)')
-          clearRes, 'RC'
-        END
+
         ELSE:
       ENDCASE
     ENDIF
@@ -3452,7 +3495,7 @@ pro ImageQC_event, ev
         CASE modality OF
           0: BEGIN
             infoString1=$
-              ['StudyDate:'+tab+ tempStruct.StudyDate, $
+              ['AcquisitionDate:'+tab+ tempStruct.acqDate, $
               'Institution:'+tab+ tempStruct.Institution, $
               'ModelName:'+tab+ tempStruct.ModelName, $
               'PatientName:'+tab+ tempStruct.PatientName, $
@@ -3475,7 +3518,7 @@ pro ImageQC_event, ev
           END
           1: BEGIN
             infoString1=$
-              ['StudyDate:'+tab+ tempStruct.StudyDate, $
+              ['AcquisitionDate:'+tab+ tempStruct.acqDate, $
               'Institution:'+tab+ tempStruct.Institution, $
               'ModelName:'+tab+ tempStruct.ModelName, $
               'PatientName:'+tab+ tempStruct.PatientName, $
@@ -3500,7 +3543,7 @@ pro ImageQC_event, ev
           END
           2:BEGIN
             infoString1=$
-              ['StudyDate:'+tab+ tempStruct.StudyDate, $
+              ['AcquisitionDate:'+tab+ tempStruct.acqDate, $
               'Institution:'+tab+ tempStruct.Institution, $
               'StationName:'+tab+ tempStruct.StationName, $
               'PatientName:'+tab+ tempStruct.PatientName, $
@@ -3523,7 +3566,7 @@ pro ImageQC_event, ev
           END
           3: BEGIN
             infoString1=$
-              ['StudyDate:'+tab+ tempStruct.StudyDate, $
+              ['AcquisitionDate:'+tab+ tempStruct.acqDate, $
               'Acquisition time:'+tab+ (tempStruct.acqTime NE -1 ? string(tempStruct.acqTime, format='(i0)'): '-'), $
               'ModelName:'+tab+ tempStruct.ModelName, $
               'PatientName:'+tab+ tempStruct.PatientName, $

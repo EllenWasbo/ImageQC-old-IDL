@@ -145,9 +145,10 @@ pro redrawImg, viewpl, newActive
               contourb9=OBJ_NEW('IDLgrContour',ROIs[*,*,6+9],COLOR=bgcol, C_VALUE=0.5, N_LEVELS=1)
               contourb10=OBJ_NEW('IDLgrContour',ROIs[*,*,6+10],COLOR=bgcol, C_VALUE=0.5, N_LEVELS=1)
               contourb11=OBJ_NEW('IDLgrContour',ROIs[*,*,6+11],COLOR=bgcol, C_VALUE=0.5, N_LEVELS=1)
+              oModel->Add, Contourb1 & oModel->Add, Contourb2 & oModel->Add, Contourb3 & oModel->Add, Contourb4 & oModel->Add, Contourb5 & oModel->Add, Contourb6
+              oModel->Add, Contourb7 & oModel->Add, Contourb8 & oModel->Add, Contourb9 &  oModel->Add, Contourb10 & oModel->Add, Contourb11
             ENDIF
-            oModel->Add, Contourb1 & oModel->Add, Contourb2 & oModel->Add, Contourb3 & oModel->Add, Contourb4 & oModel->Add, Contourb5 & oModel->Add, Contourb6
-            oModel->Add, Contourb7 & oModel->Add, Contourb8 & oModel->Add, Contourb9 &  oModel->Add, Contourb10 & oModel->Add, Contourb11  
+
         ENDIF
       ENDIF
     ENDIF

@@ -271,8 +271,9 @@ nCols=-1
             v3d=0
             IF resforeach(0) EQ -1 THEN v3d=1
 
-            nCols=2
-            headers=['FWHM (mm)','FWTM (mm)']
+            WIDGET_CONTROL, cw_typeMTFNM, GET_VALUE=typeMTF
+            IF typeMTF EQ 0 THEN nCols=4 ELSE nCols=2
+            IF typeMTF EQ 0 THEN headers=['FWHM x (mm)','FWTM x (mm)','FWHM y (mm)','FWTM y (mm)'] ELSE headers=['FWHM (mm)','FWTM (mm)']
 
             IF v3d EQ 1 THEN BEGIN
               IF tagMTFres.HasValue('FITLSFX') THEN BEGIN
@@ -297,9 +298,18 @@ nCols=-1
                     minval=min(xprof)
                     resFWHM=getWidthAtThreshold(xprof,(maxval+minval)/2.)
                     resFWTM=getWidthAtThreshold(xprof,(maxval-minval)/10.+minval)
-                    WIDGET_CONTROL, cw_typeMTFNM, GET_VALUE=typeMTF
+                    
                     IF typeMTF EQ 0 THEN pixFac=1. ELSE pixFac=0.1
-                    resArrString[*,i]=[STRING(resFWHM(0)*pixFac*pix,FORMAT='(f0.3)'),STRING(resFWTM(0)*pixFac*pix,FORMAT='(f0.3)')]
+                    resArrString[0:1,i]=[STRING(resFWHM(0)*pixFac*pix,FORMAT='(f0.3)'),STRING(resFWTM(0)*pixFac*pix,FORMAT='(f0.3)')]
+                    IF typeMTF EQ 0 THEN BEGIN
+                      yprof=MTFres.(markedTemp(i)).fitLSFy
+                      maxval=max(yprof)
+                      minval=min(yprof)
+                      resFWHM=getWidthAtThreshold(yprof,(maxval+minval)/2.)
+                      resFWTM=getWidthAtThreshold(yprof,(maxval-minval)/10.+minval)
+                      resArrString[2:3,i]=[STRING(resFWHM(0)*pixFac*pix,FORMAT='(f0.3)'),STRING(resFWTM(0)*pixFac*pix,FORMAT='(f0.3)')]
+                    ENDIF
+                    
                   ENDIF
                 ENDFOR
               ENDIF
@@ -345,8 +355,14 @@ nCols=-1
           END
           'RC': BEGIN
             nCols=7
-            headers=['ROI 1','ROI 2','ROI 3','ROI 4','ROI 5','ROI 6','BackGround']
-            resArrString=STRING(rcRes,FORMAT=formatCode(rcRes))
+            WIDGET_CONTROL, cw_rcType, GET_VALUE=meanOrMax
+            IF meanOrMax EQ 0 THEN BEGIN
+              headers =['A50 '+STRING(INDGEN(6)+1, FORMAT='(i0)'), 'BackGround']
+              resArrString=[STRING(rcRes[7:12],FORMAT=formatCode(rcRes[7:12])), STRING(rcRes[6],FORMAT=formatCode(rcRes[6]))]
+            ENDIF ELSE BEGIN
+              headers =['Max '+STRING(INDGEN(6)+1, FORMAT='(i0)'), 'BackGround']
+              resArrString=STRING(rcRes[0:6],FORMAT=formatCode(rcRes[0:6]))
+            ENDELSE
           END
           ELSE:
         ENDCASE

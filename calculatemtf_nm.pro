@@ -24,6 +24,7 @@ function calculateMTF_NM, submatrix, pix, center, typeMTF, backmatrix, cutLSF, c
   MTFstruct=CREATE_STRUCT('empty',0)
   szM=size(submatrix,/DIMENSIONS)
   errMsg=''
+  status=1
 
   CASE typeMTF OF
 
@@ -65,7 +66,7 @@ function calculateMTF_NM, submatrix, pix, center, typeMTF, backmatrix, cutLSF, c
       resX=getGaussFit(ddx,smLSFx,pix(0),fitWidthFactor)
       resY=getGaussFit(ddy,smLSFy,pix(1),fitWidthFactor)
       fitLSFx=resX.yfit & fitLSFy=resY.yfit
-      
+
       IF sigmaF EQ 0 THEN BEGIN
         smLSFx=-1 & smLSFy=-1
       ENDIF
@@ -181,47 +182,238 @@ function calculateMTF_NM, submatrix, pix, center, typeMTF, backmatrix, cutLSF, c
           linePos(i)=res(1)
         ENDFOR
 
-        ;linear fit of line positions
-        distTemp=FINDGEN(szM(1))
-        res=LINFIT(linePos, distTemp, YFIT=yfit)
-        slope=res(1) & interc=res(0)
-        xx=[MIN(linePos),MAX(linePos)]
-        yy=slope*xx+interc
-        MTFstruct=CREATE_STRUCT('edgePos',linePos,'edgeRow',FINDGEN(szM(1)),'edgeFitx',xx,'edgeFity',yy,'subMatrixAll',submatrix)
-        angle=(180/!PI)*ATAN((xx(1)-xx(0))/(yy(1)-yy(0))) ; *pix(0)/pix(1) if pix not isotropic
-        IF ABS(angle) GT 8 OR ABS(angle) LT 2 THEN errMsg=errMsg+'Line recommended to be 2-8 degrees rotated. This line is found to be ' + STRING(ABS(angle), FORMAT='(f0.1)') +' degrees rotated.'
+        IF TOTAL(linePos) NE -1*N_ELEMENTS(linePos) THEN BEGIN
+          ;linear fit of line positions
+          distTemp=FINDGEN(szM(1))
+          res=LINFIT(linePos, distTemp, YFIT=yfit)
+          slope=res(1) & interc=res(0)
+          xx=[MIN(linePos),MAX(linePos)]
+          yy=slope*xx+interc
+          MTFstruct=CREATE_STRUCT('edgePos',linePos,'edgeRow',FINDGEN(szM(1)),'edgeFitx',xx,'edgeFity',yy,'subMatrixAll',submatrix)
+          angle=(180/!PI)*ATAN((xx(1)-xx(0))/(yy(1)-yy(0))) ; *pix(0)/pix(1) if pix not isotropic
+          IF ABS(angle) GT 8 OR ABS(angle) LT 2 THEN errMsg=errMsg+'Line recommended to be 2-8 degrees rotated. This line is found to be ' + STRING(ABS(angle), FORMAT='(f0.1)') +' degrees rotated.'
 
-        ;sort pixels by distance normal to line
-        distArr=FLTARR(szM(0),szM(1))
-        FOR i=0, szM(1)-1 DO distArr[*,i]=(FINDGEN(szM(0))-(((i)-interc)/slope))*COS(!Pi*angle/180)
-        sorting=SORT(distArr)
-        pixVals=subM(sorting)
-        dists=distArr(sorting)
+          ;sort pixels by distance normal to line
+          distArr=FLTARR(szM(0),szM(1))
+          FOR i=0, szM(1)-1 DO distArr[*,i]=(FINDGEN(szM(0))-(((i)-interc)/slope))*COS(!Pi*angle/180)
+          sorting=SORT(distArr)
+          pixVals=subM(sorting)
+          dists=distArr(sorting)
 
-        ;rebin to equally spaced resolution pix/10
-        pix=pix(direction) & pix=pix(0)
-        pixNew=.1*pix
-        newdists=(FINDGEN((MAX(distArr)-MIN(distArr)+1)*10+1)+(MIN(distArr)-0.5)*10)*pixNew
-        nn=N_ELEMENTS(newdists)
-        ;check if spacing > .1 pix
-        ddists=SHIFT(dists,-1)-dists
-        ddists=ddists[1:N_ELEMENTS(dists)-2]
-        IF max(ddists) GT 0.1 THEN  errMsg=errMsg+'Limited data due to small angle and/or small ROI.'
-        wSm=FLOOR(N_ELEMENTS(pixVals)/N_ELEMENTS(newdists));*2
-        smPixVals=SMOOTH(pixVals, wSm)
-        smPixValsInterp=INTERPOL(smPixVals, dists*pix, newdists);smooth over pix/10 before interpolate
-        ;   ;smPixValsInterp[0:9]=smPixValsInterp(10) & smPixValsInterp[nn-10:nn-1]=smPixValsInterp(nn-11)
-        pixValsInterp=smPixValsInterp
+          ;rebin to equally spaced resolution pix/10
+          pix=pix(direction) & pix=pix(0)
+          pixNew=.1*pix
+          newdists=(FINDGEN((MAX(distArr)-MIN(distArr)+1)*10+1)+(MIN(distArr)-0.5)*10)*pixNew
+          nn=N_ELEMENTS(newdists)
+          ;check if spacing > .1 pix
+          ddists=SHIFT(dists,-1)-dists
+          ddists=ddists[1:N_ELEMENTS(dists)-2]
+          IF max(ddists) GT 0.1 THEN  errMsg=errMsg+' Limited data due to small angle and/or small ROI.'
+          wSm=FLOOR(N_ELEMENTS(pixVals)/N_ELEMENTS(newdists));*2
+          smPixVals=SMOOTH(pixVals, wSm)
+          smPixValsInterp=INTERPOL(smPixVals, dists*pix, newdists);smooth over pix/10 before interpolate
+          ;   ;smPixValsInterp[0:9]=smPixValsInterp(10) & smPixValsInterp[nn-10:nn-1]=smPixValsInterp(nn-11)
+          pixValsInterp=smPixValsInterp
+        ENDIF ELSE BEGIN
+          status=0
+          errMsg=errMsg+' Could not find center of line.'
+        ENDELSE
 
       ENDELSE
 
+      IF status EQ 1 THEN BEGIN
+        ;discrete MTF
+        dLSF=pixValsInterp
+        szPadded=nn
+        dLSF=dLSF/MAX(dLSF)
+
+        IF cutLSF THEN BEGIN
+          smdLSF=SMOOTH(dLSF,5)
+          smdLSF=smdLSF/max(smdLSF)
+          over05=WHERE(smdLSF GT 0.5, nover05)
+          pp1=over05(0) & pp2=over05(nover05-1)
+          ppFWHM=pp2-pp1
+          first=ROUND(pp1-cutW*ppFWHM)
+          last=ROUND(pp2+cutW*ppFWHM)
+          IF first GT 0 THEN dLSF[0:first]=0
+          IF last LT (nn-1) THEN dLSF[last:nn-1]=0
+        ENDIF
+
+        dMTFcomplex=FFT(dLSF,/CENTER)
+        dMTF=szPadded*SQRT(REAL_PART(dMTFcomplex)^2+IMAGINARY(dMTFcomplex)^2); modulus of Fouriertransform * size of submatrix (divided by 1/N during FFT)
+        dMTF=dMTF[szPadded/2:szPadded-1]
+        dMTF=dMTF/dMTF(0)
+        fx=FINDGEN(N_ELEMENTS(dMTF))*(1./(szPadded*pixNew))
+
+        ;smooth with gaussian
+        sigmaF=0 ; used to be 3, if sigmaF=5 , FWHM ~9 newpix = ~ 1 original pix
+        If sigmaF NE 0 THEN BEGIN
+          IF nn*.5 EQ nn/2 THEN odd=0 ELSE odd=1
+          nnn=nn/2+odd
+          xf=FINDGEN(nnn)
+          yf=EXP(-0.5*xf^2/sigmaF^2)
+          filter=[reverse(yf[1:nnn-1]),yf]
+          IF odd EQ 0 THEN filter=[0,filter]
+          filter=filter/TOTAL(filter)
+          nonZeros=WHERE(filter NE 0.)
+          filter=filter(nonZeros)
+          pixValsSmooth=CONVOL(pixValsInterp,filter,/CENTER,/EDGE_TRUNCATE)
+        ENDIF ELSE pixValsSmooth=pixValsInterp
+
+        lsf=pixValsSmooth
+        LSF=LSF/MAX(LSF)
+
+        MTFstruct=CREATE_STRUCT(MTFstruct,'distspix0',dists*pix(0),'pixValSort',pixVals,'newdists',newdists,'pixValsInterp',pixValsInterp, 'angle',angle)
+        IF sigmaF NE 0 THEN MTFstruct=CREATE_STRUCT(MTFstruct,'pixValsSmooth',pixValsSmooth)
+
+        X = newdists
+        Y = lsf
+        ;weights = 1.0/Y
+        weights= FLTARR(nn)+1.
+        res=getWidthAtThreshold(Y,max(lsf)/2)
+        IF res(0) NE -1 THEN BEGIN
+          FWHM1=res(0)*pixNew
+          center=res(1)*pixNew
+          X=(FINDGEN(N_ELEMENTS(X)))*pixNew-center;(FINDGEN(N_ELEMENTS(X))+0.5)*pixNew-center ; tatt bort +0.5 ift korreksjon getWidhtAtThreshold....center korrigert med -0.5
+          lsfSmTemp=lsf
+          sigma1=FWHM1/(2*SQRT(2*ALOG(2)))
+          vec=lsfSmTemp
+          ss1=0
+          ss2=nn-1
+
+          A = [max(lsfSmTemp[ss1:ss2])/2,max(lsfSmTemp[ss1:ss2])/2,sigma1, sigma1];first guess parameters for curvefit gaussFitAdd2
+          yfit = CURVEFIT(X[ss1:ss2], Y[ss1:ss2], weights[ss1:ss2], A, FUNCTION_NAME='gaussFitAdd2', ITER=iter, CHISQ=chisq, TOL=1.0*10^(-4));, ITMAX=100)
+
+          IF A(1) GT A(0) THEN BEGIN
+            ;resort such that highest amp first
+            newA=[A(1),A(0),A(3),A(2)]
+            A=newA
+          ENDIF
+          A(2)=ABS(A(2)) & A(3)=ABS(A(3))
+
+          IF ABS(A[3]) GT 10.*A[2] OR A[3] LT 0 THEN BEGIN; retry with single gaussfit - allow double gauss with both terms positive
+            ;IF A(1) GT 0 OR ABS(A[3]) GT 10.*A[2] THEN BEGIN; retry with single gaussfit - double is for sharp filters
+            yfit=gaussfit(X[ss1:ss2], lsf[ss1:ss2], A, ESTIMATES=[max(lsfSmTemp[ss1:ss2]),0,sigma1], NTERMS=3)
+          ENDIF
+
+          IF sigmaF NE 0 THEN smLSFx=Y[ss1:ss2] ELSE smLSFx=-1
+          fitLSFx=yfit
+          ddx=X[ss1:ss2]
+
+        ENDIF ELSE BEGIN
+          ss1=0
+          ss2=nn-1
+          LSFx=lsf
+          ddx=newdists
+          errMsg=errMsg+'Failed to fit LSF. LSF used as is further. NB smoothed LSF!'
+        ENDELSE
+
+        ;gauss to gauss continuous version:
+        ;http://www.cse.yorku.ca/~kosta/CompVis_Notes/fourier_transform_Gaussian.pdf
+        IF N_ELEMENTS(A) GT 0 THEN BEGIN
+          kvals=FINDGEN(200)*0.05/A(2);sample 20 steps from 0 to 1 stdv MTF curve A0 (stdev=1/A(2))
+          Fgu0=calcGauss(kvals, 1/A(2),A(0)*A(2),0)
+          IF N_ELEMENTS(A) EQ 4 THEN Fgu1=calcGauss(kvals, 1/A(3),A(1)*A(3),0) ELSE Fgu1=0.
+          If sigmaF NE 0 THEN Ffilter=calcGauss(kvals,1./(sigmaF*pixNew),1.0,0) ELSE Ffilter=1.
+          gMTFx=(Fgu0+Fgu1)/Ffilter
+          gfx=kvals/(2*!pi)
+          gMTFx=gMTFx/gMTFx(0)
+        ENDIF
+
+        LSFx=dLSF
+        MTFx=dMTF
+      ENDIF ELSE BEGIN;status 0
+        LSFx=-1
+        ddx=-1
+        MTFx=-1
+        fx=-1
+      ENDELSE
+        LSFy=-1
+        ddy=-1
+        MTFy=-1
+        fy=-1
+
+    END
+
+    2: BEGIN ; edge
+
+      halfSz=szM/2
+      status=1
+      subM=submatrix
+
+      ;get 4 mean values to find direction and halfmax
+      x1=MEAN(subM[0:2,*])
+      x2=MEAN(subM[szM(0)-3:szM(0)-1,*])
+      y1=MEAN(subM[*,0:2])
+      y2=MEAN(subM[*,szM(1)-3:szM(1)-1])
+      meanvals=[[x1,x2],[y1,y2]]
+      diff=abs([x2-x1, y2-y1])
+      direction=WHERE(diff EQ max(diff)); direction of MTF x = 0 or y = 1
+      halfmax=MEAN(meanvals[*,direction])
+
+      IF direction EQ 1 THEN BEGIN
+        subM=ROTATE(subM, 1)
+        szM=REVERSE(szM)
+      ENDIF
+
+      edgePos=FLTARR(szM(1))
+      FOR i=0, szM(1)-1 DO edgePos(i)=findPosTreshold(SMOOTH(subM[*,i],3), halfmax)
+
+      notFoundEdge=WHERE(edgePos EQ -1, nNotFound)
+      IF nNotFound GT 0 THEN errMsg=errMsg+'Edge position not found for full ROI. This part is attempted to be ignored, but carefully inspect edge-fit to verify this.'
+      foundEdge=WHERE(edgePos GE 0, nFound)
+      distTemp=FINDGEN(szM(1))
+
+      ;linear fit of edge positions
+      res=LINFIT(edgePos(foundEdge), distTemp(foundEdge), YFIT=yfit)
+      slope=res(1) & interc=res(0)
+      minx=MIN(edgePos(foundEdge))
+      maxx=MAX(edgePos(foundEdge))
+      xx=[minx,maxx]
+      yy=slope*xx+interc
+
+      MTFstruct=CREATE_STRUCT('edgePos',edgePos,'edgeRow',FINDGEN(szM(1)),'edgeFitx',xx,'edgeFity',yy,'subMatrixAll',submatrix)
+
+      angle=(180/!PI)*ATAN((xx(1)-xx(0))/(yy(1)-yy(0))) ; *pix(0)/pix(1) if pix not isotropic
+
+      IF ABS(angle) GT 8 OR ABS(angle) LT 2 THEN errMsg=errMsg+'Slanted edge recommended to be 2-8 degrees rotated. This edge is found to be ' + STRING(ABS(angle), FORMAT='(f0.1)') +' degrees. '
+
+      ;sort pixels by distance normal to edge
+      distArr=FLTARR(szM(0),szM(1))
+      FOR i=0, szM(1)-1 DO distArr[*,i]=(FINDGEN(szM(0))-(((i)-interc)/slope))*COS(!Pi*angle/180)
+      sorting=SORT(distArr)
+      pixVals=subM(sorting)
+      dists=distArr(sorting)
+
+      ;rebin to equally spaced resolution pix/10
+      pix=pix(direction) & pix=pix(0)
+      pixNew=.1*pix
+      newdists=(FINDGEN((MAX(distArr)-MIN(distArr)+1)*10+1)+(MIN(distArr)-0.5)*10)*pixNew
+      nn=N_ELEMENTS(newdists)
+      ;check if spacing > .1 pix
+      ddists=SHIFT(dists,-1)-dists
+      ddists=ddists[1:N_ELEMENTS(dists)-2]
+      IF max(ddists) GT 0.1 THEN  errMsg=errMsg+'Limited data due to small angle and/or small ROI.'
+      wSm=FLOOR(N_ELEMENTS(pixVals)/N_ELEMENTS(newdists));*2
+      smPixVals=SMOOTH(pixVals, wSm)
+      smPixValsInterp=INTERPOL(smPixVals, dists*pix, newdists);smooth over pix/10 before interpolate
+      smPixValsInterp[0:9]=smPixValsInterp(10) & smPixValsInterp[nn-10:nn-1]=smPixValsInterp(nn-11)
+      pixValsInterp=smPixValsInterp
+
       ;discrete MTF
-      dLSF=pixValsInterp
+      dLSF=ESFtoLSF(pixValsInterp)
       szPadded=nn
+      dLSF[0:4]=dLSF(5) & dLSF[nn-5:nn-1]=dLSF(nn-6) ; to avoid extremas at outer end
+      ;nullPadd=FLTARR(szPadded) & nullPadd[szPadded/2-halfsz(0):szPadded/2-halfsz(0)+szM(0)-1]=dLSF
+      ;dLSF=nullPadd
+      ;dLSF=SMOOTH(dLSF,1)
+      IF ABS(MIN(dLSF)) GT ABS(MAX(dLSF)) THEN dLSF=-dLSF
       dLSF=dLSF/MAX(dLSF)
 
       IF cutLSF THEN BEGIN
-        smdLSF=SMOOTH(dLSF,5)
+        cutSmoothW=15
+        smdLSF=SMOOTH(dLSF,cutSmoothW)
+        smdLSF[0:cutSmoothW]=MEAN(smdLSF(cutSmoothW+1:cutSmoothW+3)) & smdLSF[-cutSmoothW:-1]=MEAN(smdLSF[-cutSmoothW-3:-cutSmoothW-1])
         smdLSF=smdLSF/max(smdLSF)
         over05=WHERE(smdLSF GT 0.5, nover05)
         pp1=over05(0) & pp2=over05(nover05-1)
@@ -239,7 +431,7 @@ function calculateMTF_NM, submatrix, pix, center, typeMTF, backmatrix, cutLSF, c
       fx=FINDGEN(N_ELEMENTS(dMTF))*(1./(szPadded*pixNew))
 
       ;smooth with gaussian
-      sigmaF=0 ; used to be 3, if sigmaF=5 , FWHM ~9 newpix = ~ 1 original pix
+      sigmaF=5 ; sigmaF=5 , FWHM ~9 newpix = ~ 1 original pix
       If sigmaF NE 0 THEN BEGIN
         IF nn*.5 EQ nn/2 THEN odd=0 ELSE odd=1
         nnn=nn/2+odd
@@ -253,7 +445,10 @@ function calculateMTF_NM, submatrix, pix, center, typeMTF, backmatrix, cutLSF, c
         pixValsSmooth=CONVOL(pixValsInterp,filter,/CENTER,/EDGE_TRUNCATE)
       ENDIF ELSE pixValsSmooth=pixValsInterp
 
-      lsf=pixValsSmooth
+      lsf=ESFtoLSF(pixValsSmooth); derivated edge
+
+      lsf[0:4]=lsf(5) & lsf[nn-5:nn-1]=lsf(nn-6) ; to avoid extremas at outer end
+      IF abs(min(lsf)) GT abs(max(lsf)) THEN lsf=-lsf ;to have positive top
       LSF=LSF/MAX(LSF)
 
       MTFstruct=CREATE_STRUCT(MTFstruct,'distspix0',dists*pix(0),'pixValSort',pixVals,'newdists',newdists,'pixValsInterp',pixValsInterp, 'angle',angle)
@@ -320,11 +515,10 @@ function calculateMTF_NM, submatrix, pix, center, typeMTF, backmatrix, cutLSF, c
       ddy=-1
       MTFy=-1
       fy=-1
-
     END
 
-
-    2: BEGIN
+    3: BEGIN
+      ;circular edge
       ;method from Richard et al: Towards task-based assessment of CT performance, Med Phys 39(7) 2012
       ;sort all pixels regarding distance to centerposition
       subMatrixAll=submatrix
@@ -484,7 +678,7 @@ function calculateMTF_NM, submatrix, pix, center, typeMTF, backmatrix, cutLSF, c
         If sigmaF NE 0 THEN Ffilter=calcGauss(kvals,1./(sigmaF*pixNew),1.0,0) ELSE Ffilter=1.
         gMTFx=(Fgu0+Fgu1)/Ffilter
         gfx=kvals/(2*!pi)
-  
+
         gMTFx=gMTFx/gMTFx(0)
       ENDIF
 

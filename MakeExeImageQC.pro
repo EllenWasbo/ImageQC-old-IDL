@@ -1,7 +1,7 @@
 pro MakeExeImageQC
   thisPath=FILE_DIRNAME(ROUTINE_FILEPATH('ImageQC'))+'\' 
   exePath='I:\Felles\Straalevern\Kvalitetskontroll\IDL_programmer\Exe\'
-  MAKE_RT, 'ImageQC', exePath, /OVERWRITE, SAVEFILE=thisPath+'ImageQC.sav', /VM, /WIN32
+  MAKE_RT, 'ImageQC', exePath, /OVERWRITE, SAVEFILE=thisPath+'imageqc.sav', /VM, /WIN32
 end
 ;create new default config
 ;thisPath=FILE_DIRNAME(ROUTINE_FILEPATH('ImageQC'))+'\'

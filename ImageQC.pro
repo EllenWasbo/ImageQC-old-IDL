@@ -46,7 +46,7 @@ pro ImageQC,  GROUP_LEADER=bMain
     radialRes, txtRadialMedian, $
     crossRes, crossROI, txtCrossROIsz, txtCrossMeasAct,txtCrossMeasActT, txtCrossMeasRest, txtCrossMeasRT, txtCrossScanAct, txtCrossScanStart,$
     txtCrossVol, txtCrossConc, txtCrossFactorPrev, txtCrossFactor,$
-    rcRes, rcROIs, btnRCrev, cwRCexclude
+    rcRes, rcROIs, btnRCrev, cwRCexclude, cw_rcType
 
   thisPath=FILE_DIRNAME(ROUTINE_FILEPATH('ImageQC'))+'\'
   
@@ -94,7 +94,7 @@ pro ImageQC,  GROUP_LEADER=bMain
   IF scsz(0) LT winX THEN scX=scsz(0)-10 ELSE scX=winX
   IF scsz(1) LT winY THEN scY=scsz(1)-50 ELSE scY=winY-50
 
-  bMain = WIDGET_BASE(TITLE='ImageQC v1.101', MBAR=bar, /COLUMN, XSIZE=winX, YSIZE=winY-60, XOFFSET=100, YOFFSET=100, X_SCROLL_SIZE=scX, Y_SCROLL_SIZE=scY, /TLB_KILL_REQUEST_EVENTS)
+  bMain = WIDGET_BASE(TITLE='ImageQC v1.102', MBAR=bar, /COLUMN, XSIZE=winX, YSIZE=winY-60, XOFFSET=100, YOFFSET=100, X_SCROLL_SIZE=scX, Y_SCROLL_SIZE=scY, /TLB_KILL_REQUEST_EVENTS)
   bLarge = WIDGET_BASE(bMain, /ROW)
   bLft = WIDGET_BASE(bLarge, XSIZE=700, YSIZE=winY-90,/COLUMN)
   bRgt = WIDGET_BASE(bLarge, XSIZE=700, YSIZE=winY-90,/COLUMN)
@@ -572,7 +572,7 @@ pro ImageQC,  GROUP_LEADER=bMain
   ;----------------MTF------------------
   bMTFsettingsNM=WIDGET_BASE(bMTFNM, /ROW)
   bMTFlftNM=WIDGET_BASE(bMTFsettingsNM,/COLUMN)
-  cw_typeMTFNM=CW_BGROUP(bMTFlftNM, ['Point','Line','Circular edge'], /EXCLUSIVE, LABEL_TOP='MTF method...', /FRAME, SET_VALUE=config.MTFtypeNM,FONT=font1)
+  cw_typeMTFNM=CW_BGROUP(bMTFlftNM, ['Point','Line','Edge','Circular edge'], /EXCLUSIVE, LABEL_TOP='MTF method...', /FRAME, SET_VALUE=config.MTFtypeNM,FONT=font1)
   bMTF3dNM=WIDGET_BASE(bMTFlftNM, /ROW, /NONEXCLUSIVE)
   MTF3dNM=WIDGET_BUTTON(bMTF3dNM, VALUE='Analyse 3d', UVALUE='MTF3dNM',FONT=font1)
   
@@ -684,12 +684,13 @@ pro ImageQC,  GROUP_LEADER=bMain
   ;bRCconcBack=WIDGET_BASE(bRC, /ROW)
   ;lblRCconcBack = WIDGET_LABEL(bRCconcBack, VALUE='Concentration in background at scan start (Bq/mL)', FONT=font1)
   ;txtRCconcBack = WIDGET_TEXT(bRCconcBack, VALUE='', /EDITABLE, XSIZE=8, SCR_YSIZE=20, FONT=font1)
-  ;cw_rcType=CW_BGROUP(bRC, ['Mean A50', 'Max'], /EXCLUSIVE, LABEL_TOP='Find in spheres...', /FRAME, SET_VALUE=0, UVALUE='cw_rcType',FONT=font1)
-  bRCrois=WIDGET_BASE(bRC, /ROW)
-  brcRev=WIDGET_BASE(bRCrois, /ROW, /NONEXCLUSIVE)
-  cwRCexclude=CW_BGROUP(bRCrois, STRING(INDGEN(12)+1, FORMAT='(i0)'), COLUMN=3, SPACE=0,/NONEXCLUSIVE, LABEL_TOP='Exclude background ROI number...', UVALUE='rcBackExclude',FONT=font1)
+  bRCsett=WIDGET_BASE(bRC, /ROW)
+  bRCsett1=WIDGET_BASE(bRCsett, /COLUMN)
+  brcRev=WIDGET_BASE(bRCsett1, /ROW, /NONEXCLUSIVE)
   btnRCrev=WIDGET_BUTTON(brcRev, VALUE='Reverse order of sphere-ROIs', UVALUE='rcRev',FONT=font1)
-
+  cw_rcType=CW_BGROUP(bRCsett1, ['Mean A50', 'Max'], /EXCLUSIVE, LABEL_TOP='Find in spheres...', /FRAME, SET_VALUE=0, UVALUE='cw_rcType',FONT=font1)
+  cwRCexclude=CW_BGROUP(bRCsett, STRING(INDGEN(12)+1, FORMAT='(i0)'), COLUMN=3, SPACE=0,/NONEXCLUSIVE, LABEL_TOP='Exclude background ROI number...', UVALUE='rcBackExclude',FONT=font1)
+  
   bRCButtons=WIDGET_BASE(bRC, /ROW)
   btnRC=WIDGET_BUTTON(bRCButtons, VALUE='Calculate Recovery Coefficients', UVALUE='recovCoeff',FONT=font1)
 

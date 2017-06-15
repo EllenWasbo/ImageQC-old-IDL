@@ -21,7 +21,7 @@
 
 ;return: imgStruct (structure)
 ;  .filename
-;  .studyDate
+;  .acquisitionDate
 ;  .institution
 ;  .modality
 ;  .modelName
@@ -99,9 +99,9 @@ function readImgInfo, adr
       IF nFrames EQ 1 THEN nFrames=0
 
       ;****************parameters where and when
-      test=o->GetReference('0008'x,'0020'x)
+      test=o->GetReference('0008'x,'0022'x)
       test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
-      studyDate=*(test_peker[0])
+      acqDate=*(test_peker[0])
 
       ; acquisition time
       test=o->GetReference('0008'x,'0032'x)
@@ -403,7 +403,7 @@ function readImgInfo, adr
       
       
 
-      imgStruct=CREATE_STRUCT('filename',adr,'studyDate', studyDate, 'institution',institution,'modality', modality, 'modelName',modelName,'stationName',stationName,$
+      imgStruct=CREATE_STRUCT('filename',adr,'acqDate', acqDate, 'institution',institution,'modality', modality, 'modelName',modelName,'stationName',stationName,$
         'patientName',patientName, 'patientID', patientID, 'patientWeight', patientWeight, 'imageType',imageType,'presType',presType,'studyDescr',studyDescr,'seriesName',seriesName, 'protocolname', protocolname,$
         'seriesNmb',seriesNmb,'acqNmb',acqNmb, 'acqtime',acqtime,'sliceThick',sliceThick, 'pix', pix,'kVp',kVp,'FOV',dFOV,'rekonFOV',rekonFOV,'mA',mA,'mAs',mAs,'time',time,'coll',coll,'pitch',pitch,$
         'ExModType',ExModType,'CTDIvol',CTDIvol,'DAP',DAP,'EI',EI,'sensitivity',sensitivity,'filter',filter,$
