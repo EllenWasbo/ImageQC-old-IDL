@@ -1713,7 +1713,7 @@ pro ImageQC_event, ev
       'Linearity': BEGIN; exctract results
         IF tags(0) NE 'EMPTY' THEN BEGIN
           ;IF analyse NE 'CTLIN' THEN sv=DIALOG_MESSAGE('Show ROIs first to verify size and positions.',/INFORMATION) ELSE BEGIN
-
+          updateROI
           WIDGET_CONTROL, /HOURGLASS
           IF nFrames EQ 0 THEN nImg=N_ELEMENTS(tags) ELSE nImg=nFrames
 
@@ -1864,6 +1864,8 @@ pro ImageQC_event, ev
             szNew=SIZE(newTab, /DIMENSIONS)
             WIDGET_CONTROL, tblLin, SET_VALUE=newTab, TABLE_YSIZE=szNew(1), SET_TABLE_VIEW=[0,0]
             clearRes, 'CTLIN'
+            updateROI
+            redrawImg,0,0
           ENDIF
         ENDIF
       END

@@ -1100,7 +1100,7 @@ pro updatePlot, setRangeMinMaxX, setRangeMinMaxY, optionSet
                 zPosMarked=getZposMarked(structImgs, markedTemp)
                 yValues = FLOAT(resArr[0,*])
                 IF setRangeMinMaxX THEN rangeX=[min(zPosMarked),max(zPosMarked)]
-                IF setRangeMinMaxY THEN rangeY=[mean(yValues)*0.9,mean(yValues)*1.1]
+                IF setRangeMinMaxY THEN rangeY=[mean(yValues)*0.9,max(yValues)]
                 IF optionSet NE 3 THEN BEGIN
                   resPlot=PLOT(zPosMarked, yValues,'-r',XTITLE='zPos (mm)', YTITLE='Activity concentration (Bq/mL)' , TITLE='Activity concentration for all (marked) images',$
                     XRANGE=rangeX, YRANGE=rangeY, XSTYLE=1, YSTYLE=1, MARGIN=resPlotMargin, FONT_NAME=foName, FONT_SIZE=foSize, CURRENT=currWin)

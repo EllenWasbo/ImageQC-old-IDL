@@ -94,7 +94,7 @@ pro ImageQC,  GROUP_LEADER=bMain
   IF scsz(0) LT winX THEN scX=scsz(0)-10 ELSE scX=winX
   IF scsz(1) LT winY THEN scY=scsz(1)-50 ELSE scY=winY-50
 
-  bMain = WIDGET_BASE(TITLE='ImageQC v1.102', MBAR=bar, /COLUMN, XSIZE=winX, YSIZE=winY-60, XOFFSET=100, YOFFSET=100, X_SCROLL_SIZE=scX, Y_SCROLL_SIZE=scY, /TLB_KILL_REQUEST_EVENTS)
+  bMain = WIDGET_BASE(TITLE='ImageQC v1.103', MBAR=bar, /COLUMN, XSIZE=winX, YSIZE=winY-60, XOFFSET=100, YOFFSET=100, X_SCROLL_SIZE=scX, Y_SCROLL_SIZE=scY, /TLB_KILL_REQUEST_EVENTS)
   bLarge = WIDGET_BASE(bMain, /ROW)
   bLft = WIDGET_BASE(bLarge, XSIZE=700, YSIZE=winY-90,/COLUMN)
   bRgt = WIDGET_BASE(bLarge, XSIZE=700, YSIZE=winY-90,/COLUMN)
@@ -344,13 +344,13 @@ pro ImageQC,  GROUP_LEADER=bMain
   bLinSettings=WIDGET_BASE(bLinearity, /ROW)
   bLinLft=WIDGET_BASE(bLinSettings, /COLUMN)
   emLin=WIDGET_LABEL(bLinLft, VALUE='', YSIZE=20, FONT=font1)
-  labLinearity=WIDGET_LABEL(bLinLft, VALUE='Calculate CT Numbers within ROIs for all loaded images',FONT=font1)
+  labLinearity=WIDGET_LABEL(bLinLft, VALUE='Calculate CT Numbers within ROIs',FONT=font1)
   emLin2=WIDGET_LABEL(bLinLft, VALUE='', YSIZE=20, FONT=font1)
   bLinSearchROI=WIDGET_BASE(bLinLft, /ROW)
   lblLargeRad = WIDGET_LABEL(bLinSearchROI, VALUE='Radius of search ROIs (mm)',FONT=font1)
   txtLinROIradS = WIDGET_TEXT(bLinSearchROI, VALUE=(TOTAL(WHERE(configTags EQ 'LINROIRADS')) NE -1 ? STRING(config.LinROIradS,FORMAT='(f0.1)') : STRING(configDefault.LinROIradS,FORMAT='(f0.1)')), /EDITABLE, XSIZE=5, SCR_YSIZE=20, FONT=font1)
   bLinSzROI=WIDGET_BASE(bLinLft, /ROW)
-  lblSampleRad = WIDGET_LABEL(bLinSzROI, VALUE='ROI radius (mm)', XSIZE=80,FONT=font1)
+  lblSampleRad = WIDGET_LABEL(bLinSzROI, VALUE='ROI radius (mm)',FONT=font1)
   txtLinROIrad = WIDGET_TEXT(bLinSzROI, VALUE=STRING(config.LinROIrad,FORMAT='(f0.1)'), /EDITABLE, XSIZE=5, SCR_YSIZE=20, FONT=font1)
   bLinAvoidSearch=WIDGET_BASE(bLinlft, /NONEXCLUSIVE, /ROW)
   btnLinAvoidSearch=WIDGET_BUTTON(bLinAvoidSearch, VALUE='Avoid search and use senter of search ROI', UVALUE='linAvoidSearch',FONT=font1)

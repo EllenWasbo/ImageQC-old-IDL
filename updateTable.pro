@@ -332,8 +332,11 @@ nCols=-1
             nCols=3
             headers=['Mean pixel value','stdev','Mean of means']
             resArrString=STRARR(nCols,nRows)
-            FOR i=0, nRows-1 DO resArrString[*,i]=STRING(crossRes[*,markedTemp(i)],FORMAT=formatCode(crossRes[*,markedTemp(i)]))
-            IF nRows GT 1 THEN resArrString[2,1:nRows-1]=''
+            FOR i=0, nRows-1 DO BEGIN
+              resArrString[0,i]=STRING(crossRes[0,markedTemp(i)],FORMAT=formatCode(crossRes[0,markedTemp(i)]))
+              resArrString[1,i]=STRING(crossRes[1,markedTemp(i)],FORMAT=formatCode(crossRes[1,markedTemp(i)]))
+            ENDFOR
+            IF nRows GT 1 THEN resArrString[2,0]=STRING(crossRes[2,0],FORMAT=formatCode(crossRes[2,0]))
           END
           'HOMOG': BEGIN
             szTab=SIZE(homogRes, /DIMENSIONS)
