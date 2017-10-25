@@ -10,7 +10,7 @@
 ;but WITHOUT ANY WARRANTY; without even the implied warranty of
 ;MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 ;GNU General Public License for more details.
-;
+
 ;You should have received a copy of the GNU General Public License
 ;along with this program; if not, write to the Free Software
 ;Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
@@ -29,6 +29,8 @@ function calculateMTF_NM, submatrix, pix, center, typeMTF, backmatrix, cutLSF, c
   CASE typeMTF OF
 
     0: BEGIN
+
+      IF v3d THEN errMsg=errMsg+'3d not possible for point calculation. Ignored option.'
 
       LSFx=1.0*TOTAL(submatrix,2)
       LSFy=1.0*TOTAL(submatrix,1)
@@ -291,7 +293,7 @@ function calculateMTF_NM, submatrix, pix, center, typeMTF, backmatrix, cutLSF, c
           ENDIF
           A(2)=ABS(A(2)) & A(3)=ABS(A(3))
 
-          IF ABS(A[3]) GT 10.*A[2] OR A[3] LT 0 THEN BEGIN; retry with single gaussfit - allow double gauss with both terms positive
+          IF ABS(A[3]) GT 10.*A[2] OR A[3] LT 0 OR ABS(A(0)) GT 10.*ABS(A(1)) THEN BEGIN; retry with single gaussfit - allow double gauss with both terms positive
             ;IF A(1) GT 0 OR ABS(A[3]) GT 10.*A[2] THEN BEGIN; retry with single gaussfit - double is for sharp filters
             yfit=gaussfit(X[ss1:ss2], lsf[ss1:ss2], A, ESTIMATES=[max(lsfSmTemp[ss1:ss2]),0,sigma1], NTERMS=3)
           ENDIF
@@ -318,6 +320,15 @@ function calculateMTF_NM, submatrix, pix, center, typeMTF, backmatrix, cutLSF, c
           gMTFx=(Fgu0+Fgu1)/Ffilter
           gfx=kvals/(2*!pi)
           gMTFx=gMTFx/gMTFx(0)
+          
+          ;fwhm/fwtm from gaussian fit of corrected MTF
+          print,'nElem Fgu1', N_ELEMENTS(Fgu1)
+          IF N_ELEMENTS(Fgu1) EQ 1 THEN BEGIN; not yet ready for sum of gaussians
+            gfit=gaussfit(kvals, gMTFx, Ag, ESTIMATES=[1, 0, 1/A(2)], NTERMS=3)
+            sigmaMTF=Ag(2)
+            FWHMg=2*SQRT(2*ALOG(2))/sigmaMTF
+            FWTMg=2*SQRT(2*ALOG(10))/sigmaMTF
+          ENDIF
         ENDIF
 
         LSFx=dLSF
@@ -337,6 +348,7 @@ function calculateMTF_NM, submatrix, pix, center, typeMTF, backmatrix, cutLSF, c
 
     2: BEGIN ; edge
 
+      IF v3d THEN errMsg=errMsg+'3d not possible for edge calculation. Ignored option.'
       halfSz=szM/2
       status=1
       subM=submatrix
@@ -506,6 +518,12 @@ function calculateMTF_NM, submatrix, pix, center, typeMTF, backmatrix, cutLSF, c
         gMTFx=(Fgu0+Fgu1)/Ffilter
         gfx=kvals/(2*!pi)
         gMTFx=gMTFx/gMTFx(0)
+        
+        ;fwhm/fwtm from gaussian fit of corrected MTF
+        gfit=gaussfit(kvals, gMTFx, Ag, ESTIMATES=[1, 0, 1/A(2)], NTERMS=3)
+        sigmaMTF=Ag(2)
+        FWHMg=2*SQRT(2*ALOG(2))/sigmaMTF
+        FWTMg=2*SQRT(2*ALOG(10))/sigmaMTF
       ENDIF
 
       LSFx=dLSF
@@ -524,6 +542,8 @@ function calculateMTF_NM, submatrix, pix, center, typeMTF, backmatrix, cutLSF, c
       subMatrixAll=submatrix
 
       submatrix=submatrixAll[*,*,0]
+      
+      IF v3d THEN errMsg=errMsg+'3d not possible for circular edge calculation. Ignored option.'
 
       halfMax=(max(submatrixAll)-min(submatrixAll))/2 + min(submatrixAll); assume same halfmax for all
       IF N_ELEMENTS(szM) EQ 3 THEN BEGIN
@@ -739,32 +759,8 @@ function calculateMTF_NM, submatrix, pix, center, typeMTF, backmatrix, cutLSF, c
   IF szg EQ 'FLOAT' THEN MTFstruct=CREATE_STRUCT(MTFstruct, 'fitLSFx',fitLSFx,'gfx', gfx,'gMTFx',gMTFx)
   szg=SIZE(gMTFy, /TNAME)
   IF szg EQ 'STRUCT' THEN MTFstruct=CREATE_STRUCT(MTFstruct, 'fitLSFy',fitLSFy,'gfy', gMTFy.k,'gMTFy',gMTFy.MTF)
-
-  ;  IF szg EQ 'STRUCT' THEN MTF=CREATE_STRUCT('fx',MTFstruct.gfx,'MTFx',MTFstruct.gMTFx) ELSE MTF=CREATE_STRUCT('fx',fx,'MTFx',MTFx)
-  ;  CASE typeMTF OF
-  ;    0: BEGIN
-  ;      IF szg EQ 'STRUCT' THEN MTF=CREATE_STRUCT(MTF,'fy',MTFstruct.gfy,'MTFy',MTFstruct.gMTFy) ELSE MTF=CREATE_STRUCT(MTF,'fy',fy,'MTFy',MTFy)
-  ;    END
-  ;    2: BEGIN
-  ;      MTF=CREATE_STRUCT(MTF,'fy',0,'MTFy',0)
-  ;    END
-  ;    ELSE:
-  ;  ENDCASE
-
-  ;calculate 50,10,2%
-  ;  lim=[.5,.1,.02]
-  ;  res=FLTARR(6)-1
-  ;  FOR i=0, 2 DO BEGIN
-  ;    pos=WHERE(MTF.MTFx LT lim(i))
-  ;    IF pos(0) NE -1 THEN BEGIN
-  ;      res(i)=getInterpX(lim(i),MTF.fx(pos(0)-1),MTF.fx(pos(0)),MTF.MTFx(pos(0)-1),MTF.MTFx(pos(0)))
-  ;      IF N_ELEMENTS(MTF.MTFy) GT 1 THEN res(i+3)=getInterpX(lim(i),MTF.fy(pos(0)-1),MTF.fy(pos(0)),MTF.MTFy(pos(0)-1),MTF.MTFy(pos(0)))
-  ;    ENDIF ELSE BEGIN
-  ;      res(i)=-1 & res(i+3)=-1
-  ;    ENDELSE
-  ;  ENDFOR
-  ;
-  ;  MTFstruct=CREATE_STRUCT(MTFstruct, 'F50_10_2', res )
+  szg=SIZE(FWHMg, /TNAME)
+  IF szg EQ 'FLOAT' THEN MTFstruct=CREATE_STRUCT(MTFstruct, 'fwhmg', FWHMg, 'fwtmg', FWTMg)
 
   return, MTFstruct
 end

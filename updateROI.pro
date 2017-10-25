@@ -16,9 +16,11 @@
 ;Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 ;update ROI
-pro updateROI
+pro updateROI, Ana=ana
 
   COMMON VARI
+  
+  IF N_ELEMENTS(ana) EQ 0 THEN ana=analyse
 
   WIDGET_CONTROL, /HOURGLASS
 
@@ -33,9 +35,9 @@ pro updateROI
     imgCenterOffset=[0,0,0,0]
     IF dxya(3) EQ 1 THEN imgCenterOffset=dxya
     center=szImg/2+imgCenterOffset[0:1]
-    ;'drawROIhomog': analyse='HOMOG'
+    ;'drawROIhomog': ana='HOMOG'
 
-    CASE analyse OF
+    CASE ana OF
 
       'STP': BEGIN
         WIDGET_CONTROL, txtStpROIsz, GET_VALUE=ROIsz
@@ -133,7 +135,7 @@ pro updateROI
 
         ENDCASE
 
-        ;IF proceed THEN analyse = 'NPS' ELSE analyse='NONE'
+        ;IF proceed THEN ana = 'NPS' ELSE ana='NONE'
       END
 
       'CTLIN': BEGIN
@@ -143,7 +145,7 @@ pro updateROI
         posTab=FLOAT(linTable[1:2,*])
         posTab[0,*]=ROUND(posTab[0,*]/pix(0)) & posTab[1,*]=ROUND(posTab[1,*]/pix(1))
         CTlinROIs=getSampleRois(szImg, imgCenterOffset, radS, posTab)
-        ;IF max(CTlinROIs) EQ 1 THEN analyse='CTLIN' ELSE analyse='NONE'
+        ;IF max(CTlinROIs) EQ 1 THEN ana='CTLIN' ELSE ana='NONE'
       END
 
       'CONTRAST': BEGIN
@@ -180,7 +182,7 @@ pro updateROI
         rcROIs[*,*,6:17]=rcROIback 
       END
       ELSE:
-    ENDCASE; analyse
+    ENDCASE; ana
 
   ENDIF ELSE BEGIN;no images loaded
       CTlinROIs=0 & CTlinROIpos=0 & homogROIs=0 & noiseROI=0 & NPSrois=0 & conROIs=0 & crossROI=0

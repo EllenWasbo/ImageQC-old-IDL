@@ -20,11 +20,12 @@ pro clearAll
   structImgs=CREATE_STRUCT('empty',0)
   activeImg=0
   WIDGET_CONTROL, drawLarge, GET_VALUE = iDrawLarge
-  iDrawLarge.select & iDrawLarge.erase
+  iDrawLarge.erase
 
   ;clear list
   WIDGET_CONTROL, listFiles, YSIZE=1, SCR_YSIZE=170, SET_VALUE='';, SET_LIST_SELECT=-1; empty none selected
   marked=-1
+  markedMulti=-1
 
   ;clear info
   WIDGET_CONTROL, txtActive1, SET_VALUE=''
@@ -32,6 +33,7 @@ pro clearAll
   WIDGET_CONTROL, lblDir, SET_VALUE=''
 
   clearRes
+  clearMulti
 end
 
 pro clearRes, analyseStr
@@ -52,6 +54,7 @@ pro clearRes, analyseStr
     stpRes=!Null
     homogRes=!Null
     noiseRes=!Null
+    eiRes=!Null
     MTFres=!Null
     NPSres=!Null
     ROIres=!Null
@@ -70,6 +73,7 @@ pro clearRes, analyseStr
       'STP': stpRes=!Null
       'HOMOG': homogRes=!Null
       'NOISE': noiseRes=!Null
+      'EI': eiRes=!Null
       'MTF': MTFres=!Null
       'NPS': NPSres=!Null
       'ROI': ROIres=!Null
@@ -99,4 +103,12 @@ pro clearRes, analyseStr
   WSET, iDrawImageRes
   TVSCL, INTARR(550,550)
 
+end
+
+pro clearMulti
+  COMMON VARI
+  markedMulti=-1
+  WIDGET_CONTROL, btnUseMulti, SET_BUTTON=0
+  WIDGET_CONTROL, listSelMultiTemp, SET_DROPLIST_SELECT=0
+  multiExpTable=-1
 end

@@ -81,6 +81,10 @@ pro ImageQC_event, ev
       END
       ;-----save current default parameters to config file
       'config': BEGIN
+        RESTORE, thisPath+'data\config.dat'
+        configTags=TAG_NAMES(config)
+        oldConfig=config
+        config=!Null
         ;CT tests
         WIDGET_CONTROL, cw_typeMTF, GET_VALUE=typeMTF
         WIDGET_CONTROL, cw_plotMTF, GET_VALUE= plotWhich
@@ -106,6 +110,7 @@ pro ImageQC_event, ev
         WIDGET_CONTROL, txtStpROIsz, GET_VALUE=STProiSz
         WIDGET_CONTROL, cw_formLSFX, GET_VALUE=typeMTFX
         WIDGET_CONTROL, cw_plotMTFX, GET_VALUE= plotWhichX
+        WIDGET_CONTROL, txtCutLSFWX, GET_VALUE=LSFcutX1
         WIDGET_CONTROL, txtMTFroiSzX, GET_VALUE=MTFroiSzX
         WIDGET_CONTROL, txtMTFroiSzY, GET_VALUE=MTFroiSzY
         WIDGET_CONTROL, txtHomogROIszX, GET_VALUE=homogROIszX
@@ -133,7 +138,7 @@ pro ImageQC_event, ev
         config=CREATE_STRUCT('defPath',defPath, 'decimMark', decimMark, 'copyHeader', copyHeader, $
           'typeROI',WIDGET_INFO(typeROI, /BUTTON_SET),'typeROIX',WIDGET_INFO(typeROIX, /BUTTON_SET),$
           'MTFtype',typeMTF,'MTFtypeX', typeMTFX, 'MTFtypeNM', typeMTFNM, 'plotMTF',plotWhich,'plotMTFX',plotWhichX,'plotMTFNM', plotWhichNM,'MTFroiSz',FLOAT(MTFroiSz(0)),'MTFroiSzX',[FLOAT(MTFroiSzX(0)),FLOAT(MTFroiSzY(0))],'MTFroiSzNM',[FLOAT(MTFroiSzXNM(0)),FLOAT(MTFroiSzYNM(0))],$
-          'cutLSF',WIDGET_INFO(btnCutLSF,/BUTTON_SET),'cutLSF1',LONG(LSFcut1),'cutLSF2',LONG(LSFcut2),$
+          'cutLSF',WIDGET_INFO(btnCutLSF,/BUTTON_SET),'cutLSF1',LONG(LSFcut1),'cutLSF2',LONG(LSFcut2),'cutLSFX',WIDGET_INFO(btnCutLSFX,/BUTTON_SET),'cutLSFX1',LONG(LSFcutX1),$
           'LinROIrad',FLOAT(rad1(0)),'LinROIradS',FLOAT(radS(0)), 'LinTab', lintab, $
           'RampDist',FLOAT(rampDist(0)),'RampLen',FLOAT(rampLen(0)),'RampBackG',FLOAT(rampBackG(0)),'RampSearch',LONG(RampSearch(0)),'RampAvg',LONG(rampAvg(0)),$
           'HomogROIsz',FLOAT(homogROIsz(0)), 'HomogROIszPET',FLOAT(homogROIszPET(0)), 'HomogROIszX',FLOAT(homogROIszX(0)),'HomogROIdist',FLOAT(homogROIdist(0)), 'HomogROIdistPET',FLOAT(homogROIdistPET(0)), 'HomogROIszNM',FLOAT(homogROIszNM(0)),'HomogROIdistNM',[FLOAT(homogROIdistXNM(0)),FLOAT(homogROIdistYNM(0))],$
@@ -143,6 +148,11 @@ pro ImageQC_event, ev
           'scanSpeedAvg',LONG(scanSpeedAvg(0)), 'scanSpeedHeight', FLOAT(scanSpeedHeight(0)), 'scanSpeedFiltW', LONG(scanSpeedFiltW(0)), $
           'contrastRad1', FLOAT(contrastRad1(0)), 'contrastRad2', FLOAT(contrastRad2(0)),$
           'CrossROIsz', FLOAT(crossROIsz(0)), 'CrossVol', FLOAT(crossVol(0)) )
+
+        tagsOldConfig=TAG_NAMES(oldConfig)
+        IF tagsOldConfig.HasValue('QUICKTEMP') THEN BEGIN
+          config=CREATE_STRUCT(config, 'QuickTemp', oldConfig.QUICKTEMP)
+        ENDIF
 
         box=[$
           '1, BASE,, /ROW', $
@@ -189,7 +199,9 @@ pro ImageQC_event, ev
           IF TOTAL(WHERE(oldconfigTags EQ 'MTFROISZX')) NE -1 THEN config.MTFROISZX=oldConfig.MTFROISZX
           IF TOTAL(WHERE(oldconfigTags EQ 'MTFROISZNM')) NE -1 THEN config.MTFROISZNM=oldConfig.MTFROISZNM
           IF TOTAL(WHERE(oldconfigTags EQ 'CUTLSF')) NE -1 THEN config.CUTLSF=oldConfig.CUTLSF
+          IF TOTAL(WHERE(oldconfigTags EQ 'CUTLSFX')) NE -1 THEN config.CUTLSFX=oldConfig.CUTLSFX
           IF TOTAL(WHERE(oldconfigTags EQ 'CUTLSF1')) NE -1 THEN config.CUTLSF1=oldConfig.CUTLSF1
+          IF TOTAL(WHERE(oldconfigTags EQ 'CUTLSFX1')) NE -1 THEN config.CUTLSFX1=oldConfig.CUTLSFX1
           IF TOTAL(WHERE(oldconfigTags EQ 'CUTLSF2')) NE -1 THEN config.CUTLSF2=oldConfig.CUTLSF2
           IF TOTAL(WHERE(oldconfigTags EQ 'LINROIRAD')) NE -1 THEN config.LINROIRAD=oldConfig.LINROIRAD
           IF TOTAL(WHERE(oldconfigTags EQ 'LINROIRADS')) NE -1 THEN config.LINROIRADS=oldConfig.LINROIRADS
@@ -221,6 +233,7 @@ pro ImageQC_event, ev
           IF TOTAL(WHERE(oldconfigTags EQ 'CONTRASTRAD2')) NE -1 THEN config.CONTRASTRAD2=oldConfig.CONTRASTRAD2
           IF TOTAL(WHERE(oldconfigTags EQ 'CROSSROISZ')) NE -1 THEN config.CROSSROISZ=oldConfig.CROSSROISZ
           IF TOTAL(WHERE(oldconfigTags EQ 'CROSSVOL')) NE -1 THEN config.CROSSVOL=oldConfig.CROSSVOL
+          IF TOTAL(WHERE(oldconfigTags EQ 'QUICKTEMP')) NE -1 THEN config.QUICKTEMP=oldConfig.QUICKTEMP
 
           sv=DIALOG_MESSAGE('Restart program to load the new values.'+newline+'Restored config file saved to current config file.',/INFORMATION)
           SAVE, config, FILENAME=thisPath+'data\config.dat'
@@ -228,14 +241,15 @@ pro ImageQC_event, ev
       END
 
       ;-----button open files------------generate list of adresses to open (adrFilesToOpen), later in code checked whether this list is empty or not----------------------------------------------
+      
       'open':BEGIN
-        adrFilesToOpen=DIALOG_PICKFILE(TITLE='Select DICOM CT file(s) to open', /READ, /Multiple_files, PATH=defPath)
+        adrFilesToOpen=DIALOG_PICKFILE(TITLE='Select DICOM or .dat file(s) to open', /READ, /Multiple_files, PATH=defPath)
         adrFilesToOpen=adrFilesToOpen(SORT(adrFilesToOpen))
         ;rest performed later in code where adrFilesToOpen content checked
       END
 
       'openMulti':BEGIN
-        adr=DIALOG_PICKFILE(TITLE='Select the parent-folder of the subfolders (NB slow search -keep number of folders/content low)', /READ, /DIRECTORY, PATH=defPath)
+        adr=DIALOG_PICKFILE(TITLE='Select the parent-folder of the subfolders with DICOM files (NB slow search -keep number of folders/content low)', /READ, /DIRECTORY, PATH=defPath)
         WIDGET_CONTROL, /HOURGLASS
         IF adr(0) NE '' THEN BEGIN
           Spawn, 'dir '  + '"'+adr(0)+'"' + '*'+ '/b /aD', dirs
@@ -299,6 +313,50 @@ pro ImageQC_event, ev
           ENDIF;dirs
         ENDIF;adr
       END
+      'saveDat': BEGIN
+        IF tags(0) NE 'EMPTY' THEN BEGIN
+          sel=WIDGET_INFO(listFiles, /LIST_SELECT)
+          IF N_ELEMENTS(sel) NE 1 AND nFrames EQ 0 THEN BEGIN
+            sv=DIALOG_MESSAGE('Select one file only.')
+          ENDIF ELSE BEGIN
+            IF nFrames GT 0 THEN BEGIN
+              szA=SIZE(activeImg, /DIMENSIONS)
+              nn=nFrames
+              IF nFrames GT 1 THEN BEGIN
+                box=[$
+                  '1, BASE,, /ROW', $
+                  '2, LABEL, The loaded file is a multiframe file. Save active image or multiframe as .dat?', $
+                  '1, BASE,, /ROW', $
+                  '0, BUTTON, Active image only, QUIT, TAG=Act',$
+                  '2, BUTTON, Multiframe, QUIT, TAG=Mul']
+                  res=CW_FORM_2(box, /COLUMN, TAB_MODE=1, TITLE='Single or multiframe?', XSIZE=200, YSIZE=100, FOCUSNO=1)
+                IF res.Act THEN nn=1
+              ENDIF
+              
+              IF nn GT 1 THEN BEGIN
+                matrix=FLTARR(szA(0),szA(1),nn)
+                WIDGET_CONTROL,/HOURGLASS
+                FOR i=0, nFrames-1 DO matrix[*,*,i]=readImg(structImgs.(0).filename, i)
+                imageQCmatrix=structImgs.(0)
+              ENDIF ELSE BEGIN
+                matrix=readImg(structImgs.(0).filename, sel(0))
+                imageQCmatrix=structImgs.(0)
+                imageQCmatrix.nFrames=0
+                imageQCmatrix=structArr2elem(imageQCmatrix, ['ZPOS','RADIUS1','RADIUS2'], sel(0))
+              ENDELSE
+              imageQCmatrix=CREATE_STRUCT(imageQCmatrix,'matrix', matrix)
+            ENDIF ELSE BEGIN
+              imageQCmatrix=CREATE_STRUCT(structImgs.(sel(0)),'matrix', activeImg)
+            ENDELSE
+            adr=DIALOG_PICKFILE(PATH=defPath, TITLE='Save active file as IDL structure (.dat-file)',/WRITE, FILTER='*.dat', /FIX_FILTER)
+            
+            IF adr NE '' THEN BEGIN
+              imageQCmatrix.filename=adr; changed when opened so that renaming/moving file is possible
+              SAVE, imageQCmatrix, FILENAME=adr
+            ENDIF
+          ENDELSE
+        ENDIF
+      END;saveDat
       ;-----button DICOM dump to text-file-----------------------------------------------------------------------------------------------------------
       'dump':BEGIN
         IF tags(0) NE 'EMPTY' THEN BEGIN
@@ -313,6 +371,22 @@ pro ImageQC_event, ev
           ENDELSE
           obj->DumpElements, thisPath+'data\dumpTemp.txt'
           XDISPLAYFILE, thisPath+'data\dumpTemp.txt', TITLE=tit
+        ENDIF
+      END
+      
+      ;------edit header info --------------
+      'editHeader':BEGIN
+        IF tags(0) NE 'EMPTY' THEN BEGIN
+          sel=WIDGET_INFO(listFiles, /LIST_SELECT)
+          IF nFrames NE 0 THEN sel=0
+          tn=TAG_NAMES(structImgs.(sel(0)))
+          tagTable=STRARR(N_ELEMENTS(tn))
+          FOR i=0, N_ELEMENTS(tn)-1 DO BEGIN
+            tagTable(i)=STRJOIN(STRING(structImgs.(sel(0)).(i), FORMAT='(a0)'),', ')
+          ENDFOR
+          headerEdit, tn, tagTable, sel(0), GROUP_LEADER=ev.Top
+          updateInfo=1 & redrawImg, 0, 0
+          clearRes
         ENDIF
       END
 
@@ -337,13 +411,20 @@ pro ImageQC_event, ev
               ENDIF
               IF proceed THEN BEGIN
                 sel=WIDGET_INFO(listFiles, /LIST_SELECT)
-                oldMarked=marked
-                marked=[marked,sel]
-                marked=marked(SORT(marked))
-                marked=marked(UNIQ(marked))
-                nMark=N_ELEMENTS(marked)
-                IF marked(0) EQ -1 THEN marked=marked[1:nMark-1]; remove the first -1
-                IF nFrames EQ 0 THEN fileList=getListOpenFiles(structImgs,0,marked) ELSE fileList=getListFrames(structImgs.(0),marked)
+                testNmb=getResNmb(modality,analyse,analyseStringsCT,analyseStringsXray,analyseStringsNM,analyseStringsPET)
+                IF WIDGET_INFO(btnUseMulti, /BUTTON_SET) THEN BEGIN
+                  markedArr=markedMulti[testNmb,*]
+                  markedArr(sel)=1
+                  IF multiOpt.(modality)(testNmb) NE 0 THEN markedMulti[testNmb,*]=markedArr ELSE sv=DIALOG_MESSAGE('Selected test not availble for MultiMark (only numbered tests).')
+                ENDIF ELSE BEGIN
+                  marked=[marked,sel]
+                  marked=marked(SORT(marked))
+                  marked=marked(UNIQ(marked))
+                  nMark=N_ELEMENTS(marked)
+                  IF marked(0) EQ -1 THEN marked=marked[1:nMark-1]; remove the first -1
+                ENDELSE
+
+                IF nFrames EQ 0 THEN fileList=getListOpenFiles(structImgs,0,marked, markedMulti) ELSE fileList=getListFrames(structImgs.(0),marked)
                 nSel=N_ELEMENTS(sel)
                 oldTop=WIDGET_INFO(listFiles, /LIST_TOP)
                 WIDGET_CONTROL, listFiles, SET_VALUE=fileList, SET_LIST_SELECT=sel(nSel-1), SET_LIST_TOP=oldTop
@@ -361,10 +442,10 @@ pro ImageQC_event, ev
               IF proceed THEN BEGIN
                 clearRes
                 IF nFrames EQ 0 THEN nImg=N_TAGS(structImgs) ELSE nImg=nFrames
-                markedArr=INTARR(nImg)
                 marked=-1
+                IF markedMulti(0) NE -1 THEN markedMulti=INTARR(N_ELEMENTS(multiOpt.(modality)),nImg)
 
-                IF nFrames EQ 0 THEN fileList=getListOpenFiles(structImgs,0,-1) ELSE fileList=getListFrames(structImgs.(0),marked)
+                IF nFrames EQ 0 THEN fileList=getListOpenFiles(structImgs,0,marked,markedMulti) ELSE fileList=getListFrames(structImgs.(0),marked)
                 sel=WIDGET_INFO(listFiles, /LIST_SELECT)
                 oldTop=WIDGET_INFO(listFiles, /LIST_TOP)
                 WIDGET_CONTROL, listFiles, SET_VALUE=fileList, SET_LIST_SELECT=sel, SET_LIST_TOP=oldTop
@@ -379,6 +460,11 @@ pro ImageQC_event, ev
               ENDIF
 
               proceed=1
+              IF markedMulti(0) NE -1 AND TOTAL(results) GT 0 THEN BEGIN
+                sv=DIALOG_MESSAGE('Continue and loose results?',/QUESTION)
+                IF sv EQ 'No' THEN proceed=0 ELSE clearRes
+              ENDIF
+
               IF MTFv3d OR N_ELEMENTS(noiseRes) GT 1 OR N_ELEMENTS(stpRes) GT 0 THEN BEGIN
                 sv=DIALOG_MESSAGE('Continue and loose results?',/QUESTION)
                 IF sv EQ 'No' THEN proceed=0 ELSE BEGIN
@@ -391,15 +477,25 @@ pro ImageQC_event, ev
               IF proceed THEN BEGIN
                 sel=WIDGET_INFO(listFiles, /LIST_SELECT)
                 IF nFrames EQ 0 THEN nImg=N_TAGS(structImgs) ELSE nImg=nFrames
-                markedArr=INTARR(nImg)
-                IF marked(0) NE -1 THEN markedArr(marked)=1 ELSE markedArr=markedArr+1
-                markedArr(sel)=0
-                marked=WHERE(markedArr EQ 1)
-                unmarked=WHERE(markedArr EQ 0)
+                newSel=-1
+                IF markedMulti(0) EQ -1 THEN BEGIN
+                  markedArr=INTARR(nImg)
+                  IF marked(0) NE -1 THEN markedArr(marked)=1 ELSE markedArr=markedArr+1
+                  markedArr(sel)=0
+                  marked=WHERE(markedArr EQ 1)
+                  unmarked=WHERE(markedArr EQ 0)
+                  newSel=marked(0)
+                ENDIF ELSE BEGIN
+                  testNmb=getResNmb(modality,analyse,analyseStringsCT,analyseStringsXray,analyseStringsNM,analyseStringsPET)
+                  markedArr=markedMulti[testNmb,*]
+                  markedArr(sel)=0
+                  IF multiOpt.(modality)(testNmb) NE 0 THEN markedMulti[testNmb,*]=markedArr
+                  mm=WHERE(markedArr EQ 1)
+                  newSel=mm(0)
+                ENDELSE
 
-                IF nFrames EQ 0 THEN fileList=getListOpenFiles(structImgs,0,marked) ELSE fileList=getListFrames(structImgs.(0),marked)
+                IF nFrames EQ 0 THEN fileList=getListOpenFiles(structImgs,0,marked, markedMulti) ELSE fileList=getListFrames(structImgs.(0),marked)
 
-                newSel=marked(0)
                 If newSel EQ -1 THEN newSel=0
                 oldTop=WIDGET_INFO(listFiles, /LIST_TOP)
                 WIDGET_CONTROL, listFiles, SET_VALUE=fileList, SET_LIST_SELECT=newSel, SET_LIST_TOP=oldTop ; YSIZE=n_elements(fileList),
@@ -426,10 +522,19 @@ pro ImageQC_event, ev
 
             4: BEGIN;Select marked
               oldTop=WIDGET_INFO(listFiles, /LIST_TOP)
-              IF marked(0) NE -1 THEN BEGIN
-                WIDGET_CONTROL, listFiles, SET_LIST_SELECT=marked, SET_LIST_TOP=oldTop
-                redrawImg,0,1 & updateInfo=1
-              ENDIF
+              IF markedMulti(0) EQ -1 THEN BEGIN
+                IF marked(0) NE -1 THEN BEGIN
+                  WIDGET_CONTROL, listFiles, SET_LIST_SELECT=marked, SET_LIST_TOP=oldTop
+                  redrawImg,0,1 & updateInfo=1
+                ENDIF
+              ENDIF ELSE BEGIN
+                testNmb=getResNmb(modality,analyse,analyseStringsCT,analyseStringsXray,analyseStringsNM,analyseStringsPET)
+                mm=WHERE(markedMulti[testNmb,*] EQ 1)
+                IF mm(0) NE -1 THEN BEGIN
+                  WIDGET_CONTROL, listFiles, SET_LIST_SELECT=mm, SET_LIST_TOP=oldTop
+                  redrawImg,0,1 & updateInfo=1
+                ENDIF
+              ENDELSE
             END
 
             5: BEGIN;Close selected
@@ -444,50 +549,62 @@ pro ImageQC_event, ev
                     IF remain(0) NE -1 THEN markedArr=markedArr(remain)
                     marked=WHERE(markedArr EQ 1)
                   ENDIF
+                  IF markedMulti(0) NE -1 THEN BEGIN
+                    IF remain(0) NE -1 THEN BEGIN
+                      szMM=SIZE(markedMulti, /DIMENSIONS)
+                      FOR p=0, szMM(0)-1 DO BEGIN
+                        markedArr=markedMulti[p,*]
+                        markedMulti[p,*]=markedArr(remain)
+                      ENDFOR
+                    ENDIF
+                  ENDIF
 
                   structImgs=removeIDstructstruct(structImgs, sel)
 
                   stillEmpty=WHERE(TAG_NAMES(structImgs) EQ 'EMPTY')
                   IF stillEmpty(0) EQ -1 THEN BEGIN
-                    fileList=getListOpenFiles(structImgs,0,marked)
+                    fileList=getListOpenFiles(structImgs,0,marked, markedMulti)
 
                     WIDGET_CONTROL, listFiles, YSIZE=n_elements(fileList), SET_VALUE=fileList, SET_LIST_SELECT=0, SET_LIST_TOP=0
                     WIDGET_CONTROL, listFiles, SCR_YSIZE=170
                     redrawImg,0,1
 
-                    CASE modality OF
-                      0: analyseStrings=analyseStringsCT
-                      1: analyseStrings=analyseStringsXray
-                      2: analyseStrings=analyseStringsNM
-                      3: analyseStrings=analyseStringsPET
-                    ENDCASE
+                    IF markedMulti(0) NE -1 THEN clearRes ELSE BEGIN
+                      CASE modality OF
+                        0: analyseStrings=analyseStringsCT
+                        1: analyseStrings=analyseStringsXray
+                        2: analyseStrings=analyseStringsNM
+                        3: analyseStrings=analyseStringsPET
+                      ENDCASE
 
-                    FOR i=0, N_ELEMENTS(results)-1 DO BEGIN
-                      IF results(i) THEN BEGIN
-                        CASE analyseStrings(i) OF
-                          'DIM': dimRes=dimRes[*,remain]
-                          'STP': BEGIN
-                            stpRes=!Null
-                            analyse='NONE'
-                          END
-                          'HOMOG': homogRes=homogRes[*,remain]
-                          'NOISE': noise=!Null; because avg dependent on rest - recalculation needed
-                          'MTF': MTFres=removeIDstructstruct(MTFres,sel)
-                          'NPS': NPSres=removeIDstructstruct(NPSres,sel)
-                          'ROI': ROIres=ROIres[*,remain]
-                          'CTLIN': CTlinres=CTlinres[*,remain]
-                          'SLICETHICK': BEGIN
-                            sliceThickRes=removeIDstructstruct(sliceThickRes,sel)
-                            sliceThickResTab=sliceThickResTab[*,remain]
-                          END
-                          'FWHM': fwhmRes=fwhmRes[*,remain]
-                          'ENERGYSPEC':
-                          'SCANSPEED':
-                          'CONTRAST': contrastRes=contrastRes[*,remain]
-                          ELSE:
-                        ENDCASE
-                      ENDIF
-                    ENDFOR
+                      FOR i=0, N_ELEMENTS(results)-1 DO BEGIN
+                        IF results(i) THEN BEGIN
+                          CASE analyseStrings(i) OF
+                            'DIM': dimRes=dimRes[*,remain]
+                            'STP': BEGIN
+                              stpRes=!Null
+                              analyse='NONE'
+                            END
+                            'HOMOG': homogRes=homogRes[*,remain]
+                            'NOISE': noise=!Null; because avg dependent on rest - recalculation needed
+                            'EI': eiRes=eiRes[*,remain]
+                            'MTF': MTFres=removeIDstructstruct(MTFres,sel)
+                            'NPS': NPSres=removeIDstructstruct(NPSres,sel)
+                            'ROI': ROIres=ROIres[*,remain]
+                            'CTLIN': CTlinres=CTlinres[*,remain]
+                            'SLICETHICK': BEGIN
+                              sliceThickRes=removeIDstructstruct(sliceThickRes,sel)
+                              sliceThickResTab=sliceThickResTab[*,remain]
+                            END
+                            'FWHM': fwhmRes=fwhmRes[*,remain]
+                            'ENERGYSPEC':
+                            'SCANSPEED':
+                            'CONTRAST': contrastRes=contrastRes[*,remain]
+                            ELSE:
+                          ENDCASE
+                        ENDIF
+                      ENDFOR
+                    ENDELSE
 
                     updateInfo=1
                     WIDGET_CONTROL, lblLoadedN, SET_VALUE=STRING(n_elements(fileList), FORMAT='(i0)')+' )'
@@ -524,6 +641,37 @@ pro ImageQC_event, ev
         ENDIF
       END
 
+      'movie': BEGIN
+        IF tags(0) NE 'EMPTY' THEN BEGIN
+          WIDGET_CONTROL, /HOURGLASS
+          IF nFrames EQ 0 THEN nImg=N_TAGS(structImgs) ELSE nImg=nFrames
+          IF nFrames NE 0 THEN firstImg=readImg(structImgs.(0).filename, 0) ELSE firstImg=readImg(structImgs.(0).filename, 0)
+  
+          szFirst=SIZE(firstImg, /DIMENSIONS)
+          volTemp=FLTARR(szFirst(0),szFirst(1), nImg)
+          center=szFirst/2+dxya[0:1]
+  
+          FOR i=0, nImg-1 DO BEGIN
+            IF nFrames NE 0 THEN tempImg=readImg(structImgs.(0).filename, i) ELSE tempImg=readImg(structImgs.(i).filename, 0)
+            szTemp=SIZE(tempImg, /DIMENSIONS)
+            IF ARRAY_EQUAL(szTemp,szFirst) THEN BEGIN
+              volTemp[*,*,i]=tempImg
+            ENDIF ELSE BEGIN
+              sv=DIALOG_MESSAGE('Image number ' + STRING(i, FORMAT='(i0)')+' do not have the same size as the first image. Movie can not be generated.')
+              volTemp=-1
+              BREAK
+            ENDELSE
+          ENDFOR
+  
+          IF N_ELEMENTS(volTemp) GT 1 AND nImg GT 1 THEN BEGIN
+            WIDGET_CONTROL, txtMinWL, GET_VALUE=minWinLev
+            WIDGET_CONTROL, txtMaxWL, GET_VALUE=maxWinLev
+            winlev=FLOAT([minWinLev,maxWinLev])
+            imgQCmovie, volTemp, thisPath, winlev, colTable, GROUP_LEADER=ev.Top
+          ENDIF
+        ENDIF
+      END
+
       ;---- if new selection in filelist
       'filelist' : BEGIN
         IF tags(0) NE 'EMPTY' THEN BEGIN
@@ -541,7 +689,7 @@ pro ImageQC_event, ev
             ENDIF
             IF proceed THEN BEGIN
               marked=sel
-              IF nFrames EQ 0 THEN fileList=getListOpenFiles(structImgs,0,marked) ELSE fileList=getListFrames(structImgs.(0),marked)
+              IF nFrames EQ 0 THEN fileList=getListOpenFiles(structImgs,0,marked, markedMulti) ELSE fileList=getListFrames(structImgs.(0),marked)
               nSel=N_ELEMENTS(sel)
               oldTop=WIDGET_INFO(listFiles, /LIST_TOP)
               WIDGET_CONTROL, listFiles, SET_VALUE=fileList, SET_LIST_SELECT=sel(nSel-1), SET_LIST_TOP=oldTop
@@ -712,10 +860,245 @@ pro ImageQC_event, ev
       END
       'hideAnnot': redrawImg, 0,0
 
+      'listSelMultiTemp':BEGIN
+        IF markedMulti(0) NE -1 THEN BEGIN
+
+          WIDGET_CONTROL, listSelMultiTemp, GET_VALUE=multiList
+          IF N_ELEMENTS(multiList) GT 0 THEN BEGIN
+            sel=WIDGET_INFO(listSelMultiTemp, /DROPLIST_SELECT)
+            RESTORE, thisPath+'data\config.dat'
+            nImg=N_TAGS(structImgs)
+            testOpt=WHERE(multiOpt.(modality) GT 0, nTests)
+            IF sel EQ 0 THEN markedMultiNew=INTARR(nTests, nImg) ELSE markedMultiNew=config.QUICKTEMP.(sel-1)
+            szMNew=SIZE(markedMultiNew, /DIMENSIONS)
+            IF szMNew(0) NE nTests OR szMNew(1) NE nImg THEN BEGIN
+              sv=DIALOG_MESSAGE('Template do not match number of loaded files or number of tests available in selected modality. ('+$
+                STRING(szMNew(0), FORMAT='(i0)')+' tests and '+STRING(szMNew(1), FORMAT='(i0)')+' images.)')
+            ENDIF ELSE markedMulti=markedMultiNew
+
+            fileList=getListOpenFiles(structImgs,0,marked, markedMulti)
+            fileSel=WIDGET_INFO(listFiles, /LIST_SELECT)
+            nSel=N_ELEMENTS(fileSel)
+            oldTop=WIDGET_INFO(listFiles, /LIST_TOP)
+            WIDGET_CONTROL, listFiles, SET_VALUE=fileList, SET_LIST_SELECT=fileSel(nSel-1), SET_LIST_TOP=oldTop
+          ENDIF
+        ENDIF
+      END
+      'saveMultiTemp':BEGIN
+        IF markedMulti(0) NE -1 THEN BEGIN
+          box=[$
+            '1, BASE,, /ROW', $
+            '2,  TEXT, , LABEL_LEFT=Name the template:, WIDTH=12, TAG=newname,', $
+            '1, BASE,, /ROW', $
+            '0, BUTTON, Save, QUIT, TAG=Save',$
+            '2, BUTTON, Cancel, QUIT, TAG=Cancel']
+          res=CW_FORM_2(box, /COLUMN, TAB_MODE=1, TITLE='Save template to config file', XSIZE=300, YSIZE=100, FOCUSNO=0)
+
+          IF ~res.Cancel THEN BEGIN
+            IF res.newname EQ '' THEN sv=DIALOG_MESSAGE('No name specified. Could not save template.') ELSE BEGIN
+              RESTORE, thisPath+'data\config.dat'
+              tagsConfig=TAG_NAMES(config)
+              tempname=IDL_VALIDNAME(res.newname, /CONVERT_ALL)
+              IF tagsConfig.HasValue('QUICKTEMP') THEN BEGIN
+                curQT=config.QUICKTEMP
+                updQT=CREATE_STRUCT(curQT, tempname, markedMulti)
+                configNew=CREATE_STRUCT('defPath',defPath)
+                FOR i=1, N_ELEMENTS(tagsConfig)-1 DO BEGIN
+                  IF STRUPCASE(tagsConfig(i)) NE 'QUICKTEMP' THEN configNew=CREATE_STRUCT(configNew, tagsConfig(i), config.(i))
+                ENDFOR
+                configNew=CREATE_STRUCT(configNew, 'QuickTemp', updQT)
+                config=configNew
+              ENDIF ELSE BEGIN
+                newQT=CREATE_STRUCT(tempname, markedMulti)
+                config=CREATE_STRUCT(config, 'QuickTemp', newQT)
+              ENDELSE
+              SAVE, config, FILENAME=thisPath+'data\config.dat'
+              WIDGET_CONTROL, listSelMultiTemp, GET_VALUE=multiList
+              multiList=[multiList, tempname]
+              WIDGET_CONTROL, listSelMultiTemp, SET_VALUE=multiList, SET_DROPLIST_SELECT=N_ELEMENTS(multiList)-1
+
+            ENDELSE
+          ENDIF
+        ENDIF ELSE sv=DIALOG_MESSAGE('No multiMark to save.')
+      END
+
+      'delMultiTemp':BEGIN
+        RESTORE, thisPath+'data\config.dat'
+        tagsConfig=TAG_NAMES(config)
+        WIDGET_CONTROL, listSelMultiTemp, GET_VALUE=multiList
+        sel=WIDGET_INFO(listSelMultiTemp, /DROPLIST_SELECT)
+        IF sel NE 0 THEN BEGIN
+
+          curQT=config.QUICKTEMP
+          tagsTemp=TAG_NAMES(curQT)
+          IF N_ELEMENTS(tagsTemp) GT 1 THEN BEGIN
+            ss=INTARR(N_ELEMENTS(tagsTemp))+1
+            ss(sel-1)=0
+            remain=WHERE(ss EQ 1)
+            FOR ii=0, N_ELEMENTS(tagsTemp)-1 DO BEGIN
+              IF remain.HasValue(ii) THEN BEGIN
+                IF SIZE(updQT, /tNAME) NE 'STRUCT' THEN BEGIN
+                  updQT=CREATE_STRUCT(tagsTemp(ii), curQT.(ii))
+                ENDIF ELSE updQT=CREATE_STRUCT(updQT, tagsTemp(ii), curQT.(ii))
+              ENDIF
+            ENDFOR
+            multiList=['',TAG_NAMES(updQT)]
+          ENDIF ELSE updQT=-1
+
+          configNew=CREATE_STRUCT('defPath',defPath)
+          FOR i=1, N_ELEMENTS(tagsConfig)-1 DO BEGIN
+            IF STRUPCASE(tagsConfig(i)) NE 'QUICKTEMP' THEN configNew=CREATE_STRUCT(configNew, tagsConfig(i), config.(i))
+          ENDFOR
+          szUpd=SIZE(updQT, /tNAME)
+          IF szUpd EQ 'STRUCT' THEN configNew=CREATE_STRUCT(configNew, 'QuickTemp', updQT)
+          config=configNew
+
+          SAVE, config, FILENAME=thisPath+'data\config.dat'
+          WIDGET_CONTROL, listSelMultiTemp, SET_VALUE=multiList, SET_DROPLIST_SELECT=0
+          nImg=N_TAGS(structImgs)
+          testOpt=WHERE(multiOpt.(modality) GT 0, nTests)
+          markedMulti=INTARR(nTests, nImg)
+
+          fileList=getListOpenFiles(structImgs,0,marked, markedMulti)
+          fileSel=WIDGET_INFO(listFiles, /LIST_SELECT)
+          nSel=N_ELEMENTS(fileSel)
+          oldTop=WIDGET_INFO(listFiles, /LIST_TOP)
+          WIDGET_CONTROL, listFiles, SET_VALUE=fileList, SET_LIST_SELECT=fileSel(nSel-1), SET_LIST_TOP=oldTop
+        ENDIF
+
+      END
 
       ;***************************************************************************************************************
       ;******************************** TESTS *******************************************************************************
       ;***************************************************************************************************************
+
+      ;---- Quick Test--------------------------------------------------------------------------------------------------
+      'runMulti': BEGIN
+        IF TOTAL(multiOpt.(modality)) GT 0 THEN BEGIN
+
+          imgWithMark=WHERE(TOTAL(markedMulti,1) GT 0, nTested)
+          IF nTested GT 0 THEN BEGIN
+
+            ;top list of images, adress and date
+            multiExpTable=STRARR(3, nTested+4)
+            multiExpTable[*,0]=['Date (first img)','',formatDMY(structImgs.(imgWithMark(0)).acqDate)]
+            multiExpTable[*,1]=['ImageNo','Filename','']
+            nImg=N_TAGS(structImgs)
+            FOR im=0, nImg-1 DO BEGIN
+              IF TOTAL(markedMulti[*,im]) GT 0 THEN BEGIN
+                multiExpTable[*,im+2]=[STRING(im+1, FORMAT='(i0)'),structImgs.(im).filename,'']
+              ENDIF
+            ENDFOR
+            multiExpTable[*,nTested+3]=['ImageNo','Parameter','Value']
+
+            szMM=SIZE(markedMulti,/DIMENSIONS)
+            FOR tt=0, szMM(0)-1 DO BEGIN
+              markedTemp=WHERE(markedMulti[tt,*] EQ 1)
+              test=tt+1
+              addrows=N_ELEMENTS(markedTemp)
+              IF addrows NE 0 THEN BEGIN
+                cc=0
+                CASE modality OF
+                  0:
+                  1:BEGIN; 'STP','HOMOG','NOISE','EI','MTF'
+                    CASE test OF
+                      1: BEGIN
+                        STPpix
+                        addTable=STRARR(3,addrows)
+                        FOR im=0, nImg-1 DO BEGIN
+                          IF markedMulti(tt,im) THEN BEGIN
+                            addTable[*,cc]=[STRING(im+1, FORMAT='(i0)'),'Pixel mean',STRING(STPres.table[2,im],FORMAT='(f0.2)')]
+                            cc=cc+1
+                          ENDIF
+                        ENDFOR
+                        multiExpTable=[[multiExpTable],[addTable]]
+                      END
+                      2: BEGIN
+                        homog
+                        FOR im=0, nImg-1 DO BEGIN
+                          IF markedMulti(tt,im) THEN BEGIN
+                            addTable=STRARR(3,10)
+                            addTable[0,0]=STRING(im+1, FORMAT='(i0)')
+                            addTable[1,*]=TRANSPOSE(['Center','UpperLeft','LowerLeft','UpperRight','LowerRight','Std center', 'Std UL','Std LL','Std UR','Std LR'])
+                            addTable[2,*]=TRANSPOSE(STRING(homogRes[*,im], FORMAT='(f0.2)'))
+                            multiExpTable=[[multiExpTable],[addTable]]
+                          ENDIF
+                        ENDFOR
+                      END
+                      3:  BEGIN
+                        noise
+                        FOR im=0, nImg-1 DO BEGIN
+                          IF markedMulti(tt,im) THEN BEGIN
+                            addTable=STRARR(3,2)
+                            addTable[0,0]=STRING(im+1, FORMAT='(i0)')
+                            addTable[1,*]=TRANSPOSE(['Dark Noise mean','Dark Noise stdev'])
+                            addTable[2,*]=TRANSPOSE(STRING(noiseRes[*,im], FORMAT='(f0.3)'))
+                            multiExpTable=[[multiExpTable],[addTable]]
+                          ENDIF
+                        ENDFOR
+                      END
+                      4:  BEGIN
+                        getEI
+                        addTable=STRARR(3,addrows)
+                        FOR im=0, nImg-1 DO BEGIN
+                          IF markedMulti(tt,im) THEN BEGIN
+                            addTable[*,cc]=[STRING(im+1, FORMAT='(i0)'),'EI',STRING(eiRes[1,im],FORMAT='(f0.2)')]
+                            cc=cc+1
+                          ENDIF
+                        ENDFOR
+                        multiExpTable=[[multiExpTable],[addTable]]
+                      END
+                      5: BEGIN
+                        mtfx
+                        FOR im=0, nImg-1 DO BEGIN
+                          IF markedMulti(tt,im) THEN BEGIN
+                            addTable=STRARR(3,6)
+                            addTable[0,0]=STRING(im+1, FORMAT='(i0)')
+                            addTable[1,*]=TRANSPOSE(['MTF @ 0.5/mm','MTF @ 1.0/mm','MTF @ 1.5/mm','MTF @ 2.0/mm','MTF @ 2.5/mm','Freq @ MTF 0.5'])
+                            addTable[2,*]=TRANSPOSE(STRING(MTFres.(im).lpmm, FORMAT='(F0.3)'))
+                            multiExpTable=[[multiExpTable],[addTable]]
+                          ENDIF
+                        ENDFOR
+                      END
+                      ELSE:
+                    ENDCASE
+                  END
+                  2:
+                  3:
+                  ELSE:
+                ENDCASE
+
+
+              ENDIF; addrows 0
+            ENDFOR
+
+            updateTable
+            updatePlot,1,1,0
+            WIDGET_CONTROL, wtabResult, SET_TAB_CURRENT=0
+          ENDIF
+        ENDIF ELSE sv=DIALOG_MESSAGE('QuickTest not available for this mode yet (numbered tests only).')
+      END
+
+      'expMulti': BEGIN
+        IF N_ELEMENTS(multiExpTable) GT 1 THEN BEGIN
+          szT=SIZE(multiExpTable, /DIMENSIONS)
+          firstBlank=WHERE(multiExpTable[0,*] EQ '')
+          IF decimMark EQ ',' THEN BEGIN
+            IF N_ELEMENTS(szT) EQ 2 THEN BEGIN
+              FOR i=0, szT(0)-1 DO BEGIN
+                FOR j=firstBlank(0), szT(1)-1 DO BEGIN
+                  multiExpTable[i,j]=STRJOIN(STRSPLIT(multiExpTable[i,j], '.',/EXTRACT),',')
+                ENDFOR
+              ENDFOR
+            ENDIF ELSE BEGIN
+              FOR i=0, szT(0)-1 DO multiExpTable[i]=STRJOIN(STRSPLIT(multiExpTable[i], '.',/EXTRACT),',')
+            ENDELSE
+          ENDIF
+
+          CLIPBOARD.set, STRJOIN(multiExpTable, STRING(9B))
+        ENDIF ELSE sv=DIALOG_MESSAGE('No results to copy to clipboard.')
+      END
+
       ;---- tab CT/Dim--------------------------------------------------------------------------------------------------
 
       'dim': BEGIN
@@ -779,37 +1162,11 @@ pro ImageQC_event, ev
 
       'STPpix': BEGIN
         IF tags(0) NE 'EMPTY' THEN BEGIN
-          ;IF analyse NE 'STP' THEN sv=DIALOG_MESSAGE('Show ROIs first to verify size and positions.',/INFORMATION) ELSE BEGIN
-
-          WIDGET_CONTROL, /HOURGLASS
-          IF nFrames EQ 0 THEN nImg=N_TAGS(structImgs) ELSE nImg=nFrames
-          szROI=SIZE(stpROI, /DIMENSIONS)
-
-          resArr=FLTARR(4,nImg)-1; mean, stdev all circles
-          markedArr=INTARR(nImg)
-          IF marked(0) EQ -1 THEN markedArr=markedArr+1 ELSE markedArr(marked)=1
-          errStatus=0
-          FOR i=0, nImg-1 DO BEGIN
-            IF markedArr(i) THEN BEGIN
-              ;check if same size
-              tempImg=readImg(structImgs.(i).filename, 0)
-              imszTemp=SIZE(tempImg, /DIMENSIONS)
-              IF ARRAY_EQUAL(imszTemp[0:1], szROI[0:1]) THEN BEGIN
-                maske=stpROI
-                IMAGE_STATISTICS, tempImg, COUNT=nPix, MEAN=meanHU, STDDEV=stddevHU, MASK=maske
-                resArr(2,i)=meanHU & resArr(3,i)=stddevHU
-              ENDIF ELSE errstatus=1
-            ENDIF
-            WIDGET_CONTROL, lblProgress, SET_VALUE='Progress: '+STRING(i*100./nIMG, FORMAT='(i0)')+' %'
-          ENDFOR
-          WIDGET_CONTROL, lblProgress, SET_VALUE=''
-          If errstatus THEN sv=DIALOG_MESSAGE('The images have different size. Results restricted to images with same size as the first image.',/INFORMATION)
-          stpRes=CREATE_STRUCT('table',resArr)
-          results(getResNmb(modality,'STP',analyseStringsCT,analyseStringsXray,analyseStringsNM,analyseStringsPET))=1
+          STPpix; tests_forQuickTest.pro
           updateTable
           WIDGET_CONTROL, drawPlot, GET_VALUE=iDrawPlot & iDrawPlot.erase;updatePlot, 0,1,0
           WIDGET_CONTROL, wtabResult, SET_TAB_CURRENT=0
-          ;ENDELSE
+
         ENDIF
       END
 
@@ -904,38 +1261,7 @@ pro ImageQC_event, ev
       ;----analyse tab Homogeneity--------------------------------------------------------------------------------------------------
       'homog': BEGIN
         IF tags(0) NE 'EMPTY' THEN BEGIN
-          ;IF analyse NE 'HOMOG' THEN sv=DIALOG_MESSAGE('Show ROIs first to verify size and positions.',/INFORMATION) ELSE BEGIN
-
-          WIDGET_CONTROL, /HOURGLASS
-          IF nFrames EQ 0 THEN nImg=N_ELEMENTS(tags) ELSE nImg=nFrames
-          szROI=SIZE(homogROIs, /DIMENSIONS)
-
-          resArr=FLTARR(szROI(2)*2,nImg)-1; mean, stdev all circles
-          markedArr=INTARR(nImg)
-          IF marked(0) EQ -1 THEN markedArr=markedArr+1 ELSE markedArr(marked)=1
-
-          errstatus=0
-          FOR i=0, nImg-1 DO BEGIN
-            IF markedArr(i) THEN BEGIN
-              ;check if same size
-              IF nFrames NE 0 THEN tempImg=readImg(structImgs.(0).filename, i) ELSE tempImg=readImg(structImgs.(i).filename, 0)
-              imszTemp=SIZE(tempImg, /DIMENSIONS)
-              IF ARRAY_EQUAL(imszTemp[0:1], szROI[0:1]) THEN BEGIN
-                FOR r=0, szROI(2)-1 DO BEGIN
-                  maske=homogROIs[*,*,r]
-                  IMAGE_STATISTICS, tempImg, COUNT=nPix, MEAN=meanVal, STDDEV=stddevVal, MASK=maske
-                  resArr(r,i)=meanVal
-                  resArr(r+5,i)=stddevVal
-                ENDFOR
-              ENDIF ELSE errstatus=1
-            ENDIF
-            WIDGET_CONTROL, lblProgress, SET_VALUE='Progress: '+STRING(i*100./nIMG, FORMAT='(i0)')+' %'
-
-          ENDFOR
-          WIDGET_CONTROL, lblProgress, SET_VALUE=''
-          If errstatus THEN sv=DIALOG_MESSAGE('The images have different size. Results restricted to images with same size.',/INFORMATION)
-          homogRes=resArr
-          results(getResNmb(modality,analyse,analyseStringsCT,analyseStringsXray,analyseStringsNM,analyseStringsPET))=1
+          homog; tests_forQuickTest.pro
           updateTable
           updatePlot, 1,1,3
           WIDGET_CONTROL, wtabResult, SET_TAB_CURRENT=0
@@ -943,7 +1269,6 @@ pro ImageQC_event, ev
             updatePlot, 1,1,0
             WIDGET_CONTROL, wtabResult, SET_TAB_CURRENT=1; PET showing slice-to-slice variation as plot rather than table
           ENDIF
-          ;ENDELSE
         ENDIF
       END
 
@@ -972,60 +1297,22 @@ pro ImageQC_event, ev
         ENDIF
       END
 
-
       ;----analyse tab Noise--------------------------------------------------------------------------------------------------
       'noise': BEGIN
         IF tags(0) NE 'EMPTY' THEN BEGIN
-
-          WIDGET_CONTROL, /HOURGLASS
-          IF nFrames EQ 0 THEN nImg=N_ELEMENTS(tags) ELSE nImg=nFrames
-          szROI=SIZE(noiseROI, /DIMENSIONS)
-
-          resArr=FLTARR(2,nImg)-1; mean, stdev all circles
-          markedArr=INTARR(nImg)
-          totNoise=0.
-          IF marked(0) EQ -1 THEN markedArr=markedArr+1 ELSE markedArr(marked)=1
-          errstatus=0
-          FOR i=0, nImg-1 DO BEGIN
-            IF markedArr(i) THEN BEGIN
-              ;check if same size
-              IF nFrames NE 0 THEN tempImg=readImg(structImgs.(0).filename, i) ELSE tempImg=readImg(structImgs.(i).filename, 0)
-              imszTemp=SIZE(tempImg, /DIMENSIONS)
-              IF ARRAY_EQUAL(imszTemp[0:1], szROI[0:1]) THEN BEGIN
-                maske=noiseROI
-                IMAGE_STATISTICS, tempImg, COUNT=nPix, MEAN=meanVal, STDDEV=stddevVal, MASK=maske
-                resArr(0,i)=meanVal
-                resArr(1,i)=stddevVal
-                totNoise=totNoise+stddevVal
-              ENDIF ELSE errstatus=1
-            ENDIF
-            WIDGET_CONTROL, lblProgress, SET_VALUE='Progress: '+STRING(i*100./nIMG, FORMAT='(i0)')+' %'
-          ENDFOR
-          WIDGET_CONTROL, lblProgress, SET_VALUE=''
-          If errstatus THEN sv=DIALOG_MESSAGE('The images have different size. Results restricted to images with same size.',/INFORMATION)
-          avgNoise=totNoise/TOTAL(markedArr)
-
-          noiseRes=FLTARR(4,nImg)
-          noiseRes[0:1,*]=resArr
-          noiseRes[3,0]=avgNoise
-          noiseRes[2,*]=100.0*(resArr[1,*]-avgNoise)/avgNoise
-
-          CASE modality OF
-            0: BEGIN
-              noiseRes=FLTARR(4,nImg)
-              noiseRes[0:1,*]=resArr
-              noiseRes[3,0]=avgNoise
-              noiseRes[2,*]=100.0*(resArr[1,*]-avgNoise)/avgNoise
-            END
-            1: BEGIN
-              noiseRes=FLTARR(2,nImg)
-              noiseRes[0:1,*]=resArr
-            END
-            ELSE:
-          ENDCASE
-          results(getResNmb(modality,analyse,analyseStringsCT,analyseStringsXray,analyseStringsNM,analyseStringsPET))=1
+          noise; tests_forQuickTest.pro
           updateTable
           updatePlot, 1,1,0
+          WIDGET_CONTROL, wtabResult, SET_TAB_CURRENT=1
+        ENDIF
+      END
+
+      ;-----analyse-tab EI
+      'EI':BEGIN
+        IF tags(0) NE 'EMPTY' THEN BEGIN
+          getEI; tests_forQuickTest.pro
+          updateTable
+          updatePlot,1,1,0
           WIDGET_CONTROL, wtabResult, SET_TAB_CURRENT=1
         ENDIF
       END
@@ -1218,58 +1505,7 @@ pro ImageQC_event, ev
 
       'MTFX': BEGIN
         IF tags(0) NE 'EMPTY' THEN BEGIN
-          WIDGET_CONTROL, /HOURGLASS
-          WIDGET_CONTROL, txtMTFroiSzX, GET_VALUE=ROIszX
-          WIDGET_CONTROL, txtMTFroiSzY, GET_VALUE=ROIszY
-          WIDGET_CONTROL, cw_formLSFX, GET_VALUE=formLSF
-          WIDGET_CONTROL, txtCutLSFWX, GET_VALUE=cutLSFW
-
-          IF nFrames EQ 0 THEN nImg=N_TAGS(structImgs) ELSE nImg=nFrames
-          markedArr=INTARR(nImg)
-          IF marked(0) EQ -1 THEN markedArr=markedArr+1 ELSE markedArr(marked)=1
-          markedTemp=WHERE(markedArr EQ 1)
-          first=markedTemp(0)
-
-          IF nFrames NE 0 THEN BEGIN
-            tempImg=readImg(structImgs.(0).filename, 0)
-            curPix=structImgs.(0).pix(0)
-          ENDIF ELSE BEGIN
-            tempImg=readImg(structImgs.(first).filename, 0)
-            curPix=structImgs.(first).pix(0)
-          ENDELSE
-
-          szFirst=SIZE(tempImg, /DIMENSIONS)
-
-          ROIszMM=FLOAT([ROIszX(0),ROIszY])/2.
-          ROIsz=ROIszMM/curPix
-          halfSz=szFirst/2
-          x1=ROUND(halfSz(0)+dxya(0)-ROIsz(0)) & x2=ROUND(halfSz(0)+dxya(0)+ROIsz(0))
-          y1=ROUND(halfSz(1)+dxya(1)-ROIsz(1)) & y2=ROUND(halfSz(1)+dxya(1)+ROIsz(1))
-
-          subMatrix=FLTARR(x2-x1+1,y2-y1+1)
-
-          IF N_ELEMENTS(stpRes) EQ 0 THEN stpRes=0
-
-          errLogg=''
-          FOR i=0, nImg-1 DO BEGIN
-            IF markedArr(i) THEN BEGIN
-              IF nFrames NE 0 THEN tempImg=readImg(structImgs.(0).filename, i) ELSE tempImg=readImg(structImgs.(i).filename, 0)
-              szThis=SIZE(tempImg, /DIMENSIONS)
-              IF ARRAY_EQUAL(szThis[0:1], szFirst[0:1]) THEN BEGIN
-                submatrix[*,*]=tempImg[x1:x2,y1:y2]
-                MTF=calculateMTF_xray(submatrix, curPix, dxya[0:1],stpRes, formLSF, WIDGET_INFO(btnCutLSFX, /BUTTON_SET), FLOAT(cutLSFW(0)));, WIDGET_INFO(revProcMTFX, /BUTTON_SET))
-                IF MTF.errMsg NE '' THEN errLogg=errLogg+'Warning image #'+STRING(i+1, FORMAT='(i0)')+'. '+MTF.errMsg+newline
-              ENDIF ELSE BEGIN
-                MTF=CREATE_STRUCT('empty',0)
-                errLogg=errLogg+'Image size for image #'+STRING(i+1, FORMAT='(i0)')+' do not match first image. Calculate MTF separately for images with the same size.'+newline
-              ENDELSE
-
-            ENDIF ELSE MTF=CREATE_STRUCT('empty',0)
-
-            IF i EQ 0 THEN MTFres=CREATE_STRUCT('M0',MTF) ELSE MTFres=CREATE_STRUCT(MTFres, 'M'+STRING(i, FORMAT='(i0)'), MTF)
-          ENDFOR
-          IF errLogg NE '' THEN sv=DIALOG_MESSAGE(errLogg)
-          results(getResNmb(modality,analyse,analyseStringsCT,analyseStringsXray,analyseStringsNM,analyseStringsPET))=1
+          mtfx; tests_forQuickTest.pro
           updateTable
           updatePlot,1,1,0
           WIDGET_CONTROL, wtabResult, SET_TAB_CURRENT=1
@@ -1317,7 +1553,7 @@ pro ImageQC_event, ev
           first=markedTemp(0)
           IF nFrames NE 0 THEN tempImg=readImg(structImgs.(0).filename, first) ELSE tempImg=readImg(structImgs.(first).filename, 0)
           IF nFrames NE 0 THEN curPix=structImgs.(0).pix(0) ELSE curPix=structImgs.(first).pix(0)
-          
+
           szFirst=SIZE(tempImg, /DIMENSIONS)
           ROIszMM=FLOAT([ROIszX(0),ROIszY(0)])/2.
           ROIsz=ROIszMM/curPix
@@ -1372,7 +1608,7 @@ pro ImageQC_event, ev
             END
 
             1: BEGIN; line (in plane or z dir)
-             
+
               IF v3d THEN y2=y1+x2-x1;ensure quadratic for v3d
 
               nnImg=TOTAL(markedArr)
@@ -1453,9 +1689,9 @@ pro ImageQC_event, ev
               updateTable
               updatePlot,1,1,0
               WIDGET_CONTROL, wtabResult, SET_TAB_CURRENT=1
-              
 
-              END
+
+            END
 
             3: BEGIN ; circular edge (2d or 3d)
 
@@ -1517,9 +1753,6 @@ pro ImageQC_event, ev
           THEN updatePlot, 1,1,0
       END
       ;-----analyse-tab NPS --------------------------------------------------------------------------------------------------------------------
-
-     
-
       'NPS': BEGIN
         IF tags(0) NE 'EMPTY' THEN BEGIN
           WIDGET_CONTROL, /HOURGLASS
@@ -1591,7 +1824,7 @@ pro ImageQC_event, ev
           WIDGET_CONTROL, wtabResult, SET_TAB_CURRENT=1
         ENDIF; empty
       END
-      
+
       ;------------------- Variance image-------------------
       'varImage': BEGIN
         IF N_ELEMENTS(activeImg) GT 1 THEN BEGIN
@@ -1632,7 +1865,7 @@ pro ImageQC_event, ev
           ENDIF
           szX=drawXY
           szY=ROUND(szX*(szImg(1)*1./szImg(0)))
-          IF nFrames EQ 0 THEN fileList=getListOpenFiles(structImgs,0,marked) ELSE fileList=getListFrames(structImgs.(0), marked)
+          IF nFrames EQ 0 THEN fileList=getListOpenFiles(structImgs,0,marked, markedMulti) ELSE fileList=getListFrames(structImgs.(0), marked)
 
           im=IMAGE(adjustWindowLevel(varianceImg, [minVal,maxVal]), WINDOW_TITLE='Variance image from file: '+STRMID(fileList(sel),2) )
         ENDIF ELSE sv=DIALOG_MESSAGE('No active image')
@@ -2334,27 +2567,27 @@ pro ImageQC_event, ev
         IF errMsg NE '' THEN sv=DIALOG_MESSAGE(errMsg)
         errMsg=''
       END;updateCross
-      
+
       'rcRev': BEGIN
         clearRes, 'RC'
         updateROI
         redrawImg, 0,0
-        END
+      END
       'rcBackExclude':BEGIN
         clearRes, 'RC'
         updateROI
         redrawImg, 0,0
-        END
+      END
       'cw_rcType': updateTable
       'recovCoeff': BEGIN
-         IF tags(0) NE 'EMPTY' THEN BEGIN
+        IF tags(0) NE 'EMPTY' THEN BEGIN
 
           WIDGET_CONTROL, /HOURGLASS
           IF nFrames EQ 0 THEN nImg=N_ELEMENTS(tags) ELSE nImg=nFrames
-          
+
           markedArr=INTARR(nImg)
           IF marked(0) EQ -1 THEN markedArr=markedArr+1 ELSE markedArr(marked)=1
-          
+
           tttt=[1,5]
           IF tttt.HasValue(TOTAL(markedArr)) THEN BEGIN
             szROI=SIZE(rcROIs, /DIMENSIONS)
@@ -2362,7 +2595,7 @@ pro ImageQC_event, ev
 
             errStatus=0
             resArrTemp=FLTARR(7+6,nImg)
-            
+
             ;max & background
             FOR i=0, nImg-1 DO BEGIN
               IF markedArr(i) THEN BEGIN
@@ -2384,17 +2617,17 @@ pro ImageQC_event, ev
                     maske=rcROIs[*,*,r]
                     IMAGE_STATISTICS, tempImg, COUNT=nPix, MAXIMUM=maxVal, MASK=maske
                     resArrTemp(r,i)=maxVal
-                    
+
                   ENDFOR
                 ENDIF ELSE errStatus=1
               ENDIF;markedArr
               WIDGET_CONTROL, lblProgress, SET_VALUE='Progress: '+STRING(i*100./TOTAL(markedArr), FORMAT='(i0)')+' %'
             ENDFOR
             FOR r=0,5 DO resArr(r)=MAX(resArrTemp[r,*])
-            
+
             markedTemp=WHERE(markedArr EQ 1)
             resArr(6)=MEAN(resArrTemp[6,markedTemp])
-            
+
             ;A50
             valStruc=CREATE_STRUCT('emty',0)
             FOR r=0, 5 DO BEGIN
@@ -2413,10 +2646,10 @@ pro ImageQC_event, ev
                     IF A50(0) NE -1 THEN valstemp=[valstemp, valsInMask(A50)]
                   ENDIF
                 ENDIF
-                ENDFOR
-                resArr(7+r)=MEAN(valstemp)
-                ENDFOR
-                
+              ENDFOR
+              resArr(7+r)=MEAN(valstemp)
+            ENDFOR
+
             WIDGET_CONTROL, lblProgress, SET_VALUE=''
             If errstatus THEN sv=DIALOG_MESSAGE('The images have different size. Results restricted to images with same size.',/INFORMATION)
             rcRes=resArr
@@ -2530,7 +2763,7 @@ pro ImageQC_event, ev
 
         FOR i=0, nImg-1 DO BEGIN
           IF nFrames NE 0 THEN tempImg=readImg(structImgs.(0).filename, i) ELSE tempImg=readImg(structImgs.(i).filename, 0)
-          szTemp=SIZE(firstImg, /DIMENSIONS)
+          szTemp=SIZE(tempImg, /DIMENSIONS)
           IF ARRAY_EQUAL(szTemp,szFirst) THEN BEGIN
             corTemp[*,i]=tempImg[*,center(1)]
           ENDIF ELSE BEGIN
@@ -2558,7 +2791,7 @@ pro ImageQC_event, ev
 
         FOR i=0, nImg-1 DO BEGIN
           IF nFrames NE 0 THEN tempImg=readImg(structImgs.(0).filename, i) ELSE tempImg=readImg(structImgs.(i).filename, 0)
-          szTemp=SIZE(firstImg, /DIMENSIONS)
+          szTemp=SIZE(tempImg, /DIMENSIONS)
           IF ARRAY_EQUAL(szTemp,szFirst) THEN BEGIN
             sagTemp[*,i]=tempImg[center(0),*]
           ENDIF ELSE BEGIN
@@ -2576,6 +2809,34 @@ pro ImageQC_event, ev
 
       END
 
+      '3d':BEGIN
+        WIDGET_CONTROL, /HOURGLASS
+        IF nFrames EQ 0 THEN nImg=N_TAGS(structImgs) ELSE nImg=nFrames
+        IF nFrames NE 0 THEN firstImg=readImg(structImgs.(0).filename, 0) ELSE firstImg=readImg(structImgs.(0).filename, 0)
+
+        szFirst=SIZE(firstImg, /DIMENSIONS)
+        volTemp=FLTARR(szFirst(0),szFirst(1), nImg)
+        center=szFirst/2+dxya[0:1]
+
+        FOR i=0, nImg-1 DO BEGIN
+          IF nFrames NE 0 THEN tempImg=readImg(structImgs.(0).filename, i) ELSE tempImg=readImg(structImgs.(i).filename, 0)
+          szTemp=SIZE(tempImg, /DIMENSIONS)
+          IF ARRAY_EQUAL(szTemp,szFirst) THEN BEGIN
+            volTemp[*,*,i]=tempImg
+          ENDIF ELSE BEGIN
+            sv=DIALOG_MESSAGE('Image number ' + STRING(i, FORMAT='(i0)')+' do not have the same size as the first image. Sagittal image can not be generated.')
+            volTemp=-1
+            BREAK
+          ENDELSE
+        ENDFOR
+
+        IF N_ELEMENTS(volTemp) GT 1 AND nImg GT 1 THEN BEGIN
+          IF structImgs.(0).sliceThick EQ -1 THEN asR=0 ELSE asR=structImgs.(0).sliceThick/structImgs.(0).pix(1)
+          pVol=PTR_NEW(volTemp)
+          slicer3, pVol, DATA_NAMES='volume_data'
+        ENDIF
+      END
+
       ;***********************************************************************************************
 
       'setRangeMinMaxX':updatePlot, 1,0,0
@@ -2590,6 +2851,53 @@ pro ImageQC_event, ev
   IF ev.ID EQ cw_rampType THEN BEGIN
     clearRes, 'SLICETHICK'
     redrawImg, 0,0
+  ENDIF
+  ;------ use MultiMark
+  IF ev.ID EQ btnUseMulti THEN BEGIN
+    setVal=WIDGET_INFO(btnUseMulti, /BUTTON_SET)
+    IF setVal EQ 1 THEN oldsetVal=0 ELSE oldsetVal=1
+    proceed=1
+    IF TOTAL(results) GT 0 THEN BEGIN
+      sv=DIALOG_MESSAGE('Continue and clear results?', /QUESTION)
+      IF sv EQ 'No' THEN BEGIN
+        proceed=0
+        WIDGET_CONTROL, btnUseMulti, SET_BUTTON=oldsetVal
+      ENDIF
+    ENDIF
+
+    IF proceed THEN BEGIN
+      clearRes
+      IF setVal THEN BEGIN;multi turned on
+        IF nFrames NE 0 THEN BEGIN
+          sv=DIALOG_MESSAGE('MultMark not possible (yet) in multiframe mode')
+          clearMulti
+        ENDIF ELSE BEGIN
+          tags=TAG_NAMES(structImgs)
+          nImg=N_TAGS(structImgs)
+          IF tags(0) NE 'EMPTY' THEN BEGIN
+            findOpt=WHERE(multiOpt.(modality) GT 0, nTestsOpt)
+            IF nTestsOpt EQ 0 THEN BEGIN
+              sv=DIALOG_MESSAGE('Multi marking not possible (yet) for selected modality (no numbered tests)')
+              WIDGET_CONTROL, btnUseMulti, SET_BUTTON=oldsetVal
+            ENDIF ELSE BEGIN
+              markedMulti=INTARR(nTestsOpt, nImg)
+              marked=-1
+              fileList=getListOpenFiles(structImgs,0,marked,markedMulti)
+              sel=WIDGET_INFO(listFiles, /LIST_SELECT)
+              oldTop=WIDGET_INFO(listFiles, /LIST_TOP)
+              WIDGET_CONTROL, listFiles, SET_VALUE=fileList, SET_LIST_SELECT=sel(N_ELEMENTS(sel)-1), SET_LIST_TOP=oldTop
+            ENDELSE
+          ENDIF
+        ENDELSE
+      ENDIF ELSE BEGIN;multi turned off
+        clearMulti
+        marked=-1
+        fileList=getListOpenFiles(structImgs,0,marked,markedMulti)
+        sel=WIDGET_INFO(listFiles, /LIST_SELECT)
+        oldTop=WIDGET_INFO(listFiles, /LIST_TOP)
+        WIDGET_CONTROL, listFiles, SET_VALUE=fileList, SET_LIST_SELECT=sel(N_ELEMENTS(sel)-1), SET_LIST_TOP=oldTop
+      ENDELSE
+    ENDIF
   ENDIF
 
   ;********************************************* Textfield changed **************************************************************
@@ -2910,7 +3218,7 @@ pro ImageQC_event, ev
           val=ABS(FLOAT(comma2pointFloat(val(0))))
           WIDGET_CONTROL, txtVarImageROIsz, SET_VALUE=STRING(val, FORMAT='(f0.1)')
           redrawImg, 0,0
-          END
+        END
         txtNPSroiSzX: BEGIN
           WIDGET_CONTROL, txtNPSroiSzX, GET_VALUE=val
           val=LONG(val(0))
@@ -3076,9 +3384,7 @@ pro ImageQC_event, ev
         IF marked(0) NE -1 THEN sel=marked(rowNo) ELSE sel=rowNo
         WIDGET_CONTROL, listFiles, SET_LIST_SELECT=sel
         redrawImg,0,1 & updateInfo=1
-        ;updateTable
         updatePlot, 0,0,0
-        ;IF analyseStrings(curTab) EQ 'STP' THEN WIDGET_CONTROL, resTab, EDITABLE=1, USE_TABLE_SELECT=[0,0,0,tabSel(1)] ELSE WIDGET_CONTROL, resTab, EDITABLE=0
       ENDIF
     ENDIF
 
@@ -3103,20 +3409,6 @@ pro ImageQC_event, ev
       ENDCASE
 
     ENDIF
-    ;  editab=WIDGET_INFO(resTab, /TABLE_EDITABLE)
-    ;  IF max(editab) EQ 1 THEN BEGIN
-    ;    change=0
-    ;    IF ev.type EQ 0 THEN BEGIN;single character
-    ;      IF ev.ch EQ 13 THEN change=1 ; enter
-    ;    ENDIF
-    ;    IF change THEN BEGIN ;pressed enter in editable cell
-    ;      WIDGET_CONTROL, resTab, GET_VALUE=tableTemp
-    ;      stpRes.table=FLOAT(tableTemp)
-    ;      results(0)=1
-    ;      updateTable
-    ;      updatePlot, 1,0,0
-    ;    ENDIF
-    ;  ENDIF
   ENDIF
 
   ; ************************************** WIDGET_DRAW events **************************************************************
@@ -3206,8 +3498,6 @@ pro ImageQC_event, ev
       IF sel LT nImg-1 THEN BEGIN
         WIDGET_CONTROL, listFiles, SET_LIST_SELECT=sel+1
         redrawImg,0,1 & updateInfo=1
-        ;updateTable
-        ;updatePlot, 0,0,0
       ENDIF
     ENDIF
 
@@ -3216,8 +3506,6 @@ pro ImageQC_event, ev
       IF sel GT 0 THEN BEGIN
         WIDGET_CONTROL, listFiles, SET_LIST_SELECT=sel-1
         redrawImg,0,1 & updateInfo=1
-        ;updateTable
-        ;updatePlot, 0,0,0
       ENDIF
     ENDIF
 
@@ -3238,6 +3526,8 @@ pro ImageQC_event, ev
           IF TOTAL(results) GT 0 THEN sv=DIALOG_MESSAGE('Switch test-mode and loose current results?', /QUESTION) ELSE sv='Yes'
           IF sv EQ 'Yes' THEN BEGIN
             modality=selTab
+            markedMulti=-1
+            WIDGET_CONTROL, btnUseMulti, SET_BUTTON=0
             clearRes
             CASE selTab OF
               0: BEGIN
@@ -3359,12 +3649,19 @@ pro ImageQC_event, ev
         IF TOTAL(results) GT 0 AND counter GT 0 THEN BEGIN
           IF app EQ 0 THEN BEGIN
             marked=-1
+            clearMulti
           ENDIF ELSE BEGIN
             IF marked(0) EQ -1 THEN BEGIN
               marked=INDGEN(app);there is results, but no file was marked and the new files is appended = mark the files already there
             ENDIF
           ENDELSE
         ENDIF ELSE marked=-1
+        IF markedMulti(0) NE -1 THEN BEGIN
+          szMM=SIZE(markedMulti, /DIMENSIONS)
+          markedMultiNew=INTARR(szMM(0),szMM(1)+app)
+          markedMultiNew[*,0:szMM(1)-1]=markedMulti
+          markedMulti=markedMultiNew
+        ENDIF
 
         IF structImgs.(0).nFrames GT 1 THEN BEGIN
           fileList=getListFrames(structImgs.(0),marked)
@@ -3373,7 +3670,7 @@ pro ImageQC_event, ev
           infoFile=FILE_INFO(structImgs.(0).filename)
           IF infoFile.size GT 10000000 THEN sv=DIALOG_MESSAGE('Warning: large file (>10MB). Consider storing the file locally first to ensure smooth workflow.')
         ENDIF ELSE BEGIN
-          fileList=getListOpenFiles(structImgs,0,marked)
+          fileList=getListOpenFiles(structImgs,0,marked, markedMulti)
           nFrames=0
         ENDELSE
 
@@ -3462,7 +3759,14 @@ pro ImageQC_event, ev
                 markedArr=markedArr(newOrder)
                 marked=WHERE(markedArr EQ 1)
               ENDIF
-              fileList=getListOpenFiles(structImgs,0,marked)
+              IF markedMulti(0) NE -1 THEN BEGIN
+                szMM=SIZE(markedMulti, /DIMENSIONS)
+                FOR p=0, szMM(0)-1 DO BEGIN
+                  markedArr=markedMulti[p,*]
+                  markedMulti[p,*]=markedArr(newOrder)
+                ENDFOR
+              ENDIF
+              fileList=getListOpenFiles(structImgs,0,marked, markedMulti)
               WIDGET_CONTROL, listFiles, YSIZE=n_elements(fileList), SET_VALUE=fileList, SET_LIST_SELECT=newFirstSel, SET_LIST_TOP=0
               WIDGET_CONTROL, listFiles, SCR_YSIZE=170
               clearRes
@@ -3497,7 +3801,7 @@ pro ImageQC_event, ev
         CASE modality OF
           0: BEGIN
             infoString1=$
-              ['AcquisitionDate:'+tab+ tempStruct.acqDate, $
+              ['Date' +(tempStruct.acqDate NE '' ? ('OfAcq:'+tab+ tempStruct.acqDate) : ('OfImage:'+tab+ tempStruct.imgDate)), $
               'Institution:'+tab+ tempStruct.Institution, $
               'ModelName:'+tab+ tempStruct.ModelName, $
               'PatientName:'+tab+ tempStruct.PatientName, $
@@ -3520,7 +3824,7 @@ pro ImageQC_event, ev
           END
           1: BEGIN
             infoString1=$
-              ['AcquisitionDate:'+tab+ tempStruct.acqDate, $
+              ['Date' +(tempStruct.acqDate NE '' ? ('OfAcq:'+tab+ tempStruct.acqDate) : ('OfImage:'+tab+ tempStruct.imgDate)), $
               'Institution:'+tab+ tempStruct.Institution, $
               'ModelName:'+tab+ tempStruct.ModelName, $
               'PatientName:'+tab+ tempStruct.PatientName, $
@@ -3528,7 +3832,7 @@ pro ImageQC_event, ev
               'Modality:'+tab+tab+tempStruct.modality, $
               'Presentation type:'+tab+tempStruct.presType,$
               'SeriesNmb:'+tab+ string(tempStruct.seriesNmb, format='(i0)'), $
-              'Acquisition time:'+tab+ (tempStruct.acqTime NE -1 ? string(tempStruct.acqTime, format='(i0)'): '-'), $
+              'Acquisition time:'+tab+ tempStruct.acqTime, $
               'Protocol name:'+tab+ tempStruct.protocolName]
 
             infoString2=$
@@ -3545,13 +3849,13 @@ pro ImageQC_event, ev
           END
           2:BEGIN
             infoString1=$
-              ['AcquisitionDate:'+tab+ tempStruct.acqDate, $
+              ['Date' +(tempStruct.acqDate NE '' ? ('OfAcq:'+tab+ tempStruct.acqDate) : ('OfImage:'+tab+ tempStruct.imgDate)), $
               'Institution:'+tab+ tempStruct.Institution, $
               'StationName:'+tab+ tempStruct.StationName, $
               'PatientName:'+tab+ tempStruct.PatientName, $
               'PatientID:'+tab+ tab+tempStruct.PatientID, $
               'Modality:'+tab+tab+tempStruct.modality, $
-              'Acquisition time:'+tab+ (tempStruct.acqTime NE -1 ? string(tempStruct.acqTime, format='(i0)'): '-'), $
+              'Acquisition time:'+tab+ tempStruct.acqTime, $
               'SeriesName:'+tab+ tempStruct.seriesName, $
               'Study Description:'+tab+ tempStruct.studyDescr]
 
@@ -3568,8 +3872,8 @@ pro ImageQC_event, ev
           END
           3: BEGIN
             infoString1=$
-              ['AcquisitionDate:'+tab+ tempStruct.acqDate, $
-              'Acquisition time:'+tab+ (tempStruct.acqTime NE -1 ? string(tempStruct.acqTime, format='(i0)'): '-'), $
+              ['Date' +(tempStruct.acqDate NE '' ? ('OfAcq:'+tab+ tempStruct.acqDate) : ('OfImage:'+tab+ tempStruct.imgDate)), $
+              'Acquisition time:'+tab+ tempStruct.acqTime, $
               'ModelName:'+tab+ tempStruct.ModelName, $
               'PatientName:'+tab+ tempStruct.PatientName, $
               'PatientID:'+tab+ tab+tempStruct.PatientID, $
