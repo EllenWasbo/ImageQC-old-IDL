@@ -68,8 +68,8 @@ pro redrawImg, viewpl, newActive
     
     IF annot THEN BEGIN
     IF nFrames EQ 0 THEN BEGIN
-      fileList=getListOpenFiles(structImgs,0,marked)
-      IF tempStruct.modality EQ 'CT' THEN textZpos='z = '+ STRING(tempStruct.zpos,FORMAT='(f0.3)') ELSE textZpos ='' 
+      fileList=getListOpenFiles(structImgs,0,marked, markedMulti)
+      IF tempStruct.modality EQ 'CT' THEN textZpos='z = '+ STRING(tempStruct.zpos(0),FORMAT='(f0.3)') ELSE textZpos ='' 
     ENDIF ELSE BEGIN
       fileList=getListFrames(structImgs.(0), marked)
       IF TOTAL(structImgs.(0).zPos) NE 0 THEN textZpos='z = '+ STRING(structImgs.(0).zPos(sel),FORMAT='(f0.3)') ELSE textZpos=''
@@ -78,7 +78,12 @@ pro redrawImg, viewpl, newActive
     oTextZ = OBJ_NEW('IDLgrText', textZpos, LOCATIONS = [2,20], COLOR = 255*([1,0,0]))
     oModel->Add, oTextZ
     
-    textAdr=STRMID(fileList(sel),2)
+    preStrLen=2
+    IF markedMulti(0) NE -1 THEN BEGIN
+      nTestMarked=TOTAL(markedMulti[*,sel])
+      preStrLen=3+nTestMarked+(N_ELEMENTS(markedMulti[*,sel])-nTestMarked)*2
+    ENDIF
+    textAdr=STRMID(fileList(sel),preStrLen)
     oTextAdr = OBJ_NEW('IDLgrText', textAdr, LOCATIONS = [2,2], COLOR = 255*([1,0,0]))
     oModel->Add, oTextAdr
     

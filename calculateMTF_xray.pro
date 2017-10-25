@@ -45,7 +45,14 @@ function calculateMTF_xray, subMatrix, pix, center, stp, formLSF, cutLSF, cutW;,
   ENDIF
 
   edgePos=FLTARR(szM(1))
-  FOR i=0, szM(1)-1 DO edgePos(i)=findPosTreshold(SMOOTH(subM[*,i],3), halfmax)
+  fw=3
+  IF szM(1) GT 45 THEN fw=15
+  FOR i=0, szM(1)-1 DO BEGIN
+    prof=SMOOTH(subM[*,i],fw)
+    prof[0:fw]=MEAN(prof[0:fw])
+    prof[-fw:-1]=MEAN(prof[-fw:-1])
+    edgePos(i)=findPosTreshold(prof, halfmax)
+  ENDFOR
 
   notFoundEdge=WHERE(edgePos EQ -1, nNotFound)
   IF nNotFound GT 0 THEN errMsg=errMsg+'Edge position not found for full ROI. This part is attempted to be ignored, but carefully inspect edge-fit to verify this.'
@@ -53,8 +60,11 @@ function calculateMTF_xray, subMatrix, pix, center, stp, formLSF, cutLSF, cutW;,
   distTemp=FINDGEN(szM(1))
 
   ;linear fit of edge positions
-  res=LINFIT(edgePos(foundEdge), distTemp(foundEdge), YFIT=yfit)
-  slope=res(1) & interc=res(0)
+  ;res=LINFIT(edgePos(foundEdge), distTemp(foundEdge), YFIT=yfit)
+  ;slope=res(1) & interc=res(0) 
+  res=LINFIT(distTemp(foundEdge), edgePos(foundEdge), YFIT=yfit)
+  slope=(1./res(1)) & interc=-(res(0)/res(1));y=ax+b to x=(1/a)*y+(-b/a), linear fit of oposite fails when ~no rotation
+ 
   minx=MIN(edgePos(foundEdge))
   maxx=MAX(edgePos(foundEdge))
   xx=[minx,maxx]
@@ -64,12 +74,11 @@ function calculateMTF_xray, subMatrix, pix, center, stp, formLSF, cutLSF, cutW;,
 
   angle=(180/!PI)*ATAN((xx(1)-xx(0))/(yy(1)-yy(0))) ; *pix(0)/pix(1) if pix not isotropic
 
-  IF ABS(angle) GT 8 OR ABS(angle) LT 2 THEN errMsg=errMsg+'Slanted edge recommended to be 2-8 degrees rotated. This edge is found to be ' + STRING(ABS(angle), FORMAT='(f0.1)') +' degrees. '
+  IF ABS(angle) GT 8 OR ABS(angle) LT 2 THEN errMsg=errMsg+'Info: This edge is found to be ' + STRING(ABS(angle), FORMAT='(f0.1)') +' degrees. '
 
   ;sort pixels by distance normal to edge
   distArr=FLTARR(szM(0),szM(1))
 
-  ;FOR i=0, szM(1)-1 DO distArr[*,i]=FINDGEN(szM(0))-(((i)-interc)/slope);-COS(!Pi/180*angle)*(((i)-interc)/slope)
   FOR i=0, szM(1)-1 DO distArr[*,i]=(FINDGEN(szM(0))-(((i)-interc)/slope))*COS(!Pi*angle/180)
 
   sorting=SORT(distArr)
@@ -197,7 +206,6 @@ function calculateMTF_xray, subMatrix, pix, center, stp, formLSF, cutLSF, cutW;,
     smLSF=Y[ss1:ss2]
     LSFx=yfit
     ddx=X[ss1:ss2]
-    ;stop
   ENDIF ELSE BEGIN
     ss1=0
     ss2=nn-1
@@ -205,50 +213,6 @@ function calculateMTF_xray, subMatrix, pix, center, stp, formLSF, cutLSF, cutW;,
     ddx=newdists
     errMsg=errMsg+'Failed to fit LSF. LSF used as is further. NB smoothed LSF!'
   ENDELSE
-
-
-;  tit='LSF from edge interpolated (red), smoothed (green), fitted to smoothed (white)'
-;  window,3, TITLE=tit
-;  IF N_ELEMENTS(res) EQ 2 THEN xs= X ELSE xs=newdists
-;  LOADCT, 0, /SILENT
-;  IF res(0) NE -1 THEN plot, xs, lsf, XRANGE=res(0)*pixNew*5*[-1,1] ELSE plot, xs, lsf
-;  LOADCT, 13, /SILENT
-;  IF res(0) NE -1 THEN oplot, xs, lsf, COLOR=150
-;  oplot, newdists, dLSF, COLOR=255
-;  LOADCT, 0, /SILENT
-;  IF N_ELEMENTS(LSFx) GT 0 THEN oplot, ddx, LSFx
-;
-;  sv=DIALOG_MESSAGE('Accept current fit (Y) or adjust parameters manually (N)?',/QUESTION)
-;  IF sv EQ 'No' THEN BEGIN
-;    tryAgain=1
-;    WHILE tryAgain DO BEGIN
-;      box=[$
-;        '1, BASE,, /COLUMN', $
-;        '0, LABEL, Adjust parameters', $
-;        '1, BASE,, /ROW, ',$
-;        '0, FLOAT, '+STRING(A(0))+', TAG=A0', $
-;        '2, FLOAT, '+STRING(A(2))+', TAG=A2', $
-;        '1, BASE,, /ROW', $
-;        '0, BUTTON, OK, QUIT, TAG=OK',$
-;        '2, BUTTON, Cancel, QUIT']
-;      manAdj=CW_FORM_2(box, /COLUMN, TAB_MODE=1, TITLE='Adjust curvefit', XSIZE=300, YSIZE=300, FOCUSNO=3)
-;
-;      IF manAdj.OK THEN BEGIN
-;        IF res(0) NE -1 THEN plot, xs, lsf, XRANGE=res(0)*pixNew*5*[-1,1] ELSE plot, xs, lsf
-;        LOADCT, 13, /SILENT
-;        IF N_ELEMENTS(yfit) GT 0 THEN oplot, ddx, LSFx, COLOR=255
-;        yAdj=calcGauss(X[ss1:ss2], FLOAT(manAdj.A2),FLOAT(manAdj.A0),0)
-;        oplot, ddx, yAdj, COLOR=150
-;        LOADCT, 0, /SILENT
-;
-;        sv=DIALOG_MESSAGE('Accept adjusted fit green (Y) or adjust further (N)?',/QUESTION)
-;        IF sv EQ 'Yes' THEN BEGIN
-;          tryAgain=0
-;          LSFx=yAdj
-;        ENDIF
-;      ENDIF ELSE tryAgain=0
-;    ENDWHILE
-;  ENDIF
 
 CASE formLSF OF 
 0: BEGIN;exp

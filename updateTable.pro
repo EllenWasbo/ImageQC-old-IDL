@@ -167,6 +167,12 @@ nCols=-1
             resArrString=STRARR(nCols,nRows)
             FOR i=0, nRows-1 DO resArrString[*,i]=STRING(noiseRes[*,markedTemp(i)], FORMAT=formatCode(noiseRes[*,markedTemp(i)]))
           END
+          'EI':BEGIN
+            nCols=2
+            headers=['mAs','EI']
+            resArrString=STRARR(nCols,nRows)
+            FOR i=0, nRows-1 DO resArrString[*,i]=STRING(eiRes[*,markedTemp(i)], FORMAT='(f0.1)')
+          END
           'ROI':BEGIN
             nCols=4
             headers=['Min','Max','Avg','Stdev']
@@ -180,8 +186,8 @@ nCols=-1
             resArrString=STRARR(nCols,nRows)
             multipRes=WHERE(TAG_NAMES(MTFres) EQ 'M0')
             IF multipRes(0) NE -1 THEN BEGIN
-              FOR i =0, nRows-1 DO IF N_TAGS(MTFres.(markedTemp(i))) NE 1 THEN resArrString[*,i]=STRING(MTFres.(markedTemp(i)).lpmm, FORMAT='(F0.2)')
-            ENDIF ELSE resArrString[*,0]=STRING(MTFres.lpmm, FORMAT='(F0.2)')
+              FOR i =0, nRows-1 DO IF N_TAGS(MTFres.(markedTemp(i))) NE 1 THEN resArrString[*,i]=STRING(MTFres.(markedTemp(i)).lpmm, FORMAT='(F0.3)')
+            ENDIF ELSE resArrString[*,0]=STRING(MTFres.lpmm, FORMAT='(F0.3)')
           END
           'NPS':
         ENDCASE
@@ -285,11 +291,16 @@ nCols=-1
                 resFWHM=getWidthAtThreshold(xprof,(maxval+minval)/2.)
                 resFWTM=getWidthAtThreshold(xprof,(maxval-minval)/10.+minval)
                 resArrString=[STRING(resFWHM(0)*0.1*pix,FORMAT='(f0.3)'),STRING(resFWTM(0)*0.1*pix,FORMAT='(f0.3)')]
+                IF tagMTFres.HasValue('FWHMG') THEN BEGIN
+                  headers=['FWHM (mm)','FWTM (mm)','Gauss FWHM (mm)','Gauss FWTM (mm)']
+                  nCols=4
+                  resArrString=[resArrString, STRING(MTFres.FWHMG,FORMAT='(f0.3)'),STRING(MTFres.FWTMG,FORMAT='(f0.3)')]
+                ENDIF
               ENDIF
             ENDIF ELSE BEGIN
               multipRes=WHERE(tagMTFres EQ 'M0')
               IF multipRes(0) NE -1 THEN BEGIN
-                resArrString=STRARR(nCols,nRows)
+                resArrString=STRARR(4,nRows)
                 FOR i =0, nRows-1 DO BEGIN
                   tagMTFresThis=tag_names(MTFres.(markedTemp(i)))
                   IF tagMTFresThis.HasValue('FITLSFX') THEN BEGIN
@@ -309,9 +320,16 @@ nCols=-1
                       resFWTM=getWidthAtThreshold(yprof,(maxval-minval)/10.+minval)
                       resArrString[2:3,i]=[STRING(resFWHM(0)*pixFac*pix,FORMAT='(f0.3)'),STRING(resFWTM(0)*pixFac*pix,FORMAT='(f0.3)')]
                     ENDIF
-                    
+                    IF tagMTFresThis.HasValue('FWHMG') THEN BEGIN
+                      resArrString[2:3,i]=[STRING(MTFres.(markedTemp(i)).FWHMG,FORMAT='(f0.3)'),STRING(MTFres.(markedTemp(i)).FWTMG,FORMAT='(f0.3)')]
+                    ENDIF
                   ENDIF
                 ENDFOR
+                IF nRows EQ 1 THEN noFWHMg=WHERE(resArrString[2:3] NE '') ELSE noFWHMg=WHERE(resArrString[*,2] NE '')
+                IF noFWHMg(0) NE -1 THEN BEGIN
+                  nCols=4
+                  headers=['FWHM (mm)','FWTM (mm)','Gauss FWHM (mm)','Gauss FWTM (mm)']
+                ENDIF
               ENDIF
 
             ENDELSE
@@ -376,7 +394,8 @@ nCols=-1
   ENDCASE
 
   IF nCols EQ -1 THEN BEGIN
-    WIDGET_CONTROL, resTab, TABLE_XSIZE=4, TABLE_YSIZE=2, COLUMN_LABELS=['0','1','2','3'], COLUMN_WIDTHS=[100,100,100,100], SET_VALUE=STRARR(4,5), SET_TABLE_SELECT=[-1,-1,-1,-1], SET_TABLE_VIEW=[0,0]
+    WIDGET_CONTROL, resTab, TABLE_XSIZE=4, TABLE_YSIZE=2, COLUMN_LABELS=['0','1','2','3'], COLUMN_WIDTHS=[100,100,100,100], $
+      SET_VALUE=STRARR(4,5), SET_TABLE_SELECT=[-1,-1,-1,-1], SET_TABLE_VIEW=[0,0], FOREGROUND_COLOR=[0,0,0]
   ENDIF ELSE BEGIN
     ;which cell should be highlighted
     IF cellSelHighLight THEN BEGIN
@@ -397,9 +416,17 @@ nCols=-1
       ENDIF
     ENDIF
 
-    IF nCols GT -1 THEN $
-      WIDGET_CONTROL, resTab, TABLE_XSIZE=nCols, TABLE_YSIZE=nRows, COLUMN_LABELS=headers, COLUMN_WIDTHS=INTARR(nCols)+630/nCols, SET_VALUE=resArrString, SET_TABLE_SELECT=tabSelect $
-    ELSE WIDGET_CONTROL, resTab, TABLE_XSIZE=4, TABLE_YSIZE=2, COLUMN_LABELS=['0','1','2','3'], COLUMN_WIDTHS=[100,100,100,100], SET_VALUE=STRARR(4,5), SET_TABLE_SELECT=tabSelect
+    IF nCols GT 0 THEN BEGIN
+      WIDGET_CONTROL, resTab, TABLE_XSIZE=nCols, TABLE_YSIZE=nRows, COLUMN_LABELS=headers, COLUMN_WIDTHS=INTARR(nCols)+630/nCols, SET_VALUE=resArrString, SET_TABLE_SELECT=tabSelect
+      WIDGET_CONTROL, resTab, FOREGROUND_COLOR=[0,0,0]
+      IF markedMulti(0) NE -1 AND TOTAL(markedMulti) GT 0 THEN BEGIN
+        testNmb=getResNmb(modality,analyse,analyseStringsCT,analyseStringsXray,analyseStringsNM,analyseStringsPET)
+        markedArrTemp=markedMulti[testNmb,*]
+        FOR ii=0, nImg-1 DO BEGIN
+          IF markedArrTemp(ii) EQ 0 THEN WIDGET_CONTROL, resTab, USE_TABLE_SELECT=[0,ii,nCols-1,ii], FOREGROUND_COLOR=[200,200,200]
+        ENDFOR
+      ENDIF
+    ENDIF ELSE WIDGET_CONTROL, resTab, TABLE_XSIZE=4, TABLE_YSIZE=2, COLUMN_LABELS=['0','1','2','3'], COLUMN_WIDTHS=[100,100,100,100], SET_VALUE=STRARR(4,5), SET_TABLE_SELECT=tabSelect, FOREGROUND_COLOR=[0,0,0]
     WIDGET_CONTROL, resTab, SET_TABLE_VIEW=tabView
     
   ENDELSE

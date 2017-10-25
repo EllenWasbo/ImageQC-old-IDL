@@ -27,49 +27,56 @@ end
 
 ;return image matrix scaled with slope and intercept
 function readImg, adr, frame
-  o=obj_new('idlffdicom')
-  t=o->read(adr)
-  
-  ;image with correct values and rotation
-  test=o->GetReference('0028'x,'1052'x)
-  test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
-  IF test(0) NE -1 THEN intercept=FLOAT(*(test_peker[0])) ELSE intercept=0
-  
-  test=o->GetReference('0028'x,'1053'x)
-  test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
-  IF test(0) NE -1 THEN slope=FLOAT(*(test_peker[0])) ELSE slope=1.
-  
-  test=o->GetReference('0018'x,'5100'x)
-  test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
-  ori=0
-  IF test(0) NE -1 THEN BEGIN
-    temporient=STRTRIM(STRING(*(test_peker[0])),2)
-    IF temporient EQ 'FFS' THEN ori=1
-  ENDIF
-  
-  ;multiframe?
-  multiframe=0
-  test=o->GetReference('0028'x,'0008'x)
-  test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
-  IF test(0) NE -1 THEN BEGIN 
-    IF *(test_peker[0]) NE 1 THEN multiframe=1 
-  ENDIF
-  
-  test=o->GetReference('7FE0'x,'0010'x)
-  IF multiframe EQ 0 THEN BEGIN
-    ;CT image is last image (icon images first)
-    test_peker=o->GetValue(REFERENCE=test[N_ELEMENTS(test)-1],/NO_COPY)
-    matrix=FLOAT(*(test_peker[0]))
-  ENDIF ELSE BEGIN
-    ;multiframe
-    test_peker=o->GetValue(REFERENCE=test[frame],/NO_COPY)
-    matrix=FLOAT(*(test_peker[0]))
+  qd=QUERY_DICOM(adr)
+  IF qd THEN BEGIN
+    o=obj_new('idlffdicom')
+    t=o->read(adr)
+    
+    ;image with correct values and rotation
+    test=o->GetReference('0028'x,'1052'x)
+    test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
+    IF test(0) NE -1 THEN intercept=FLOAT(*(test_peker[0])) ELSE intercept=0
+    
+    test=o->GetReference('0028'x,'1053'x)
+    test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
+    IF test(0) NE -1 THEN slope=FLOAT(*(test_peker[0])) ELSE slope=1.
+    
+    test=o->GetReference('0018'x,'5100'x)
+    test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
+    ori=0
+    IF test(0) NE -1 THEN BEGIN
+      temporient=STRTRIM(STRING(*(test_peker[0])),2)
+      IF temporient EQ 'FFS' THEN ori=1
+    ENDIF
+    
+    ;multiframe?
+    multiframe=0
+    test=o->GetReference('0028'x,'0008'x)
+    test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
+    IF test(0) NE -1 THEN BEGIN 
+      IF *(test_peker[0]) NE 1 THEN multiframe=1 
+    ENDIF
+    
+    test=o->GetReference('7FE0'x,'0010'x)
+    IF multiframe EQ 0 THEN BEGIN
+      ;real image is last image (icon images first)
+      test_peker=o->GetValue(REFERENCE=test[N_ELEMENTS(test)-1],/NO_COPY)
+      matrix=FLOAT(*(test_peker[0]))
+    ENDIF ELSE BEGIN
+      ;multiframe
+      test_peker=o->GetValue(REFERENCE=test[frame],/NO_COPY)
+      matrix=FLOAT(*(test_peker[0]))
+    ENDELSE
+    
+    matrix=REVERSE(matrix,2)*slope + intercept
+    IF ori EQ 1 THEN matrix=REVERSE(matrix)
+    
+    OBJ_DESTROY,o & PTR_FREE, test_peker
+  ENDIF ELSE BEGIN; 'dat file
+    RESTORE, adr
+    IF imageQCmatrix.nFrames GT 0 THEN matrix=imageQCmatrix.matrix[*,*,frame] ELSE matrix=imageQCmatrix.matrix
+    imageQCmatrix=!null
   ENDELSE
-  
-  matrix=REVERSE(matrix,2)*slope + intercept
-  IF ori EQ 1 THEN matrix=REVERSE(matrix)
-  
-  OBJ_DESTROY,o & PTR_FREE, test_peker
   return, matrix
 end
 
@@ -86,23 +93,6 @@ function linearizeSTP, matrix, STP
   linMatrix=(matrix-STP.b)/STP.a(0)
   return, linMatrix
 end
-
-;adjust to resonable number of decimals
-;function nDecimals, arr
-;  nDec=8
-;  maxa=MAX(ABS(arr))
-;
-;  IF maxa LT 0.0001 THEN nDec=7
-;  IF maxa LT 0.001 THEN nDec=6
-;  IF maxa LT 0.01 THEN nDec=5
-;  IF maxa LT 0.1 THEN nDec=4
-;  IF maxa LE 1 THEN nDec=3
-;  IF maxa GT 1 THEN nDec=3
-;  IF maxa GT 10 THEN nDec=2
-;  IF maxa GT 100 THEN nDec=1
-;
-;  return, STRING(nDec, FORMAT='(i0)')
-;end
 
 ;adjust to resonable number of decimals
 function formatCode, arr
@@ -329,6 +319,21 @@ function reorderStructStruct, struct, newOrder
   return, structNew
 end
 
+;change structure tags from array to one-element-values. Values are set to the numbered value
+function structArr2elem, struct, taglist2scalar, valueNmb
+  ntags=N_TAGS(struct)
+  tagname=TAG_NAMES(struct)
+  IF taglist2scalar.HasValue(tagname(0)) THEN val=struct.(0)[valueNmb] ELSE val=struct.(0)
+  structNew=CREATE_STRUCT(tagname(0),val)
+  FOR i=1, ntags-1 DO BEGIN
+    IF taglist2scalar.HasValue(tagname(i)) THEN BEGIN
+      IF N_ELEMENTS(struct.(i)) GT valueNmb THEN val=struct.(i)[valueNmb] ELSE val=struct.(i)
+    ENDIF ELSE val=struct.(i)
+    structNew=CREATE_STRUCT(structNew,tagname(i),val)
+  ENDFOR
+  return, structNew
+end
+
 ;find the width of a profile at specified threshold value using interpolation. Return width and centerpos of profile at threshold
 function getWidthAtThreshold, vec, threshold
   width=-1
@@ -454,10 +459,12 @@ end
 ; full = 0 for only parentfolder\filename, =1 for full path
 ; marked = array of indexes for marked files, -1 means none is marked
 ;   full=1 returns only marked, full=0 returns all and set an X on the marked
-function getListOpenFiles, struc, full, marked
+; mMulti = multiMark array, -1 means no multimarking (X)
+function getListOpenFiles, struc, full, marked, mMulti
 
   nn=N_TAGS(struc)
   markedArr=INTARR(nn)
+  szMM=SIZE(mMulti, /DIMENSIONS)
   IF marked(0) NE -1 THEN markedArr(marked)=1 ELSE markedArr=markedArr+1
   IF full EQ 1 THEN BEGIN
     fileList=STRARR(TOTAL(markedArr))
@@ -471,7 +478,16 @@ function getListOpenFiles, struc, full, marked
   ENDIF ELSE BEGIN
     fileList=STRARR(nn)
     FOR i=0, nn-1 DO BEGIN
-      IF markedArr(i) AND marked(0) NE -1 THEN add='X ' ELSE add='   '
+      add='   '
+      IF marked(0) NE -1 THEN BEGIN
+        IF markedArr(i) AND marked(0) NE -1 THEN add='X ' ELSE add='   '
+      ENDIF ELSE IF mMulti(0) NE -1 THEN BEGIN
+        add=''
+        FOR j=0, szMM(0)-1 DO BEGIN
+          IF mMulti[j,i] THEN add=add+STRING(j+1, FORMAT='(i0)') ELSE add=add+'  '
+        ENDFOR
+        add=add+'   '
+      ENDIF
       t=STRSPLIT(struc.(i).filename,'\',/EXTRACT)
       nSplit=N_ELeMENTS(t)
       
@@ -595,4 +611,11 @@ function getZposMarked, struc, markedTemp
   ENDELSE
   zPosMarked=zPos(markedTemp)
   return, zPosMarked
+end
+
+function formatDMY, str
+  IF STRLEN(str) EQ 8 THEN BEGIN
+    strDMY=STRMID(str, 0, 4)+'.'+STRMID(str, 4, 2)+'.'+STRMID(str, 6, 2)
+  ENDIF ELSE strDMY=str
+  return, strDMY
 end

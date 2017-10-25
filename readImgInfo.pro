@@ -101,13 +101,17 @@ function readImgInfo, adr
       ;****************parameters where and when
       test=o->GetReference('0008'x,'0022'x)
       test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
-      acqDate=*(test_peker[0])
+      IF test(0) NE -1 THEN acqDate=*(test_peker[0]) ELSE acqDate=''
+
+      test=o->GetReference('0008'x,'0023'x)
+      test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
+      IF test(0) NE -1 THEN imgDate=*(test_peker[0]) ELSE imgDate=''
 
       ; acquisition time
       test=o->GetReference('0008'x,'0032'x)
       test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
-      IF test(0) NE -1 THEN acqTime=LONG(*(test_peker[0])) ELSE acqTime=-1
-
+      IF test(0) NE -1 THEN acqTime=*(test_peker[0]) ELSE acqTime=''
+      
       test=o->GetReference('0008'x,'0080'x)
       test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
       IF test(0) NE -1 THEN institution=*(test_peker[0]) ELSE institution=''
@@ -172,7 +176,7 @@ function readImgInfo, adr
       ;***************parameters how
       test=o->GetReference('0018'x,'0050'x)
       test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
-      IF test(0) NE -1 THEN sliceThick=FLOAT(*(test_peker[0])) ELSE sliceThick=-1
+      IF test(0) NE -1 THEN sliceThick=FLOAT(*(test_peker[0])) ELSE sliceThick=-1.
 
       test=o->GetReference('0028'x,'0030'x)
       test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
@@ -180,8 +184,8 @@ function readImgInfo, adr
         pixStr=*(test_peker[0])
         pix=FLOAT(STRSPLIT(pixStr,'\',/EXTRACT))
         IF pix(0) NE pix(1) THEN sv=DIALOG_MESSAGE('Software not verified to handle non-quadratic pixels. Image found with pixelsize '+pixStr+'. First value might be used for both directions.')
-      ENDIF ELSE pix=[-1,-1]
-      IF pix(0) EQ -1 THEN BEGIN
+      ENDIF ELSE pix=[-1.,-1.]
+      IF pix(0) EQ -1. THEN BEGIN
         test=o->GetReference('0018'x,'1164'x)
         test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
         IF test(0) NE -1 THEN BEGIN
@@ -189,6 +193,9 @@ function readImgInfo, adr
           pix=FLOAT(STRSPLIT(pixStr,'\',/EXTRACT))
           IF pix(0) NE pix(1) THEN sv=DIALOG_MESSAGE('Software not verified to handle non-quadratic pixels. Image found with pixelsize '+pixStr+'. First value might be used for both directions.')
         ENDIF
+      ENDIF
+      IF pix(0) EQ -1. THEN BEGIN
+        sv=DIALOG_MESSAGE('Could not find pixel size in DICOM header. Edit pixel size manually to avoid corrupted results. Find button for this in the toolbar in the bottom left corner.')
       ENDIF
 
 
@@ -215,7 +222,7 @@ function readImgInfo, adr
 
       test=o->GetReference('0018'x,'1152'x)
       test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
-      IF test(0) NE -1 THEN mAs=*(test_peker[0]) ELSE mAs=-1
+      IF test(0) NE -1 THEN mAs=*(test_peker[0]) ELSE mAs=-1.
 
 
       IF modality EQ 'PT' THEN BEGIN
@@ -243,14 +250,14 @@ function readImgInfo, adr
       IF test(0) NE -1 THEN BEGIN
         test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
         singleCollW=*(test_peker[0])
-      ENDIF ELSE singleCollW=-1
+      ENDIF ELSE singleCollW=-1.
       IF N_ELEMENTS(singleCollW) EQ 8 THEN singleCollW=fix(singleCollW, 0,1, type=5); 8 byte (64 bit) double precision floating number
 
       test=o->GetReference('0018'x,'9307'x)
       IF test(0) NE -1 THEN BEGIN
         test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
         totalCollW=*(test_peker[0])
-      ENDIF ELSE totalCollW=-1
+      ENDIF ELSE totalCollW=-1.
       IF N_ELEMENTS(totalCollW) EQ 8 THEN totalCollW=fix(totalCollW, 0,1, type=5); 8 byte (64 bit) double precision floating number
 
       coll=[singleCollW,totalCollW]
@@ -259,7 +266,7 @@ function readImgInfo, adr
       IF test(0) NE -1 THEN BEGIN
         test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
         pitch=*(test_peker[0])
-      ENDIF ELSE pitch=-1
+      ENDIF ELSE pitch=-1.
       IF N_ELEMENTS(pitch) EQ 8 THEN pitch=fix(pitch, 0,1, type=5); 8 byte (64 bit) double precision floating number
 
       test=o->GetReference('0018'x,'1142'x)
@@ -271,9 +278,9 @@ function readImgInfo, adr
           test_peker=o->GetValue(REFERENCE=test[1],/NO_COPY)
           radposString=*(test_peker[0])
           radPos2=FLOAT(STRSPLIT(radposString,'\',/EXTRACT))
-        ENDIF ELSE radPos2=-1
+        ENDIF ELSE radPos2=-1.
       ENDIF ELSE BEGIN
-        radPos1=-1 &  radPos2=-1
+        radPos1=-1. &  radPos2=-1.
       ENDELSE
 
       test=o->GetReference('0018'x,'9345'x)
@@ -284,19 +291,19 @@ function readImgInfo, adr
           CTDIvol=FIX(CTDIvol, 0, 1, type=5)
           CTDIvol=CTDIvol(0)
         ENDIF
-      ENDIF ELSE CTDIvol=-1
+      ENDIF ELSE CTDIvol=-1.
 
       test=o->GetReference('0018'x,'115E'x)
       test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
-      IF test(0) NE -1 THEN DAP=*(test_peker[0]) ELSE DAP=-1
+      IF test(0) NE -1 THEN DAP=*(test_peker[0]) ELSE DAP=-1.
 
       test=o->GetReference('0018'x,'1411'x)
       test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
-      IF test(0) NE -1 THEN EI=*(test_peker[0]) ELSE EI=-1
+      IF test(0) NE -1 THEN EI=*(test_peker[0]) ELSE EI=-1.
 
       test=o->GetReference('0018'x,'6000'x)
       test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
-      IF test(0) NE -1 THEN sensitivity=*(test_peker[0]) ELSE sensitivity=-1
+      IF test(0) NE -1 THEN sensitivity=*(test_peker[0]) ELSE sensitivity=-1.
 
       test=o->GetReference('0018'x,'1210'x);more than one possible...
       test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
@@ -348,10 +355,13 @@ function readImgInfo, adr
       IF test(0) NE -1 THEN units=*(test_peker[0]) ELSE units='-'
 
       test=o->GetReference('0054'x,'0018'x)
-      test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
+      
       IF test(0) NE -1 THEN BEGIN
         EWindowName=''
-        FOR n=0, nEWindows-1 DO EWindowName=EWindowName + *(test_peker[n]) +', '
+        FOR n=0, nEWindows-1 DO BEGIN
+          test_peker=o->GetValue(REFERENCE=test[n],/NO_COPY)
+          EWindowName=EWindowName + *(test_peker[0]) +', '
+        ENDFOR
         IF STRLEN(EWindowName) GT 2 THEN EWindowName=STRMID(EWindowName, 0, STRLEN(EWindowName)-2)
       ENDIF ELSE EWindowName='-'
 
@@ -403,7 +413,7 @@ function readImgInfo, adr
       
       
 
-      imgStruct=CREATE_STRUCT('filename',adr,'acqDate', acqDate, 'institution',institution,'modality', modality, 'modelName',modelName,'stationName',stationName,$
+      imgStruct=CREATE_STRUCT('filename',adr,'acqDate', acqDate, 'imgDate', imgDate, 'institution',institution,'modality', modality, 'modelName',modelName,'stationName',stationName,$
         'patientName',patientName, 'patientID', patientID, 'patientWeight', patientWeight, 'imageType',imageType,'presType',presType,'studyDescr',studyDescr,'seriesName',seriesName, 'protocolname', protocolname,$
         'seriesNmb',seriesNmb,'acqNmb',acqNmb, 'acqtime',acqtime,'sliceThick',sliceThick, 'pix', pix,'kVp',kVp,'FOV',dFOV,'rekonFOV',rekonFOV,'mA',mA,'mAs',mAs,'time',time,'coll',coll,'pitch',pitch,$
         'ExModType',ExModType,'CTDIvol',CTDIvol,'DAP',DAP,'EI',EI,'sensitivity',sensitivity,'filter',filter,$
@@ -421,7 +431,18 @@ function readImgInfo, adr
       ;ENDELSE
     ENDIF;directoryfile
   ENDIF ELSE BEGIN
-    sv=DIALOG_MESSAGE('Not valid dicom file: '+adr, /INFORMATION)
+    CATCH, err_stat
+    IF err_stat NE 0 THEN BEGIN
+      CATCH, /CANCEL
+      sv=DIALOG_MESSAGE('Not valid dicom or .dat/.sav file: '+adr, /INFORMATION)
+      RETURN, -1
+    ENDIF
+    RESTORE, adr 
+    IF SIZE(imageQCmatrix, /TNAME) EQ 'STRUCT' THEN BEGIN
+      imageQCmatrix.filename=adr
+      imgStruct=imageQCmatrix
+    ENDIF
+    imageQCmatrix=!null
   ENDELSE
 
   return, imgStruct

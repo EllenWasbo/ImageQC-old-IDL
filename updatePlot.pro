@@ -31,7 +31,7 @@ pro updatePlot, setRangeMinMaxX, setRangeMinMaxY, optionSet
 
   WIDGET_CONTROL, drawPlot, GET_VALUE = iDrawPlot
   iDrawPlot.SELECT
-  
+
   curMode=WIDGET_INFO(wTabModes, /TAB_CURRENT)
   statTxt='';text to show in plot statistics (left of plot window)
   WIDGET_CONTROL, statPlot, SET_VALUE=statTxt
@@ -131,14 +131,14 @@ pro updatePlot, setRangeMinMaxX, setRangeMinMaxY, optionSet
 
                     MTFtags=TAG_NAMES(MTFres)
                     IF v3d THEN BEGIN
-                      
+
                       IF MTFtags.HasValue('CDX') THEN BEGIN
 
                         valuesPlot=CREATE_STRUCT('x',MTFres.cdx,'Xprof',MTFres.submatrixAll[*,ROUND(MTFres.centerPos(1)),0],'y', MTFres.cdy, 'Yprof', transpose(MTFres.submatrixAll[ROUND(MTFres.centerPos(0)),*,0]))
-  
+
                         IF setRangeMinMaxX THEN rangeX=[min(MTFres.cdx),max(MTFres.cdx)]
                         IF setRangeMinMaxY THEN rangeY=[min(MTFres.submatrixAll),max(MTFres.submatrixAll)]
-  
+
                         IF optionSet NE 3 THEN BEGIN
                           szM=size(MTFres.submatrixAll,/DIMENSIONS)
                           nObj=1 & IF N_ELEMENTS(szM) EQ 3 THEN nObj=szM(2)
@@ -158,7 +158,7 @@ pro updatePlot, setRangeMinMaxX, setRangeMinMaxY, optionSet
                           ENDIF
                           resPlotLeg=LEGEND(TARGET=[resPlotX[0],resPlotY[0]], FONT_NAME=foName, FONT_SIZE=foSize, POSITION=legPos)
                           resPlotX[0].refresh
-  
+
                         ENDIF
                       ENDIF ELSE t=TEXT(0.1, 0.2,'Plot not available for wire method.')
                     ENDIF ELSE BEGIN
@@ -189,11 +189,11 @@ pro updatePlot, setRangeMinMaxX, setRangeMinMaxY, optionSet
                   END
                   1: BEGIN ;sorted pixelvalues, interpolated and smoothed
                     IF v3d THEN BEGIN
-                      
+
                       valuesPlot=CREATE_STRUCT('distance from center', MTFres.newdists,'Interpolated pixel values',MTFres.pixValsInterp)
                       MTFtags=TAG_NAMES(MTFres)
                       IF MTFtags.HasValue('PIXVALSSMOOTH') THEN valuesPlot=CREATE_STRUCT(valuesPlot, 'Smoothed pixelvalues',MTFres.pixValsSmooth)
-                      
+
                       IF setRangeMinMaxX THEN rangeX=[min(MTFres.distspix0),max(MTFres.distspix0)]
                       IF setRangeMinMaxY THEN rangeY=[min(MTFres.pixValSort),max(MTFres.pixValSort)]
 
@@ -552,6 +552,22 @@ pro updatePlot, setRangeMinMaxX, setRangeMinMaxY, optionSet
                 ENDIF
               END
 
+              'EI': BEGIN
+                WIDGET_CONTROL, resTab, GET_VALUE=resArr
+                xValues = FLOAT(resArr[0,*])
+                yValues = FLOAT(resArr[1,*])
+                IF setRangeMinMaxX THEN rangeX=[0, max(xValues)*1.1]
+                IF setRangeMinMaxY THEN rangeY=[0,max(yValues)*1.1]
+                IF optionSet NE 3 THEN BEGIN
+                  resPlot=plot(xValues, yValues,  '', SYMBOL='D', XTITLE='mAs', YTITLE='EI' , TITLE='EI vs mAs', $
+                    XRANGE=rangeX, YRANGE=rangeY, XSTYLE=1, YSTYLE=1, MARGIN=resPlotMargin, FONT_NAME=foName, FONT_SIZE=foSize, CURRENT=currWin)
+                  a0=REGRESS(TRANSPOSE(xValues),TRANSPOSE(yValues), YFIT=yfit, MCORRELATION=mcorr)
+                  resPlotFit=PLOT(xValues, TRANSPOSE(yfit),'-', NAME='Linear fit, mCorr= '+STRING(mcorr, FORMAT='(f0.4)'), /OVERPLOT)
+                  resLeg=LEGEND(TARGET=resPlotFit, FONT_NAME=foName, FONT_SIZE=foSize, POSITION=legPos)
+                  valuesPlot=CREATE_STRUCT('mAs', xValues, 'EI', yValues)
+                ENDIF
+              END
+
               'MTF': BEGIN
 
                 IF N_TAGS(MTFres.(sel)) GT 1 THEN BEGIN
@@ -714,9 +730,9 @@ pro updatePlot, setRangeMinMaxX, setRangeMinMaxY, optionSet
                   valuesPlot=CREATE_STRUCT('Energy keV',energyRes.curve,'Counts', energyRes.curve[1,*], 'Gaussian fit', gfit)
                 ENDIF
               END
-              
+
               'HOMOG':t=TEXT(0.1, 0.2,'No plot available for this test')
-              
+
               'SCANSPEED': BEGIN
                 WIDGET_CONTROL, txtScanSpeedMedian, GET_VALUE=val
                 medfilt=LONG(val(0))
@@ -1136,7 +1152,7 @@ pro updatePlot, setRangeMinMaxX, setRangeMinMaxY, optionSet
                   resPlot[0].refresh
                 ENDIF
               END
-              
+
               'RC': BEGIN
                 WIDGET_CONTROL, resTab, GET_VALUE=resArr
                 xValues= INDGEN(6)+1
