@@ -58,6 +58,7 @@ pro ImageQC,  GROUP_LEADER=bMain
   ;always refresh structure of config file
   configS=updateConfigS(thisPath+'data\config.dat')
   quickTemp=updateQuickT(thisPath+'data\config.dat')
+  IF N_ELEMENTS(quickTemp) EQ 0 THEN quickTemp=0 
   loadTemp=updateLoadT(thisPath+'data\config.dat')
   SAVE, configS, quickTemp, loadTemp, FILENAME=thisPath+'data\config.dat' 
 

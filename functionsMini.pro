@@ -89,7 +89,7 @@ function updateQuickT, file
       oldTags=TAG_NAMES(configS.(1))
       If oldTags.HasValue('QUICKTEMP') THEN quickT=configS.(1).QUICKTEMP
     ENDIF
-    IF N_ELEMENTS(quickTemp) NE 0 THEN quickT=quickTemp
+    IF N_ELEMENTS(quickTemp) NE 0 THEN quickT=quickTemp ELSE quickT=!Null
   ENDELSE
   return, quickT
 end

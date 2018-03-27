@@ -3393,11 +3393,12 @@ pro ImageQC_event, ev
               END
             ENDCASE
             
-            IF nFrames EQ 0 THEN fileList=getListOpenFiles(structImgs,0,marked,markedMulti) ELSE fileList=getListFrames(structImgs.(0),marked)
-                      
-            sel=WIDGET_INFO(listFiles, /LIST_SELECT)
-            oldTop=WIDGET_INFO(listFiles, /LIST_TOP)
-            WIDGET_CONTROL, listFiles, SET_VALUE=fileList, SET_LIST_SELECT=sel(N_ELEMENTS(sel)-1), SET_LIST_TOP=oldTop
+            IF loadedImg THEN BEGIN
+              IF nFrames EQ 0 THEN fileList=getListOpenFiles(structImgs,0,marked,markedMulti) ELSE fileList=getListFrames(structImgs.(0),marked)        
+              sel=WIDGET_INFO(listFiles, /LIST_SELECT)
+              oldTop=WIDGET_INFO(listFiles, /LIST_TOP)
+              WIDGET_CONTROL, listFiles, SET_VALUE=fileList, SET_LIST_SELECT=sel(N_ELEMENTS(sel)-1), SET_LIST_TOP=oldTop
+            ENDIF
           ENDIF ELSE BEGIN
             switchMode='No'
             WIDGET_CONTROL, wtabModes, SET_TAB_CURRENT=modality
