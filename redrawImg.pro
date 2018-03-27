@@ -16,7 +16,7 @@
 ;Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 pro redrawImg, viewpl, newActive
-
+  COMPILE_OPT hidden
   COMMON VARI
 
   WIDGET_CONTROL, /HOURGLASS
@@ -29,6 +29,7 @@ pro redrawImg, viewpl, newActive
     curMode=WIDGET_INFO(wTabModes, /TAB_CURRENT)
     sel=WIDGET_INFO(listFiles, /LIST_SELECT)  & sel=sel(0)
 
+    IF N_ELEMENTS(activeImg) EQ 1 THEN newActive=1
     IF nFrames NE 0 THEN BEGIN
       tempStruct=structImgs.(0)
       IF newActive THEN activeImg=readImg(structImgs.(0).filename, sel)
@@ -95,13 +96,15 @@ pro redrawImg, viewpl, newActive
       oModel->Add, thisROI
     ENDIF
     
-    analyseArr=['HOMOG', 'NOISE','STP','CONTRAST','CROSSCALIB','RC']
+    analyseArr=['HOMOG', 'NOISE','STP','UNIF','SNI','CONTRAST','CROSSCALIB','RC']
     IF analyseArr.HasValue(analyse) THEN BEGIN; EQ 'HOMOG' OR analyse EQ 'NOISE' OR analyse EQ 'STP' OR analyse EQ 'CONTRAST' OR analyse EQ 'CROSSCALIB' OR analyse EQ 'RC' THEN BEGIN
       CASE analyse OF 
       'HOMOG': ROIs=homogROIs
       'NOISE': ROIs=noiseROI
       'CROSSCALIB': ROIs=crossROI
       'STP': ROIs=stpROI
+      'UNIF': ROIs=unifROI
+      'SNI': ROIs=SNIroi
       'CONTRAST': ROIs=conROIs
       'RC': ROIs=rcROIs
       ELSE:
@@ -199,20 +202,27 @@ pro redrawImg, viewpl, newActive
           ramps=getRamps(sizeAct, imgCenterOffset, 45./tempStruct.pix(0), len)
           ramps2=getRamps(sizeAct, imgCenterOffset, 25./tempStruct.pix(0), len)
           END
+        2: BEGIN
+          ramps=getRamps(sizeAct, imgCenterOffset, rampDist, len)
+          ramps[*,0:1]=0
+          END
       Endcase
 
       WIDGET_CONTROL, txtRampSearch, GET_VALUE=nRamps
       nRamps=LONG(nRamps(0))
      
+      IF TOTAL(ramps[*,0:1]) NE 0 THEN BEGIN    
       H1=OBJ_NEW('IDLgrPolyline', [ramps[0,0],ramps[2,0]],[ramps[1,0]+nRamps,ramps[3,0]+nRamps], COLOR = 255*([0,0,0]), LINESTYLE=0)
       H1_1=OBJ_NEW('IDLgrPolyline', [ramps[0,0],ramps[2,0]],[ramps[1,0]-nRamps,ramps[3,0]-nRamps], COLOR = 255*([0,0,0]), LINESTYLE=0)
       H2=OBJ_NEW('IDLgrPolyline', [ramps[0,1],ramps[2,1]],[ramps[1,1]+nRamps,ramps[3,1]+nRamps], COLOR = 255*([0,1,0]), LINESTYLE=0)
       H2_1=OBJ_NEW('IDLgrPolyline', [ramps[0,1],ramps[2,1]],[ramps[1,1]-nRamps,ramps[3,1]-nRamps], COLOR = 255*([0,1,0]), LINESTYLE=0)
+      oModel->Add, H1 & oModel->Add, H1_1 & oModel->Add, H2 & oModel->Add, H2_1
+      ENDIF
       V1=OBJ_NEW('IDLgrPolyline', [ramps[0,2]+nRamps,ramps[2,2]+nRamps],[ramps[1,2],ramps[3,2]], COLOR = 255*([0,0,1]), LINESTYLE=0)
       V1_1=OBJ_NEW('IDLgrPolyline', [ramps[0,2]-nRamps,ramps[2,2]-nRamps],[ramps[1,2],ramps[3,2]], COLOR = 255*([0,0,1]), LINESTYLE=0)
       V2=OBJ_NEW('IDLgrPolyline', [ramps[0,3]+nRamps,ramps[2,3]+nRamps],[ramps[1,3],ramps[3,3]], COLOR = 255*([1,0,0]), LINESTYLE=0)
       V2_1=OBJ_NEW('IDLgrPolyline', [ramps[0,3]-nRamps,ramps[2,3]-nRamps],[ramps[1,3],ramps[3,3]], COLOR = 255*([1,0,0]), LINESTYLE=0)
-      oModel->Add, H1 & oModel->Add, H1_1 & oModel->Add, H2 & oModel->Add, H2_1 & oModel->Add, V1 & oModel->Add, V1_1 & oModel->Add, V2 & oModel->Add, V2_1
+      oModel->Add, V1 & oModel->Add, V1_1 & oModel->Add, V2 & oModel->Add, V2_1
       IF  ramptype EQ 1 THEN BEGIN
         V3=OBJ_NEW('IDLgrPolyline', [ramps2[0,2]+nRamps,ramps2[2,2]+nRamps],[ramps2[1,2],ramps2[3,2]], COLOR = 255*([1,0,1]), LINESTYLE=0)
         V3_1=OBJ_NEW('IDLgrPolyline', [ramps2[0,2]-nRamps,ramps2[2,2]-nRamps],[ramps2[1,2],ramps2[3,2]], COLOR = 255*([1,0,1]), LINESTYLE=0)
@@ -275,13 +285,14 @@ pro redrawImg, viewpl, newActive
       lineX->SetProperty, DATA=[[0,halfSz(1)+dxya(1)+dy1],[sizeAct(0),halfSz(1)+dxya(1)-dy2]]
       lineY->SetProperty, DATA=[[halfSz(0)+dxya(0)-dx1,0],[halfSz(0)+dxya(0)+dx2,sizeAct(1)]]
       IF analyse EQ 'MTF' THEN BEGIN; dxya(2) = 0 & dxya(3)=1
+        dxyaO=dxya[0:1]+offxy
         CASE curMode OF
           
         0: BEGIN;CT
           WIDGET_CONTROL, txtMTFroiSz, GET_VALUE=ROIsz
           ROIsz=ROUND(ROIsz(0)/tempStruct.pix)
-          x1=halfSz(0)+dxya(0)-ROIsz(0) & x2=halfSz(0)+dxya(0)+ROIsz(0)
-          y1=halfSz(1)+dxya(1)-ROIsz(0) & y2=halfSz(1)+dxya(1)+ROIsz(0)
+          x1=halfSz(0)+dxyaO(0)-ROIsz(0) & x2=halfSz(0)+dxyaO(0)+ROIsz(0)
+          y1=halfSz(1)+dxyaO(1)-ROIsz(0) & y2=halfSz(1)+dxyaO(1)+ROIsz(0)
           lineROI = OBJ_NEW('IDLgrPolyline', [[x1,y1],[x2,y1],[x2,y2],[x1,y2],[x1,y1]], COLOR = 255*([1,0,0]), LINESTYLE=0)
           oModel->Add, lineROI
           WIDGET_CONTROL, cw_typeMTF, GET_VALUE=typeMTF
@@ -297,17 +308,25 @@ pro redrawImg, viewpl, newActive
             WIDGET_CONTROL, txtMTFroiSzX, GET_VALUE=ROIszX
             WIDGET_CONTROL, txtMTFroiSzY, GET_VALUE=ROIszY
             ROIsz=ROUND([ROIszX(0),ROIszY(0)]/(2.*tempStruct.pix))
-            x1=halfSz(0)+dxya(0)-ROIsz(0) & x2=halfSz(0)+dxya(0)+ROIsz(0)
-            y1=halfSz(1)+dxya(1)-ROIsz(1) & y2=halfSz(1)+dxya(1)+ROIsz(1)
+            x1=halfSz(0)+dxyaO(0)-ROIsz(0) & x2=halfSz(0)+dxyaO(0)+ROIsz(0)
+            y1=halfSz(1)+dxyaO(1)-ROIsz(1) & y2=halfSz(1)+dxyaO(1)+ROIsz(1)
             lineROI = OBJ_NEW('IDLgrPolyline', [[x1,y1],[x2,y1],[x2,y2],[x1,y2],[x1,y1]], COLOR = 255*([1,0,0]), LINESTYLE=0)
             oModel->Add, lineROI
         END
-        2: BEGIN;NM
+        2: BEGIN;NM planar
           WIDGET_CONTROL, txtMTFroiSzXNM, GET_VALUE=ROIszX
           WIDGET_CONTROL, txtMTFroiSzYNM, GET_VALUE=ROIszY
           ROIsz=ROUND([ROIszX(0),ROIszY(0)]/(2.*tempStruct.pix))
           x1=halfSz(0)+dxya(0)-ROIsz(0) & x2=halfSz(0)+dxya(0)+ROIsz(0)
           y1=halfSz(1)+dxya(1)-ROIsz(1) & y2=halfSz(1)+dxya(1)+ROIsz(1)
+          lineROI = OBJ_NEW('IDLgrPolyline', [[x1,y1],[x2,y1],[x2,y2],[x1,y2],[x1,y1]], COLOR = 255*([1,0,0]), LINESTYLE=0)
+          oModel->Add, lineROI
+        END
+        3: BEGIN;SPECT
+          WIDGET_CONTROL, txtMTFroiSzSPECT, GET_VALUE=ROIsz
+          ROIsz=ROUND(ROIsz(0)/(2.*tempStruct.pix))
+          x1=halfSz(0)+dxya(0)-ROIsz(0) & x2=halfSz(0)+dxya(0)+ROIsz(0)
+          y1=halfSz(1)+dxya(1)-ROIsz(0) & y2=halfSz(1)+dxya(1)+ROIsz(0)
           lineROI = OBJ_NEW('IDLgrPolyline', [[x1,y1],[x2,y1],[x2,y2],[x1,y2],[x1,y1]], COLOR = 255*([1,0,0]), LINESTYLE=0)
           oModel->Add, lineROI
         END
@@ -378,8 +397,11 @@ pro redrawImg, viewpl, newActive
       ENDIF
     ENDIF
     
-    IF OBJ_VALID(H1) THEN BEGIN
-      OBJ_DESTROY, H1 & OBJ_DESTROY, H1_1 & OBJ_DESTROY, H2 & OBJ_DESTROY, H2_1 &  OBJ_DESTROY, V1 &  OBJ_DESTROY, V1_1 & OBJ_DESTROY, V2 & OBJ_DESTROY, V2_1
+    IF OBJ_VALID(V1) THEN BEGIN
+      OBJ_DESTROY, V1 &  OBJ_DESTROY, V1_1 & OBJ_DESTROY, V2 & OBJ_DESTROY, V2_1
+      IF OBJ_VALID(H1) THEN BEGIN
+        OBJ_DESTROY, H1 & OBJ_DESTROY, H1_1 & OBJ_DESTROY, H2 & OBJ_DESTROY, H2_1
+      ENDIF  
       IF OBJ_VALID(V3) THEN BEGIN
         OBJ_DESTROY, V3 &  OBJ_DESTROY, V3_1 & OBJ_DESTROY, V4 & OBJ_DESTROY, V4_1
       ENDIF

@@ -322,7 +322,6 @@ function calculateMTF_NM, submatrix, pix, center, typeMTF, backmatrix, cutLSF, c
           gMTFx=gMTFx/gMTFx(0)
           
           ;fwhm/fwtm from gaussian fit of corrected MTF
-          print,'nElem Fgu1', N_ELEMENTS(Fgu1)
           IF N_ELEMENTS(Fgu1) EQ 1 THEN BEGIN; not yet ready for sum of gaussians
             gfit=gaussfit(kvals, gMTFx, Ag, ESTIMATES=[1, 0, 1/A(2)], NTERMS=3)
             sigmaMTF=Ag(2)
@@ -464,6 +463,7 @@ function calculateMTF_NM, submatrix, pix, center, typeMTF, backmatrix, cutLSF, c
       LSF=LSF/MAX(LSF)
 
       MTFstruct=CREATE_STRUCT(MTFstruct,'distspix0',dists*pix(0),'pixValSort',pixVals,'newdists',newdists,'pixValsInterp',pixValsInterp, 'angle',angle)
+
       IF sigmaF NE 0 THEN MTFstruct=CREATE_STRUCT(MTFstruct,'pixValsSmooth',pixValsSmooth)
 
       X = newdists
@@ -481,20 +481,20 @@ function calculateMTF_NM, submatrix, pix, center, typeMTF, backmatrix, cutLSF, c
         ss1=0
         ss2=nn-1
 
-        A = [max(lsfSmTemp[ss1:ss2])/2,max(lsfSmTemp[ss1:ss2])/2,sigma1, sigma1];first guess parameters for curvefit gaussFitAdd2
-        yfit = CURVEFIT(X[ss1:ss2], Y[ss1:ss2], weights[ss1:ss2], A, FUNCTION_NAME='gaussFitAdd2', ITER=iter, CHISQ=chisq, TOL=1.0*10^(-4));, ITMAX=100)
+        ;A = [max(lsfSmTemp[ss1:ss2])/2,max(lsfSmTemp[ss1:ss2])/2,sigma1, sigma1];first guess parameters for curvefit gaussFitAdd2
+        ;yfit = CURVEFIT(X[ss1:ss2], Y[ss1:ss2], weights[ss1:ss2], A, FUNCTION_NAME='gaussFitAdd2', ITER=iter, CHISQ=chisq, TOL=1.0*10^(-4));, ITMAX=100)
 
-        IF A(1) GT A(0) THEN BEGIN
+        ;IF A(1) GT A(0) THEN BEGIN
           ;resort such that highest amp first
-          newA=[A(1),A(0),A(3),A(2)]
-          A=newA
-        ENDIF
-        A(2)=ABS(A(2)) & A(3)=ABS(A(3))
+         ; newA=[A(1),A(0),A(3),A(2)]
+          ;A=newA
+        ;ENDIF
+        ;A(2)=ABS(A(2)) & A(3)=ABS(A(3))
 
-        IF ABS(A[3]) GT 10.*A[2] OR A[3] LT 0 THEN BEGIN; retry with single gaussfit - allow double gauss with both terms positive
+        ;IF ABS(A[3]) GT 10.*A[2] OR A[3] LT 0 THEN BEGIN; retry with single gaussfit - allow double gauss with both terms positive
           ;IF A(1) GT 0 OR ABS(A[3]) GT 10.*A[2] THEN BEGIN; retry with single gaussfit - double is for sharp filters
           yfit=gaussfit(X[ss1:ss2], lsf[ss1:ss2], A, ESTIMATES=[max(lsfSmTemp[ss1:ss2]),0,sigma1], NTERMS=3)
-        ENDIF
+        ;ENDIF
 
         IF sigmaF NE 0 THEN smLSFx=Y[ss1:ss2] ELSE smLSFx=-1
         fitLSFx=yfit
@@ -513,17 +513,27 @@ function calculateMTF_NM, submatrix, pix, center, typeMTF, backmatrix, cutLSF, c
       IF N_ELEMENTS(A) GT 0 THEN BEGIN
         kvals=FINDGEN(200)*0.05/A(2);sample 20 steps from 0 to 1 stdv MTF curve A0 (stdev=1/A(2))
         Fgu0=calcGauss(kvals, 1/A(2),A(0)*A(2),0)
-        IF N_ELEMENTS(A) EQ 4 THEN Fgu1=calcGauss(kvals, 1/A(3),A(1)*A(3),0) ELSE Fgu1=0.
+        Fgu1=0;IF N_ELEMENTS(A) EQ 4 THEN Fgu1=calcGauss(kvals, 1/A(3),A(1)*A(3),0) ELSE Fgu1=0.
         If sigmaF NE 0 THEN Ffilter=calcGauss(kvals,1./(sigmaF*pixNew),1.0,0) ELSE Ffilter=1.
         gMTFx=(Fgu0+Fgu1)/Ffilter
         gfx=kvals/(2*!pi)
         gMTFx=gMTFx/gMTFx(0)
         
         ;fwhm/fwtm from gaussian fit of corrected MTF
-        gfit=gaussfit(kvals, gMTFx, Ag, ESTIMATES=[1, 0, 1/A(2)], NTERMS=3)
-        sigmaMTF=Ag(2)
-        FWHMg=2*SQRT(2*ALOG(2))/sigmaMTF
-        FWTMg=2*SQRT(2*ALOG(10))/sigmaMTF
+        pos=WHERE(gMTFx LT 0.5)
+        IF pos(0) NE -1 THEN BEGIN
+          MTF50=getInterpX(0.5,gfx(pos(0)-1),gfx(pos(0)),gMTFx(pos(0)-1),gMTFx(pos(0)))
+          gfit=gaussfit(kvals, gMTFx, Ag, ESTIMATES=[1, 0, MTF50/(SQRT(2*ALOG(2)))], NTERMS=3)
+          sigmaMTF=Ag(2)
+          FWHMg=2*SQRT(2*ALOG(2))/sigmaMTF
+          FWTMg=2*SQRT(2*ALOG(10))/sigmaMTF
+        ENDIF ELSE BEGIN
+          errMsg=errMsg+'Failed to find FWHM from gaussian MTF'
+          FWHMg=-1
+          FWTMg=-1
+        ENDELSE
+        
+
       ENDIF
 
       LSFx=dLSF

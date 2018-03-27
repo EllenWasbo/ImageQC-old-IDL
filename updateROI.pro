@@ -59,28 +59,29 @@ pro updateROI, Ana=ana
             ROIsz=ROUND(FLOAT(ROIsz(0))/pix(0)) ; assume x,y pix equal ! = normal
             ROIdist=-1
           END
-          2:BEGIN
-            WIDGET_CONTROL, cw_homogNM, GET_VALUE=typeHomogNM
-            WIDGET_CONTROL, txtHomogROIszNM, GET_VALUE=ROIsz
-            ROIsz=ROUND(FLOAT(ROIsz(0))/pix(0)) ; assume x,y pix equal ! = normal
-            WIDGET_CONTROL,  txtHomogROIdistXNM, GET_VALUE=ROIdistX
-            CASE typeHomogNM OF
-              0: BEGIN; planar WB
-                WIDGET_CONTROL,  txtHomogROIdistYNM, GET_VALUE=ROIdistY
-                ROIdist=ROUND([FLOAT(ROIdistX(0))/pix(0),FLOAT(ROIdistY(0))/pix(1)])
-              END
-              1: BEGIN
-                ROIdist=ROUND(FLOAT(ROIdistX(0))/pix(0)) ; assume x,y pix equal ! = normal
-              END
-              ELSE:
-            ENDCASE
-          END
-          3:BEGIN
+;          2:BEGIN
+;            WIDGET_CONTROL, cw_homogNM, GET_VALUE=typeHomogNM
+;            WIDGET_CONTROL, txtHomogROIszNM, GET_VALUE=ROIsz
+;            ROIsz=ROUND(FLOAT(ROIsz(0))/pix(0)) ; assume x,y pix equal ! = normal
+;            WIDGET_CONTROL,  txtHomogROIdistXNM, GET_VALUE=ROIdistX
+;            CASE typeHomogNM OF
+;              0: BEGIN; planar WB
+;                WIDGET_CONTROL,  txtHomogROIdistYNM, GET_VALUE=ROIdistY
+;                ROIdist=ROUND([FLOAT(ROIdistX(0))/pix(0),FLOAT(ROIdistY(0))/pix(1)])
+;              END
+;              1: BEGIN
+;                ROIdist=ROUND(FLOAT(ROIdistX(0))/pix(0)) ; assume x,y pix equal ! = normal
+;              END
+;              ELSE:
+;            ENDCASE
+;          END
+          4:BEGIN
             WIDGET_CONTROL, txtHomogROIszPET, GET_VALUE=ROIsz
             ROIsz=ROUND(FLOAT(ROIsz(0))/pix(0)) ; assume x,y pix equal ! = normal
             WIDGET_CONTROL,  txtHomogROIdistPET, GET_VALUE=ROIdist
             ROIdist=ROUND(FLOAT(ROIdist(0))/pix(0)) ; assume x,y pix equal ! = normal
           END
+          ELSE:
         ENDCASE
 
         homogROIs=getHomogRois(szImg, imgCenterOffset, ROIsz, ROIdist, modality)
@@ -147,10 +148,14 @@ pro updateROI, Ana=ana
         CTlinROIs=getSampleRois(szImg, imgCenterOffset, radS, posTab)
         ;IF max(CTlinROIs) EQ 1 THEN ana='CTLIN' ELSE ana='NONE'
       END
-
+      
+      'SNI': SNIroi=getSNIroi(tempImg)
+      
+      'UNIF': unifROI=getUnifRoi(tempImg)
+      
       'CONTRAST': BEGIN
-        WIDGET_CONTROL, txtConR1NM, GET_VALUE=rad1
-        WIDGET_CONTROL, txtConR2NM, GET_VALUE=rad2
+        WIDGET_CONTROL, txtConR1SPECT, GET_VALUE=rad1
+        WIDGET_CONTROL, txtConR2SPECT, GET_VALUE=rad2
         rad1=ROUND(FLOAT(rad1(0))/pix(0)) & rad2=ROUND(FLOAT(rad2(0))/pix(0)); assume x,y pix equal ! = normal
         conROIs=getConNMRois(szImg, imgCenterOffset, rad1,rad2)
       END
