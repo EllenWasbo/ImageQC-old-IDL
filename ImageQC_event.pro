@@ -618,7 +618,7 @@ pro ImageQC_event, ev
           '1, BASE,, /COLUMN', $
           '0, LABEL, Select colortable', $
           '0, LABEL, ',$
-          '2, LIST, Grayscale|Hot Iron|Hot Metal Blue|PET colors, TAG=ctab', $
+          '2, LIST, Grayscale B-W|Grayscale W-B|Hot Iron|Hot Metal Blue|PET colors, TAG=ctab', $
           '1, BASE,, /ROW', $
           '0, BUTTON, OK, QUIT, TAG=OK',$
           '2, BUTTON, Cancel, QUIT']
@@ -635,15 +635,20 @@ pro ImageQC_event, ev
               END
 
               1:BEGIN
+                coltable=78
+                WIDGET_CONTROL, btnSetColorTable, SET_VALUE=thisPath+'images\ctGrayScaleInv.bmp',/BITMAP
+              END
+              
+              2:BEGIN
                 coltable=75
                 WIDGET_CONTROL, btnSetColorTable, SET_VALUE=thisPath+'images\ctHotIron.bmp',/BITMAP
               END
 
-              2:BEGIN
+              3:BEGIN
                 coltable=76
                 WIDGET_CONTROL, btnSetColorTable, SET_VALUE=thisPath+'images\ctHotMetalBlue.bmp',/BITMAP
               END
-              3:BEGIN
+              4:BEGIN
                 coltable=77
                 WIDGET_CONTROL, btnSetColorTable, SET_VALUE=thisPath+'images\ctPETcolors.bmp',/BITMAP
               END
