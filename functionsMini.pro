@@ -15,6 +15,112 @@
 ;along with this program; if not, write to the Free Software
 ;Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
+function updateConfigS, file
+
+  ;default values if missing:
+  materials=['Teflon','Delrin','Acrylic','Water','Polystyrene','LDPE','PMP','Air']
+  relMassD=[2.16,1.41,1.18,1.,1.05,0.92,0.83,0.]
+  posX=[-28.,-58.,-28.,0.,28.,58.,28.,0.]
+  posY=[-50.,0.,50.,58.,50.,0.,-50.,-58.]
+  lintab=CREATE_STRUCT('materials', materials, 'relMassD', relMassD, 'posX', posX, 'posY', posY)
+  configDefault=CREATE_STRUCT($
+    'defPath','C:\',$
+    'deciMark',',', $
+    'copyHeader', 0, $
+    'append',0,$
+    'typeROI',0,'typeROIX',0,$
+    'MTFtype',2,'MTFtypeX',1,'MTFtypeNM',1,'MTFtypeSPECT',1,'plotMTF',3,'plotMTFX', 3, 'plotMTFNM',4,'plotMTFSPECT',4,'MTFroiSz',11.0,'MTFroiSzX',[20.,50.],'MTFroiSzNM',[20.,20.],'MTFroiSzSPECT',30.,'MTF3dSPECT',1, $
+    'cutLSF',1,'cutLSF1',3,'cutLSF2',1, 'cutLSFX', 1, 'cutLSFX1', 3, 'offxy', [0,0], $
+    'LinROIrad',3.,'LinROIradS',11., 'LinTab',lintab, $
+    'RampDist',38.,'RampLen',60.,'RampBackG',5.,'RampSearch',5,'RampAvg',1,'RampType',0,'RampDens',0,$
+    'HomogROIsz',10., 'HomogROIszX',10., 'HomogROIszPET', 10.,'HomogROIdist',55.,'HomogROIdistPET',55.,'HomogROIszNM',25.,'HomogROIdistNM',[100.,200.],$
+    'NoiseROIsz',55., $
+    'NPSroiSz', 50, 'NPSroiDist', 50., 'NPSsubNN', 20, 'NPSroiSzX', 256, 'NPSsubSzX', 5, 'NPSavg', 1, $
+    'STProiSz', 11.3, 'ScanSpeedAvg', 25, 'ScanSpeedHeight', 100., 'ScanSpeedFiltW', 15, 'ContrastRad1', 20., 'ContrastRad2', 58.,$
+    'CrossROIsz', 60., 'CrossVol', 0.0)
+  configSdefault=CREATE_STRUCT('defConfigNo',1,'configDefault',configDefault)
+
+  newConfigS=-1
+
+  IF file EQ '' THEN newConfigS=configSdefault ELSE BEGIN
+    ;find existing values and paste into new configS structure
+    RESTORE, file
+    errCounter=0
+    IF N_ELEMENTS(config) NE 0 THEN oldConfigS=CREATE_STRUCT('defConfigNo',1,'configDefault',config) ELSE errCounter=1
+    IF N_ELEMENTS(configS) NE 0 THEN oldConfigS=configS ELSE errCounter=errCounter+1
+    IF errCounter NE 2 THEN BEGIN
+      ;copy values into newest version config structure
+      defaultTags=TAG_NAMES(configDefault)
+      restoreTagsS=TAG_NAMES(oldConfigS)
+      newConfigS=CREATE_STRUCT('defConfigNo',oldConfigS.(0))
+      FOR i=1, N_ELEMENTS(restoreTagsS)-1 DO BEGIN;for each parameterset
+        oldTags=TAG_NAMES(oldConfigS.(i))
+        configTemp=CREATE_STRUCT('DEFPATH',oldConfigS.(i).DEFPATH)
+        FOR j=1, N_ELEMENTS(defaultTags)-1 DO BEGIN;for each parameter in parameterset
+          IF oldTags.HasValue(defaultTags(j)) THEN BEGIN
+            ;copy tag content
+            ff=WHERE(oldTags EQ defaultTags(j))
+            configTemp=CREATE_STRUCT(configTemp, defaultTags(j), oldConfigS.(i).(ff))
+          ENDIF ELSE BEGIN
+            ;paste default content
+            configTemp=CREATE_STRUCT(configTemp, defaultTags(j),configDefault.(j))
+          ENDELSE
+        ENDFOR
+        newConfigS=CREATE_STRUCT(newConfigS,restoreTagsS(i),configTemp)
+      ENDFOR
+
+    ENDIF ELSE sv=DIALOG_MESSAGE('Found no valid config structure in selected file.')
+
+  ENDELSE;file ''
+
+  return, newConfigS
+end
+
+function updateQuickT, file
+  IF file EQ '' THEN quickT=!Null ELSE BEGIN
+    ;find existing values and paste into new quicktemp structure
+    RESTORE, file
+    ;securing older versions
+    IF N_ELEMENTS(config) NE 0 THEN BEGIN
+      oldTags=TAG_NAMES(config)
+      If oldTags.HasValue('QUICKTEMP') THEN quickT=config.QUICKTEMP
+    ENDIF
+    IF N_ELEMENTS(configS) NE 0 THEN BEGIN
+      oldTags=TAG_NAMES(configS.(1))
+      If oldTags.HasValue('QUICKTEMP') THEN quickT=configS.(1).QUICKTEMP
+    ENDIF
+    IF N_ELEMENTS(quickTemp) NE 0 THEN quickT=quickTemp ELSE quickT=!Null
+  ENDELSE
+  return, quickT
+end
+
+function updateLoadT, file
+  IF file EQ '' THEN loadT=!Null ELSE BEGIN
+    ;find existing values and paste into new loadTemp structure (no doing anything yet as this is first version with this)
+    RESTORE, file
+    ;securing older versions
+    IF N_ELEMENTS(loadTemp) NE 0 THEN BEGIN
+      loadT=loadTemp
+      ;path - folder close to where the images should be found
+      ;sortBy - STRARR with structure tags in image structure to sort images by
+      ;paramSet - name of paramSet to link to or '' if default
+      ;quickTemp - name of quickTemp to link to or '' to default (all selected)
+      ;startCalc - INT 0=no, 1=start calculculation automatically
+      loadTthisVersion=CREATE_STRUCT($
+        'path','',$
+        'sortBy', '', $
+        'paramSet','', $
+        'quickTemp','', $
+        'startCalc',1)
+      loadTsetDef=CREATE_STRUCT('defloadTemp',1,'loadTempDummy',loadTthisVersion)
+      tagNewest=TAG_NAMES(loadTnewest)
+
+
+    ENDIF ELSE loadT=!Null
+  ENDELSE
+  return, loadT
+end
+
 ; return rescaled image within windowLevel (range) to display with tvscl
 function adjustWindowLevel, arr, range
 
@@ -27,56 +133,61 @@ end
 
 ;return image matrix scaled with slope and intercept
 function readImg, adr, frame
-  qd=QUERY_DICOM(adr)
-  IF qd THEN BEGIN
-    o=obj_new('idlffdicom')
-    t=o->read(adr)
-    
-    ;image with correct values and rotation
-    test=o->GetReference('0028'x,'1052'x)
-    test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
-    IF test(0) NE -1 THEN intercept=FLOAT(*(test_peker[0])) ELSE intercept=0
-    
-    test=o->GetReference('0028'x,'1053'x)
-    test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
-    IF test(0) NE -1 THEN slope=FLOAT(*(test_peker[0])) ELSE slope=1.
-    
-    test=o->GetReference('0018'x,'5100'x)
-    test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
-    ori=0
-    IF test(0) NE -1 THEN BEGIN
-      temporient=STRTRIM(STRING(*(test_peker[0])),2)
-      IF temporient EQ 'FFS' THEN ori=1
-    ENDIF
-    
-    ;multiframe?
-    multiframe=0
-    test=o->GetReference('0028'x,'0008'x)
-    test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
-    IF test(0) NE -1 THEN BEGIN 
-      IF *(test_peker[0]) NE 1 THEN multiframe=1 
-    ENDIF
-    
-    test=o->GetReference('7FE0'x,'0010'x)
-    IF multiframe EQ 0 THEN BEGIN
-      ;real image is last image (icon images first)
-      test_peker=o->GetValue(REFERENCE=test[N_ELEMENTS(test)-1],/NO_COPY)
-      matrix=FLOAT(*(test_peker[0]))
-    ENDIF ELSE BEGIN
-      ;multiframe
-      test_peker=o->GetValue(REFERENCE=test[frame],/NO_COPY)
-      matrix=FLOAT(*(test_peker[0]))
+    IF FILE_TEST(adr) THEN BEGIN
+    qd=QUERY_DICOM(adr)
+    IF qd THEN BEGIN
+      o=obj_new('idlffdicom')
+      t=o->read(adr)
+
+      ;image with correct values and rotation
+      test=o->GetReference('0028'x,'1052'x)
+      test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
+      IF test(0) NE -1 THEN intercept=FLOAT(*(test_peker[0])) ELSE intercept=0
+
+      test=o->GetReference('0028'x,'1053'x)
+      test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
+      IF test(0) NE -1 THEN slope=FLOAT(*(test_peker[0])) ELSE slope=1.
+
+      test=o->GetReference('0018'x,'5100'x)
+      test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
+      ori=0
+      IF test(0) NE -1 THEN BEGIN
+        temporient=STRTRIM(STRING(*(test_peker[0])),2)
+        IF temporient EQ 'FFS' THEN ori=1
+      ENDIF
+
+      ;multiframe?
+      multiframe=0
+      test=o->GetReference('0028'x,'0008'x)
+      test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
+      IF test(0) NE -1 THEN BEGIN
+        IF *(test_peker[0]) NE 1 THEN multiframe=1
+      ENDIF
+
+      test=o->GetReference('7FE0'x,'0010'x)
+      IF multiframe EQ 0 THEN BEGIN
+        ;real image is last image (icon images first)
+        test_peker=o->GetValue(REFERENCE=test[N_ELEMENTS(test)-1],/NO_COPY)
+        matrix=FLOAT(*(test_peker[0]))
+      ENDIF ELSE BEGIN
+        ;multiframe
+        test_peker=o->GetValue(REFERENCE=test[frame],/NO_COPY)
+        matrix=FLOAT(*(test_peker[0]))
+      ENDELSE
+
+      matrix=REVERSE(matrix,2)*slope + intercept
+      IF ori EQ 1 THEN matrix=REVERSE(matrix)
+
+      OBJ_DESTROY,o & PTR_FREE, test_peker
+    ENDIF ELSE BEGIN; 'dat file
+      RESTORE, adr
+      IF imageQCmatrix.nFrames GT 0 THEN matrix=imageQCmatrix.matrix[*,*,frame] ELSE matrix=imageQCmatrix.matrix
+      imageQCmatrix=!null
     ENDELSE
-    
-    matrix=REVERSE(matrix,2)*slope + intercept
-    IF ori EQ 1 THEN matrix=REVERSE(matrix)
-    
-    OBJ_DESTROY,o & PTR_FREE, test_peker
-  ENDIF ELSE BEGIN; 'dat file
-    RESTORE, adr
-    IF imageQCmatrix.nFrames GT 0 THEN matrix=imageQCmatrix.matrix[*,*,frame] ELSE matrix=imageQCmatrix.matrix
-    imageQCmatrix=!null
-  ENDELSE
+    ENDIF ELSE BEGIN
+      sv=DIALOG_MESSAGE('File no longer exists. Renamed or removed. Program might crash. Try closing the file.'+adr)
+      matrix=-1
+    ENDELSE
   return, matrix
 end
 
@@ -151,7 +262,7 @@ function centerProfile, vec
   ;centerval=TOTAL(vec[sHalf(0)-1:sHalf(0)+1])/3.
   ;outerVal=(vec(0)+vec(N_ELEMENTS(vec)-1))/2
   ;IF centerval LT outerVal THEN vec= max(vec)-vec ;invert array
-  
+
   nVec=N_ELEMENTS(vec)
   posMax=WHERE(vec EQ MAX(vec))
   posMax=ROUND(MEAN(posMax))
@@ -173,7 +284,7 @@ function centerProfile, vec
       dy=treshold-vec(first-1)
       IF vec(first) NE vec(first-1) THEN dx=dy/(vec(first)-vec(first-1)) ELSE dx=0.
       x1=first-1+dx
-      
+
       dy=vec(last)-treshold
       IF vec(last) NE vec(last+1) THEN dx=dy/(vec(last)-vec(last+1)) ELSE dx=0.
       x2=last+dx
@@ -182,7 +293,7 @@ function centerProfile, vec
       IF sHalf LT 0 THEN sHalf=-1
     ENDIF
   ENDIF
-  
+
   RETURN, sHalf
 end
 
@@ -201,9 +312,9 @@ function Centroid, array, treshold
   array=array-MIN(array);starting at zero
   arrTemp=array
   IF lower(0) NE -1 THEN arrTemp(lower)=0.
-  
+
   ;totalMass = Total(arrTemp)
-  
+
   ;IF totalMass GT 0 THEN BEGIN
   ;  x = Total( Total(arrTemp, 2) * Indgen(s[0]) ) / totalMass
   ;  y = Total( Total(arrTemp, 1) * Indgen(s[1]) ) / totalMass
@@ -253,7 +364,7 @@ end
 function getInterpX, Y,x1,x2,y1,y2
   w=(Y-y2)/(y1-y2)
   X=w*x1+(1-w)*x2
-  
+
   RETURN, X
 end
 
@@ -266,7 +377,7 @@ function getProfile, imagein, start, ende
   dy = float(ende(1)-start(1))
   n = abs(dx) > abs(dy)
   r = fltarr(n+1)
-  
+
   if abs(dx) gt abs(dy) then begin
     if ende(0) ge start(0) then s=1 else s=-1
     sy = (ende(1)-start(1))/abs(dx)
@@ -274,10 +385,10 @@ function getProfile, imagein, start, ende
     if ende(1) ge start(1) then sy=1 else sy=-1
     s = (ende(0)-start(0))/abs(dy)
   endelse
-  
+
   xx = long(findgen(n+1l)*s+start(0))    ;X values, make into longwords.
   yy = long(findgen(n+1l)*sy+start(1))   ;Y values
-  
+
   return,imagein[long(yy)*sx + xx]
 end
 
@@ -289,7 +400,7 @@ function getROIcircle, arrSz, center, radius
   in=WHERE(arr LE radius)
   circle=INTARR(arrSz(0), arrSz(1))
   circle(in)=1
-  
+
   return, circle
 end
 
@@ -311,11 +422,31 @@ function removeIDstructstruct, struct, ids
 end
 
 ;reorder ids in structure of structures
-function reorderStructStruct, struct, newOrder  
+function reorderStructStruct, struct, newOrder
   ntags=N_TAGS(struct)
   tagname=TAG_NAMES(struct)
   structNew=CREATE_STRUCT(tagname(newOrder(0)),struct.(newOrder(0)))
-  FOR i=1, ntags-1 DO structNew=CREATE_STRUCT(structNew,tagname(newOrder(i)),struct.(newOrder(i))) 
+  FOR i=1, ntags-1 DO structNew=CREATE_STRUCT(structNew,tagname(newOrder(i)),struct.(newOrder(i)))
+  return, structNew
+end
+
+;replace numbered structure in structure of structures
+;numb = id to replace
+function replaceStructStruct, fullStruct, newSubStruct, numb
+  structNew=CREATE_STRUCT('EMPTY',0)
+  counter=0
+  ntags=N_TAGS(fullStruct)
+  tagname=TAG_NAMES(fullStruct)
+  FOR i=0, ntags-1 DO BEGIN
+    stillEmpty=WHERE(TAG_NAMES(structNew) EQ 'EMPTY')
+    IF i NE numb THEN BEGIN
+      IF stillEmpty(0) EQ -1 THEN structNew=CREATE_STRUCT(structNew,tagname(counter),fullStruct.(i)) ELSE structNew=CREATE_STRUCT(tagname(0),fullStruct.(i))
+      counter=counter+1
+    ENDIF ELSE BEGIN
+      IF stillEmpty(0) EQ -1 THEN structNew=CREATE_STRUCT(structNew,tagname(counter),newSubStruct) ELSE structNew=CREATE_STRUCT(tagname(0),newSubStruct)
+      counter=counter+1
+    ENDELSE
+  ENDFOR
   return, structNew
 end
 
@@ -338,22 +469,22 @@ end
 function getWidthAtThreshold, vec, threshold
   width=-1
   center=-1
-  
+
   aboveInd=WHERE(vec GT threshold)
   belowInd=WHERE(vec LT threshold)
-  
-  IF aboveInd(0) GE 1 THEN above=aboveInd ELSE above=belowInd  
+
+  IF aboveInd(0) GE 1 THEN above=aboveInd ELSE above=belowInd
   nn=N_ELEMENTS(above)
 
   If above(0) GE 1 THEN BEGIN
     first=above(0)
     last=above(nn-1)
     IF last LT N_ELEMENTS(vec)-1 THEN BEGIN
-    
+
       dy=vec(first)-threshold;dy=treshold-vec(first-1)
       dx=dy/(vec(first)-vec(first-1))
       x1=first-dx;x1=first+dx
-      
+
       dy=vec(last)-threshold
       dx=dy/(vec(last)-vec(last+1))
       x2=last+dx
@@ -386,7 +517,7 @@ function getGaussFit, X, Y, pix, fitWidthFactor; assume X already centered
   nn=N_ELEMENTS(X)
   weights= FLTARR(nn)+1.
   res=getWidthAtThreshold(Y,max(Y)/2)
-  
+
   ss1=0
   yfit=-1
   A=-1
@@ -394,8 +525,8 @@ function getGaussFit, X, Y, pix, fitWidthFactor; assume X already centered
     FWHM1=res(0)*pix
     center=ABS(X(0))
     sigma1=FWHM1/(2*SQRT(2*ALOG(2)))
-    
-    res2=getWidthAtThreshold(Y,min(Y)/2) 
+
+    res2=getWidthAtThreshold(Y,min(Y)/2)
     IF res2(0) NE -1 THEN BEGIN
       FWHM2=res2(0)*pix
       sigma2=FWHM2/(2*SQRT(2*ALOG(2)))
@@ -407,7 +538,7 @@ function getGaussFit, X, Y, pix, fitWidthFactor; assume X already centered
     IF ss1 LT 0 THEN ss1=0
     IF ss2 GT nn-1 THEN ss2=nn-1
     A = [max(Y[ss1:ss2])-min(Y[ss1:ss2]),1.5*min(Y[ss1:ss2]),sigma1, sigma2];first guess parameters for curvefit gaussFitAdd2
-  
+
     yfit = CURVEFIT(X[ss1:ss2], Y[ss1:ss2], weights[ss1:ss2], A, FUNCTION_NAME='gaussFitAdd2', ITER=iter, CHISQ=chisq);, TOL=.00001*(1.0*10^(-3)));, ITMAX=100)
 
     IF A(1) GT A(0) THEN BEGIN
@@ -417,19 +548,19 @@ function getGaussFit, X, Y, pix, fitWidthFactor; assume X already centered
     ENDIF
 
     IF ABS(A[3]) GT 10.*A[2] OR A[3] LT 0 THEN BEGIN; retry with single gaussfit - allow double gauss with both terms positive
-    ;IF A(1) GT 0 OR ABS(A[3]) GT 10.*A[2] THEN BEGIN; retry with single gaussfit - double is for sharp filters
+      ;IF A(1) GT 0 OR ABS(A[3]) GT 10.*A[2] THEN BEGIN; retry with single gaussfit - double is for sharp filters
       yfit=gaussfit(X[ss1:ss2], Y[ss1:ss2], A, ESTIMATES=[max(Y[ss1:ss2]),0,sigma1], NTERMS=3)
       A(1)=0
     ENDIF
 
-   ENDIF; res(0)=-1
-   retStruct=CREATE_STRUCT('yfit',yfit,'A',A,'startpos',ss1)
-    
-   return, retStruct
+  ENDIF; res(0)=-1
+  retStruct=CREATE_STRUCT('yfit',yfit,'A',A,'startpos',ss1)
+
+  return, retStruct
 end
 
-  ;gauss to gauss continuous version:
-  ;http://www.cse.yorku.ca/~kosta/CompVis_Notes/fourier_transform_Gaussian.pdf
+;gauss to gauss continuous version:
+;http://www.cse.yorku.ca/~kosta/CompVis_Notes/fourier_transform_Gaussian.pdf
 function getMTFgauss, A, sigmaF
   nSteps=200;sample 20 steps from 0 to 1 stdv MTF curve A0 (stdev=1/A(2))
   kvals=FINDGEN(nSteps)*(10./nSteps)/A(2)
@@ -440,7 +571,7 @@ function getMTFgauss, A, sigmaF
   k=kvals/(2*!pi)
 
   MTF=MTF/MTF(0)
-  
+
   gradient=SHIFT(MTF,-1)-MTF
   ng=N_ELEMENTS(gradient)-2
   gradient=gradient[0: ng];pop last
@@ -479,23 +610,25 @@ function getListOpenFiles, struc, full, marked, mMulti
     fileList=STRARR(nn)
     FOR i=0, nn-1 DO BEGIN
       add='   '
-      IF marked(0) NE -1 THEN BEGIN
+      IF mMulti(0) EQ -1 THEN BEGIN
         IF markedArr(i) AND marked(0) NE -1 THEN add='X ' ELSE add='   '
       ENDIF ELSE IF mMulti(0) NE -1 THEN BEGIN
         add=''
-        FOR j=0, szMM(0)-1 DO BEGIN
-          IF mMulti[j,i] THEN add=add+STRING(j+1, FORMAT='(i0)') ELSE add=add+'  '
-        ENDFOR
+        IF i LT szMM(1) THEN BEGIN
+          FOR j=0, szMM(0)-1 DO BEGIN
+            IF mMulti[j,i] THEN add=add+STRING(j+1, FORMAT='(i0)') ELSE add=add+'  '
+          ENDFOR
+        ENDIF ELSE add=STRING(STRARR(szMM(0)), FORMAT='('+STRING(szMM(0), FORMAT='(i0)')+'(a2))')
         add=add+'   '
       ENDIF
       t=STRSPLIT(struc.(i).filename,'\',/EXTRACT)
       nSplit=N_ELeMENTS(t)
-      
+
       fileList(i)=add+STRJOIN(t[nSplit-2:nSplit-1],'\')
-      
+
     ENDFOR
   ENDELSE
-  
+
   return, fileList
 end
 
@@ -505,41 +638,41 @@ function getListFrames, struc, marked
   markedArr=INTARR(nn)
   IF marked(0) NE -1 THEN markedArr(marked)=1 ELSE markedArr=markedArr+1
   imgList=STRARR(nn)
-  
+
   o=obj_new('idlffdicom')
   t=o->read(struc.filename)
   test=o->GetReference('0020'x,'0032'x)
-  
+
   strAdd='Img number '
   angles=0
   IF N_ELEMENTS(test) EQ nn THEN BEGIN
-     strAdd='Img pos ' 
+    strAdd='Img pos '
   ENDIF ELSE BEGIN
     test=o->GetReference('0054'x,'0090'x); angular view vector
-    IF test(0) NE -1 THEN BEGIN 
+    IF test(0) NE -1 THEN BEGIN
       test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
       angleVec=*(test_peker[0])
       angles=STRSPLIT(angleVec, '\', /EXTRACT)
       strAdd='Angle '
     ENDIF
   ENDELSE
-      
-    FOR i=0, nn-1 DO BEGIN
-      IF markedArr(i) AND marked(0) NE -1 THEN add='X ' ELSE add='   '
-      CASE strAdd OF
-        'Img pos ': BEGIN
-          test_peker=o->GetValue(REFERENCE=test[i],/NO_COPY)
-          imgpos=*(test_peker[0])
-          END
-          'Angle ': imgpos= angles(i)
-          ELSE: imgpos = STRING(i, FORMAT='(i0)')
-      ENDCASE
-      
-      imgList(i)=add+strAdd+imgpos    
-    ENDFOR
+
+  FOR i=0, nn-1 DO BEGIN
+    IF markedArr(i) AND marked(0) NE -1 THEN add='X ' ELSE add='   '
+    CASE strAdd OF
+      'Img pos ': BEGIN
+        test_peker=o->GetValue(REFERENCE=test[i],/NO_COPY)
+        imgpos=*(test_peker[0])
+      END
+      'Angle ': imgpos= angles(i)
+      ELSE: imgpos = STRING(i, FORMAT='(i0)')
+    ENDCASE
+
+    imgList(i)=add+strAdd+imgpos
+  ENDFOR
 
 
-  OBJ_DESTROY,o 
+  OBJ_DESTROY,o
   stest=size(test_peker, /TNAME)
   IF stest EQ 'POINTER' THEN PTR_FREE, test_peker
   return, imgList
@@ -559,19 +692,20 @@ function gaussFilter, sigmaF, nn
     nonZeros=WHERE(filter NE 0.)
     filter=filter(nonZeros)
   Endif
-   return, filter
+  return, filter
 end
 
-function getResNmb, tabNmb, stringElem, stringArr0, stringArr1, stringArr2, stringArr3
+function getResNmb, tabNmb, stringElem, stringArr0, stringArr1, stringArr2, stringArr3, stringArr4
   CASE tabNmb OF
     0: actStrings=stringArr0
     1: actStrings=stringArr1
     2: actStrings=stringArr2
     3: actStrings=stringArr3
+    4: actStrings=stringArr4
   ENDCASE
   i=WHERE(actStrings EQ stringElem)
   resNmb=i
-return, resNmb
+  return, resNmb
 end
 
 function FFTvector, vec, padfactor
