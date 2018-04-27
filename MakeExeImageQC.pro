@@ -4,13 +4,10 @@ pro MakeExeImageQC
   MAKE_RT, 'ImageQC', exePath, /OVERWRITE, SAVEFILE=thisPath+'imageqc.sav', /VM, /WIN32
 end
 
-<<<<<<< HEAD
 ;update configDefault
 ;configS=updateConfigS('')
 ;SAVE, configS, FILENAME=thisPath+'data\configDefault.dat'; quickTemp and loadTemp = !Null
 
-=======
->>>>>>> 51b538bf2a71e66c58c0bf95eec4fabbd66e127c
 ;----------------------
 ;
 ;
