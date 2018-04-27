@@ -75,15 +75,9 @@ function calculateSNI, noiseImg, SNIroi, pix
   firstY=temp2(0)
   lastY=temp2(-1)
 
-<<<<<<< HEAD
   ;assuming landscape image (X broader than Y and ROIsz even for both large and small ROI)
   largeDim=lastY-firstY+1
   lastY=firstY+largeDim-1
-=======
-  ;assuming landscape image (X broader than Y)
-  largeDim=lastY-firstY+1
-  largeDim=largeDim - (largeDim mod 4);ensure even ROIsz for both large and small ROI
->>>>>>> 51b538bf2a71e66c58c0bf95eec4fabbd66e127c
   smallDim=largeDim/2
 
   ;large ROIs (2)
@@ -94,11 +88,7 @@ function calculateSNI, noiseImg, SNIroi, pix
   ;small ROIs (6)
   subS=FLTARR(smallDim, smallDim, 6)
   mid=(lastX+firstX)/2
-<<<<<<< HEAD
   firstM=mid-(smallDim/2-1)
-=======
-  firstM=mid-smallDim/2
->>>>>>> 51b538bf2a71e66c58c0bf95eec4fabbd66e127c
   subS[*,*,0]=noiseImg[firstX:firstX+smallDim-1,lastY-smallDim+1:lastY];upper lft
   subS[*,*,1]=noiseImg[firstM:firstM+smallDim-1,lastY-smallDim+1:lastY];upper mid
   subS[*,*,2]=noiseImg[lastX-smallDim+1:lastX,lastY-smallDim+1:lastY];upper rgt
@@ -109,11 +99,8 @@ function calculateSNI, noiseImg, SNIroi, pix
   ;****2d fourier of each ROI***
   NPS_L=FLTARR(largeDim,largeDim,2)
   NPS_S=FLTARR(smallDim, smallDim, 6)
-<<<<<<< HEAD
   NPS_L_filt=NPS_L
   NPS_S_filt=NPS_S
-=======
->>>>>>> 51b538bf2a71e66c58c0bf95eec4fabbd66e127c
   ;filter with human visual response filter (also removing peak on very low ferquency - trendremoval not needed)
   humVisFilterLarge=generateHumVisFilter(largeDim,pix)
   humVisFilterSmall=generateHumVisFilter(smallDim,pix)
@@ -126,15 +113,9 @@ function calculateSNI, noiseImg, SNIroi, pix
     ;remove quantum noise
     NPS_Lstruc=NPS_L[*,*,i]-MEAN(subM)*pix^2;Meancount=variance=pixNPS^2*Total(NPS) where pixNPS=1./(ROIsz*pix), Total(NPS)=NPSvalue*ROIsz^2, NPSvalue=Meancount/(pixNPS^2*ROIsz^2)=MeanCount*pix^2
     ;filter with human visual response filter
-<<<<<<< HEAD
     NPS_L_filt[*,*,i]=NPS_L[*,*,i]*humVisFilterLarge
     NPS_Lstruc_filt=NPS_Lstruc*humVisFilterLarge
     SNIvalues(i+1)=TOTAL(NPS_Lstruc_filt)/TOTAL(NPS_L_filt[*,*,i])
-=======
-    NPS_L_filt=NPS_L[*,*,i]*humVisFilterLarge
-    NPS_Lstruc_filt=NPS_Lstruc*humVisFilterLarge
-    SNIvalues(i+1)=TOTAL(NPS_Lstruc_filt)/TOTAL(NPS_L_filt)
->>>>>>> 51b538bf2a71e66c58c0bf95eec4fabbd66e127c
   ENDFOR
 
   FOR i = 0, 5 DO BEGIN
@@ -145,7 +126,6 @@ function calculateSNI, noiseImg, SNIroi, pix
     ;remove quantum noise
     NPS_Sstruc=NPS_S[*,*,i]-MEAN(subM)*pix^2;Meancount=variance=pixNPS^2*Total(NPS) where pixNPS=1./(ROIsz*pix), Total(NPS)=NPSvalue*ROIsz^2, NPSvalue=Meancount/(pixNPS^2*ROIsz^2)=MeanCount*pix^2
     ;filter with human visual response filter
-<<<<<<< HEAD
     NPS_S_filt[*,*,i]=NPS_S[*,*,i]*humVisFilterSmall
     NPS_Sstruc_filt=NPS_Sstruc*humVisFilterSmall
     SNIvalues(i+3)=TOTAL(NPS_Sstruc_filt)/TOTAL(NPS_S_filt[*,*,i])
@@ -156,15 +136,5 @@ function calculateSNI, noiseImg, SNIroi, pix
   NPS_filt=CREATE_STRUCT('L1',NPS_L_filt[*,*,0],'L2',NPS_L_filt[*,*,1],'S1',NPS_S_filt[*,*,0],'S2',NPS_S_filt[*,*,1],'S3',NPS_S_filt[*,*,2],'S4',NPS_S_filt[*,*,3],'S5',NPS_S_filt[*,*,4],'S6',NPS_S_filt[*,*,5])
   
   SNIstruc=CREATE_STRUCT('SNIvalues',SNIvalues, 'NPS_filt', NPS_filt)
-=======
-    NPS_S_filt=NPS_S[*,*,i]*humVisFilterSmall
-    NPS_Sstruc_filt=NPS_Sstruc*humVisFilterSmall
-    SNIvalues(i+3)=TOTAL(NPS_Sstruc_filt)/TOTAL(NPS_S_filt)
-  ENDFOR
-
-  SNIvalues(0)=MAX(SNIvalues)
-  
-  SNIstruc=CREATE_STRUCT('SNIvalues',SNIvalues, 'NPS_L', NPS_L, 'NPS_S',NPS_S)
->>>>>>> 51b538bf2a71e66c58c0bf95eec4fabbd66e127c
   return, SNIstruc
 end
