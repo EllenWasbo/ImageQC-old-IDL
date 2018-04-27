@@ -22,11 +22,7 @@ pro updateTable
   nCols=-1
   IF analyse NE 'ENERGYSPEC' THEN BEGIN
     sel=WIDGET_INFO(listFiles, /LIST_SELECT) & sel=sel(0)
-<<<<<<< HEAD
     ;IF nFrames EQ 0 THEN BEGIN
-=======
-    IF nFrames EQ 0 THEN BEGIN
->>>>>>> 51b538bf2a71e66c58c0bf95eec4fabbd66e127c
       nImg=N_TAGS(structImgs)
       pix=structImgs.(sel).pix(0)
     ;ENDIF ELSE BEGIN
@@ -230,7 +226,6 @@ pro updateTable
             resArrString=STRARR(nCols,nRows)
             FOR i=0, nRows-1 DO IF N_TAGS(SNIres.(markedTemp(i))) NE 1 THEN resArrString[*,i]=STRING(SNIres.(markedTemp(i)).SNIvalues, FORMAT='(F0.3)')
           END
-<<<<<<< HEAD
           
           'ACQ':BEGIN
             nCols=2
@@ -238,8 +233,6 @@ pro updateTable
             resArrString=STRARR(nCols,nRows)
             FOR i=0, nRows-1 DO resArrString[*,i]=STRING(acqRes[*,markedTemp(i)], FORMAT='(i0)')
           END
-=======
->>>>>>> 51b538bf2a71e66c58c0bf95eec4fabbd66e127c
 
           'ENERGYSPEC': BEGIN
             nCols=7
@@ -500,12 +493,6 @@ pro updateTable
       ENDIF
     ENDIF ELSE WIDGET_CONTROL, resTab, TABLE_XSIZE=4, TABLE_YSIZE=2, COLUMN_LABELS=['0','1','2','3'], COLUMN_WIDTHS=[100,100,100,100], SET_VALUE=STRARR(4,5), SET_TABLE_SELECT=tabSelect, FOREGROUND_COLOR=[0,0,0]
     WIDGET_CONTROL, resTab, SET_TABLE_VIEW=tabView
-<<<<<<< HEAD
-=======
-
-  ENDELSE
-
->>>>>>> 51b538bf2a71e66c58c0bf95eec4fabbd66e127c
 
   ENDELSE
 end
