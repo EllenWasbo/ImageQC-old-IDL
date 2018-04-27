@@ -40,6 +40,7 @@
 ;  .acqtime
 ;  .sliceThick
 ;  .pix ;floatarray x,y
+;  .imageSize
 ;  .kVp
 ;  .dFOV (display FOV)
 ;  .rekonFOV
@@ -77,7 +78,7 @@
 ;  .scatterFrac
 
 
-function readImgInfo, adr
+function readImgInfo, adr, dialog_par
 
   imgStruct=-1
 
@@ -139,11 +140,7 @@ function readImgInfo, adr
       ;***************parameters what
       test=o->GetReference('0008'x,'0008'x)
       test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
-      IF test(0) NE -1 THEN BEGIN
-        imageType=*(test_peker[0])
-        ;imageType=STRSPLIT(imageType, '\', /EXTRACT)
-        ;imageType=imageType(2)
-      ENDIF ELSE imageType=''
+      IF test(0) NE -1 THEN imageType=*(test_peker[0]) ELSE imageType=''
 
       ;presentation Type
       test=o->GetReference('0008'x,'0068'x)
@@ -187,7 +184,6 @@ function readImgInfo, adr
       IF test(0) NE -1 THEN BEGIN
         pixStr=*(test_peker[0])
         pix=FLOAT(STRSPLIT(pixStr,'\',/EXTRACT))
-        IF pix(0) NE pix(1) THEN sv=DIALOG_MESSAGE('Software not verified to handle non-quadratic pixels. Image found with pixelsize '+pixStr+'. First value might be used for both directions.')
       ENDIF ELSE pix=[-1.,-1.]
       IF pix(0) EQ -1. THEN BEGIN
         test=o->GetReference('0018'x,'1164'x)
@@ -195,13 +191,16 @@ function readImgInfo, adr
         IF test(0) NE -1 THEN BEGIN
           pixStr=*(test_peker[0])
           pix=FLOAT(STRSPLIT(pixStr,'\',/EXTRACT))
-          IF pix(0) NE pix(1) THEN sv=DIALOG_MESSAGE('Software not verified to handle non-quadratic pixels. Image found with pixelsize '+pixStr+'. First value might be used for both directions.')
         ENDIF
       ENDIF
-      IF pix(0) EQ -1. THEN BEGIN
-        sv=DIALOG_MESSAGE('Could not find pixel size in DICOM header. Edit pixel size manually to avoid corrupted results. Find button for this in the toolbar in the bottom left corner.')
-      ENDIF
-
+      
+      imageSize=[-1,-1]
+      test=o->GetReference('0028'x,'0011'x)
+      test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
+      IF test(0) NE -1 THEN imageSize(0)=*(test_peker[0])
+      test=o->GetReference('0028'x,'0010'x)
+      test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
+      IF test(0) NE -1 THEN imageSize(1)=*(test_peker[0])
 
       test=o->GetReference('0018'x,'0060'x)
       test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
@@ -228,13 +227,7 @@ function readImgInfo, adr
       test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
       IF test(0) NE -1 THEN mAs=*(test_peker[0]) ELSE mAs=-1. ; changed to mA*time/1000 if CR or DX to get floating number, not integer
       
-      IF modality EQ 'PT' THEN BEGIN
-        test=o->GetReference('0018'x,'1242'x)
-        test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
-        IF test(0) NE -1 THEN BEGIN
-          time=*(test_peker[0])
-        ENDIF ELSE time=-1
-      ENDIF ELSE BEGIN
+      IF modality EQ 'PT' THEN time=-1 ELSE BEGIN
         test=o->GetReference('0018'x,'1150'x)
         test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
         IF test(0) NE -1 THEN BEGIN
@@ -322,18 +315,18 @@ function readImgInfo, adr
         stest=size(test_peker, /TNAME)
         IF stest EQ 'POINTER' THEN BEGIN
           zpos=FLOAT(*(test_peker[0]))
-        ENDIF ELSE zpos=9999.
+        ENDIF ELSE zpos=-999.
       ENDIF ELSE BEGIN
         test=o->GetReference('0020'x,'0032'x)
         IF N_ELEMENTS(test) EQ nFrames AND test(0) NE -1 THEN BEGIN
-          zPos=FLTARR(nFrames)
+          zPos=FLTARR(nFrames)-999.
           FOR i=0, nFrames-1 DO BEGIN
             test_peker=o->GetValue(REFERENCE=test[i],/NO_COPY)
             imgpos=*(test_peker[0])
             t=STRSPLIT(imgpos,'\',/EXTRACT)
-            IF N_ELEMENTS(t) GT 2 THEN zPos(i)=FLOAT(t(2)) ELSE zPos(i)=0
+            IF N_ELEMENTS(t) GT 2 THEN zPos(i)=FLOAT(t(2)) ELSE zPos(i)=-999.
           ENDFOR
-        ENDIF ELSE zPos=FLTARR(nFrames)
+        ENDIF ELSE zPos=FLTARR(nFrames)-999.
       ENDELSE
 
       test=o->GetReference('0020'x,'0013'x)
@@ -389,8 +382,7 @@ function readImgInfo, adr
       test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
       IF test(0) NE -1 THEN acqTerminationCond=*(test_peker[0]) ELSE acqTerminationCond='-'
       
-      ; PET only
-      
+      ; PET only      
       test=o->GetReference('0018'x,'0031'x);
       test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
       IF test(0) NE -1 THEN radiopharmaca=*(test_peker[0]) ELSE radiopharmaca='-'
@@ -427,31 +419,50 @@ function readImgInfo, adr
       test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
       IF test(0) NE -1 THEN scatterFrac=*(test_peker[0]) ELSE scatterFrac='-'
       
+      test=o->GetReference('0054'x,'0090'x);  
+      IF nFrames EQ 0 THEN angle = -999. ELSE angle=FLTARR(nFrames)-999.
+      IF test(0) NE -1 THEN BEGIN
+        test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
+        angleVec=*(test_peker[0])
+        angles=STRSPLIT(angleVec, '\', /EXTRACT)
+        FOR ff=0, N_ELEMENTS(angles)-1 DO BEGIN
+           angle(ff)=FLOAT(angles(ff))
+        ENDFOR 
+      ENDIF ELSE angle=-999.
       
-
+      frameNo=-1
+      
       imgStruct=CREATE_STRUCT('filename',adr,'acqDate', acqDate, 'imgDate', imgDate, 'institution',institution,'modality', modality, 'modelName',modelName,'stationName',stationName,$
         'patientName',patientName, 'patientID', patientID, 'patientWeight', patientWeight, 'imageType',imageType,'presType',presType,'studyDescr',studyDescr,'seriesName',seriesName, 'protocolname', protocolname,$
-        'seriesNmb',seriesNmb,'acqNmb',acqNmb, 'acqtime',acqtime,'sliceThick',sliceThick, 'pix', pix,'kVp',kVp,'FOV',dFOV,'rekonFOV',rekonFOV,'mA',mA,'mAs',mAs,'time',time,'coll',coll,'pitch',pitch,$
+        'seriesNmb',seriesNmb,'acqNmb',acqNmb, 'acqtime',acqtime,'sliceThick',sliceThick, 'pix', pix,'imageSize',imageSize,'kVp',kVp,'FOV',dFOV,'rekonFOV',rekonFOV,'mA',mA,'mAs',mAs,'ExpTime',time,'coll',coll,'pitch',pitch,$
         'ExModType',ExModType,'CTDIvol',CTDIvol,'DAP',DAP,'EI',EI,'sensitivity',sensitivity,'filter',filter,$
         'zpos', zpos, 'imgNo',imgNo,'nFrames',nFrames,'wCenter',wCenter,'wWidth',wWidth,$
-        'collType',collType,'nEWindows',nEWindows,'EWindowName',EWindowName,'zoomFactor',zoomFactor,'radius1',radPos1,'radius2',radPos2,'acqFrameDuration',acqFrameDuration,'acqTerminationCond',acqTerminationCond,$
-        'units',units,'radiopharmaca',radiopharmaca,'admDose',admDose,'admDoseTime',admDoseTime,'reconMethod',reconMethod,'attCorrMethod',attCorrMethod,'scaCorrMethod',scaCorrMethod, 'scatterFrac',scatterFrac)
+        'collType',collType,'nEWindows',nEWindows,'EWindowName',EWindowName,'zoomFactor',zoomFactor,'radius1',radPos1,'radius2',radPos2,'angle',angle,'acqFrameDuration',acqFrameDuration,'acqTerminationCond',acqTerminationCond,$
+        'units',units,'radiopharmaca',radiopharmaca,'admDose',admDose,'admDoseTime',admDoseTime,'reconMethod',reconMethod,'attCorrMethod',attCorrMethod,'scaCorrMethod',scaCorrMethod, 'scatterFrac',scatterFrac,$
+        'frameNo', frameNo)
 
+      IF imgStruct.nFrames GT 1 THEN BEGIN; split structure into separate image-structures
+        firstStruct=structArr2elem(imgStruct, ['ZPOS','RADIUS1','RADIUS2'], 0)
+        firstStruct.frameNo=1
+        imgStructMulti=CREATE_STRUCT('M0',firstStruct)
+        FOR ism=1,  imgStruct.nFrames -1 DO BEGIN
+          imgStructMulti=CREATE_STRUCT(imgStructMulti,'M'+STRING(ism,FORMAT='(i0)'),structArr2elem(imgStruct, ['ZPOS','RADIUS1','RADIUS2','ANGLE'], ism))
+          imgStructMulti.(ism).frameNo=ism+1
+        ENDFOR
+        imgStruct=imgStructMulti
+      ENDIF
 
       OBJ_DESTROY, o
 
       stest=size(test_peker, /TNAME)
       IF stest EQ 'POINTER' THEN PTR_FREE, test_peker
 
-      ;ENDIF ELSE BEGIN
-      ;  sv=DIALOG_MESSAGE('Modality not CT for dicom file '+adr, /INFORMATION)
-      ;ENDELSE
     ENDIF;directoryfile
   ENDIF ELSE BEGIN
     CATCH, err_stat
     IF err_stat NE 0 THEN BEGIN
       CATCH, /CANCEL
-      sv=DIALOG_MESSAGE('Not valid dicom or .dat/.sav file: '+adr, /INFORMATION)
+      sv=DIALOG_MESSAGE('Not valid dicom or .dat/.sav file: '+adr, /INFORMATION, DIALOG_PARENT=dialog_par)
       RETURN, -1
     ENDIF
     RESTORE, adr 
@@ -463,6 +474,5 @@ function readImgInfo, adr
   ENDELSE
 
   return, imgStruct
-
 end
 

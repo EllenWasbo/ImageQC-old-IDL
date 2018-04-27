@@ -22,13 +22,13 @@ pro updateTable
   nCols=-1
   IF analyse NE 'ENERGYSPEC' THEN BEGIN
     sel=WIDGET_INFO(listFiles, /LIST_SELECT) & sel=sel(0)
-    IF nFrames EQ 0 THEN BEGIN
+    ;IF nFrames EQ 0 THEN BEGIN
       nImg=N_TAGS(structImgs)
       pix=structImgs.(sel).pix(0)
-    ENDIF ELSE BEGIN
-      nImg=nFrames
-      pix=structImgs.(0).pix(0)
-    ENDELSE
+    ;ENDIF ELSE BEGIN
+     ; nImg=nFrames
+      ;pix=structImgs.(0).pix(0)
+    ;ENDELSE
     markedTemp=INDGEN(nImg); all default
     IF marked(0) EQ -1 THEN nRows=nImg ELSE BEGIN
       nRows=N_ELEMENTS(marked)
@@ -47,12 +47,12 @@ pro updateTable
 
         CASE analyse OF
 
-          'ROI': BEGIN
-            nCols=4
-            headers=['Min','Max','Avg','Stdev']
-            resArrString=STRARR(nCols,nRows)
-            FOR i=0, nRows-1 DO resArrString[*,i]=STRING(ROIres[*,markedTemp(i)], FORMAT=formatCode(ROIres[*,markedTemp(i)]))
-          END
+;          'ROI': BEGIN
+;            nCols=4
+;            headers=['Min','Max','Avg','Stdev']
+;            resArrString=STRARR(nCols,nRows)
+;            FOR i=0, nRows-1 DO resArrString[*,i]=STRING(ROIres[*,markedTemp(i)], FORMAT=formatCode(ROIres[*,markedTemp(i)]))
+;          END
 
           'MTF': BEGIN
             ;table results @50,10,2%
@@ -185,12 +185,12 @@ pro updateTable
             resArrString=STRARR(nCols,nRows)
             FOR i=0, nRows-1 DO resArrString[*,i]=STRING(eiRes[*,markedTemp(i)], FORMAT='(f0.1)')
           END
-          'ROI':BEGIN
-            nCols=4
-            headers=['Min','Max','Avg','Stdev']
-            resArrString=STRARR(nCols,nRows)
-            FOR i=0, nRows-1 DO resArrString[*,i]=STRING(ROIres[*,markedTemp(i)], FORMAT=formatCode(ROIres[*,markedTemp(i)]))
-          END
+;          'ROI':BEGIN
+;            nCols=4
+;            headers=['Min','Max','Avg','Stdev']
+;            resArrString=STRARR(nCols,nRows)
+;            FOR i=0, nRows-1 DO resArrString[*,i]=STRING(ROIres[*,markedTemp(i)], FORMAT=formatCode(ROIres[*,markedTemp(i)]))
+;          END
           'MTF':BEGIN
             ;table results 0.5-2.5 lp/mm + frq @ MTF 0.5
             nCols=6
@@ -202,6 +202,7 @@ pro updateTable
             ENDIF ELSE resArrString[*,0]=STRING(MTFres.lpmm, FORMAT='(F0.3)')
           END
           'NPS':
+          ELSE:
         ENDCASE
       ENDIF
     END
@@ -225,6 +226,13 @@ pro updateTable
             resArrString=STRARR(nCols,nRows)
             FOR i=0, nRows-1 DO IF N_TAGS(SNIres.(markedTemp(i))) NE 1 THEN resArrString[*,i]=STRING(SNIres.(markedTemp(i)).SNIvalues, FORMAT='(F0.3)')
           END
+          
+          'ACQ':BEGIN
+            nCols=2
+            headers=['Total Count','Frame Duration (ms)']
+            resArrString=STRARR(nCols,nRows)
+            FOR i=0, nRows-1 DO resArrString[*,i]=STRING(acqRes[*,markedTemp(i)], FORMAT='(i0)')
+          END
 
           'ENERGYSPEC': BEGIN
             nCols=7
@@ -237,7 +245,7 @@ pro updateTable
             resArrString(1,0)=STRING(maxC, FORMAT='(i0)')
             posMax=WHERE(energyRes.curve[1,*] EQ maxC)
             IF posMax GT N_ELEMENTS(energyRes.curve[0,*])-11 THEN BEGIN
-              sv=DIALOG_MESSAGE('Max point in curve to close to end of curve. Calculation not possible.')
+              sv=DIALOG_MESSAGE('Max point in curve to close to end of curve. Calculation not possible.', DIALOG_PARENT=evTop)
             ENDIF ELSE BEGIN
               resArrString(2,0)=STRING(energyRes.curve[0,posMax], FORMAT='(f0.2)')
               resArrString(3,0)='-'
@@ -487,6 +495,4 @@ pro updateTable
     WIDGET_CONTROL, resTab, SET_TABLE_VIEW=tabView
 
   ENDELSE
-
-
 end

@@ -30,12 +30,11 @@ pro updateROI, Ana=ana
     sel=WIDGET_INFO(listFiles, /LIST_SELECT)  & sel=sel(0)
     tempImg=activeImg
     szImg=SIZE(tempImg,/DIMENSIONS)
-    IF nFrames EQ 0 THEN pix=structImgs.(sel).pix ELSE pix=structImgs.(0).pix
+    pix=structImgs.(sel).pix;IF nFrames EQ 0 THEN pix=structImgs.(sel).pix ELSE pix=structImgs.(0).pix
 
     imgCenterOffset=[0,0,0,0]
     IF dxya(3) EQ 1 THEN imgCenterOffset=dxya
     center=szImg/2+imgCenterOffset[0:1]
-    ;'drawROIhomog': ana='HOMOG'
 
     CASE ana OF
 
@@ -59,22 +58,7 @@ pro updateROI, Ana=ana
             ROIsz=ROUND(FLOAT(ROIsz(0))/pix(0)) ; assume x,y pix equal ! = normal
             ROIdist=-1
           END
-;          2:BEGIN
-;            WIDGET_CONTROL, cw_homogNM, GET_VALUE=typeHomogNM
-;            WIDGET_CONTROL, txtHomogROIszNM, GET_VALUE=ROIsz
-;            ROIsz=ROUND(FLOAT(ROIsz(0))/pix(0)) ; assume x,y pix equal ! = normal
-;            WIDGET_CONTROL,  txtHomogROIdistXNM, GET_VALUE=ROIdistX
-;            CASE typeHomogNM OF
-;              0: BEGIN; planar WB
-;                WIDGET_CONTROL,  txtHomogROIdistYNM, GET_VALUE=ROIdistY
-;                ROIdist=ROUND([FLOAT(ROIdistX(0))/pix(0),FLOAT(ROIdistY(0))/pix(1)])
-;              END
-;              1: BEGIN
-;                ROIdist=ROUND(FLOAT(ROIdistX(0))/pix(0)) ; assume x,y pix equal ! = normal
-;              END
-;              ELSE:
-;            ENDCASE
-;          END
+
           4:BEGIN
             WIDGET_CONTROL, txtHomogROIszPET, GET_VALUE=ROIsz
             ROIsz=ROUND(FLOAT(ROIsz(0))/pix(0)) ; assume x,y pix equal ! = normal
@@ -136,7 +120,6 @@ pro updateROI, Ana=ana
 
         ENDCASE
 
-        ;IF proceed THEN ana = 'NPS' ELSE ana='NONE'
       END
 
       'CTLIN': BEGIN
@@ -167,8 +150,6 @@ pro updateROI, Ana=ana
       END
       
       'RC': BEGIN
-;        WIDGET_CONTROL, txtrcR1, GET_VALUE=rad1
-;        WIDGET_CONTROL, txtrcR2, GET_VALUE=rad2
         rad1=37.0
         rad2=57.2
         rad1=ROUND(FLOAT(rad1(0)/2)/pix(0)) & rad2=ROUND(FLOAT(rad2(0))/pix(0)); assume x,y pix equal ! = normal
@@ -192,6 +173,5 @@ pro updateROI, Ana=ana
   ENDIF ELSE BEGIN;no images loaded
       CTlinROIs=0 & CTlinROIpos=0 & homogROIs=0 & noiseROI=0 & NPSrois=0 & conROIs=0 & crossROI=0
   ENDELSE
-
 
 end

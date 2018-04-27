@@ -51,7 +51,7 @@ pro headerEdit_event, event
             IF typeOld NE 'STRING' THEN newVal=FLOAT(newVal)
             valid=0
             IF N_ELEMENTS(newVal) EQ N_ELEMENTS(oldVal) THEN valid=1
-            IF valid EQ 0 THEN sv=DIALOG_MESSAGE('Wrong format of new value for tag '+tagN(i)) 
+            IF valid EQ 0 THEN sv=DIALOG_MESSAGE('Wrong format of new value for tag '+tagN(i), DIALOG_PARENT=event.TOP) 
 
             If valid THEN structImgs.(imgNmb).(i)=newVal
           ENDIF

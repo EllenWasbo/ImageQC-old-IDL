@@ -44,8 +44,8 @@ pro updatePlot, setRangeMinMaxX, setRangeMinMaxY, optionSet
     tags=TAG_NAMES(structImgs)
     IF tags(0) NE 'EMPTY' THEN BEGIN
       sel=WIDGET_INFO(listFiles, /LIST_SELECT) & sel=sel(0)
-      IF nFrames EQ 0 THEN pix=structImgs.(sel).pix(0) ELSE pix=structImgs.(0).pix(0)
-      IF nFrames EQ 0 THEN nImg=N_TAGS(structImgs) ELSE nImg=nFrames
+      pix=structImgs.(sel).pix(0);IF nFrames EQ 0 THEN pix=structImgs.(sel).pix(0) ELSE pix=structImgs.(0).pix(0)
+      nImg=N_TAGS(structImgs);IF nFrames EQ 0 THEN nImg=N_TAGS(structImgs) ELSE nImg=nFrames
       markedArr=INTARR(nImg)
       IF marked(0) EQ -1 THEN markedArr=markedArr+1 ELSE markedArr(marked)=1
       markedTemp=WHERE(markedArr EQ 1)
@@ -574,9 +574,11 @@ pro updatePlot, setRangeMinMaxX, setRangeMinMaxY, optionSet
                 IF optionSet NE 3 THEN BEGIN
                   resPlot=plot(xValues, yValues,  '', SYMBOL='D', XTITLE='mAs', YTITLE='EI' , TITLE='EI vs mAs', $
                     XRANGE=rangeX, YRANGE=rangeY, XSTYLE=1, YSTYLE=1, MARGIN=resPlotMargin, FONT_NAME=foName, FONT_SIZE=foSize, CURRENT=currWin)
-                  a0=REGRESS(TRANSPOSE(xValues),TRANSPOSE(yValues), YFIT=yfit, MCORRELATION=mcorr)
-                  resPlotFit=PLOT(xValues, TRANSPOSE(yfit),'-', NAME='Linear fit, mCorr= '+STRING(mcorr, FORMAT='(f0.4)'), /OVERPLOT)
-                  resLeg=LEGEND(TARGET=resPlotFit, FONT_NAME=foName, FONT_SIZE=foSize, POSITION=legPos)
+                  IF N_ELEMENTS(xValues) GT 1 THEN BEGIN
+                    a0=REGRESS(TRANSPOSE(xValues),TRANSPOSE(yValues), YFIT=yfit, MCORRELATION=mcorr)
+                    resPlotFit=PLOT(xValues, TRANSPOSE(yfit),'-', NAME='Linear fit, mCorr= '+STRING(mcorr, FORMAT='(f0.4)'), /OVERPLOT)
+                    resLeg=LEGEND(TARGET=resPlotFit, FONT_NAME=foName, FONT_SIZE=foSize, POSITION=legPos)
+                  ENDIF                
                   valuesPlot=CREATE_STRUCT('mAs', xValues, 'EI', yValues)
                 ENDIF
               END
@@ -765,6 +767,49 @@ pro updatePlot, setRangeMinMaxX, setRangeMinMaxY, optionSet
                     valuesPlot=CREATE_STRUCT('image number', imgNo, 'SNImax', yValues)
                   ENDIF
                 
+                  ;displaying filtered 2d NPS for selected region'                
+                  tabSel=WIDGET_INFO(resTab,/TABLE_SELECT)
+                  colNo=tabSel(0)
+                  maxstr=''
+                  IF colNo LE 0 THEN BEGIN
+                    colmax=WHERE(resArr[1:8,sel] EQ MAX(resArr[1:8,sel]))
+                    ss=colmax(0)
+                    maxstr=' (max)'
+                  ENDIF ELSE ss=colNo-1
+                  ssnames=['L1','L2','S1','S2','S3','S4','S5','S6']             
+                  WIDGET_CONTROL, drawImageRes, GET_VALUE = iDrawImageRes
+                  WSET, iDrawImageRes
+                  activeResImg=SNIres.(sel).NPS_filt.(ss)
+                  tvRes=activeResImg
+                  szNPS=SIZE(activeResImg, /DIMENSIONS)
+                  szX=450
+                  szY=ROUND(szX*(szNPS(1)*1./szNPS(0)))
+                  TVSCL,congrid(adjustWindowLevel(tvRes, [0,100*max(SNIres.(sel).NPS_filt.(ss))]), szX, szY, /INTERP)
+                  XYOUTS, 0.05,0.05, 'NPS filtered '+ssnames(ss)+maxstr, CHARSIZE=1.5, COLOR=255
+                END
+                
+              'ACQ': BEGIN
+                WIDGET_CONTROL, resTab, GET_VALUE=resArr
+                resArr=FLOAT(resArr[*,markedTemp])
+
+                imgNo=markedTemp
+
+                IF setRangeMinMaxX THEN rangeX=[min(imgNo),max(imgNo)]
+                IF setRangeMinMaxY THEN rangeY=[0.,1.05*max(resArr)]
+
+                IF optionSet NE 3 THEN BEGIN
+                  ccc=transpose(resArr[0,*])
+                  fd=transpose(resArr[1,*])
+                  valuesPlot=CREATE_STRUCT('image number', imgNo, 'Total_Counts', ccc, 'Frame_Duration', fd)
+
+                  resPlot=OBJARR(2)
+                  resPlot[0]=PLOT(imgNo, ccc, '-r', NAME='Total_Counts', XTITLE='imgNo', YTITLE='counts or frameduration' , TITLE='', $
+                    XRANGE=rangeX, YRANGE=rangeY, XSTYLE=1, YSTYLE=1, MARGIN=resPlotMargin, FONT_NAME=foName, FONT_SIZE=foSize, CURRENT=currWin)
+                  resPlot[0].refresh, /DISABLE
+                  resPlot[1]=PLOT(imgNo, fd, '-b',  NAME='Frame_Duration', /OVERPLOT)
+                  resPlotLeg=LEGEND(TARGET=resPlot[0:1], FONT_NAME=foName, FONT_SIZE=foSize, POSITION=legPos)
+                  resPlot[0].refresh
+                ENDIF
                 END
               'ENERGYSPEC': BEGIN
                 fwhm=energyRes.gausscoeff(2)*2*SQRT(2*ALOG(2))
@@ -1479,7 +1524,7 @@ pro updatePlot, setRangeMinMaxX, setRangeMinMaxY, optionSet
           ENDIF
 
         ENDIF ELSE BEGIN
-          IF optionSet EQ 1 THEN sv=DIALOG_MESSAGE('No values to copy to clipboard.')
+          IF optionSet EQ 1 THEN sv=DIALOG_MESSAGE('No values to copy to clipboard.', DIALOG_PARENT=evTop)
         ENDELSE
       ENDIF
 

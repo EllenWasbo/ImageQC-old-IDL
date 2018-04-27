@@ -19,16 +19,15 @@ pro ImageQC,  GROUP_LEADER=bMain
 
   COMPILE_OPT hidden
   COMMON VARI,  $
-    lblDir, btnAppend, listFiles, lastList, lblLoadedN, lblProgress, lblSettings, selConfig, activeImg, activeResImg, nFrames, ROIs,  $
+    evTop, lblDir, btnAppend, switchMode, listFiles, lastList, lblLoadedN, lblProgress, lblSettings, selConfig, activeImg, activeResImg, ROIs,  $
     marked, markedMulti, multiOpt, btnUseMulti, listSelMultiTemp, multiExpTable, $
-    txtActive1, txtActive2, newline, $
+    txtActive1, txtActive2, newline, xoffset, yoffset, $
     drawLarge, drawXY, coltable, btnSetColorTable, txtMinWL, txtMaxWL, txtCenterWL, txtWidthWL, lblCursorValue, lblCursorPos,lblCursorPosMM, $
     txtDeltaX, txtDeltaY, txtDeltaA, dxya, useDelta, lblDeltaO, lblDeltaOX, offxy, btnHideAnnot,$
-    defPath, thisPath, structImgs, deciMark, listDeciMark, copyHeader, btnCopyHeader, headers, lastXY, lastXYreleased, mouseDown, $
+    defPath, thisPath, structImgs, imgStructInfo, deciMark, listDeciMark, copyHeader, btnCopyHeader, transposeTable, btnTranspose, headers, lastXY, lastXYreleased, mouseDown, $
     useMulti, modality, analyse, analyseStringsCT, analyseStringsXray, analyseStringsNM, analyseStringsSPECT, analyseStringsPET, results, $
     resTab, wtabResult, wtabModes,wtabAnalysisCT,wtabAnalysisXray,wtabAnalysisNM,wtabAnalysisSPECT, wtabAnalysisPET, $
     drawPlot, statPlot,drawImageRes, txtMinRangeX, txtMaxRangeX, txtMinRangeY, txtMaxRangeY, rangeAcc, $
-    ROIres, typeROI, typeROIX, $
     MTFres, $
     cw_typeMTF, cw_plotMTF, txtMTFroiSz, btnCutLSF, txtcutLSFW, txtcutLSFW2,txtfreqMTF, $
     cw_formLSFX, cw_plotMTFX,  txtMTFroiSzX, txtMTFroiSzY, btnCutLSFX, txtcutLSFWX, $
@@ -49,6 +48,7 @@ pro ImageQC,  GROUP_LEADER=bMain
     radialRes, txtRadialMedian, $
     unifRes, unifROI, $
     SNIres, SNIroi, $
+    acqRes,$
     crossRes, crossROI, txtCrossROIsz, txtCrossMeasAct,txtCrossMeasActT, txtCrossMeasRest, txtCrossMeasRT, txtCrossScanAct, txtCrossScanStart,$
     txtCrossVol, txtCrossConc, txtCrossFactorPrev, txtCrossFactor,$
     rcRes, rcROIs, btnRCrev, cwRCexclude, cw_rcType
@@ -72,21 +72,20 @@ pro ImageQC,  GROUP_LEADER=bMain
   structImgs=CREATE_STRUCT('empty',0); images with attributes in memory
   activeImg=0 ; active (selected image)
   activeResImg=0 ; result-image (fx 2d NPS)
-  nFrames=0; if multiframe image loaded, nFrames=nImg
-  analyseStringsCT=['HOMOG', 'NOISE', 'SLICETHICK', 'MTF', 'NPS','CTLIN','DIM', 'ROI', 'FWHM']
-  analyseStringsXray=['STP','HOMOG','NOISE','EI','MTF','NPS','VARI','ROI']
-  analyseStringsNM=['UNIF','SNI','ENERGYSPEC','SCANSPEED','MTF']
+  analyseStringsCT=['HOMOG', 'NOISE', 'SLICETHICK', 'MTF', 'NPS','CTLIN','DIM', 'FWHM']
+  analyseStringsXray=['STP','HOMOG','NOISE','EI','MTF','NPS','VARI']
+  analyseStringsNM=['UNIF','SNI','ACQ','ENERGYSPEC','SCANSPEED','MTF']
   analyseStringsSPECT=['MTF','RADIAL','CONTRAST']
   analyseStringsPET=['CROSSCALIB','HOMOG','RC']
   analyse=analyseStringsCT(0)
   modality=0; to save current modality for regretting switch and loose results
   marked=-1; indexes of marked files (-1 = all marked)
   markedMulti=-1; matrix of marked images for numbered tests (number of tests x number of images) -1 if useMuliMark is not set
-  multiOpt=CREATE_STRUCT('CT',[1,2,3,4,0,0,0,0,0],'Xray',[1,2,3,4,5,0,0,0],'NM',[1,1,0,0,0],'SPECT', INTARR(3),'PET',INTARR(3)); structure of arrays corresponding to analyseStrings that have the option of being a numbered test for multimark/quicktest, number or 0 if not an option
+  multiOpt=CREATE_STRUCT('CT',[1,2,3,4,0,0,0,0],'Xray',[1,2,3,4,5,0,0],'NM',[1,1,1,0,0,0],'SPECT', INTARR(3),'PET',INTARR(3)); structure of arrays corresponding to analyseStrings that have the option of being a numbered test for multimark/quicktest, number or 0 if not an option
   multiExpTable=-1
   results=INTARR(9); set to 1 when analyse performed and results is available, keep analyseString and tab-order equal
   dxya=[0,0,0.0,1]; [deltax,deltay,delta,show] for positioning of center/angle. Difference from imgSz/2 in pixels. Show (last param) used for redrawCT to overplot crosshair
-  IF TOTAL(WHERE(configTags EQ 'OFFXY')) NE -1 THEN offxy=config.OFFXY ELSE offxy=configDefault.OFFXY
+  IF TOTAL(WHERE(configTags EQ 'OFFXY')) NE -1 THEN offxy=config.OFFXY ELSE offxy=[0,0]
   CTlinROIs=0 & CTlinROIpos=0 & homogROIs=0 & noiseROI=0 & NPSrois=0 & conROIs=0 & crossROI=0; used to hold the rois for specific tests
   ramps=0; used to hold the 4 lines for slice thickness H-top,H-bottom,V1,V2
   lastXY=[-1,-1]; last mouseposition in draw window
@@ -97,10 +96,19 @@ pro ImageQC,  GROUP_LEADER=bMain
   deciMark=config.deciMark
   copyHeader=config.copyHeader
   if (!D.NAME eq 'WIN') then newline = string([13B, 10B]) else newline = string(10B)
-
+  
+  ;tags in imgStruct that is not string or are specific to one modality [tag, typestring, modalitynumbers separated by / or empty for all
+  imgStructInfo=[['seriesNmb','LONG',''],['acqNmb','LONG',''],['imgNo','LONG',''],['nFrames','LONG',''],['frameNo','LONG',''],['wCenter','FLOAT',''],['wWidth','FLOAT',''],['zoomFactor','FLOAT',''],$
+    ['sliceThick','FLOAT','0/3/4'], ['pix', 'FLOAT',''],['imageSize','LONG',''],['FOV','FLOAT',''],['rekonFOV','FLOAT','0/3/4'],['zpos', 'FLOAT','0/3/4'], ['reconMethod','STRING','2/3/4'],$
+    ['kVp','FLOAT','0/1'],['mA','FLOAT','0/1'],['mAs','FLOAT','0/1'],['ExpTime','FLOAT','0/1'],$
+    ['coll','FLOAT','0'],['pitch','FLOAT','0'],['ExModType','STRING','0'],['CTDIvol','FLOAT','0'],['DAP','FLOAT','1'],['EI','FLOAT','1'],['sensitivity','FLOAT','1'],$
+    ['collType','STRING','2/3/4'],['nEWindows','LONG','2/3/4'],['EWindowName','STRING','2/3/4'],['radius1','FLOAT','2/3'],['radius2','FLOAT','2/3'],['angle','FLOAT','2/3/4'],$
+    ['acqFrameDuration','DOUBLE','2/3/4'],['acqTerminationCond','STRING','2/3/4'],['radiopharmaca','STRING','2/3/4'],['admDose','FLOAT','2/3/4'],['admDoseTime','STRING','2/3/4'],$
+    ['attCorrMethod','STRING','2/3/4'],['scaCorrMethod','STRING','2/3/4'],['scatterFrac','FLOAT','2/3/4']]
+  
   font1="Arial*15"
 
-  winX=1400 &  winY=1000 ;actual winX not 1400 - adjusted down to 1250 - should be adapted to screen size (Todo)
+  winX=1500 &  winY=1100
   drawXY=500
 
   s=obj_new('idlsysmonitorinfo')
@@ -108,15 +116,16 @@ pro ImageQC,  GROUP_LEADER=bMain
   pMon=s->GetPrimaryMonitorIndex(); wrong monitor index.... when first is second...
   rMon=s->GetRectangles()
   scsz=rMon[2:3,pMon]
-  ;DEVICE, GET_SCREEN_SIZE=scsz
 
-  IF scsz(0) LT winX THEN scX=scsz(0)-10 ELSE scX=winX
-  IF scsz(1) LT winY THEN scY=scsz(1)-50 ELSE scY=winY-50
+  IF scsz(0) LT winX THEN scX=scsz(0)-150 ELSE scX=winX-100
+  IF scsz(1) LT winY-100 THEN scY=scsz(1)-150 ELSE scY=winY-150
+  xoffset=100
+  yoffset=50
 
-  bMain = WIDGET_BASE(TITLE='ImageQC v1.300', MBAR=bar, /COLUMN, XSIZE=winX, YSIZE=winY-60, XOFFSET=100, YOFFSET=100, X_SCROLL_SIZE=scX, Y_SCROLL_SIZE=scY, /TLB_KILL_REQUEST_EVENTS)
+  bMain = WIDGET_BASE(TITLE='ImageQC v1.40', MBAR=bar, /COLUMN, XSIZE=winX, YSIZE=winY-60, XOFFSET=xoffset, YOFFSET=yoffset, X_SCROLL_SIZE=scX, Y_SCROLL_SIZE=scY, /TLB_KILL_REQUEST_EVENTS, /TLB_MOVE_EVENTS)
   bLarge = WIDGET_BASE(bMain, /ROW)
-  bLft = WIDGET_BASE(bLarge, XSIZE=700, YSIZE=winY-90,/COLUMN)
-  bRgt = WIDGET_BASE(bLarge, XSIZE=700, YSIZE=winY-90,/COLUMN)
+  bLft = WIDGET_BASE(bLarge, XSIZE=700, YSIZE=winY-190,/COLUMN)
+  bRgt = WIDGET_BASE(bLarge, XSIZE=700, YSIZE=winY-190,/COLUMN)
 
   ;*****************MENU
   file_menu=WIDGET_BUTTON(bar, VALUE='File', /MENU)
@@ -124,15 +133,14 @@ pro ImageQC,  GROUP_LEADER=bMain
   help_menu=WIDGET_BUTTON(bar, VALUe='Help', /MENU)
   ;file_menu
   btnOpen=WIDGET_BUTTON(file_menu, VALUE='Open DICOM file or series', UVALUE='open', ACCELERATOR='Ctrl+O')
-  btnSaveStruct=WIDGET_BUTTON(file_menu, VALUE='Save active file as IDL structure (.dat-file)', UVALUE='saveDat')
+  btnOpenMultiple=WIDGET_BUTTON(file_menu, VALUE='Open DICOM file(s) from multiple folders', UVALUE='openMulti')
+  btnSaveStruct=WIDGET_BUTTON(file_menu, VALUE='Save selected image as IDL structure (.dat-file)', UVALUE='saveDat')
   btnClose=WIDGET_BUTTON(file_menu, VALUE='Close all images', UVALUE='close', /SEPARATOR)
   btnExit=WIDGET_BUTTON(file_menu, VALUe='Exit', UVALUE='exit', ACCELERATOR='Ctrl+X')
   ;sett_menu
-  btnDefPath=WIDGET_BUTTON(sett_menu, VALUE='Define default path for current parameter set', UVALUE='defpath')
-  ;btnPref=WIDGET_BUTTON(sett_menu, VALUE='Set preferences on export format for current parameter set', UVALUE='pref')
-  btnConfig=WIDGET_BUTTON(sett_menu, VALUE='Save current settings to current paramater set', UVALUE='saveCurrConfig')
   btnRestoreConfig=WIDGET_BUTTON(sett_menu, VALUE='Restore and replace parameter sets with backup config file', UVALUE='restoreConfig')
-  btnSettingsMenu=WIDGET_BUTTON(sett_menu, VALUE='Edit/manage parameter sets',UVALUE='manageSettings', /SEPARATOR)
+  btnSettingsMenu=WIDGET_BUTTON(sett_menu, VALUE='Edit/manage parameter sets',UVALUE='manageSettings')
+  btnEditLoadTemp=WIDGET_BUTTON(sett_menu, VALUE='Edit/manage automation templates', UVALUE='manageLoadTemp')
   
   ;help_menu
   btnInfo=WIDGET_BUTTON(help_menu, VALUE='Wiki on GitHub.com', UVALUE='info')
@@ -141,6 +149,7 @@ pro ImageQC,  GROUP_LEADER=bMain
   toolbarLft=WIDGET_BASE(bLft,/ROW,/TOOLBAR)
   toolOpen=WIDGET_BUTTON(toolbarLft, VALUE=thisPath+'images\open.bmp',/BITMAP, UVALUE='open', TOOLTIP='Open DICOM file(s)')
   toolOpenMultiple=WIDGET_BUTTON(toolbarLft, VALUE=thisPath+'images\openM.bmp',/BITMAP, UVALUE='openMulti', TOOLTIP='Open DICOM file(s) from multiple folders')
+  toolOpenAuto=WIDGET_BUTTON(toolbarLft, VALUE=thisPath+'images\openAuto.bmp',/BITMAP, UVALUE='openAuto', TOOLTIP='Open files using automation template')
 
   toolml3=WIDGET_LABEL(toolbarLft, VALUE='', XSIZE=20)
   btnImgTop=WIDGET_BUTTON(toolbarLft, VALUE=thisPath+'images\switch_top.bmp',/BITMAP, UVALUE='imgTop', TOOLTIP='Place selected image(s) at top of list')
@@ -150,7 +159,7 @@ pro ImageQC,  GROUP_LEADER=bMain
   toolml4=WIDGET_LABEL(toolbarLft, VALUE='', XSIZE=5)
   btnSort=WIDGET_BUTTON(toolbarLft, VALUE=thisPath+'images\sort.bmp',/BITMAP, UVALUE='sortImg', TOOLTIP='Sort selected images by...')
 
-  lblProgress = WIDGET_LABEL(toolbarLft, VALUE=' ', XSIZE=350)
+  lblProgress = WIDGET_LABEL(toolbarLft, VALUE=' ', XSIZE=330)
 
   ;****************** left Panel
   bInfoLoaded=WIDGET_BASE(bLft, /ROW, YSIZE=220)
@@ -168,7 +177,7 @@ pro ImageQC,  GROUP_LEADER=bMain
   listFiles=WIDGET_LIST(bListLoaded, XSIZE=650, SCR_XSIZE=winX/2-100, YSIZE=1, SCR_YSIZE=160, MULTIPLE=1, UVALUE='filelist')
 
   bPrevNext = WIDGET_BASE(bList, /COLUMN)
-  mlprevnext=WIDGET_LABEL(bPrevNext, VALUE='', YSIZE=70, XSIZE=30)
+  mlprevnext=WIDGET_LABEL(bPrevNext, VALUE='', YSIZE=70)
   btnPrev = WIDGET_BUTTON(bPrevNext, VALUE=thisPath+'images\shift_up.bmp',/BITMAP,UVALUE='prev',TOOLTIP='Previous image in list')
   btnNext = WIDGET_BUTTON(bPrevNext, VALUE=thisPath+'images\shift_down.bmp', /BITMAP,UVALUE='next',TOOLTIP='Next image in list')
   mlmovie=WIDGET_LABEL(bPrevNext, VALUE='', YSIZE=50)
@@ -279,13 +288,15 @@ pro ImageQC,  GROUP_LEADER=bMain
   ttnn=TAG_NAMES(configS)
   name=ttnn(configS.(0))
   lblSettings=WIDGET_LABEL(bDefaults, VALUE=name, XSIZE=110, FONT=font1)
-  mlDefault=WIDGET_LABEL(bDefaults, VALUE='', XSIZE=70)
-  bExportSettings=WIDGET_BASE(bDefaults, /ROW, FRAME=1)
-  lblExportSettings=WIDGET_LABEL(bExportSettings, VALUE='Export settings:   ', FONT="Arial*ITALIC*16")
-  bHeaders=WIDGET_BASE(bExportSettings, /NONEXCLUSIVE)
-  btnCopyHeader=WIDGET_BUTTON(bHeaders, VALUE='Include table headers', YSIZE=15, TOOLTIP='Include headers when exporting tables', FONT=font1, UVALUE='copyHeader')
+  mlDefault=WIDGET_LABEL(bDefaults, VALUE='', XSIZE=20)
+  bExportSettings=WIDGET_BASE(bDefaults, /ROW, FRAME=1, XSIZE=500)
+  lblExportSettings=WIDGET_LABEL(bExportSettings, VALUE='Export:   ', FONT="Arial*ITALIC*16")
+  bHeaders=WIDGET_BASE(bExportSettings, /NONEXCLUSIVE, /ROW)
+  btnCopyHeader=WIDGET_BUTTON(bHeaders, VALUE='Include headers', YSIZE=15, TOOLTIP='Include headers when exporting tables', FONT=font1, UVALUE='copyHeader')
+  btnTranspose=WIDGET_BUTTON(bHeaders, VALUE='Transpose table', YSIZE=15, TOOLTIP='Transpose table when exporting (columns to rows)', FONT=font1, UVALUE='transposeTable')
   lblDeciMark=WIDGET_LABEL(bExportSettings, VALUE='Decimal mark:', FONT=font1)
   listDeciMark=WIDGET_DROPLIST(bExportSettings, VALUE=['. (period)',', (comma)'], XSIZE=100, FONT=font1, UVALUE='deciMark')
+  
   
   ml111=WIDGET_LABEL(bRgt, VALUE='', YSIZE=10)
   
@@ -331,7 +342,6 @@ pro ImageQC,  GROUP_LEADER=bMain
   bNPS=WIDGET_BASE(wtabAnalysisCT, TITLE='NPS',/Column)
   bLinearity=WIDGET_BASE(wtabAnalysisCT, Title='CT Number', /ROW)
   bDim=WIDGET_BASE(wtabAnalysisCT, TITLE='Dim', /COLUMN)
-  bROI=WIDGET_BASE(wtabAnalysisCT, TITLE='ROI',/Column)
   bFwhm=WIDGET_BASE(wtabAnalysisCT, Title='FWHM', /COLUMN)
 
   ;--------------- Linear dimensions DIM
@@ -392,14 +402,6 @@ pro ImageQC,  GROUP_LEADER=bMain
   bDeltaO=WIDGET_BASE(bOffset,/ROW)
   lblDeltaO_=WIDGET_LABEL(bDeltaO, VALUE='dx,dy: ', XSIZE=40, FONT=font1)
   lblDeltaO=WIDGET_LABEL(bDeltaO, VALUE=STRING(offxy(0), FORMAT='(i0)')+','+STRING(offxy(1), FORMAT='(i0)'), XSIZE=70, FONT=font1)
-  ;txtDeltaXo=WIDGET_TEXT(bDeltaXo, VALUE='0', /EDITABLE, XSIZE=5, /KBRD_FOCUS_EVENTS, FONT=font1, SCR_YSIZE=20)
-  ;minusDeltaXo=WIDGET_BUTTON(bDeltaXo, VALUE='-', UVALUE='minusDxo', FONT=font1, SCR_YSIZE=20)
-  ;plusDeltaXo=WIDGET_BUTTON(bDeltaXo, VALUE='+', UVALUE='plusDxo', FONT=font1, SCR_YSIZE=20)
-  ;bDeltaYo=WIDGET_BASE(bOffset,/ROW)
-  ;lblDeltaYo=WIDGET_LABEL(bDeltaYo, VALUE='dy', XSIZE=20,FONT=font1)
-  ;txtDeltaYo=WIDGET_TEXT(bDeltaYo, VALUE='0', /EDITABLE, XSIZE=5, /KBRD_FOCUS_EVENTS, FONT=font1, SCR_YSIZE=20)
-  ;minusDeltaYo=WIDGET_BUTTON(bDeltaYo, VALUE='-', UVALUE='minusDyo', FONT=font1, SCR_YSIZE=20)
-  ;plusDeltaYo=WIDGET_BUTTON(bDeltaYo, VALUE='+', UVALUE='plusDyo', FONT=font1, SCR_YSIZE=20)
 
   bMTFbtns=WIDGET_BASE(bMTFrgt, /ROW)
   btnMTF=WIDGET_BUTTON(bMTFbtns, VALUE='Calculate MTF', UVALUE='MTF',FONT=font1)
@@ -428,9 +430,9 @@ pro ImageQC,  GROUP_LEADER=bMain
   btnNPSavg=WIDGET_BUTTON(bNPSavg, VALUE='Plot average', UVALUE='NPSavg',FONT=font1)
 
   ;----------------User defined ROI------------
-  lblroiMl0=WIDGET_LABEL(bROI, VALUE='', SCR_YSIZE=20)
-  typeROI=CW_BGROUP(bROI, ['Define new','Load saved ROI (.sav)'], /EXCLUSIVE, LABEL_TOP='Define ROI and get min/max/avg/stdev', /FRAME, UVALUE='typeROI',FONT=font1)
-  btnDefROI =WIDGET_BUTTON(bROI, VALUE = 'Define ROI', UVALUE='ROI',FONT=font1)
+  ;lblroiMl0=WIDGET_LABEL(bROI, VALUE='', SCR_YSIZE=20)
+  ;typeROI=CW_BGROUP(bROI, ['Define new','Load saved ROI (.sav)'], /EXCLUSIVE, LABEL_TOP='Define ROI and get min/max/avg/stdev', /FRAME, UVALUE='typeROI',FONT=font1)
+  ;btnDefROI =WIDGET_BUTTON(bROI, VALUE = 'Define ROI', UVALUE='ROI',FONT=font1)
 
   ;-------------CT numbers linearity-------------
   bLinSettings=WIDGET_BASE(bLinearity, /ROW)
@@ -448,12 +450,11 @@ pro ImageQC,  GROUP_LEADER=bMain
   btnLinAvoidSearch=WIDGET_BUTTON(bLinAvoidSearch, VALUE='Avoid search and use senter of search ROI', UVALUE='linAvoidSearch',FONT=font1)
   
   bLinButtons=WIDGET_BASE(bLinLft, /ROW)
-  ;btnLinRois=WIDGET_BUTTON(bLinButtons, VALUE='Show/update search ROIs', UVALUE='drawLinRois',FONT=font1)
   btnLinearity=WIDGET_BUTTON(bLinButtons, VALUE='Get CT numbers', UVALUE='Linearity',FONT=font1)
   
   bLinRgt=WIDGET_BASE(bLinSettings, /COLUMN)
   bLinTB=WIDGET_BASE(bLinRgt, /ROW, /TOOLBAR)
-  btnLinImport=WIDGET_BUTTON(bLinTB, VALUE='images\importd.bmp', /BITMAP,TOOLTIP='Import table from clipboard', UVALUE='impLinTab')
+  btnLinImport=WIDGET_BUTTON(bLinTB, VALUE='images\importd.bmp', /BITMAP,TOOLTIP='Import table', UVALUE='impLinTab')
   btnLinCopy=WIDGET_BUTTON(bLinTB, VALUE='images\copy.bmp', /BITMAP,TOOLTIP='Copy table to clipboard', UVALUE='copyLinTab')
   btnLinAdd=WIDGET_BUTTON(bLinTB, VALUE='images\plus.bmp', /BITMAP, TOOLTIP='Add row to table', UVALUE='addRowLinTab')
   btnLinDel=WIDGET_BUTTON(bLinTB, VALUE='images\delete.bmp', /BITMAP, TOOLTIP='Delete selected row(s) from table', UVALUE='delRowLinTab')
@@ -486,7 +487,6 @@ pro ImageQC,  GROUP_LEADER=bMain
   txtRampAverage = WIDGET_TEXT(bRampAverage, VALUE='', /EDITABLE, XSIZE=4, SCR_YSIZE=20, FONT=font1)
   lblRampAverage2 = WIDGET_LABEL(bRampAverage, VALUE='# neighbour profiles',FONT=font1)
   bSliceThickBtns=WIDGET_BASE(bSliceThickRgt, /ROW)
-  ;btnSliceThickRamps=WIDGET_BUTTON(bSliceThickBtns, VALUE='Show/update ramps', UVALUE='drawRamps',FONT=font1)
   btnSliceThick=WIDGET_BUTTON(bSliceThickBtns, VALUE='Get Slice Thickness', UVALUE='SliceThick',FONT=font1)
 
   ;---------------FWHM---------------- move together with MTF later
@@ -616,13 +616,14 @@ pro ImageQC,  GROUP_LEADER=bMain
   lblProgressVarX=WIDGET_LABEL(bVarianceBtnsX, VALUE='', /DYNAMIC_RESIZE)
 
   ;----------------User defined ROI------------
-    lblroixMl0=WIDGET_LABEL(bROIX, VALUE='', SCR_YSIZE=20)
-  typeROIX=CW_BGROUP(bROIX, ['Define new','Load saved ROI (.sav)'], /EXCLUSIVE, LABEL_TOP='Define ROI and get min/max/avg/stdev', /FRAME, UVALUE='typeROIX',FONT=font1)
-  btnDefROIX =WIDGET_BUTTON(bROIX, VALUE = 'Define ROI', UVALUE='ROI',FONT=font1)
+  ;lblroixMl0=WIDGET_LABEL(bROIX, VALUE='', SCR_YSIZE=20)
+  ;typeROIX=CW_BGROUP(bROIX, ['Define new','Load saved ROI (.sav)'], /EXCLUSIVE, LABEL_TOP='Define ROI and get min/max/avg/stdev', /FRAME, UVALUE='typeROIX',FONT=font1)
+  ;btnDefROIX =WIDGET_BUTTON(bROIX, VALUE = 'Define ROI', UVALUE='ROI',FONT=font1)
 
   ;***********************NM planar tests**********************************************************
   bUniformity=WIDGET_BASE(wtabAnalysisNM, Title='1. Uniformity', /COLUMN)
   bSNI=WIDGET_BASE(wtabAnalysisNM, Title='2. SNI', /COLUMN)
+  bAcq=WIDGET_BASE(wtabAnalysisNM, Title='3. Acquisition', /COLUMN)
   bEnergySpec=WIDGET_BASE(wtabAnalysisNM, TITLE='Energy spectrum', /COLUMN)
   ;bHomogNM=WIDGET_BASE(wtabAnalysisNM, Title='Uniformity', /COLUMN)
   bScanSpeed=WIDGET_BASE(wtabAnalysisNM, Title='Scan Speed', /COLUMN)
@@ -636,30 +637,24 @@ pro ImageQC,  GROUP_LEADER=bMain
   
   ;----------------SNI------------------
   lblsniMl0=WIDGET_LABEL(bSNI, VALUE='', SCR_YSIZE=20)
-  lblSNI=WIDGET_LABEL(bSNI, VALUE='SNI = Structured Noise Index',FONT=font1)
-  lblSNI2=WIDGET_LABEL(bSNI, VALUE='Based on: Nelson et al. J Nucl Med 2014; 55:169-174',FONT=font1)
+  lblSNI=WIDGET_LABEL(bSNI, VALUE='SNI = Structured Noise Index',FONT=font1, /ALIGN_LEFT)
+  lblSNI2=WIDGET_LABEL(bSNI, VALUE='Based on: Nelson et al. J Nucl Med 2014; 55:169-174',FONT=font1, /ALIGN_LEFT)
+  lblsniMl0=WIDGET_LABEL(bSNI, VALUE='', SCR_YSIZE=20)
+  lblSNI3=WIDGET_LABEL(bSNI, VALUE='Displaying only ROIs L1,L2 and S1,S2 in the image',FONT=font1, /ALIGN_LEFT)
   lblsniMl2=WIDGET_LABEL(bSNI, VALUE='', SCR_YSIZE=20)
   btnSNI=WIDGET_BUTTON(bSNI, VALUE='Calculate SNI', UVALUE='SNI',FONT=font1)
+
+  ;----------------Acquisition params----------
+  lblacqMl0=WIDGET_LABEL(bAcq, VALUE='', SCR_YSIZE=20)
+  lblAcq=WIDGET_LABEL(bAcq, VALUE='Retrieve acquisition parameters (frame duration, total counts)',FONT=font1)
+
+  lblacqiMl2=WIDGET_LABEL(bAcq, VALUE='', SCR_YSIZE=20)
+  btnSNI=WIDGET_BUTTON(bAcq, VALUE='Get acquisition parameters', UVALUE='AcqNM',FONT=font1)
 
   ;------------energy spectrum--------------------
   lblesMl0=WIDGET_LABEL(bEnergySpec, VALUE='', SCR_YSIZE=20)
   bEnergySpecBtns=WIDGET_BASE(bEnergySpec, /ROW)
   btnLoadSpec=WIDGET_BUTTON(bEnergySpecBtns, VALUE='Load spectrum', UVALUE='loadSpectrum',FONT=font1)
-
-;  ;---------------Homogeneity--------
-;    lblHomognmMl0=WIDGET_LABEL(bHomogNM, VALUE='', SCR_YSIZE=20)
-;  bHomogNMlft=WIDGET_BASE(bHomogNM,/COLUMN)
-;  bHomogSizeNM=WIDGET_BASE(bHomogNMlft, /ROW)
-;  lblHomogROIszNM = WIDGET_LABEL(bHomogSizeNM, VALUE='ROI radius (mm)',FONT=font1)
-;  txtHomogROIszNM = WIDGET_TEXT(bHomogSizeNM, VALUE='', /EDITABLE, XSIZE=4, SCR_YSIZE=20, FONT=font1)
-;  bHomogDistNM=WIDGET_BASE(bHomogNMlft, /ROW)
-;  lblHomogROIdistNM = WIDGET_LABEL(bHomogDistNM, VALUE='ROI distance x, y (mm)',FONT=font1)
-;  txtHomogROIdistXNM = WIDGET_TEXT(bHomogDistNM, VALUE='', /EDITABLE, XSIZE=5, SCR_YSIZE=20, FONT=font1)
-;  txtHomogROIdistYNM = WIDGET_TEXT(bHomogDistNM, VALUE='', /EDITABLE, XSIZE=5, SCR_YSIZE=20, FONT=font1)
-;  cw_homogNM=CW_BGROUP(bHomogNMlft, ['Planar (WB)', 'SPECT'], /EXCLUSIVE, LABEL_TOP='Image type...', /FRAME, SET_VALUE=0, UVALUE='cw_homogNM',FONT=font1)
-;  bHomogBtnsNM=WIDGET_BASE(bHomogNMlft, /ROW)
-;  ;btnHomogROINM=WIDGET_BUTTON(bHomogBtnsNM, VALUE='Show/update ROI', UVALUE='drawROIhomog',FONT=font1)
-;  btnHomogNM=WIDGET_BUTTON(bHomogBtnsNM, VALUE='Calculate uniformity', UVALUE='homog',FONT=font1)
 
   ;-----------Scan speed------------
     lblssMl0=WIDGET_LABEL(bScanSpeed, VALUE='', SCR_YSIZE=20)

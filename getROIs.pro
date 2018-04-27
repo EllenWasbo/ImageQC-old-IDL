@@ -201,7 +201,48 @@ function getSNIroi, img
   d=ROUND(ysearch(1)+0.9*0.5*ysearch(0))
   IF MIN([a,b,c,d]) GT -1 THEN SNIroi[a:b,c:d]=1; 90% of active part
 
-  return, SNIroi
+  SNIroiAll=INTARR(szImg(0),szImg(1),9)
+  SNIroiAll[*,*,0]=SNIroi
+  
+  temp=TOTAL(SNIroi,2)
+  temp2=WHERE(temp GT 0)
+  firstX=temp2(0)
+  lastX=temp2(-1)
+  temp=TOTAL(SNIroi,1)
+  temp2=WHERE(temp GT 0)
+  firstY=temp2(0)
+  lastY=temp2(-1)
+
+  IF lastY-firstY LT lastX-firstX THEN BEGIN
+    ;assuming landscape image (X broader than Y)
+    largeDim=lastY-firstY+1
+    mod4=largeDim mod 4
+    largeDim=largeDim - mod4;ensure even ROIsz for both large and small ROI
+    firstY=firstY+mod4/2
+    lastY=firstY+largeDim-1
+    smallDim=largeDim/2
+  
+    ;large ROIs (2)
+    SNIroiAll[firstX:firstX+largeDim-1,firstY:firstY+largeDim-1,1]=1
+    SNIroiAll[lastX-largeDim+1:lastX,firstY:firstY+largeDim-1,2]=1
+    ;small ROIs (6)
+    mid=(lastX+firstX)/2
+    firstM=mid-(smallDim/2-1)
+    SNIroiAll[firstX:firstX+smallDim-1,lastY-smallDim+1:lastY,3]=1;upper lft
+    SNIroiAll[firstM:firstM+smallDim-1,lastY-smallDim+1:lastY,4]=1;upper mid
+    SNIroiAll[lastX-smallDim+1:lastX,lastY-smallDim+1:lastY,5]=1;upper rgt
+    SNIroiAll[firstX:firstX+smallDim-1,firstY:firstY+smallDim-1,6]=1;lower lft
+    SNIroiAll[firstM:firstM+smallDim-1,firstY:firstY+smallDim-1,7]=1;lower mid
+    SNIroiAll[lastX-smallDim+1:lastX,firstY:firstY+smallDim-1,8]=1;lower rgt
+  
+    SNIroiAll[*,*,0]=SNIroiAll[*,*,1]+SNIroiAll[*,*,2]
+    twos=WHERE(SNIroiAll GT 1)
+    IF twos(0) NE -1 THEN SNIroiAll(twos)=1
+  ENDIF ELSE BEGIN
+    SNIroiAll=!Null
+  ENDELSE
+
+  return, SNIroiAll
 end
 
 ;Placing rois for NM contrast 6 circles
@@ -332,7 +373,7 @@ function getNPSrois, imgSize, imgCenter, ROIsz, ROIdistPix, subNN
   IF CC(0)+ROIdistPix+ROIsz2 LT imgSize(0) AND CC(0)-ROIdistPix-ROIsz2 GE 0 AND CC(1)+ROIdistPix+ROIsz2 LT imgSize(1) AND CC(1)-ROIdistPix-ROIsz2 GE 0 THEN BEGIN
     roiAll=INTARR(imgSize(0), imgSize(1),subNN)
     FOR i = 0, subNN-1 DO roiAll[centerposX(i)-ROIsz2:centerposX(i)+ROIsz2,centerposY(i)-ROIsz2:centerposY(i)+ROIsz2,i]=1
-  ENDIF ELSE sv=DIALOG_MESSAGE('ROIs fall outside image due to defined center or radius.')
+  ENDIF ELSE sv=DIALOG_MESSAGE('ROIs fall outside image due to defined center or radius.', DIALOG_PARENT=0)
 
   return, roiAll
 end

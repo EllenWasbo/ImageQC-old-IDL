@@ -16,17 +16,28 @@
 ;Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 ;fill quickTemp list
-pro fillQuickTempList, qT
+;qt=quickTemp structure
+;SELECT_NAME = string of the template
+pro fillQuickTempList, qT, SELECT_NAME=select_name
   COMPILE_OPT hidden
   COMMON VARI
   IF N_ELEMENTS(qT) NE 0 THEN BEGIN
     typ=SIZE(qT, /TNAME)
     IF typ EQ 'STRUCT' THEN BEGIN
       tempNames=TAG_NAMES(qT)
-      WIDGET_CONTROL, listSelMultiTemp, SET_VALUE=['',tempNames], SET_DROPLIST_SELECT=0
+      selno=0
+      IF N_ELEMENTS(select_name) NE 0 THEN BEGIN
+        tagNo=WHERE(STRUPCASE(tempNames) EQ STRUPCASE(select_name))
+        IF tagNo(0) NE -1 THEN selno=tagNo
+        WIDGET_CONTROL, listSelMultiTemp, SET_DROPLIST_SELECT=selno+1
+      ENDIF ELSE BEGIN;fill new
+        WIDGET_CONTROL, listSelMultiTemp, SET_VALUE=['',tempNames]
+        clearMulti
+        marked=-1
+        WIDGET_CONTROL, btnUseMulti, SET_BUTTON=0
+      ENDELSE
     ENDIF
-    clearMulti
-    marked=-1
+
     tags=TAG_NAMES(structImgs)
     IF tags(0) NE 'EMPTY' THEN BEGIN
       fileList=getListOpenFiles(structImgs,0,marked,markedMulti)
@@ -35,7 +46,12 @@ pro fillQuickTempList, qT
       WIDGET_CONTROL, listFiles, SET_VALUE=fileList, SET_LIST_SELECT=sel(N_ELEMENTS(sel)-1), SET_LIST_TOP=oldTop
     ENDIF
   ENDIF
-  WIDGET_CONTROL, btnUseMulti, SET_BUTTON=0
+  
+end
+
+pro setQuickTempName,  SELECT_NAME=select_name
+  COMPILE_OPT hidden
+  COMMON VARI
 end
 
 ;if paramSetName NE '' Then update also shown name
@@ -57,14 +73,16 @@ pro refreshParam, paramSet, paramSetName
   
   copyHeader=paramSet.copyHeader
   WIDGET_CONTROL, btnCopyHeader, SET_BUTTON=paramSet.COPYHEADER
+  transposeTable=paramSet.transposeTable
+  WIDGET_CONTROL, btnTranspose, SET_BUTTON=paramSet.TRANSPOSETABLE
   
   WIDGET_CONTROL, btnAppend, SET_BUTTON=paramSet.APPEND
   ;offxy both CT and Xray
   strOff=STRING(paramSet.OFFXY(0), FORMAT='(i0)')+','+STRING(paramSet.OFFXY(1), FORMAT='(i0)')
   WIDGET_CONTROL, lblDeltaO, SET_VALUE=strOff
   WIDGET_CONTROL, lblDeltaOX, SET_VALUE=strOff
+  offxy=paramSet.offxy
   ;CT tests
-  WIDGET_CONTROL, typeROI, SET_VALUE=paramSet.TYPEROI
   WIDGET_CONTROL, cw_typeMTF, SET_VALUE=paramSet.MTFTYPE
   WIDGET_CONTROL, cw_plotMTF, SET_VALUE=paramSet.PLOTMTF
   WIDGET_CONTROL, txtMTFroiSz, SET_VALUE=STRING(paramSet.MTFROISZ, FORMAT='(f0.1)')
@@ -94,7 +112,6 @@ pro refreshParam, paramSet, paramSetName
   WIDGET_CONTROL, txtNPSroiDist, SET_VALUE=STRING(paramSet.NPSROIDIST, FORMAT='(f0.1)')
   WIDGET_CONTROL, txtNPSsubNN, SET_VALUE=STRING(paramSet.NPSSUBNN, FORMAT='(i0)')
   ;Xray tests
-  WIDGET_CONTROL, typeROIX, SET_VALUE=paramSet.TYPEROIX
   WIDGET_CONTROL, txtStpROIsz, SET_VALUE=STRING(paramSet.STPROISZ, FORMAT='(f0.1)')
   WIDGET_CONTROL, cw_formLSFX, SET_VALUE=paramSet.MTFtypeX
   WIDGET_CONTROL, cw_plotMTFX, SET_VALUE=paramSet.plotMTFX
@@ -109,9 +126,6 @@ pro refreshParam, paramSet, paramSetName
   nn=((2*LONG(paramSet.NPSsubSzX)-1)*LONG(paramSet.NPSroiSzX))^2
   WIDGET_CONTROL, lblNPStotPixX, SET_VALUE=STRING(nn, FORMAT='(i0)')
   ;NM tests
-;  WIDGET_CONTROL, txtHomogROIszNM, SET_VALUE=STRING(paramSet.homogROIszNM, FORMAT='(f0.1)')
-;  WIDGET_CONTROL, txtHomogROIdistXNM, SET_VALUE=STRING(paramSet.HomogROIdistNM(0), FORMAT='(f0.1)')
-;  WIDGET_CONTROL, txtHomogROIdistYNM, SET_VALUE=STRING(paramSet.homogROIdistNM(1), FORMAT='(f0.1)')
   WIDGET_CONTROL, cw_typeMTFNM, SET_VALUE=paramSet.MTFtypeNM
   WIDGET_CONTROL, cw_plotMTFNM, SET_VALUE=paramSet.plotMTFNM
   WIDGET_CONTROL, txtMTFroiSzXNM, SET_VALUE=STRING(paramSet.MTFroiSzNM(0), FORMAT='(f0.1)')

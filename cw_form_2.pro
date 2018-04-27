@@ -395,7 +395,7 @@ process_integer:
     if cw_form_2_PARSE(e, 'SET_VALUE', value) then begin
           WIDGET_CONTROL, new, SET_LIST_SELECT = FIX(value)
           uextra = { VALUE: FIX(value) }
-    endif else uextra = { VALUE: 0L }
+    endif else uextra ={ VALUE: 0L }
     v = 0
     type = 6
     ENDCASE
@@ -572,7 +572,7 @@ FUNCTION cw_form_2, parent, desc, $
 	COLUMN = column, $
 	GROUP_LEADER=group_leader, $
 	IDS=ids, TITLE=title, UVALUE=uvalue, $
-    UNAME=uname, TAB_MODE=tab_mode, XSIZE=xsize, YSIZE=ysize, FOCUSNO=focusno
+    UNAME=uname, TAB_MODE=tab_mode, XSIZE=xsize, YSIZE=ysize, FOCUSNO=focusno, XOFFSET=xoffset, YOFFSET=yoffset
 
 ;  ON_ERROR, 2						;return to caller
   ; Set default values for the keywords
@@ -587,8 +587,12 @@ FUNCTION cw_form_2, parent, desc, $
 	if n_elements(title) le 0 then title='FORM Widget'
 	
     temp = hasGroup ? group_leader : WIDGET_BASE()
+    IF N_ELEMENTS(xoffset) EQ 0 OR N_ELEMENTS(yoffset) EQ 0  THEN BEGIN
     DEVICE, GET_SCREEN_SIZE=scrsize
-	p = WIDGET_BASE(TITLE=title, XOFFSET=scrsize(0)*0.3, YOFFSET=scrsize(1)*0.3, Column = column, row=row, $
+    xoffset=scrsize(0)*0.3
+    yoffset=scrsize(1)*0.3
+    ENDIF
+	p = WIDGET_BASE(TITLE=title, XOFFSET=xoffset, YOFFSET=yoffset, Column = column, row=row, $
                         /TLB_KILL_REQUEST, $
                         GROUP_LEADER=temp, /MODAL)
       if n_elements(xsize) gt 0 then WIDGET_CONTROL, p, XSIZE=xsize

@@ -27,8 +27,8 @@ function updateConfigS, file
     'defPath','C:\',$
     'deciMark',',', $
     'copyHeader', 0, $
+    'transposeTable', 0, $
     'append',0,$
-    'typeROI',0,'typeROIX',0,$
     'MTFtype',2,'MTFtypeX',1,'MTFtypeNM',1,'MTFtypeSPECT',1,'plotMTF',3,'plotMTFX', 3, 'plotMTFNM',4,'plotMTFSPECT',4,'MTFroiSz',11.0,'MTFroiSzX',[20.,50.],'MTFroiSzNM',[20.,20.],'MTFroiSzSPECT',30.,'MTF3dSPECT',1, $
     'cutLSF',1,'cutLSF1',3,'cutLSF2',1, 'cutLSFX', 1, 'cutLSFX1', 3, 'offxy', [0,0], $
     'LinROIrad',3.,'LinROIradS',11., 'LinTab',lintab, $
@@ -69,7 +69,7 @@ function updateConfigS, file
         newConfigS=CREATE_STRUCT(newConfigS,restoreTagsS(i),configTemp)
       ENDFOR
 
-    ENDIF ELSE sv=DIALOG_MESSAGE('Found no valid config structure in selected file.')
+    ENDIF ELSE sv=DIALOG_MESSAGE('Found no valid config structure in selected file.', DIALOG_PARENT=0)
 
   ENDELSE;file ''
 
@@ -100,22 +100,46 @@ function updateLoadT, file
     RESTORE, file
     ;securing older versions
     IF N_ELEMENTS(loadTemp) NE 0 THEN BEGIN
-      loadT=loadTemp
+      loadOld=loadTemp
       ;path - folder close to where the images should be found
+      ;loadBy - choise - 0 = load all images in specified path
       ;sortBy - STRARR with structure tags in image structure to sort images by
       ;paramSet - name of paramSet to link to or '' if default
       ;quickTemp - name of quickTemp to link to or '' to default (all selected)
-      ;startCalc - INT 0=no, 1=start calculculation automatically
+      ;pathApp- path to append results if successfully calculated
       loadTthisVersion=CREATE_STRUCT($
         'path','',$
+        'loadBy',0,$
+        'includeSub',0,$
         'sortBy', '', $
         'paramSet','', $
-        'quickTemp','', $
-        'startCalc',1)
-      loadTsetDef=CREATE_STRUCT('defloadTemp',1,'loadTempDummy',loadTthisVersion)
-      tagNewest=TAG_NAMES(loadTnewest)
+        'quickTemp','',$
+        'pathApp','',$
+        'archive',0)
+      loadTsetDef=CREATE_STRUCT('loadTempDefault',loadTthisVersion)
+      tagNewest=TAG_NAMES(loadTthisVersion)
 
+      ;copy values into newest version structure
+      tempsExist=TAG_NAMES(loadOld)
 
+      IF tempsExist(0) NE 'EMPTY' THEN BEGIN
+        FOR i=0, N_ELEMENTS(tempsExist)-1 DO BEGIN;for each set
+          oldTags=TAG_NAMES(loadOld.(i))
+          loadNew=CREATE_STRUCT('PATH',loadOld.(i).PATH)
+          FOR j=1, N_ELEMENTS(tagNewest)-1 DO BEGIN;for each parameter in set
+            IF oldTags.HasValue(tagNewest(j)) THEN BEGIN
+              ;copy tag content
+              ff=WHERE(oldTags EQ tagNewest(j))
+              loadNew=CREATE_STRUCT(loadNew, tagNewest(j), loadOld.(i).(ff))
+            ENDIF ELSE BEGIN
+              ;paste default content
+              loadNew=CREATE_STRUCT(loadNew, tagNewest(j),loadTsetDef.(0).(j))
+            ENDELSE
+          ENDFOR
+          IF i EQ 0 THEN loadT=CREATE_STRUCT(tempsExist(i),loadNew) ELSE loadT=CREATE_STRUCT(loadT, tempsExist(i),loadNew) 
+        ENDFOR
+      ENDIF ELSE loadT=!Null
+      
     ENDIF ELSE loadT=!Null
   ENDELSE
   return, loadT
@@ -132,7 +156,9 @@ function adjustWindowLevel, arr, range
 end
 
 ;return image matrix scaled with slope and intercept
+;frame -1 means single-frame image else frame starting on 1
 function readImg, adr, frame
+    WIDGET_CONTROL, /HOURGLASS
     IF FILE_TEST(adr) THEN BEGIN
     qd=QUERY_DICOM(adr)
     IF qd THEN BEGIN
@@ -157,21 +183,14 @@ function readImg, adr, frame
       ENDIF
 
       ;multiframe?
-      multiframe=0
-      test=o->GetReference('0028'x,'0008'x)
-      test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
-      IF test(0) NE -1 THEN BEGIN
-        IF *(test_peker[0]) NE 1 THEN multiframe=1
-      ENDIF
-
       test=o->GetReference('7FE0'x,'0010'x)
-      IF multiframe EQ 0 THEN BEGIN
+      IF frame EQ -1 THEN BEGIN
         ;real image is last image (icon images first)
         test_peker=o->GetValue(REFERENCE=test[N_ELEMENTS(test)-1],/NO_COPY)
         matrix=FLOAT(*(test_peker[0]))
       ENDIF ELSE BEGIN
         ;multiframe
-        test_peker=o->GetValue(REFERENCE=test[frame],/NO_COPY)
+        test_peker=o->GetValue(REFERENCE=test[frame-1],/NO_COPY)
         matrix=FLOAT(*(test_peker[0]))
       ENDELSE
 
@@ -181,11 +200,11 @@ function readImg, adr, frame
       OBJ_DESTROY,o & PTR_FREE, test_peker
     ENDIF ELSE BEGIN; 'dat file
       RESTORE, adr
-      IF imageQCmatrix.nFrames GT 0 THEN matrix=imageQCmatrix.matrix[*,*,frame] ELSE matrix=imageQCmatrix.matrix
+      matrix=imageQCmatrix.matrix;IF imageQCmatrix.nFrames GT 0 THEN matrix=imageQCmatrix.matrix[*,*,frame] ELSE matrix=imageQCmatrix.matrix
       imageQCmatrix=!null
     ENDELSE
     ENDIF ELSE BEGIN
-      sv=DIALOG_MESSAGE('File no longer exists. Renamed or removed. Program might crash. Try closing the file.'+adr)
+      sv=DIALOG_MESSAGE('File no longer exists. Renamed or removed. Program might crash. Try closing the file.'+adr, DIALOG_PARENT=0)
       matrix=-1
     ENDELSE
   return, matrix
@@ -208,7 +227,7 @@ end
 ;adjust to resonable number of decimals
 function formatCode, arr
   maxa=MAX(ABS(arr))
-
+  strInner='f0'
   IF maxa LE 1 THEN BEGIN
     strInner='f0.3'
     IF maxa LT 0.1 THEN BEGIN
@@ -404,6 +423,17 @@ function getROIcircle, arrSz, center, radius
   return, circle
 end
 
+;remove ids from 1d-array
+function removeIDarr, arr, id
+  newArr=arr
+  IF id EQ 0 THEN BEGIN
+    IF N_ELEMENTS(arr) GT 1 THEN newArr=arr[1:N_ELEMENTS(arr)-1] ELSE newArr=!null
+  ENDIF
+  IF id EQ N_ELEMENTS(arr)-1 THEN newArr=arr[0:N_ELEMENTS(arr)-2]
+  IF id GT 0 AND id LT N_ELEMENTS(arr)-1 THEN newArr=[arr[0:id-1],arr[id+1:N_ELEMENTS(arr)-1]]
+  return, newArr
+end
+
 ;remove ids from structure of structures
 function removeIDstructstruct, struct, ids
   structNew=CREATE_STRUCT('EMPTY',0)
@@ -414,8 +444,7 @@ function removeIDstructstruct, struct, ids
     inSel=WHERE(ids EQ i)
     IF inSel(0) EQ -1 THEN BEGIN
       stillEmpty=WHERE(TAG_NAMES(structNew) EQ 'EMPTY')
-      IF stillEmpty(0) EQ -1 THEN structNew=CREATE_STRUCT(structNew,tagname(counter),struct.(i)) ELSE structNew=CREATE_STRUCT(tagname(0),struct.(i))
-      counter=counter+1
+      IF stillEmpty(0) EQ -1 THEN structNew=CREATE_STRUCT(structNew,tagname(i),struct.(i)) ELSE structNew=CREATE_STRUCT(tagname(i),struct.(i))
     ENDIF
   ENDFOR
   return, structNew
@@ -432,7 +461,7 @@ end
 
 ;replace numbered structure in structure of structures
 ;numb = id to replace
-function replaceStructStruct, fullStruct, newSubStruct, numb
+function replaceStructStruct, fullStruct, newSubStruct, numb, NEW_TAG_NAME=new_tag_name
   structNew=CREATE_STRUCT('EMPTY',0)
   counter=0
   ntags=N_TAGS(fullStruct)
@@ -443,7 +472,8 @@ function replaceStructStruct, fullStruct, newSubStruct, numb
       IF stillEmpty(0) EQ -1 THEN structNew=CREATE_STRUCT(structNew,tagname(counter),fullStruct.(i)) ELSE structNew=CREATE_STRUCT(tagname(0),fullStruct.(i))
       counter=counter+1
     ENDIF ELSE BEGIN
-      IF stillEmpty(0) EQ -1 THEN structNew=CREATE_STRUCT(structNew,tagname(counter),newSubStruct) ELSE structNew=CREATE_STRUCT(tagname(0),newSubStruct)
+      IF N_ELEMENTS(new_tag_name) GT 0 THEN tname=new_tag_name ELSE tname=tagname(counter)
+      IF stillEmpty(0) EQ -1 THEN structNew=CREATE_STRUCT(structNew,tname,newSubStruct) ELSE structNew=CREATE_STRUCT(tname,newSubStruct)
       counter=counter+1
     ENDELSE
   ENDFOR
@@ -596,6 +626,7 @@ function getListOpenFiles, struc, full, marked, mMulti
   nn=N_TAGS(struc)
   markedArr=INTARR(nn)
   szMM=SIZE(mMulti, /DIMENSIONS)
+  IF N_ELEMENTS(szMM) EQ 1 THEN szMM=[szMM,1]
   IF marked(0) NE -1 THEN markedArr(marked)=1 ELSE markedArr=markedArr+1
   IF full EQ 1 THEN BEGIN
     fileList=STRARR(TOTAL(markedArr))
@@ -608,6 +639,7 @@ function getListOpenFiles, struc, full, marked, mMulti
     ENDFOR
   ENDIF ELSE BEGIN
     fileList=STRARR(nn)
+    
     FOR i=0, nn-1 DO BEGIN
       add='   '
       IF mMulti(0) EQ -1 THEN BEGIN
@@ -624,58 +656,19 @@ function getListOpenFiles, struc, full, marked, mMulti
       t=STRSPLIT(struc.(i).filename,'\',/EXTRACT)
       nSplit=N_ELeMENTS(t)
 
-      fileList(i)=add+STRJOIN(t[nSplit-2:nSplit-1],'\')
+      endStr=''
+      IF struc.(i).nFrames GT 1 THEN BEGIN
+        IF struc.(i).zpos NE -999. AND struc.(i).slicethick GT 0. THEN endStr='  zpos '+STRING(struc.(i).zpos,FORMAT='(f0.3)')
+        IF struc.(i).angle NE -999. THEN endStr='  angle '+STRING(struc.(i).zpos,FORMAT='(f0.3)')
+        IF endStr EQ '' THEN endStr='  frame '+STRING(struc.(i).frameNo,FORMAT='(i0)')
+      ENDIF
+      
+      fileList(i)=add+STRJOIN(t[nSplit-2:nSplit-1],'\')+endStr
 
     ENDFOR
   ENDELSE
 
   return, fileList
-end
-
-;similar to getListOpenFiles only with one multiframe file
-function getListFrames, struc, marked
-  nn=struc.nFrames
-  markedArr=INTARR(nn)
-  IF marked(0) NE -1 THEN markedArr(marked)=1 ELSE markedArr=markedArr+1
-  imgList=STRARR(nn)
-
-  o=obj_new('idlffdicom')
-  t=o->read(struc.filename)
-  test=o->GetReference('0020'x,'0032'x)
-
-  strAdd='Img number '
-  angles=0
-  IF N_ELEMENTS(test) EQ nn THEN BEGIN
-    strAdd='Img pos '
-  ENDIF ELSE BEGIN
-    test=o->GetReference('0054'x,'0090'x); angular view vector
-    IF test(0) NE -1 THEN BEGIN
-      test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
-      angleVec=*(test_peker[0])
-      angles=STRSPLIT(angleVec, '\', /EXTRACT)
-      strAdd='Angle '
-    ENDIF
-  ENDELSE
-
-  FOR i=0, nn-1 DO BEGIN
-    IF markedArr(i) AND marked(0) NE -1 THEN add='X ' ELSE add='   '
-    CASE strAdd OF
-      'Img pos ': BEGIN
-        test_peker=o->GetValue(REFERENCE=test[i],/NO_COPY)
-        imgpos=*(test_peker[0])
-      END
-      'Angle ': imgpos= angles(i)
-      ELSE: imgpos = STRING(i, FORMAT='(i0)')
-    ENDCASE
-
-    imgList(i)=add+strAdd+imgpos
-  ENDFOR
-
-
-  OBJ_DESTROY,o
-  stest=size(test_peker, /TNAME)
-  IF stest EQ 'POINTER' THEN PTR_FREE, test_peker
-  return, imgList
 end
 
 ;calculate filter given sigma and size of filter
