@@ -17,7 +17,11 @@
 
 
 ;save parameters as current set or new set
+<<<<<<< HEAD
 ;overWriteNo = parameter set number to overwrite (-1 if not to be used), starts on 1 as first parameter is the defaultinfo
+=======
+;overWriteNo = parameter set number to overwrite (-1 if not to be used)
+>>>>>>> 51b538bf2a71e66c58c0bf95eec4fabbd66e127c
 ;newName = name of new parameter set (empty string '' if not to be used)
 pro saveParam, overWriteNo, newName
 
@@ -63,6 +67,12 @@ pro saveParam, overWriteNo, newName
   WIDGET_CONTROL, txtNPSroiSzX, GET_VALUE=NPSroiSzX
   WIDGET_CONTROL, txtNPSsubSzX, GET_VALUE=NPSsubSzX
   ;NM tests
+<<<<<<< HEAD
+=======
+;  WIDGET_CONTROL, txtHomogROIszNM, GET_VALUE=homogROIszNM
+;  WIDGET_CONTROL, txtHomogROIdistXNM, GET_VALUE=homogROIdistXNM
+;  WIDGET_CONTROL, txtHomogROIdistYNM, GET_VALUE=homogROIdistYNM
+>>>>>>> 51b538bf2a71e66c58c0bf95eec4fabbd66e127c
   WIDGET_CONTROL, cw_typeMTFNM, GET_VALUE=typeMTFNM
   WIDGET_CONTROL, cw_plotMTFNM, GET_VALUE= plotWhichNM
   WIDGET_CONTROL, txtMTFroiSzXNM, GET_VALUE=MTFroiSzXNM
@@ -82,7 +92,12 @@ pro saveParam, overWriteNo, newName
   WIDGET_CONTROL, txtHomogROIszPET, GET_VALUE=homogROIszPET
   WIDGET_CONTROL, txtHomogROIdistPET, GET_VALUE=homogROIdistPET
 
+<<<<<<< HEAD
   config=CREATE_STRUCT('defPath',defPath, 'deciMark', deciMark, 'copyHeader', copyHeader, 'transposeTable', transposeTable, 'append', WIDGET_INFO(btnAppend, /BUTTON_SET),$
+=======
+  config=CREATE_STRUCT('defPath',defPath, 'deciMark', deciMark, 'copyHeader', copyHeader, 'append', WIDGET_INFO(btnAppend, /BUTTON_SET),$
+    'typeROI',WIDGET_INFO(typeROI, /BUTTON_SET),'typeROIX',WIDGET_INFO(typeROIX, /BUTTON_SET),$
+>>>>>>> 51b538bf2a71e66c58c0bf95eec4fabbd66e127c
     'MTFtype',typeMTF,'MTFtypeX', typeMTFX, 'MTFtypeNM', typeMTFNM,'MTFtypeSPECT', typeMTFSPECT, 'plotMTF',plotWhich,'plotMTFX',plotWhichX,'plotMTFNM', plotWhichNM,'plotMTFSPECT', plotWhichSPECT,$
     'MTFroiSz',FLOAT(MTFroiSz(0)),'MTFroiSzX',[FLOAT(MTFroiSzX(0)),FLOAT(MTFroiSzY(0))],'MTFroiSzNM',[FLOAT(MTFroiSzXNM(0)),FLOAT(MTFroiSzYNM(0))],'MTFroiSzSPECT',FLOAT(MTFroiSzSPECT(0)),'MTF3dSPECT',WIDGET_INFO(MTF3dSPECT, /BUTTON_SET),$
     'cutLSF',WIDGET_INFO(btnCutLSF,/BUTTON_SET),'cutLSF1',LONG(LSFcut1),'cutLSF2',LONG(LSFcut2),'cutLSFX',WIDGET_INFO(btnCutLSFX,/BUTTON_SET),'cutLSFX1',LONG(LSFcutX1),'offxy',offxy,$
@@ -109,11 +124,19 @@ pro saveParam, overWriteNo, newName
     ;current parameterset is active - just change name of parameter set label
     WIDGET_CONTROL, lblSettings, SET_VALUE=paramSetNames(overWriteNo)
   ENDIF ELSE BEGIN
+<<<<<<< HEAD
     IF newName EQ '' THEN sv=DIALOG_MESSAGE('No name specified. Could not save.', DIALOG_PARENT=evTop) ELSE BEGIN
       tempname=IDL_VALIDNAME(newName, /CONVERT_ALL)
       tempname=tempname(0)
       IF paramSetNames.HasValue(tempname) THEN BEGIN
         sv=DIALOG_MESSAGE(tempname+ ' already in use. Overwrite?',/QUESTION, DIALOG_PARENT=evTop)
+=======
+    IF newName EQ '' THEN sv=DIALOG_MESSAGE('No name specified. Could not save.') ELSE BEGIN
+      tempname=IDL_VALIDNAME(newName, /CONVERT_ALL)
+      tempname=tempname(0)
+      IF paramSetNames.HasValue(tempname) THEN BEGIN
+        sv=DIALOG_MESSAGE(tempname+ ' already in use. Overwrite?',/QUESTION)
+>>>>>>> 51b538bf2a71e66c58c0bf95eec4fabbd66e127c
         IF sv EQ 'Yes' THEN BEGIN
           alreadyID=WHERE(paramSetNames EQ tempname)
           configS=replaceStructStruct(configS, config, alreadyID)

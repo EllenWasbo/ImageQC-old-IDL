@@ -767,6 +767,7 @@ pro updatePlot, setRangeMinMaxX, setRangeMinMaxY, optionSet
                     valuesPlot=CREATE_STRUCT('image number', imgNo, 'SNImax', yValues)
                   ENDIF
                 
+<<<<<<< HEAD
                   ;displaying filtered 2d NPS for selected region'                
                   tabSel=WIDGET_INFO(resTab,/TABLE_SELECT)
                   colNo=tabSel(0)
@@ -810,6 +811,8 @@ pro updatePlot, setRangeMinMaxX, setRangeMinMaxY, optionSet
                   resPlotLeg=LEGEND(TARGET=resPlot[0:1], FONT_NAME=foName, FONT_SIZE=foSize, POSITION=legPos)
                   resPlot[0].refresh
                 ENDIF
+=======
+>>>>>>> 51b538bf2a71e66c58c0bf95eec4fabbd66e127c
                 END
               'ENERGYSPEC': BEGIN
                 fwhm=energyRes.gausscoeff(2)*2*SQRT(2*ALOG(2))

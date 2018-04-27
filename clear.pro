@@ -60,8 +60,14 @@ pro clearRes, analyseStr
       eiRes=!Null
       MTFres=!Null
       NPSres=!Null
+<<<<<<< HEAD
       ;ROIres=!Null
       CTlinRes=!Null
+=======
+      ROIres=!Null
+      CTlinRes=!Null
+      ;CTlinROIs=0 & CTlinROIpos=0
+>>>>>>> 51b538bf2a71e66c58c0bf95eec4fabbd66e127c
       sliceThickRes=!Null
       sliceThickResTab=!Null
       fwhmRes=!Null
@@ -82,7 +88,11 @@ pro clearRes, analyseStr
         'EI': eiRes=!Null
         'MTF': MTFres=!Null
         'NPS': NPSres=!Null
+<<<<<<< HEAD
         ;'ROI': ROIres=!Null
+=======
+        'ROI': ROIres=!Null
+>>>>>>> 51b538bf2a71e66c58c0bf95eec4fabbd66e127c
         'CTLIN':CTlinres=!Null
         'SLICETHICK': BEGIN
           sliceThickRes=!Null

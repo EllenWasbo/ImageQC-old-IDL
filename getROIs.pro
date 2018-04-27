@@ -201,6 +201,7 @@ function getSNIroi, img
   d=ROUND(ysearch(1)+0.9*0.5*ysearch(0))
   IF MIN([a,b,c,d]) GT -1 THEN SNIroi[a:b,c:d]=1; 90% of active part
 
+<<<<<<< HEAD
   SNIroiAll=INTARR(szImg(0),szImg(1),9)
   SNIroiAll[*,*,0]=SNIroi
   
@@ -243,6 +244,9 @@ function getSNIroi, img
   ENDELSE
 
   return, SNIroiAll
+=======
+  return, SNIroi
+>>>>>>> 51b538bf2a71e66c58c0bf95eec4fabbd66e127c
 end
 
 ;Placing rois for NM contrast 6 circles

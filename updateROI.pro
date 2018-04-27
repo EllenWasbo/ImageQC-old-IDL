@@ -58,7 +58,26 @@ pro updateROI, Ana=ana
             ROIsz=ROUND(FLOAT(ROIsz(0))/pix(0)) ; assume x,y pix equal ! = normal
             ROIdist=-1
           END
+<<<<<<< HEAD
 
+=======
+;          2:BEGIN
+;            WIDGET_CONTROL, cw_homogNM, GET_VALUE=typeHomogNM
+;            WIDGET_CONTROL, txtHomogROIszNM, GET_VALUE=ROIsz
+;            ROIsz=ROUND(FLOAT(ROIsz(0))/pix(0)) ; assume x,y pix equal ! = normal
+;            WIDGET_CONTROL,  txtHomogROIdistXNM, GET_VALUE=ROIdistX
+;            CASE typeHomogNM OF
+;              0: BEGIN; planar WB
+;                WIDGET_CONTROL,  txtHomogROIdistYNM, GET_VALUE=ROIdistY
+;                ROIdist=ROUND([FLOAT(ROIdistX(0))/pix(0),FLOAT(ROIdistY(0))/pix(1)])
+;              END
+;              1: BEGIN
+;                ROIdist=ROUND(FLOAT(ROIdistX(0))/pix(0)) ; assume x,y pix equal ! = normal
+;              END
+;              ELSE:
+;            ENDCASE
+;          END
+>>>>>>> 51b538bf2a71e66c58c0bf95eec4fabbd66e127c
           4:BEGIN
             WIDGET_CONTROL, txtHomogROIszPET, GET_VALUE=ROIsz
             ROIsz=ROUND(FLOAT(ROIsz(0))/pix(0)) ; assume x,y pix equal ! = normal
