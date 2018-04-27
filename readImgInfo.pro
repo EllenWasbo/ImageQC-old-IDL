@@ -78,11 +78,7 @@
 ;  .scatterFrac
 
 
-<<<<<<< HEAD
 function readImgInfo, adr, dialog_par
-=======
-function readImgInfo, adr
->>>>>>> 51b538bf2a71e66c58c0bf95eec4fabbd66e127c
 
   imgStruct=-1
 
@@ -231,17 +227,7 @@ function readImgInfo, adr
       test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
       IF test(0) NE -1 THEN mAs=*(test_peker[0]) ELSE mAs=-1. ; changed to mA*time/1000 if CR or DX to get floating number, not integer
       
-<<<<<<< HEAD
       IF modality EQ 'PT' THEN time=-1 ELSE BEGIN
-=======
-      IF modality EQ 'PT' THEN BEGIN
-        test=o->GetReference('0018'x,'1242'x)
-        test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
-        IF test(0) NE -1 THEN BEGIN
-          time=*(test_peker[0])
-        ENDIF ELSE time=-1
-      ENDIF ELSE BEGIN
->>>>>>> 51b538bf2a71e66c58c0bf95eec4fabbd66e127c
         test=o->GetReference('0018'x,'1150'x)
         test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
         IF test(0) NE -1 THEN BEGIN
@@ -395,11 +381,6 @@ function readImgInfo, adr
       test=o->GetReference('0018'x,'0017'x);
       test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
       IF test(0) NE -1 THEN acqTerminationCond=*(test_peker[0]) ELSE acqTerminationCond='-'
-<<<<<<< HEAD
-=======
-      
-      ; PET only
->>>>>>> 51b538bf2a71e66c58c0bf95eec4fabbd66e127c
       
       ; PET only      
       test=o->GetReference('0018'x,'0031'x);
@@ -456,7 +437,6 @@ function readImgInfo, adr
         'seriesNmb',seriesNmb,'acqNmb',acqNmb, 'acqtime',acqtime,'sliceThick',sliceThick, 'pix', pix,'imageSize',imageSize,'kVp',kVp,'FOV',dFOV,'rekonFOV',rekonFOV,'mA',mA,'mAs',mAs,'ExpTime',time,'coll',coll,'pitch',pitch,$
         'ExModType',ExModType,'CTDIvol',CTDIvol,'DAP',DAP,'EI',EI,'sensitivity',sensitivity,'filter',filter,$
         'zpos', zpos, 'imgNo',imgNo,'nFrames',nFrames,'wCenter',wCenter,'wWidth',wWidth,$
-<<<<<<< HEAD
         'collType',collType,'nEWindows',nEWindows,'EWindowName',EWindowName,'zoomFactor',zoomFactor,'radius1',radPos1,'radius2',radPos2,'angle',angle,'acqFrameDuration',acqFrameDuration,'acqTerminationCond',acqTerminationCond,$
         'units',units,'radiopharmaca',radiopharmaca,'admDose',admDose,'admDoseTime',admDoseTime,'reconMethod',reconMethod,'attCorrMethod',attCorrMethod,'scaCorrMethod',scaCorrMethod, 'scatterFrac',scatterFrac,$
         'frameNo', frameNo)
@@ -471,11 +451,6 @@ function readImgInfo, adr
         ENDFOR
         imgStruct=imgStructMulti
       ENDIF
-=======
-        'collType',collType,'nEWindows',nEWindows,'EWindowName',EWindowName,'zoomFactor',zoomFactor,'radius1',radPos1,'radius2',radPos2,'acqFrameDuration',acqFrameDuration,'acqTerminationCond',acqTerminationCond,$
-        'units',units,'radiopharmaca',radiopharmaca,'admDose',admDose,'admDoseTime',admDoseTime,'reconMethod',reconMethod,'attCorrMethod',attCorrMethod,'scaCorrMethod',scaCorrMethod, 'scatterFrac',scatterFrac)
->>>>>>> 51b538bf2a71e66c58c0bf95eec4fabbd66e127c
-
 
       OBJ_DESTROY, o
 
