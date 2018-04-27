@@ -15,20 +15,13 @@
 ;along with this program; if not, write to the Free Software
 ;Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
-<<<<<<< HEAD
 pro settings, GROUP_LEADER = mainbase, xoff, yoff
 
   COMMON SETT, listSets, cw_action, txtName, thisPa, txtDefPath
-=======
-pro settings, GROUP_LEADER = mainbase
-
-  COMMON SETT, listSets, cw_action, txtName, thisPa
->>>>>>> 51b538bf2a71e66c58c0bf95eec4fabbd66e127c
   COMMON VARI
   COMPILE_OPT hidden
 
   settingsbox = WIDGET_BASE(TITLE='Edit/manage parameter sets for default settings', GROUP_LEADER=mainbase,  $
-<<<<<<< HEAD
     /COLUMN, XSIZE=500, YSIZE=440, XOFFSET=xoff, YOFFSET=yoff, /MODAL)
 
   ml1=WIDGET_LABEL(settingsbox, VALUE='', YSIZE=10)
@@ -49,15 +42,6 @@ pro settings, GROUP_LEADER = mainbase
   bTop=WIDGET_BASE(settingsbox, /ROW)
   bTopLft=WIDGET_BASE(bTop, XSIZE=250,/COLUMN)
 
-=======
-    /COLUMN, XSIZE=500, YSIZE=400, XOFFSET=150, YOFFSET=150, /MODAL)
-
-  ml1=WIDGET_LABEL(settingsbox, VALUE='', YSIZE=20)
-
-  bTop=WIDGET_BASE(settingsbox, /ROW)
-  bTopLft=WIDGET_BASE(bTop, XSIZE=250,/COLUMN)
-  
->>>>>>> 51b538bf2a71e66c58c0bf95eec4fabbd66e127c
   ;list of parameter sets
   lblTop=WIDGET_LABEL(bTopLft, VALUE='Parameter sets', /ALIGN_LEFT, FONT="Arial*ITALIC*16")
   thisPa=FILE_DIRNAME(ROUTINE_FILEPATH('ImageQC'))+'\'
@@ -65,20 +49,13 @@ pro settings, GROUP_LEADER = mainbase
   setNames=TAG_NAMES(configS)
   setNames(configS.(0))=setNames(configS.(0))+' (default)'
   setNames=setNames[1:-1]
-<<<<<<< HEAD
   listSets=WIDGET_LIST(bTopLft, VALUE=setNames, XSIZE=230, YSIZE=N_ELEMENTS(setNames), SCR_YSIZE=160, UVALUE='s_listSets')
   WIDGET_CONTROL, listSets, SET_LIST_SELECT=selConfig-1
 
-=======
-  listSets=WIDGET_LIST(bTopLft, VALUE=setNames, XSIZE=230, YSIZE=N_ELEMENTS(setNames), SCR_YSIZE=160)
-  WIDGET_CONTROL, listSets, SET_LIST_SELECT=selConfig-1
-  
->>>>>>> 51b538bf2a71e66c58c0bf95eec4fabbd66e127c
   ;actions on list
   bTopRgt=WIDGET_BASE(bTop, XSIZE=230, /COLUMN)
   cw_action=CW_BGROUP(bTopRgt, ['Set as current','Set as default','Delete'], /EXCLUSIVE, SET_VALUE=0, LABEL_TOP='For selected parameter set...',UVALUE='act')
   btnUpdate=WIDGET_BUTTON(bTopRgt, VALUE='Update and close', UVALUE='s_update', XSIZE=50)
-<<<<<<< HEAD
 
   ml3=WIDGET_LABEL(settingsbox, VALUE='', YSIZE=20)
 
@@ -90,22 +67,6 @@ pro settings, GROUP_LEADER = mainbase
 
   bButtons=WIDGET_BASE(settingsbox, /ROW)
   lblBtns0=WIDGET_LABEL(bButtons, VALUE='', XSIZE=350)
-=======
- 
-  ml2=WIDGET_LABEL(settingsbox, VALUE='', YSIZE=20)
-  
-  ;save new
-  lblAdd=WIDGET_LABEL(settingsbox, VALUE='Add current settings as new parameter set', /ALIGN_LEFT, FONT="Arial*ITALIC*16")
-  bAdd=WIDGET_BASE(settingsbox, /ROW)
-  lblName=WIDGET_LABEL(bAdd, VALUE='Name:')
-  txtName=WIDGET_TEXT(bAdd, VALUE='', /EDITABLE, XSIZE=15)
-  btnSave=WIDGET_BUTTON(bAdd, VALUE='save.bmp', /BITMAP, UVALUE='s_saveNew')
-  
-  ml3=WIDGET_LABEL(settingsbox, VALUE='', YSIZE=20)
-  
-  bButtons=WIDGET_BASE(settingsbox, /ROW)
-  lblBtns0=WIDGET_LABEL(bButtons, VALUE='', XSIZE=230)  
->>>>>>> 51b538bf2a71e66c58c0bf95eec4fabbd66e127c
   btnCancelSett=WIDGET_BUTTON(bButtons, VALUE='Close', UVALUE='s_cancel', XSIZE=50)
 
   WIDGET_CONTROL, settingsbox, /REALIZE
@@ -124,54 +85,31 @@ pro settings_event, event
   IF N_ELEMENTS(uval) GT 0 THEN BEGIN
     CASE uval OF
       's_update':BEGIN
-<<<<<<< HEAD
 
-=======
-        
->>>>>>> 51b538bf2a71e66c58c0bf95eec4fabbd66e127c
         WIDGET_CONTROL, cw_action, GET_VALUE=selAct
         selSet=WIDGET_INFO(listSets, /LIST_SELECT)
         RESTORE, thisPath+'data\config.dat'
         setNames=TAG_NAMES(configS)
-<<<<<<< HEAD
 
-=======
-        
->>>>>>> 51b538bf2a71e66c58c0bf95eec4fabbd66e127c
         CASE selAct OF
           0: BEGIN; set selected as current
             selConfig=selSet+1
             refreshParam, configS.(selConfig), setNames(selConfig)
-<<<<<<< HEAD
           END
-=======
-            END
->>>>>>> 51b538bf2a71e66c58c0bf95eec4fabbd66e127c
           1: BEGIN; set selected as default
             configS.(0)=selSet+1
             SAVE, configS, FILENAME=thisPa+'data\config.dat'
             IF selConfig NE selSet+1 THEN BEGIN
-<<<<<<< HEAD
               sv=DIALOG_MESSAGE('Update parameters with the new default?', /QUESTION, DIALOG_PARENT=event.TOP)
-=======
-              sv=DIALOG_MESSAGE('Update parameters with the new default?', /QUESTION)
->>>>>>> 51b538bf2a71e66c58c0bf95eec4fabbd66e127c
               IF sv EQ 'Yes' THEN BEGIN
                 selConfig=selSet+1
                 refreshParam, configS.(selConfig), setNames(selConfig)
               ENDIF
             ENDIF
-<<<<<<< HEAD
           END
           2: BEGIN; delete selected set
             setNames=setNames[1:-1]
             IF N_ELEMENTS(setNames) EQ 1 THEN sv=DIALOG_MESSAGE('At least one parameter set have to be kept.', DIALOG_PARENT=event.TOP) ELSE BEGIN
-=======
-            END
-          2: BEGIN; delete selected set
-            setNames=setNames[1:-1]
-            IF N_ELEMENTS(setNames) EQ 1 THEN sv=DIALOG_MESSAGE('At least one parameter set have to be kept.') ELSE BEGIN
->>>>>>> 51b538bf2a71e66c58c0bf95eec4fabbd66e127c
               configS=removeIDstructstruct(configS, selSet+1)
               IF selSet+1 LT configS.(0) THEN configS.(0)=configS.(0)-1
               IF selSet+1 EQ configS.(0) THEN configS.(0)=1
@@ -180,18 +118,13 @@ pro settings_event, event
               setNames=TAG_NAMES(configS)
               refreshParam, configS.(selConfig), setNames(selConfig)
             ENDELSE
-<<<<<<< HEAD
           END
-=======
-            END
->>>>>>> 51b538bf2a71e66c58c0bf95eec4fabbd66e127c
           ELSE:
         ENDCASE
         WIDGET_CONTROL, Event.top, /DESTROY
       END
       's_saveNew':BEGIN
         WIDGET_CONTROL, txtName, GET_VALUE=newName
-<<<<<<< HEAD
         IF newName NE '' THEN saveParam, -1, newName ELSE BEGIN
           selSet=WIDGET_INFO(listSets, /LIST_SELECT)
           saveParam, selSet+1,''
@@ -219,14 +152,6 @@ pro settings_event, event
           IF selSet+1 EQ selConfig THEN defPath=newdef(0)
         ENDIF
       END
-=======
-        saveParam, -1, newName
-        
-        WIDGET_CONTROL, Event.top, /DESTROY
-        END
-      's_cancel': WIDGET_CONTROL, Event.top, /DESTROY
-
->>>>>>> 51b538bf2a71e66c58c0bf95eec4fabbd66e127c
       ELSE:
     ENDCASE
   ENDIF
