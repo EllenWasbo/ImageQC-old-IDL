@@ -27,13 +27,8 @@ function updateConfigS, file
     'defPath','C:\',$
     'deciMark',',', $
     'copyHeader', 0, $
-<<<<<<< HEAD
     'transposeTable', 0, $
     'append',0,$
-=======
-    'append',0,$
-    'typeROI',0,'typeROIX',0,$
->>>>>>> 51b538bf2a71e66c58c0bf95eec4fabbd66e127c
     'MTFtype',2,'MTFtypeX',1,'MTFtypeNM',1,'MTFtypeSPECT',1,'plotMTF',3,'plotMTFX', 3, 'plotMTFNM',4,'plotMTFSPECT',4,'MTFroiSz',11.0,'MTFroiSzX',[20.,50.],'MTFroiSzNM',[20.,20.],'MTFroiSzSPECT',30.,'MTF3dSPECT',1, $
     'cutLSF',1,'cutLSF1',3,'cutLSF2',1, 'cutLSFX', 1, 'cutLSFX1', 3, 'offxy', [0,0], $
     'LinROIrad',3.,'LinROIradS',11., 'LinTab',lintab, $
@@ -74,11 +69,7 @@ function updateConfigS, file
         newConfigS=CREATE_STRUCT(newConfigS,restoreTagsS(i),configTemp)
       ENDFOR
 
-<<<<<<< HEAD
     ENDIF ELSE sv=DIALOG_MESSAGE('Found no valid config structure in selected file.', DIALOG_PARENT=0)
-=======
-    ENDIF ELSE sv=DIALOG_MESSAGE('Found no valid config structure in selected file.')
->>>>>>> 51b538bf2a71e66c58c0bf95eec4fabbd66e127c
 
   ENDELSE;file ''
 
@@ -109,7 +100,6 @@ function updateLoadT, file
     RESTORE, file
     ;securing older versions
     IF N_ELEMENTS(loadTemp) NE 0 THEN BEGIN
-<<<<<<< HEAD
       loadOld=loadTemp
       ;path - folder close to where the images should be found
       ;loadBy - choise - 0 = load all images in specified path
@@ -150,24 +140,6 @@ function updateLoadT, file
         ENDFOR
       ENDIF ELSE loadT=!Null
       
-=======
-      loadT=loadTemp
-      ;path - folder close to where the images should be found
-      ;sortBy - STRARR with structure tags in image structure to sort images by
-      ;paramSet - name of paramSet to link to or '' if default
-      ;quickTemp - name of quickTemp to link to or '' to default (all selected)
-      ;startCalc - INT 0=no, 1=start calculculation automatically
-      loadTthisVersion=CREATE_STRUCT($
-        'path','',$
-        'sortBy', '', $
-        'paramSet','', $
-        'quickTemp','', $
-        'startCalc',1)
-      loadTsetDef=CREATE_STRUCT('defloadTemp',1,'loadTempDummy',loadTthisVersion)
-      tagNewest=TAG_NAMES(loadTnewest)
-
-
->>>>>>> 51b538bf2a71e66c58c0bf95eec4fabbd66e127c
     ENDIF ELSE loadT=!Null
   ENDELSE
   return, loadT
@@ -186,10 +158,7 @@ end
 ;return image matrix scaled with slope and intercept
 ;frame -1 means single-frame image else frame starting on 1
 function readImg, adr, frame
-<<<<<<< HEAD
     WIDGET_CONTROL, /HOURGLASS
-=======
->>>>>>> 51b538bf2a71e66c58c0bf95eec4fabbd66e127c
     IF FILE_TEST(adr) THEN BEGIN
     qd=QUERY_DICOM(adr)
     IF qd THEN BEGIN
@@ -214,30 +183,14 @@ function readImg, adr, frame
       ENDIF
 
       ;multiframe?
-<<<<<<< HEAD
       test=o->GetReference('7FE0'x,'0010'x)
       IF frame EQ -1 THEN BEGIN
-=======
-      multiframe=0
-      test=o->GetReference('0028'x,'0008'x)
-      test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
-      IF test(0) NE -1 THEN BEGIN
-        IF *(test_peker[0]) NE 1 THEN multiframe=1
-      ENDIF
-
-      test=o->GetReference('7FE0'x,'0010'x)
-      IF multiframe EQ 0 THEN BEGIN
->>>>>>> 51b538bf2a71e66c58c0bf95eec4fabbd66e127c
         ;real image is last image (icon images first)
         test_peker=o->GetValue(REFERENCE=test[N_ELEMENTS(test)-1],/NO_COPY)
         matrix=FLOAT(*(test_peker[0]))
       ENDIF ELSE BEGIN
         ;multiframe
-<<<<<<< HEAD
         test_peker=o->GetValue(REFERENCE=test[frame-1],/NO_COPY)
-=======
-        test_peker=o->GetValue(REFERENCE=test[frame],/NO_COPY)
->>>>>>> 51b538bf2a71e66c58c0bf95eec4fabbd66e127c
         matrix=FLOAT(*(test_peker[0]))
       ENDELSE
 
@@ -247,19 +200,11 @@ function readImg, adr, frame
       OBJ_DESTROY,o & PTR_FREE, test_peker
     ENDIF ELSE BEGIN; 'dat file
       RESTORE, adr
-<<<<<<< HEAD
       matrix=imageQCmatrix.matrix;IF imageQCmatrix.nFrames GT 0 THEN matrix=imageQCmatrix.matrix[*,*,frame] ELSE matrix=imageQCmatrix.matrix
       imageQCmatrix=!null
     ENDELSE
     ENDIF ELSE BEGIN
       sv=DIALOG_MESSAGE('File no longer exists. Renamed or removed. Program might crash. Try closing the file.'+adr, DIALOG_PARENT=0)
-=======
-      IF imageQCmatrix.nFrames GT 0 THEN matrix=imageQCmatrix.matrix[*,*,frame] ELSE matrix=imageQCmatrix.matrix
-      imageQCmatrix=!null
-    ENDELSE
-    ENDIF ELSE BEGIN
-      sv=DIALOG_MESSAGE('File no longer exists. Renamed or removed. Program might crash. Try closing the file.'+adr)
->>>>>>> 51b538bf2a71e66c58c0bf95eec4fabbd66e127c
       matrix=-1
     ENDELSE
   return, matrix
@@ -516,11 +461,7 @@ end
 
 ;replace numbered structure in structure of structures
 ;numb = id to replace
-<<<<<<< HEAD
 function replaceStructStruct, fullStruct, newSubStruct, numb, NEW_TAG_NAME=new_tag_name
-=======
-function replaceStructStruct, fullStruct, newSubStruct, numb
->>>>>>> 51b538bf2a71e66c58c0bf95eec4fabbd66e127c
   structNew=CREATE_STRUCT('EMPTY',0)
   counter=0
   ntags=N_TAGS(fullStruct)
@@ -531,12 +472,8 @@ function replaceStructStruct, fullStruct, newSubStruct, numb
       IF stillEmpty(0) EQ -1 THEN structNew=CREATE_STRUCT(structNew,tagname(counter),fullStruct.(i)) ELSE structNew=CREATE_STRUCT(tagname(0),fullStruct.(i))
       counter=counter+1
     ENDIF ELSE BEGIN
-<<<<<<< HEAD
       IF N_ELEMENTS(new_tag_name) GT 0 THEN tname=new_tag_name ELSE tname=tagname(counter)
       IF stillEmpty(0) EQ -1 THEN structNew=CREATE_STRUCT(structNew,tname,newSubStruct) ELSE structNew=CREATE_STRUCT(tname,newSubStruct)
-=======
-      IF stillEmpty(0) EQ -1 THEN structNew=CREATE_STRUCT(structNew,tagname(counter),newSubStruct) ELSE structNew=CREATE_STRUCT(tagname(0),newSubStruct)
->>>>>>> 51b538bf2a71e66c58c0bf95eec4fabbd66e127c
       counter=counter+1
     ENDELSE
   ENDFOR
@@ -718,7 +655,6 @@ function getListOpenFiles, struc, full, marked, mMulti
       ENDIF
       t=STRSPLIT(struc.(i).filename,'\',/EXTRACT)
       nSplit=N_ELeMENTS(t)
-<<<<<<< HEAD
 
       endStr=''
       IF struc.(i).nFrames GT 1 THEN BEGIN
@@ -728,67 +664,11 @@ function getListOpenFiles, struc, full, marked, mMulti
       ENDIF
       
       fileList(i)=add+STRJOIN(t[nSplit-2:nSplit-1],'\')+endStr
-=======
-
-      fileList(i)=add+STRJOIN(t[nSplit-2:nSplit-1],'\')
 
     ENDFOR
   ENDELSE
 
   return, fileList
-end
-
-;similar to getListOpenFiles only with one multiframe file
-function getListFrames, struc, marked
-  nn=struc.nFrames
-  markedArr=INTARR(nn)
-  IF marked(0) NE -1 THEN markedArr(marked)=1 ELSE markedArr=markedArr+1
-  imgList=STRARR(nn)
-
-  o=obj_new('idlffdicom')
-  t=o->read(struc.filename)
-  test=o->GetReference('0020'x,'0032'x)
-
-  strAdd='Img number '
-  angles=0
-  IF N_ELEMENTS(test) EQ nn THEN BEGIN
-    strAdd='Img pos '
-  ENDIF ELSE BEGIN
-    test=o->GetReference('0054'x,'0090'x); angular view vector
-    IF test(0) NE -1 THEN BEGIN
-      test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
-      angleVec=*(test_peker[0])
-      angles=STRSPLIT(angleVec, '\', /EXTRACT)
-      strAdd='Angle '
-    ENDIF
-  ENDELSE
-
-  FOR i=0, nn-1 DO BEGIN
-    IF markedArr(i) AND marked(0) NE -1 THEN add='X ' ELSE add='   '
-    CASE strAdd OF
-      'Img pos ': BEGIN
-        test_peker=o->GetValue(REFERENCE=test[i],/NO_COPY)
-        imgpos=*(test_peker[0])
-      END
-      'Angle ': imgpos= angles(i)
-      ELSE: imgpos = STRING(i, FORMAT='(i0)')
-    ENDCASE
-
-    imgList(i)=add+strAdd+imgpos
-  ENDFOR
->>>>>>> 51b538bf2a71e66c58c0bf95eec4fabbd66e127c
-
-    ENDFOR
-  ENDELSE
-
-<<<<<<< HEAD
-  return, fileList
-=======
-  OBJ_DESTROY,o
-  stest=size(test_peker, /TNAME)
-  IF stest EQ 'POINTER' THEN PTR_FREE, test_peker
-  return, imgList
->>>>>>> 51b538bf2a71e66c58c0bf95eec4fabbd66e127c
 end
 
 ;calculate filter given sigma and size of filter
