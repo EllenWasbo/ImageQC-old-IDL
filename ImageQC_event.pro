@@ -1071,7 +1071,8 @@ pro ImageQC_event, ev
           sel=WIDGET_INFO(listSelMultiTemp, /DROPLIST_SELECT)
 
           RESTORE, thisPath+'data\config.dat'
-          exTempNames=TAG_NAMES(quickTemp)
+          szQT=SIZE(quickTemp, /TNAME)
+          IF szQT EQ 'STRUCT' THEN exTempNames=TAG_NAMES(quickTemp) ELSE exTempNames=''
           IF sel(0) NE 0 THEN BEGIN; overwrite
             quickTemp=replaceStructStruct(quickTemp, markedMulti, sel(0)-1)
             saveChange=2

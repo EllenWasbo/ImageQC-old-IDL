@@ -297,9 +297,11 @@ function centerProfile, vec
   above=WHERE(abTemp EQ 1., nn)
 
   If above(0) NE -1 THEN BEGIN
-    first=above(0)
-    last=above(nn-1)
+    first=above(0)-1;remove noise even more smooths outer edge too -1
+    last=above(nn-1)+1;remove noise even more smooths outer edge too +1
+ 
     IF first GE 1 AND last LE N_ELEMENTS(vec)-2 THEN BEGIN
+      
       dy=treshold-vec(first-1)
       IF vec(first) NE vec(first-1) THEN dx=dy/(vec(first)-vec(first-1)) ELSE dx=0.
       x1=first-1+dx

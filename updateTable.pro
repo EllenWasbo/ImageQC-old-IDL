@@ -61,12 +61,16 @@ pro updateTable
               nCols=6
               headers=['MTFx 50%','MTFx 10%','MTFx 2%','MTFy 50%','MTFy 10%','MTFy 2%']
               resArrString=STRARR(nCols,nRows)
-              FOR i =0, nRows-1 DO resArrString[*,i]=STRING(MTFres.(markedTemp(i)).F50_10_2, FORMAT='(F0.3)')
+              FOR i =0, nRows-1 DO BEGIN
+                tagn=TAG_NAMES(MTFres.(markedTemp(i)))
+                IF tagn.HasValue('F50_10_2') THEN resArrString[*,i]=STRING(MTFres.(markedTemp(i)).F50_10_2, FORMAT='(F0.3)')
+              ENDFOR
             ENDIF ELSE BEGIN
               nRows=1
               nCols=3
               headers=['MTF 50%','MTF 10%','MTF 2%']
-              resArrString=STRING(MTFres.F50_10_2[0:2], FORMAT='(F0.3)')
+              tagn=TAG_NAMES(MTFres)
+              IF tagn.HasValue('F50_10_2') THEN resArrString=STRING(MTFres.F50_10_2[0:2], FORMAT='(F0.3)')
               cellSelHighLight=0
             ENDELSE
           END
