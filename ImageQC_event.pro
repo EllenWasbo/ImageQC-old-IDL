@@ -97,6 +97,8 @@ pro ImageQC_event, ev
         Catch, errStat
         IF errStat NE 0 THEN BEGIN
           sv=DIALOG_MESSAGE('Error when opening files. Might be caused when selecting hundreds of files. Use the open folders option (all images in selected folder(s)) might prevent this.', DIALOG_PARENT=evTop)
+          ;print, 'Error message:', !Error_state.msg
+          ;stop
           adrFilesToOpen=''
           CATCH, /CANCEL
         ENDIF
@@ -1073,8 +1075,8 @@ pro ImageQC_event, ev
           RESTORE, thisPath+'data\config.dat'
           szQT=SIZE(quickTemp, /TNAME)
           IF szQT EQ 'STRUCT' THEN exTempNames=TAG_NAMES(quickTemp) ELSE exTempNames=''
-          IF sel(0) NE 0 THEN BEGIN; overwrite
-            quickTemp=replaceStructStruct(quickTemp, markedMulti, sel(0)-1)
+          IF sel(0) GT 0 THEN BEGIN; overwrite
+            IF szQT EQ 'STRUCT' THEN quickTemp=replaceStructStruct(quickTemp, markedMulti, sel(0)-1)
             saveChange=2
           ENDIF ELSE BEGIN
             box=[$
@@ -1186,10 +1188,12 @@ pro ImageQC_event, ev
             WIDGET_CONTROL, listFiles, SET_VALUE=fileList, SET_LIST_SELECT=fileSel(nSel-1), SET_LIST_TOP=oldTop
           ENDIF ELSE BEGIN
             clearMulti
-            fileList=getListOpenFiles(structImgs,0,marked,markedMulti)
             sel=WIDGET_INFO(listFiles, /LIST_SELECT)
-            oldTop=WIDGET_INFO(listFiles, /LIST_TOP)
-            WIDGET_CONTROL, listFiles, SET_VALUE=fileList, SET_LIST_SELECT=sel(N_ELEMENTS(sel)-1), SET_LIST_TOP=oldTop
+            IF sel(0) NE -1 THEN BEGIN
+              fileList=getListOpenFiles(structImgs,0,marked,markedMulti)
+              oldTop=WIDGET_INFO(listFiles, /LIST_TOP)
+              WIDGET_CONTROL, listFiles, SET_VALUE=fileList, SET_LIST_SELECT=sel(N_ELEMENTS(sel)-1), SET_LIST_TOP=oldTop
+            ENDIF
           ENDELSE
         ENDIF
 
