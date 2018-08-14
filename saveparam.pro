@@ -70,6 +70,11 @@ pro saveParam, overWriteNo, newName
   WIDGET_CONTROL, txtNAvgSpeedNM, GET_VALUE=scanSpeedAvg
   WIDGET_CONTROL, txtSpeedROIheight, GET_VALUE=scanSpeedHeight
   WIDGET_CONTROL, txtScanSpeedMedian, GET_VALUE=scanSpeedFiltW
+  WIDGET_CONTROL, txtUnifDistCorr, GET_VALUE=distCorr
+  WIDGET_CONTROL, txtUnifThickCorr, GET_VALUE=thickCorr
+  WIDGET_CONTROL, txtUnifAttCorr, GET_VALUE=attCorr
+  WIDGET_CONTROL, txtUnifAreaRatio, GET_VALUE=unifAreaRatio
+  WIDGET_CONTROL, txtSNIAreaRatio, GET_VALUE=SNIAreaRatio
   ;SPECT tests
   WIDGET_CONTROL, cw_typeMTFSPECT, GET_VALUE=typeMTFSPECT
   WIDGET_CONTROL, cw_plotMTFSPECT, GET_VALUE= plotWhichSPECT
@@ -92,10 +97,11 @@ pro saveParam, overWriteNo, newName
     'NoiseROIsz',FLOAT(noiseROIsz(0)), $
     'NPSroiSz', LONG(NPSroiSz(0)), 'NPSroiDist', FLOAT(NPSroiDist(0)),'NPSsubNN', LONG(NPSsubNN(0)), 'NPSroiSzX', LONG(NPSroiSzX(0)), 'NPSsubSzX', LONG(NPSsubSzX(0)), 'NPSavg',WIDGET_INFO(btnNPSavg, /BUTTON_SET),$
     'STProiSz', FLOAT(STProiSz(0)), $
+    'unifAreaRatio', FLOAT(unifAreaRatio(0)),'SNIAreaRatio', FLOAT(SNIAreaRatio(0)),'unifCorr',WIDGET_INFO(btnUnifCorr,/BUTTON_SET),'SNIcorr',WIDGET_INFO(btnSNICorr,/BUTTON_SET),'distCorr',FLOAT(distCorr(0)),'attCoeff',FLOAT(attCorr(0)),'detThick',FLOAT(thickCorr(0)),$
     'scanSpeedAvg',LONG(scanSpeedAvg(0)), 'scanSpeedHeight', FLOAT(scanSpeedHeight(0)), 'scanSpeedFiltW', LONG(scanSpeedFiltW(0)), $
     'contrastRad1', FLOAT(contrastRad1(0)), 'contrastRad2', FLOAT(contrastRad2(0)),$
     'CrossROIsz', FLOAT(crossROIsz(0)), 'CrossVol', FLOAT(crossVol(0)) )
-
+    
   tagsOldConfig=TAG_NAMES(oldConfig)
   IF tagsOldConfig.HasValue('QUICKTEMP') THEN BEGIN
     config=CREATE_STRUCT(config, 'QuickTemp', oldConfig.QUICKTEMP)

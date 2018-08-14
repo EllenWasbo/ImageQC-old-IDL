@@ -110,11 +110,11 @@ pro noise
         szROI=SIZE(noiseROI, /DIMENSIONS)
         IF ~ARRAY_EQUAL(imszTemp[0:1], szROI[0:1]) THEN updateROI, ANA='NOISE'
 
-          maske=noiseROI
-          IMAGE_STATISTICS, activeImg, COUNT=nPix, MEAN=meanVal, STDDEV=stddevVal, MASK=maske
-          resArr(0,i)=meanVal
-          resArr(1,i)=stddevVal
-          totNoise=totNoise+stddevVal
+        maske=noiseROI
+        IMAGE_STATISTICS, activeImg, COUNT=nPix, MEAN=meanVal, STDDEV=stddevVal, MASK=maske
+        resArr(0,i)=meanVal
+        resArr(1,i)=stddevVal
+        totNoise=totNoise+stddevVal
 
       ENDIF
       WIDGET_CONTROL, lblProgress, SET_VALUE='Progress: '+STRING(i*100./nIMG, FORMAT='(i0)')+' %'
@@ -185,7 +185,7 @@ pro homog
 
     homogRes=resArr
     results(testNmb)=1
-    
+
     redrawImg,0,1
   ENDIF
 end; homog
@@ -558,8 +558,15 @@ pro uniformityNM
   COMMON VARI
   WIDGET_CONTROL, /HOURGLASS
   nImg=N_TAGS(structImgs)
-  IF N_ELEMENTS(unifROI) LE 1 THEN updateROI, ANA='UNIF'
-  szROI=SIZE(unifROI, /DIMENSIONS)
+
+  WIDGET_CONTROL, txtUnifDistCorr, GET_VALUE=distSource
+  distSource=FLOAT(distSource(0))
+  WIDGET_CONTROL, txtUnifThickCorr, GET_VALUE=detThick
+  detThick=FLOAT(detThick(0))
+  WIDGET_CONTROL, txtUnifAttCorr, GET_VALUE=detAtt
+  detAtt=FLOAT(detAtt(0))
+  WIDGET_CONTROL, txtUnifAreaRatio, GET_VALUE=areaRatio
+  areaRatio=FLOAT(areaRatio(0))
 
   resArr=FLTARR(2,nImg)-1; mean, stdev all circles
   testNmb=getResNmb(modality,'UNIF',analyseStringsCT,analyseStringsXray,analyseStringsNM,analyseStringsSPECT,analyseStringsPET)
@@ -568,34 +575,78 @@ pro uniformityNM
     IF markedMulti(0) EQ -1 THEN markedArr=markedArr+1 ELSE markedArr=markedMulti[testNmb,*]
   ENDIF ELSE markedArr(marked)=1
   markedTemp=WHERE(markedArr EQ 1)
-  first=markedTemp(0)
 
   IF TOTAL(markedArr) GT 0 THEN BEGIN
 
-    tempImg=readImg(structImgs.(first).filename,structImgs.(first).frameNo)
-    curPix=structImgs.(first).pix(0)
-
     resArr=FLTARR(4,nImg)-1
     errLogg=''
+    adrToSave=!Null
+    corrMatrix=!Null
+
     FOR i=0, nImg-1 DO BEGIN
       IF markedArr(i) THEN BEGIN
         ;check if same size
         tempImg=readImg(structImgs.(i).filename, structImgs.(i).frameNo)
-        imszTemp=SIZE(tempImg, /DIMENSIONS)
-        IF ARRAY_EQUAL(imszTemp[0:1], szROI[0:1]) THEN BEGIN
-          resArr[*,i]=calcUniformityNM(tempImg, unifROI, curPix)
+        sz=SIZE(tempImg, /DIMENSIONS)
+        unifROI=getUnifRoi(tempImg, areaRatio)
+        IF i EQ markedTemp(0) THEN BEGIN
+          prevCurPix=0
+          prevImgSize=sz
+          corrMatrix=FLTARR(sz)+1
         ENDIF ELSE BEGIN
-          errLogg=errLogg+'Image size for image #'+STRING(i+1, FORMAT='(i0)')+' do not match first image. Calculate uniformity separately for images with the same size.'+newline
+          prevCurPix=curPix
+          prevImgSize=curImgSize
         ENDELSE
-      ENDIF
+        curPix=structImgs.(i).pix(0)
+        curImgSize=SIZE(tempImg, /DIMENSIONS)
 
+        ;correct for point source at distance shorter than 5 x UFOV
+        IF WIDGET_INFO(btnUnifCorr, /BUTTON_SET) THEN BEGIN
+          IF curPix NE prevCurPix OR ~ARRAY_EQUAL(curImgSize, prevImgSize) THEN BEGIN
+            corrMatrix=corrDistPointSource(tempImg, distSource, curPix, detThick, detAtt/10) ; functionsMini
+          ENDIF
+
+          tempImg=tempImg*corrMatrix;.corrSID*corrMatrix.corrThick
+
+          ;save corrected image as dat and upload as last image
+          IF WIDGET_INFO(btnSaveUnifCorr, /BUTTON_SET) THEN BEGIN
+
+            IF  structImgs.(i).nFrames GT 1 THEN ftxt='_frame'+STRING(structImgs.(i).frameNo,FORMAT='(i0)') ELSE ftxt=''
+            adr=STRMID(structImgs.(i).filename, 0, STRLEN(structImgs.(i).filename)-4)+ ftxt +'_corrected.dat';assuming three letters as suffix eg .dcm or .dat
+            fi=FILE_INFO(adr)
+            IF fi.exists THEN BEGIN
+              c=0
+              WHILE fi.exists AND c LT 10 DO BEGIN
+                adr=STRMID(structImgs.(i).filename, 0, STRLEN(structImgs.(i).filename)-4)+'_corrected'+STRING(c, FORMAT='(i0)')+'.dat'
+                fi=FILE_INFO(adr)
+                c=c+1
+                IF c EQ 10 THEN BEGIN
+                  errLogg=errLogg+'Failed to save more than 10 corrected files with same filepath. Restricted to avoid endless loop.'+newline
+                  adr=''
+                ENDIF
+              ENDWHILE
+            ENDIF
+            IF STRLEN(adr) NE 0 THEN BEGIN
+              adrToSave=[adrToSave,adr]
+              imageQCmatrix=CREATE_STRUCT(structImgs.(i),'matrix', tempImg)
+              imageQCmatrix.filename=adr; changed when opened so that renaming/moving file is possible
+              SAVE, imageQCmatrix, FILENAME=adr
+            ENDIF
+
+          ENDIF   ;save?
+        ENDIF; correct?
+        uR=calcUniformityNM(tempImg, unifROI, curPix)
+        resArr[*,i]=uR.table
+        IF i EQ 0 THEN unifRes=CREATE_STRUCT('U0',uR) ELSE unifRes=CREATE_STRUCT(unifRes, 'U'+STRING(i, FORMAT='(i0)'), uR)
+      ENDIF
       WIDGET_CONTROL, lblProgress, SET_VALUE='Progress: '+STRING(i*100./nIMG, FORMAT='(i0)')+' %'
     ENDFOR
     WIDGET_CONTROL, lblProgress, SET_VALUE=''
+
     If errLogg NE '' THEN sv=DIALOG_MESSAGE(errLogg, DIALOG_PARENT=evTop)
 
     results(testNmb)=1
-    unifRes=resArr
+    unifRes=CREATE_STRUCT('table',resArr,unifRes)
   ENDIF
 end
 
@@ -604,10 +655,18 @@ pro sni
   COMMON VARI
   WIDGET_CONTROL, /HOURGLASS
   nImg=N_TAGS(structImgs)
-  IF N_ELEMENTS(SNIroi) LE 1 THEN updateROI, ANA='SNI'
-  szROI=SIZE(SNIroi, /DIMENSIONS)
+  ;IF N_ELEMENTS(SNIroi) LE 1 THEN updateROI, ANA='SNI'
 
-  IF N_ELEMENTS(SNIroi) GT 1 THEN BEGIN
+  WIDGET_CONTROL, txtSNIDistCorr, GET_VALUE=distSource
+  distSource=FLOAT(distSource(0))
+  WIDGET_CONTROL, txtSNIThickCorr, GET_VALUE=detThick
+  detThick=FLOAT(detThick(0))
+  WIDGET_CONTROL, txtSNIAttCorr, GET_VALUE=detAtt
+  detAtt=FLOAT(detAtt(0))
+  WIDGET_CONTROL, txtSNIAreaRatio, GET_VALUE=areaRatio
+  areaRatio=FLOAT(areaRatio(0))
+
+  ;IF N_ELEMENTS(SNIroi) GT 1 THEN BEGIN
     resArr=FLTARR(2,nImg)-1; mean, stdev all circles
     testNmb=getResNmb(modality,'SNI',analyseStringsCT,analyseStringsXray,analyseStringsNM,analyseStringsSPECT,analyseStringsPET)
     markedArr=INTARR(nImg)
@@ -619,21 +678,70 @@ pro sni
 
     IF TOTAL(markedArr) GT 0 THEN BEGIN
 
-      tempImg=readImg(structImgs.(first).filename,structImgs.(first).frameNo)
-      curPix=structImgs.(first).pix(0)
-
       errLogg=''
+      adrToSave=!Null
+      corrMatrix=!Null
+
       FOR i=0, nImg-1 DO BEGIN
         IF markedArr(i) THEN BEGIN
           ;check if same size
           tempImg=readImg(structImgs.(i).filename, structImgs.(i).frameNo)
-          imszTemp=SIZE(tempImg, /DIMENSIONS)
-          IF ARRAY_EQUAL(imszTemp[0:1], szROI[0:1]) THEN BEGIN
+          sz=SIZE(tempImg, /DIMENSIONS)
+          SNIroi=getSNIroi(tempImg, areaRatio)
+
+          IF i EQ markedTemp(0) THEN BEGIN
+            prevCurPix=0
+            prevImgSize=sz
+            corrMatrix=FLTARR(sz)+1
+          ENDIF ELSE BEGIN
+            prevCurPix=curPix
+            prevImgSize=curImgSize
+          ENDELSE
+          curPix=structImgs.(i).pix(0)
+          curImgSize=SIZE(tempImg, /DIMENSIONS)
+
+          ;correct for point source at distance shorter than 5 x UFOV
+          IF WIDGET_INFO(btnSNICorr, /BUTTON_SET) THEN BEGIN
+            IF curPix NE prevCurPix OR ~ARRAY_EQUAL(curImgSize, prevImgSize) THEN BEGIN
+              corrMatrix=corrDistPointSource(tempImg, distSource, curPix, detThick, detAtt/10) ; functionsMini
+            ENDIF
+
+            tempImg=tempImg*corrMatrix;
+
+            ;save corrected image as dat and upload as last image
+            IF WIDGET_INFO(btnSaveSNICorr, /BUTTON_SET) THEN BEGIN
+
+              IF  structImgs.(i).nFrames GT 1 THEN ftxt='_frame'+STRING(structImgs.(i).frameNo,FORMAT='(i0)') ELSE ftxt=''
+              adr=STRMID(structImgs.(i).filename, 0, STRLEN(structImgs.(i).filename)-4)+ ftxt +'_corrected.dat';assuming three letters as suffix eg .dcm or .dat
+              fi=FILE_INFO(adr)
+              IF fi.exists THEN BEGIN
+                c=0
+                WHILE fi.exists AND c LT 10 DO BEGIN
+                  adr=STRMID(structImgs.(i).filename, 0, STRLEN(structImgs.(i).filename)-4)+'_corrected'+STRING(c, FORMAT='(i0)')+'.dat'
+                  fi=FILE_INFO(adr)
+                  c=c+1
+                  IF c EQ 10 THEN BEGIN
+                    errLogg=errLogg+'Restricted to save more than 10 corrected files with same original filepath.'+newline
+                    adr=''
+                  ENDIF
+                ENDWHILE
+              ENDIF
+              IF STRLEN(adr) NE 0 THEN BEGIN
+                adrToSave=[adrToSave,adr]
+                imageQCmatrix=CREATE_STRUCT(structImgs.(i),'matrix', tempImg)
+                imageQCmatrix.filename=adr; changed when opened so that renaming/moving file is possible
+                SAVE, imageQCmatrix, FILENAME=adr
+              ENDIF
+
+            ENDIF   ;save?
+          ENDIF; correct?
+          IF N_ELEMENTS(SNIroi) GT 1 THEN BEGIN
             SNI=calculateSNI(tempImg, SNIroi[*,*,0], curPix)
           ENDIF ELSE BEGIN
             SNI=CREATE_STRUCT('empty',0)
-            errLogg=errLogg+'Image size for image #'+STRING(i+1, FORMAT='(i0)')+' do not match first image. Calculate SNI separately for images with the same size.'+newline
+            errLogg=errLogg+'Image #'+STRING(i+1, FORMAT='(i0)')+' not in expected shape/signal.'+newline
           ENDELSE
+
         ENDIF ELSE SNI=CREATE_STRUCT('empty',0)
 
         IF i EQ 0 THEN SNIres=CREATE_STRUCT('S0',SNI) ELSE SNIres=CREATE_STRUCT(SNIres, 'S'+STRING(i, FORMAT='(i0)'), SNI)
@@ -644,7 +752,7 @@ pro sni
 
       results(testNmb)=1
     ENDIF
-  ENDIF ELSE sv=DIALOG_MESSAGE('ROI for SNI not found. Not in expected shape/signal.', DIALOG_PARENT=evTop)
+  ;ENDIF ELSE sv=DIALOG_MESSAGE('ROI for SNI not found for active image. Not in expected shape/signal.', DIALOG_PARENT=evTop)
 end
 
 pro getAcqNM

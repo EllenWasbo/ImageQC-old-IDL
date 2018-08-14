@@ -160,21 +160,24 @@ end
 ;ROIs for uniformity NM test
 ;
 ;finding active part of image (flood field) and setting ROI to UFOV defined as central 95% of this in each direction
-function getUnifRoi, img
+function getUnifRoi, img, ufovRatio
   szImg=SIZE(img, /DIMENSIONS)
 
   unifROI=INTARR(szImg(0),szImg(1))
 
   ;search image for active part and use 95%
-  vecX=TOTAL(img,2)
-  vecY=TOTAL(img,1)
+  imgAct=unifROI
+  imgNozero=WHERE(img NE 0)
+  IF imgNozero(0) NE -1 THEN imgAct(imgNozero)=1
+  vecX=TOTAL(imgAct,2)
+  vecY=TOTAL(imgAct,1)
 
   ysearch=getWidthAtThreshold(vecY,0.5*(MIN(vecY)+MAX(vecY)))
   xsearch=getWidthAtThreshold(vecX,0.5*(MIN(vecX)+MAX(vecX)))
-  a=ROUND(xsearch(1)-0.95*0.5*xsearch(0))
-  b=ROUND(xsearch(1)+0.95*0.5*xsearch(0))
-  c=ROUND(ysearch(1)-0.95*0.5*ysearch(0))
-  d=ROUND(ysearch(1)+0.95*0.5*ysearch(0))
+  a=ROUND(xsearch(1)-ufovRatio*0.5*xsearch(0))
+  b=ROUND(xsearch(1)+ufovRatio*0.5*xsearch(0))
+  c=ROUND(ysearch(1)-ufovRatio*0.5*ysearch(0))
+  d=ROUND(ysearch(1)+ufovRatio*0.5*ysearch(0))
   IF MIN([a,b,c,d]) GT -1 THEN unifROI[a:b,c:d]=1; 95% of active part
 
   return, unifROI
@@ -184,21 +187,24 @@ end
 ;
 ;based on Nelson et al, J Nucl Med 2014;55:169-174
 ;finding active part of image (flood field) and setting ROI to central 90% of this in each direction
-function getSNIroi, img
+function getSNIroi, img, areaRatio
   szImg=SIZE(img, /DIMENSIONS)
 
   SNIroi=INTARR(szImg(0),szImg(1))
 
   ;search image for active part and use 90%
-  vecX=TOTAL(img,2)
-  vecY=TOTAL(img,1)
+  imgAct=SNIroi
+  imgNozero=WHERE(img NE 0)
+  IF imgNozero(0) NE -1 THEN imgAct(imgNozero)=1
+  vecX=TOTAL(imgAct,2)
+  vecY=TOTAL(imgAct,1)
 
   ysearch=getWidthAtThreshold(vecY,0.5*(MIN(vecY)+MAX(vecY)))
   xsearch=getWidthAtThreshold(vecX,0.5*(MIN(vecX)+MAX(vecX)))
-  a=ROUND(xsearch(1)-0.9*0.5*xsearch(0))
-  b=ROUND(xsearch(1)+0.9*0.5*xsearch(0))
-  c=ROUND(ysearch(1)-0.9*0.5*ysearch(0))
-  d=ROUND(ysearch(1)+0.9*0.5*ysearch(0))
+  a=ROUND(xsearch(1)-areaRatio*0.5*xsearch(0))
+  b=ROUND(xsearch(1)+areaRatio*0.5*xsearch(0))
+  c=ROUND(ysearch(1)-areaRatio*0.5*ysearch(0))
+  d=ROUND(ysearch(1)+areaRatio*0.5*ysearch(0))
   IF MIN([a,b,c,d]) GT -1 THEN SNIroi[a:b,c:d]=1; 90% of active part
 
   SNIroiAll=INTARR(szImg(0),szImg(1),9)

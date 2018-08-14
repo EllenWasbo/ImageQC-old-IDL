@@ -20,7 +20,8 @@ pro openFiles, adrFilesToOpen, SILENT=silent
   COMMON VARI
 
   IF adrFilesToOpen(0) NE '' THEN BEGIN
-     
+     WIDGET_CONTROL, /HOURGLASS
+
     ;defPath=FILE_DIRNAME(adrFilesToOpen(0))
     tagNames=TAG_NAMES(structImgs)
     oldSel=WIDGET_INFO(listFiles, /LIST_SELECT)  & oldSel=oldSel(0)
@@ -35,10 +36,11 @@ pro openFiles, adrFilesToOpen, SILENT=silent
 
     ;read image info from dicom header
     errLogg=''
-    
+
     FOR i=0, nFiles-1 DO BEGIN
+
       WIDGET_CONTROL, lblProgress, SET_VALUE='Loading file info: '+STRING(i*100./nFiles, FORMAT='(i0)')+' %'
-      WIDGET_CONTROL, /HOURGLASS
+      
       structNew=readImgInfo(adrFilesToOpen(i), evTop)
       
       IF SIZE(structNew, /TNAME) EQ 'STRUCT' THEN BEGIN

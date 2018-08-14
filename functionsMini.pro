@@ -36,7 +36,10 @@ function updateConfigS, file
     'HomogROIsz',10., 'HomogROIszX',10., 'HomogROIszPET', 10.,'HomogROIdist',55.,'HomogROIdistPET',55.,'HomogROIszNM',25.,'HomogROIdistNM',[100.,200.],$
     'NoiseROIsz',55., $
     'NPSroiSz', 50, 'NPSroiDist', 50., 'NPSsubNN', 20, 'NPSroiSzX', 256, 'NPSsubSzX', 5, 'NPSavg', 1, $
-    'STProiSz', 11.3, 'ScanSpeedAvg', 25, 'ScanSpeedHeight', 100., 'ScanSpeedFiltW', 15, 'ContrastRad1', 20., 'ContrastRad2', 58.,$
+    'STProiSz', 11.3, $
+    'unifAreaRatio', 0.95,'SNIAreaRatio', 0.9,'unifCorr',0,'SNIcorr',0,'distCorr',385.0,'attCoeff',2.2,'detThick',9.5,$
+    'ScanSpeedAvg', 25, 'ScanSpeedHeight', 100., 'ScanSpeedFiltW', 15, $
+    'ContrastRad1', 20., 'ContrastRad2', 58.,$
     'CrossROIsz', 60., 'CrossVol', 0.0)
   configSdefault=CREATE_STRUCT('defConfigNo',1,'configDefault',configDefault)
 
@@ -701,6 +704,53 @@ function getResNmb, tabNmb, stringElem, stringArr0, stringArr1, stringArr2, stri
   i=WHERE(actStrings EQ stringElem)
   resNmb=i
   return, resNmb
+end
+
+;correction matrix based on input image with inverse square law when point source flooding planar detektor
+function corrDistPointSource, img, sid, pix, thick, attcoeff
+  ;center of imager
+  szImg=SIZE(img, /DIMENSIONS)
+  distCenter=FLTARR(szImg/2);pixel distance from center
+  FOR i=0, szImg(0)/2-1 DO BEGIN
+    FOR j=0, szImg(1)/2-1 DO distCenter(i,j)=SQRT((i+0.5)^2+(j+0.5)^2)
+  ENDFOR
+  distCenter=pix*distCenter
+  
+  ;equation A6 from https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3966082/#x0 (doi:  10.1118/1.3125642)
+  ;corrMatrix = f central relativ to f periferral excluding N 
+  ds=distCenter^2+sid^2
+  fCentral =  1. / (sid^2)
+  IF thick GT 0. AND attcoeff GT 0. THEN BEGIN
+    euT=EXP(-attcoeff*thick)
+    fPerif = ((1-euT^(SQRT(ds)/sid))/(1-euT))*(sid/(ds^1.5))
+  ENDIF ELSE fPerif=(sid/(ds^1.5))
+  
+  corrMatrix=img*0.0
+  corrQuad=fCentral/fPerif
+  corrMatrix[0:szImg(0)/2-1,0:szImg(1)/2-1]=ROTATE(corrQuad,2)
+  corrMatrix[0:szImg(0)/2-1,szImg(1)/2:szImg(1)-1]=ROTATE(corrQuad,5)
+  corrMatrix[szImg(0)/2:szImg(0)-1,0:szImg(1)/2-1]=ROTATE(corrQuad,7)
+  corrMatrix[szImg(0)/2:szImg(0)-1,szImg(1)/2:szImg(1)-1]=corrQuad
+  
+  return, corrMatrix
+end
+
+function sum2x2pix, img, repeats
+  ;if image cannot be divided by 2 - right and top pixels missed
+  szImg=SIZE(img, /DIMENSIONS)
+  downscaledImg=FLTARR(szImg/2)
+  imgToSum=img
+  FOR r=0, repeats DO BEGIN
+    FOR i=0, szImg(0)/2-1 DO BEGIN
+      FOR j=0, szImg(1)/2-1 DO BEGIN
+        downScaledImg[i,j]=TOTAL(imgToSum[2*i:2*i+1,2*j:2*j+1])
+      ENDFOR
+    ENDFOR
+    imgToSum=downScaledImg
+    szImg=szImg/2
+    IF r NE repeats THEN downscaledImg=FLTARR(szImg/2)
+  ENDFOR
+  return, downscaledImg
 end
 
 function FFTvector, vec, padfactor

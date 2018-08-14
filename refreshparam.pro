@@ -133,6 +133,16 @@ pro refreshParam, paramSet, paramSetName
   WIDGET_CONTROL, txtNAvgSpeedNM, SET_VALUE=STRING(paramSet.scanSpeedAvg, FORMAT='(i0)')
   WIDGET_CONTROL, txtSpeedROIheight, SET_VALUE=STRING(paramSet.scanSpeedHeight, FORMAT='(f0.1)')
   WIDGET_CONTROL, txtScanSpeedMedian, SET_VALUE=STRING(paramSet.scanSpeedFiltW, FORMAT='(i0)')
+  WIDGET_CONTROL, txtUnifAreaRatio, SET_VALUE=STRING(paramSet.UNIFAREARATIO, FORMAT='(f0.2)')
+  WIDGET_CONTROL, btnUnifCorr, SET_BUTTON=paramSet.UNIFCORR
+  WIDGET_CONTROL, txtUnifDistCorr, SET_VALUE=STRING(paramSet.distCorr, FORMAT='(f0.1)')
+  WIDGET_CONTROL, txtUnifThickCorr, SET_VALUE=STRING(paramSet.detThick, FORMAT='(f0.1)')
+  WIDGET_CONTROL, txtUnifAttCorr, SET_VALUE=STRING(paramSet.attCoeff, FORMAT='(f0.1)')
+  WIDGET_CONTROL, txtSNIAreaRatio, SET_VALUE=STRING(paramSet.SNIAREARATIO, FORMAT='(f0.2)')
+  WIDGET_CONTROL, btnSNICorr, SET_BUTTON=paramSet.SNICORR
+  WIDGET_CONTROL, txtSNIDistCorr, SET_VALUE=STRING(paramSet.distCorr, FORMAT='(f0.1)')
+  WIDGET_CONTROL, txtSNIThickCorr, SET_VALUE=STRING(paramSet.detThick, FORMAT='(f0.1)')
+  WIDGET_CONTROL, txtSNIAttCorr, SET_VALUE=STRING(paramSet.attCoeff, FORMAT='(f0.1)')
   ;SPECT tests
   WIDGET_CONTROL, cw_typeMTFSPECT, SET_VALUE=paramSet.MTFtypeSPECT
   WIDGET_CONTROL, cw_plotMTFSPECT, SET_VALUE=paramSet.plotMTFSPECT

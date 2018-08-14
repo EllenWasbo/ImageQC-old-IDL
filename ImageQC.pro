@@ -20,7 +20,7 @@ pro ImageQC,  GROUP_LEADER=bMain
 
   COMPILE_OPT hidden
   COMMON VARI,  $
-    evTop, lblDir, btnAppend, switchMode, listFiles, lastList, lblLoadedN, lblProgress, lblSettings, selConfig, activeImg, activeResImg, ROIs,  $
+    evTop, currVersion, lblDir, btnAppend, switchMode, listFiles, lastList, lblLoadedN, lblProgress, lblSettings, selConfig, activeImg, activeResImg, ROIs,  $
     marked, markedMulti, multiOpt, btnUseMulti, listSelMultiTemp, multiExpTable, $
     txtActive1, txtActive2, newline, xoffset, yoffset, $
     drawLarge, drawXY, coltable, btnSetColorTable, txtMinWL, txtMaxWL, txtCenterWL, txtWidthWL, lblCursorValue, lblCursorPos,lblCursorPosMM, $
@@ -47,20 +47,21 @@ pro ImageQC,  GROUP_LEADER=bMain
     txtVarImageROIsz, lblProgressVarX, $
     contrastRes, conROIs, txtConR1SPECT, txtConR2SPECT,$
     radialRes, txtRadialMedian, $
-    unifRes, unifROI, $
-    SNIres, SNIroi, $
+    unifRes, unifROI, txtUnifAreaRatio, txtUnifDistCorr, txtUnifThickCorr, txtUnifAttCorr, btnUnifCorr, btnSaveUnifCorr,$
+    SNIres, SNIroi, txtSNIAreaRatio, txtSNIDistCorr, txtSNIThickCorr, txtSNIAttCorr, btnSNICorr, btnSaveSNICorr, $
     acqRes,$
     crossRes, crossROI, txtCrossROIsz, txtCrossMeasAct,txtCrossMeasActT, txtCrossMeasRest, txtCrossMeasRT, txtCrossScanAct, txtCrossScanStart,$
     txtCrossVol, txtCrossConc, txtCrossFactorPrev, txtCrossFactor,$
     rcRes, rcROIs, btnRCrev, cwRCexclude, cw_rcType
 
+  currVersion='1.42'
   thisPath=FILE_DIRNAME(ROUTINE_FILEPATH('ImageQC'))+'\'
 
   ;always refresh structure of config file
-  configS=updateConfigS(thisPath+'data\config.dat')
-  quickTemp=updateQuickT(thisPath+'data\config.dat')
+  configS=updateConfigS(thisPath+'data\config.dat');functionsMini.pro
+  quickTemp=updateQuickT(thisPath+'data\config.dat');functionsMini.pro
   IF N_ELEMENTS(quickTemp) EQ 0 THEN quickTemp=0 
-  loadTemp=updateLoadT(thisPath+'data\config.dat')
+  loadTemp=updateLoadT(thisPath+'data\config.dat');functionsMini.pro
   SAVE, configS, quickTemp, loadTemp, FILENAME=thisPath+'data\config.dat' 
 
   selConfig=configS.(0)
@@ -123,7 +124,7 @@ pro ImageQC,  GROUP_LEADER=bMain
   xoffset=100
   yoffset=50
 
-  bMain = WIDGET_BASE(TITLE='ImageQC v1.41', MBAR=bar, /COLUMN, XSIZE=winX, YSIZE=winY-60, XOFFSET=xoffset, YOFFSET=yoffset, X_SCROLL_SIZE=scX, Y_SCROLL_SIZE=scY, /TLB_KILL_REQUEST_EVENTS, /TLB_MOVE_EVENTS)
+  bMain = WIDGET_BASE(TITLE='ImageQC v'+currVersion, MBAR=bar, /COLUMN, XSIZE=winX, YSIZE=winY-60, XOFFSET=xoffset, YOFFSET=yoffset, X_SCROLL_SIZE=scX, Y_SCROLL_SIZE=scY, /TLB_KILL_REQUEST_EVENTS, /TLB_MOVE_EVENTS)
   bLarge = WIDGET_BASE(bMain, /ROW)
   bLft = WIDGET_BASE(bLarge, XSIZE=700, YSIZE=winY-190,/COLUMN)
   bRgt = WIDGET_BASE(bLarge, XSIZE=700, YSIZE=winY-190,/COLUMN)
@@ -144,6 +145,7 @@ pro ImageQC,  GROUP_LEADER=bMain
   btnEditLoadTemp=WIDGET_BUTTON(sett_menu, VALUE='Edit/manage automation templates', UVALUE='manageLoadTemp')
   
   ;help_menu
+  btnVersion=WIDGET_BUTTON(help_menu, VALUE='Check for update on GitHub', UVALUE='updGitHub')
   btnInfo=WIDGET_BUTTON(help_menu, VALUE='Wiki on GitHub.com', UVALUE='info')
   btnAbout=WIDGET_BUTTON(help_menu, VALUE='About ImageQC...',UVALUE='about')
 
@@ -181,8 +183,8 @@ pro ImageQC,  GROUP_LEADER=bMain
   mlprevnext=WIDGET_LABEL(bPrevNext, VALUE='', YSIZE=70)
   btnPrev = WIDGET_BUTTON(bPrevNext, VALUE=thisPath+'images\shift_up.bmp',/BITMAP,UVALUE='prev',TOOLTIP='Previous image in list')
   btnNext = WIDGET_BUTTON(bPrevNext, VALUE=thisPath+'images\shift_down.bmp', /BITMAP,UVALUE='next',TOOLTIP='Next image in list')
-  mlmovie=WIDGET_LABEL(bPrevNext, VALUE='', YSIZE=50)
-  btnMovie=WIDGET_BUTTON(bPrevNext, VALUE=thisPath+'images\play.bmp',/BITMAP,UVALUE='movie',TOOLTIP='Show images as movie')
+
+  
 
   ;image
   bDraw = WIDGET_BASE(bLft, XSIZE=drawXY+180, YSIZE=drawXY+10, /ROW)
@@ -196,7 +198,7 @@ pro ImageQC,  GROUP_LEADER=bMain
   btnSetWLminmax=WIDGET_BUTTON(bWLtit, VALUE=thisPath+'images\minmax.bmp', /BITMAP, UVALUE='WLminmax', TOOLTIP='Set Window Level to min/max in image')
   btnSetWLstdev=WIDGET_BUTTON(bWLtit, VALUE=thisPath+'images\meanstdev.bmp', /BITMAP, UVALUE='WLmeanstdev', TOOLTIP='Set Window Level to mean+/-stdev of pixelvalues in selected image')
 
-  btnSetColorTable=WIDGET_BUTTON(bViz, VALUE=thisPath+'images\ctGrayScale.bmp',/BITMAP, UVALUE='colorTable', /FLAT, TOOLTIP='Change colortable')
+  
   bWindowMinMax=WIDGET_BASE(bViz, /ROW)
 
   txtMinWL = WIDGET_TEXT(bWindowMinMax, VALUE='-200', /EDITABLE, XSIZE=6, SCR_YSIZE=20, /KBRD_FOCUS_EVENTS, FONT=font1)
@@ -211,6 +213,7 @@ pro ImageQC,  GROUP_LEADER=bMain
   lblWidth=WIDGET_LABEL(bWindowCenterWidth, VALUE=',',FONT=font1, SCR_XSIZE=3);, /ALIGN_RIGHT)
   txtWidthWL=WIDGET_TEXT(bWindowCenterWidth, VALUE='400', /EDITABLE, XSIZE=6, SCR_YSIZE=20, /KBRD_FOCUS_EVENTS, FONT=font1)
 
+  btnSetColorTable=WIDGET_BUTTON(bViz, VALUE=thisPath+'images\ctGrayScale.bmp',/BITMAP, UVALUE='colorTable', /FLAT, TOOLTIP='Change colortable')
   mlRgtimg0 = WIDGET_LABEL(bDrawLft, VALUE='', YSIZE=5);, FONT=font1)
 
   ;rgt of image - cursor
@@ -270,7 +273,8 @@ pro ImageQC,  GROUP_LEADER=bMain
   btnSag = WIDGET_BUTTON(toolBarDraw, VALUE=thisPath+'images\sag.bmp', /BITMAP, UVALUE='sag', TOOLTIP='Send sagittal image found from image stack at defined senter to iImage window')
   lblML2=WIDGET_LABEL(toolBarDraw, VALUE='', XSIZE=5, FONT=font1)
   btnSumAx = WIDGET_BUTTON(toolBarDraw, VALUE=thisPath+'images\sum.bmp', /BITMAP, UVALUE='sumax', TOOLTIP='Sum all or marked (X) images and send to iImage window')
-  btn3dVol  = WIDGET_BUTTON(toolBarDraw, VALUE='3D', UVALUE='3d', TOOLTIP='Under construction...')
+  btn3dVol  = WIDGET_BUTTON(toolBarDraw, VALUE='3D', UVALUE='3d', TOOLTIP='Visualize in IDL 3d Slicer3')
+  btnMovie=WIDGET_BUTTON(toolBarDraw, VALUE=thisPath+'images\play.bmp',/BITMAP,UVALUE='movie',TOOLTIP='Show images as movie')
 
   bInfoLow=WIDGET_BASE(bLft, /ROW)
   mlinfo=WIDGET_LABEL(bInfoLow, VALUE='', XSIZE=30)
@@ -509,7 +513,7 @@ pro ImageQC,  GROUP_LEADER=bMain
   bMTFsettingsX=WIDGET_BASE(wtabAnalysisXray, TITLE='5. MTF',/COLUMN)
   bNPSX=WIDGET_BASE(wtabAnalysisXray, TITLE='NPS',/Column)
   bVariX=WIDGET_BASE(wtabAnalysisXray, TITLE='Variance image',/Column)
-  bROIX=WIDGET_BASE(wtabAnalysisXray, TITLE='ROI',/COLUMN)
+  ;bROIX=WIDGET_BASE(wtabAnalysisXray, TITLE='ROI',/COLUMN)
 
   ;---------------STP--------
     lblstpMl0=WIDGET_LABEL(bSTP, VALUE='', SCR_YSIZE=20)
@@ -631,18 +635,71 @@ pro ImageQC,  GROUP_LEADER=bMain
   bMTFNM=WIDGET_BASE(wtabAnalysisNM, TITLE='MTF',/Column)
   
   ;----------------Uniformity------------------
-  lblunifMl0=WIDGET_LABEL(bUniformity, VALUE='', SCR_YSIZE=20)
-  lblunif2=WIDGET_LABEL(bUniformity, VALUE='Based on NEMA NU-1 2007. UFOV assumed to be 95% of signal area.',FONT=font1)
-  lblunifMl2=WIDGET_LABEL(bUniformity, VALUE='', SCR_YSIZE=20)
+  lblunifMl0=WIDGET_LABEL(bUniformity, VALUE='', SCR_YSIZE=5)
+  lblunif2=WIDGET_LABEL(bUniformity, VALUE='Based on NEMA NU-1 2007. See "Image Results" for resized and smoothed matrix.',FONT=font1, /ALIGN_LEFT)
+  lblunifMl2=WIDGET_LABEL(bUniformity, VALUE='', SCR_YSIZE=5)
+  
+  bUnifAreaRatio=WIDGET_BASE(bUniformity, /ROW)
+  lblUnifAreaRatio=WIDGET_LABEL(bUnifAreaRatio, VALUE='UFOV ratio of image (nonzero part of image)', FONT=font1)
+  txtUnifAreaRatio=WIDGET_TEXT(bUnifAreaRatio, VALUE='', XSIZE=5, /EDITABLE, /KBRD_FOCUS_EVENTS, FONT=font1)
+  
+  ;distance correction
+  bUnifDistCorr=WIDGET_BASE(bUniformity, /COLUMN)
+  bSetUnifCorr=WIDGET_BASE(bUnifDistCorr, /NONEXCLUSIVE, /COLUMN, YSIZE=22)
+  btnUnifCorr=WIDGET_BUTTON(bSetUnifCorr, VALUE='Correct for point-source to imager distance (source assumed centrally positioned)', UVALUE='unifCorrSet', FONT=font1)
+  bUnifCorrParam=WIDGET_BASE(bUnifDistCorr, /ROW)
+  lblCP=WIDGET_LABEL(bUnifCorrParam, VALUE='', XSIZE=20)
+  bUnifCorrParams=WIDGET_BASE(bUnifCorrParam, /COLUMN)
+  
+  bUnifDistCorrVal=WIDGET_BASE(bUnifCorrParams, /ROW, YSIZE=22)
+  lblUnifDistCorr=WIDGET_LABEL(bUnifDistCorrVal, VALUE='Source - detector distance', FONT=font1, XSIZE=150)
+  txtUnifDistCorr=WIDGET_TEXT(bUnifDistCorrVal, VALUE='', /EDITABLE, XSIZE=7, SCR_YSIZE=20, /KBRD_FOCUS_EVENTS, FONT=font1)
+  lblUnifDistCorr2=WIDGET_LABEL(bUnifDistCorrVal, VALUE='mm', FONT=font1)
+  bUnifThickCorrVal=WIDGET_BASE(bUnifCorrParams, /ROW, YSIZE=20)
+  lblUnifThickCorr=WIDGET_LABEL(bUnifThickCorrVal, VALUE='Detector thickness', FONT=font1, XSIZE=150)
+  txtUnifThickCorr=WIDGET_TEXT(bUnifThickCorrVal, VALUE='', /EDITABLE, XSIZE=5, SCR_YSIZE=20, /KBRD_FOCUS_EVENTS, FONT=font1)
+  lblUnifThickCorr2=WIDGET_LABEL(bUnifThickCorrVal, VALUE='mm', FONT=font1)
+  bUnifAttCorrVal=WIDGET_BASE(bUnifCorrParams, /ROW, YSIZE=20)
+  lblUnifAttCorr=WIDGET_LABEL(bUnifAttCorrVal, VALUE='Attenuation coefficient of detector', FONT=font1, XSIZE=150)
+  txtUnifAttCorr=WIDGET_TEXT(bUnifAttCorrVal, VALUE='', /EDITABLE, XSIZE=5, SCR_YSIZE=20, /KBRD_FOCUS_EVENTS, FONT=font1)
+  lblUnifAttCorr2=WIDGET_LABEL(bUnifAttCorrVal, VALUE='1/cm', FONT=font1)
+  bSaveUnifCorr=WIDGET_BASE(bUnifCorrParams, /NONEXCLUSIVE, /COLUMN, YSIZE=22)
+  btnSaveUnifCorr=WIDGET_BUTTON(bSaveUnifCorr, VALUE='Save corrected image (full resolution) as .dat-file for verification', UVALUE='saveUnifCorrSet', FONT=font1)
+
   btnUnif=WIDGET_BUTTON(bUniformity, VALUE='Calculate Uniformity', UVALUE='uniformityNM',FONT=font1)
   
   ;----------------SNI------------------
-  lblsniMl0=WIDGET_LABEL(bSNI, VALUE='', SCR_YSIZE=20)
-  lblSNI=WIDGET_LABEL(bSNI, VALUE='SNI = Structured Noise Index',FONT=font1, /ALIGN_LEFT)
-  lblSNI2=WIDGET_LABEL(bSNI, VALUE='Based on: Nelson et al. J Nucl Med 2014; 55:169-174',FONT=font1, /ALIGN_LEFT)
-  lblsniMl0=WIDGET_LABEL(bSNI, VALUE='', SCR_YSIZE=20)
-  lblSNI3=WIDGET_LABEL(bSNI, VALUE='Displaying only ROIs L1,L2 and S1,S2 in the image',FONT=font1, /ALIGN_LEFT)
-  lblsniMl2=WIDGET_LABEL(bSNI, VALUE='', SCR_YSIZE=20)
+  lblsniMl0=WIDGET_LABEL(bSNI, VALUE='', SCR_YSIZE=5)
+  lblSNI=WIDGET_LABEL(bSNI, VALUE='SNI = Structured Noise Index, Based on: Nelson et al. J Nucl Med 2014; 55:169-174',FONT=font1, /ALIGN_LEFT)
+  lblsniMl0=WIDGET_LABEL(bSNI, VALUE='', SCR_YSIZE=5)
+
+  bSNIAreaRatio=WIDGET_BASE(bSNI, /ROW)
+  lblSNIAreaRatio=WIDGET_LABEL(bSNIAreaRatio, VALUE='Ratio of image to be analyzed (ratio of nonzero part of image)', FONT=font1)
+  txtSNIAreaRatio=WIDGET_TEXT(bSNIAreaRatio, VALUE='', XSIZE=5, /EDITABLE, /KBRD_FOCUS_EVENTS, FONT=font1)
+
+  ;distance correction
+  bSNIDistCorr=WIDGET_BASE(bSNI, /COLUMN)
+  bSetSNICorr=WIDGET_BASE(bSNIDistCorr, /NONEXCLUSIVE, /COLUMN, YSIZE=22)
+  btnSNICorr=WIDGET_BUTTON(bSetSNICorr, VALUE='Correct for point-source to imager distance (source assumed centrally positioned)', UVALUE='SNICorrSet', FONT=font1)
+  bSNICorrParam=WIDGET_BASE(bSNIDistCorr, /ROW)
+  lblCP=WIDGET_LABEL(bSNICorrParam, VALUE='', XSIZE=20)
+  bSNICorrParams=WIDGET_BASE(bSNICorrParam, /COLUMN)
+
+  bSNIDistCorrVal=WIDGET_BASE(bSNICorrParams, /ROW, YSIZE=22)
+  lblSNIDistCorr=WIDGET_LABEL(bSNIDistCorrVal, VALUE='Source - detector distance', FONT=font1, XSIZE=150)
+  txtSNIDistCorr=WIDGET_TEXT(bSNIDistCorrVal, VALUE='', /EDITABLE, XSIZE=7, SCR_YSIZE=20, /KBRD_FOCUS_EVENTS, FONT=font1)
+  lblSNIDistCorr2=WIDGET_LABEL(bSNIDistCorrVal, VALUE='mm', FONT=font1)
+  bSNIThickCorrVal=WIDGET_BASE(bSNICorrParams, /ROW, YSIZE=20)
+  lblSNIThickCorr=WIDGET_LABEL(bSNIThickCorrVal, VALUE='Detector thickness', FONT=font1, XSIZE=150)
+  txtSNIThickCorr=WIDGET_TEXT(bSNIThickCorrVal, VALUE='', /EDITABLE, XSIZE=5, SCR_YSIZE=20, /KBRD_FOCUS_EVENTS, FONT=font1)
+  lblSNIThickCorr2=WIDGET_LABEL(bSNIThickCorrVal, VALUE='mm', FONT=font1)
+  bSNIAttCorrVal=WIDGET_BASE(bSNICorrParams, /ROW, YSIZE=20)
+  lblSNIAttCorr=WIDGET_LABEL(bSNIAttCorrVal, VALUE='Attenuation coefficient of detector', FONT=font1, XSIZE=150)
+  txtSNIAttCorr=WIDGET_TEXT(bSNIAttCorrVal, VALUE='', /EDITABLE, XSIZE=5, SCR_YSIZE=20, /KBRD_FOCUS_EVENTS, FONT=font1)
+  lblSNIAttCorr2=WIDGET_LABEL(bSNIAttCorrVal, VALUE='1/cm', FONT=font1)
+  bSaveSNICorr=WIDGET_BASE(bSNICorrParams, /NONEXCLUSIVE, /COLUMN, YSIZE=22)
+  btnSaveSNICorr=WIDGET_BUTTON(bSaveSNICorr, VALUE='Save corrected image (full resolution) as .dat-file for verification', UVALUE='saveSNICorrSet', FONT=font1)
+  
   btnSNI=WIDGET_BUTTON(bSNI, VALUE='Calculate SNI', UVALUE='SNI',FONT=font1)
 
   ;----------------Acquisition params----------
@@ -759,6 +816,7 @@ pro ImageQC,  GROUP_LEADER=bMain
   bCrossROI=WIDGET_BASE(bCross, /ROW)
   lblCrossROIsz = WIDGET_LABEL(bCrossROI, VALUE='ROI radius (mm)',FONT=font1)
   txtCrossROIsz = WIDGET_TEXT(bCrossROI, VALUE='', /EDITABLE, XSIZE=4, SCR_YSIZE=20, FONT=font1)
+  btnCrossGetAct = WIDGET_BUTTON(bCross, VALUE='Get administered activity and time from DICOM header', UVALUE='crossGetAct', FONT=font1)
 
   bCrossInput=WIDGET_BASE(bCross, /ROW)
   bCrossInputLft=WIDGET_BASE(bCrossInput, /COLUMN, FRAME=1, XSIZE=360)

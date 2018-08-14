@@ -41,6 +41,14 @@ pro ImageQC_event, ev
           Else: if (!version.os_name eq 'Mac OS X') then SPAWN, 'open '+url
         Endcase
       END
+      'updGitHub': BEGIN
+        sv=DIALOG_MESSAGE('Your version of Image QC is ' + currVersion + '. You will be sent to the version-page for ImageQC on GitHub to check whether this is the latest version.', /INFORMATION, DIALOG_PARENT=evTop)
+        url='https://github.com/EllenWasbo/ImageQC/wiki/Versions'
+        Case !version.os_family of
+          'Windows': SPAWN, 'start '+url
+          Else: if (!version.os_name eq 'Mac OS X') then SPAWN, 'open '+url
+        Endcase
+        END
       'about': imageqc_about, GROUP_LEADER=ev.top
       'close': clearAll
 
@@ -97,18 +105,19 @@ pro ImageQC_event, ev
         Catch, errStat
         IF errStat NE 0 THEN BEGIN
           sv=DIALOG_MESSAGE('Error when opening files. Might be caused when selecting hundreds of files. Use the open folders option (all images in selected folder(s)) might prevent this.', DIALOG_PARENT=evTop)
-          ;print, 'Error message:', !Error_state.msg
-          ;stop
+          print, 'Error message:', !Error_state.msg
           adrFilesToOpen=''
           CATCH, /CANCEL
         ENDIF
 
         IF adrFilesToOpen(0) EQ '--' THEN BEGIN
           adrFilesToOpen=DIALOG_PICKFILE(TITLE='Select DICOM or .dat file(s) to open.', /READ, /Multiple_files, PATH=defPath, DIALOG_PARENT=evTop)
+          WIDGET_CONTROL, lblProgress, SET_VALUE='Preparing to load new files...'
           WIDGET_CONTROL, /HOURGLASS
           openFiles, adrFilesToOpen(SORT(adrFilesToOpen))
           redrawImg,0,1
           updateInfo
+          WIDGET_CONTROL, lblProgress, SET_VALUE=''
         ENDIF
       END
 
@@ -425,8 +434,7 @@ pro ImageQC_event, ev
                   copyHeader=oldCopyHeader
                   transposeTable=oldTransposeTable
                   redrawImg, 0,1
-                  updateInfo
-                  updateTable
+                  updateInfo;calling updateTable
                   updatePlot,1,1,0
                   WIDGET_CONTROL, wtabResult, SET_TAB_CURRENT=0
                   IF infoLogg NE '' THEN sv=DIALOG_MESSAGE(infoLogg, /INFORMATION, DIALOG_PARENT=evTop)
@@ -697,7 +705,7 @@ pro ImageQC_event, ev
                   WIDGET_CONTROL, listFiles, SCR_YSIZE=170
                   redrawImg,0,1
 
-                  IF markedMulti(0) NE -1 THEN clearRes ELSE BEGIN
+                  IF markedMulti(0) NE -1 THEN clearRes ELSE BEGIN; too complicated to keep results if markedMulti
                     CASE modality OF
                       0: analyseStrings=analyseStringsCT
                       1: analyseStrings=analyseStringsXray
@@ -710,16 +718,12 @@ pro ImageQC_event, ev
                       IF results(i) THEN BEGIN
                         CASE analyseStrings(i) OF
                           'DIM': dimRes=dimRes[*,remain]
-                          'STP': BEGIN
-                            stpRes=!Null
-                            analyse='NONE'
-                          END
+                          'STP': clearRes, 'STP'
                           'HOMOG': homogRes=homogRes[*,remain]
-                          'NOISE': noise=!Null; because avg dependent on rest - recalculation needed
+                          'NOISE': clearRes, 'NOISE'; because avg dependent on rest - recalculation needed
                           'EI': eiRes=eiRes[*,remain]
                           'MTF': MTFres=removeIDstructstruct(MTFres,sel)
                           'NPS': NPSres=removeIDstructstruct(NPSres,sel)
-                          ;'ROI': ROIres=ROIres[*,remain]
                           'CTLIN': CTlinres=CTlinres[*,remain]
                           'SLICETHICK': BEGIN
                             sliceThickRes=removeIDstructstruct(sliceThickRes,sel)
@@ -729,20 +733,11 @@ pro ImageQC_event, ev
                           'ENERGYSPEC':
                           'SCANSPEED':
                           'CONTRAST': contrastRes=contrastRes[*,remain]
-                          'RADIAL': BEGIN
-                            radialRes=!Null ;less could be done, but - no time right no - fix later to keep remaining results
-                            analyse='NONE'
-                          END
-                          'UNIF': unifRes=unifRes[*,remain]
+                          'RADIAL': clearRes, 'RADIAL';less could be done, but - no time right no - fix later to keep remaining results
+                          'UNIF': clearRes, 'UNIF';less could be done, but - no time right no - fix later to keep remaining results
                           'SNI': SNIres=removeIDstructstruct(SNIres,sel)
-                          'CROSSCALIB': BEGIN
-                            crossRes=!Null
-                            analyse='NONE'
-                          END
-                          'RC': BEGIN
-                            rcRes=!Null ;probably less could be done, but - just in case some trouble
-                            analyse='NONE'
-                          END
+                          'CROSSCALIB': clearRes, 'CROSSCALIB'
+                          'RC': clearRes, 'RC';probably less could be done, but - just in case some trouble
                         ENDCASE
                       ENDIF
                     ENDFOR
@@ -2121,6 +2116,8 @@ pro ImageQC_event, ev
           WIDGET_CONTROL, wtabResult, SET_TAB_CURRENT=0
         ENDIF
       END
+      'unifCorrSet': IF TOTAL(results) GT 0 THEN sv=DIALOG_MESSAGE('Calculate uniformity to update with new setting.', DIALOG_PARENT=evTop)
+      'saveUnifCorrSet': IF TOTAL(results) GT 0 THEN sv=DIALOG_MESSAGE('Calculate uniformity to update with new setting.', DIALOG_PARENT=evTop)
 
       'SNI': BEGIN
         IF tags(0) NE 'EMPTY' THEN BEGIN
@@ -2292,6 +2289,22 @@ pro ImageQC_event, ev
       END
 
       ;----analyse tab Crosscalibration--------------------------------------------------------------------------------------------------
+      'crossGetAct': BEGIN
+        ;get administered activity and time from DICOM header
+        IF tags(0) NE 'EMPTY' THEN BEGIN
+          admA=structImgs.(0).admDose
+          admT=structImgs.(0).admDoseTime
+          IF admA NE '-' THEN BEGIN
+            admA=FLOAT(admA)/(1e+6)
+            WIDGET_CONTROL, txtCrossMeasAct, SET_VALUE=STRING(admA, FORMAT=formatCode(admA))
+            admT=STRING(admT, FORMAT='(i06)')
+            admHour=STRMID(admT,0,2)
+            admMin=STRMID(admT,2,2)
+            WIDGET_CONTROL, txtCrossMeasActT, SET_VALUE=admHour+':'+admMin
+          ENDIF ELSE sv=DIALOG_MESSAGE('Found no administered activity in the DICOM header of the first image.')
+        ENDIF ELSE sv=DIALOG_MESSAGE('No image loaded yet.')
+        
+        END
       'cross': BEGIN
         ;get ROI values
         IF tags(0) NE 'EMPTY' THEN BEGIN
@@ -3023,7 +3036,70 @@ pro ImageQC_event, ev
           ENDIF ELSE WIDGET_CONTROL, lblNPSsubSzMMX, SET_VALUE=' '
           clearRes, 'NPS' & redrawImg,0,0
         END
-
+        txtUnifAreaRatio: BEGIN
+          WIDGET_CONTROL, txtUnifAreaRatio, GET_VALUE=val
+          val=ABS(FLOAT(comma2pointFloat(val(0))))
+          IF val GT 1. THEN val=1.
+          WIDGET_CONTROL, txtUnifAreaRatio, SET_VALUE=STRING(val, FORMAT='(f0.2)')
+          clearRes, 'UNIF' & redrawImg,0,0
+        END
+        txtSNIAreaRatio: BEGIN
+          WIDGET_CONTROL, txtSNIAreaRatio, GET_VALUE=val
+          val=ABS(FLOAT(comma2pointFloat(val(0))))
+          IF val GT 1. THEN val=1.
+          WIDGET_CONTROL, txtSNIAreaRatio, SET_VALUE=STRING(val, FORMAT='(f0.2)')
+          clearRes, 'SNI' & redrawImg,0,0
+        END
+        txtUnifDistCorr: BEGIN
+          WIDGET_CONTROL, txtUnifDistCorr, GET_VALUE=val
+          val=ABS(FLOAT(comma2pointFloat(val(0))))
+          IF val LE 0 THEN val=100
+          WIDGET_CONTROL, txtUnifDistCorr, SET_VALUE=STRING(val, FORMAT='(f0.1)')
+          WIDGET_CONTROL, txtSNIDistCorr, SET_VALUE=STRING(val, FORMAT='(f0.1)')
+          clearRes, 'UNIF'
+          clearRes, 'SNI'
+        END
+        txtUnifThickCorr: BEGIN
+          WIDGET_CONTROL, txtUnifThickCorr, GET_VALUE=val
+          val=ABS(FLOAT(comma2pointFloat(val(0))))
+          WIDGET_CONTROL, txtUnifThickCorr, SET_VALUE=STRING(val, FORMAT='(f0.1)')
+          WIDGET_CONTROL, txtSNIThickCorr, SET_VALUE=STRING(val, FORMAT='(f0.1)')
+          clearRes, 'UNIF'
+          clearRes, 'SNI'
+        END
+        txtUnifAttCorr: BEGIN
+          WIDGET_CONTROL, txtUnifAttCorr, GET_VALUE=val
+          val=ABS(FLOAT(comma2pointFloat(val(0))))
+          WIDGET_CONTROL, txtUnifAttCorr, SET_VALUE=STRING(val, FORMAT='(f0.1)')
+          WIDGET_CONTROL, txtSNIAttCorr, SET_VALUE=STRING(val, FORMAT='(f0.1)')
+          clearRes, 'UNIF'
+          clearRes, 'SNI'
+        END
+        txtSNIDistCorr: BEGIN
+          WIDGET_CONTROL, txtSNIDistCorr, GET_VALUE=val
+          val=ABS(FLOAT(comma2pointFloat(val(0))))
+          IF val EQ 0 THEN val=100
+          WIDGET_CONTROL, txtSNIDistCorr, SET_VALUE=STRING(val, FORMAT='(f0.1)')
+          WIDGET_CONTROL, txtUnifDistCorr, SET_VALUE=STRING(val, FORMAT='(f0.1)')
+          clearRes, 'SNI'
+          clearRes, 'UNIF'
+        END
+        txtSNIThickCorr: BEGIN
+          WIDGET_CONTROL, txtSNIThickCorr, GET_VALUE=val
+          val=ABS(FLOAT(comma2pointFloat(val(0))))
+          WIDGET_CONTROL, txtSNIThickCorr, SET_VALUE=STRING(val, FORMAT='(f0.1)')
+          WIDGET_CONTROL, txtUnifThickCorr, SET_VALUE=STRING(val, FORMAT='(f0.1)')
+          clearRes, 'SNI'
+          clearRes, 'UNIF'
+        END
+        txtSNIAttCorr: BEGIN
+          WIDGET_CONTROL, txtSNIAttCorr, GET_VALUE=val
+          val=ABS(FLOAT(comma2pointFloat(val(0))))
+          WIDGET_CONTROL, txtSNIAttCorr, SET_VALUE=STRING(val, FORMAT='(f0.1)')
+          WIDGET_CONTROL, txtUnifAttCorr, SET_VALUE=STRING(val, FORMAT='(f0.1)')
+          clearRes, 'SNI'
+          clearRes, 'UNIF'
+        END
         txtNAvgSpeedNM: BEGIN
           WIDGET_CONTROL, txtNAvgSpeedNM, GET_VALUE=val
           val=LONG(val(0))
@@ -3295,7 +3371,7 @@ pro ImageQC_event, ev
 
   ENDIF
   ;-------------------- WIDGET_TAB events-----------------------------------
-  ;New analysis type selected
+  ;New tab mode/analysis/result type selected
   IF (TAG_NAMES(ev, /STRUCTURE_NAME) EQ 'WIDGET_TAB') THEN BEGIN
 
     tags=TAG_NAMES(structImgs)
@@ -3348,14 +3424,26 @@ pro ImageQC_event, ev
         analyse=analyseStringsPET(selTab)
         IF loadedImg THEN redrawImg, 0,0
       END
+      wtabResult:BEGIN
+        IF TOTAL(results) GT 0 THEN BEGIN
+          CASE selTab OF
+            0: updateTable
+            1: updatePlot, 0,0,0
+            2: updateImageRes
+            ELSE:
+          ENDCASE
+         ENDIF
+        END
+        
       ELSE:
+      
     ENDCASE
 
     IF loadedImg THEN BEGIN;IF ev.ID NE wtabResult AND loadedImg THEN BEGIN
       IF ev.ID NE wtabResult THEN BEGIN
         updateTable
         IF WIDGET_INFO(wtabResult, /TAB_CURRENT) EQ 1 THEN updatePlot, 1,1,0 ELSE updatePlot, 1,1,3
-      ENDIF ELSE updatePlot, 0,0,0
+      ENDIF; ELSE updatePlot, 0,0,0
     ENDIF
   ENDIF
 

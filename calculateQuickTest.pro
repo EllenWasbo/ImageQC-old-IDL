@@ -263,7 +263,7 @@ pro calculateQuickTest
                         addTable[*,*]='_'
                         addTable[0,0]=STRING(im+1, FORMAT='(i0)')
                         addTable[1,*]=TRANSPOSE(['IU_UFOV', 'DU_UFOV', 'IU_CFOV', 'DU_CFOV'])
-                        addTable[2,*]=TRANSPOSE(STRING(unifRes[*,im], FORMAT='(F0.2)'))
+                        addTable[2,*]=TRANSPOSE(STRING(unifRes.table[*,im], FORMAT='(F0.2)'))
                         multiExpTable=[[multiExpTable],[addTable]]
                       ENDIF
                     ENDFOR
@@ -275,11 +275,14 @@ pro calculateQuickTest
                     addTable=STRARR(3,addrows)
                     FOR im=0, nImg-1 DO BEGIN
                       IF markedMulti(tt,im) THEN BEGIN
-                        addTable[*,cc]=[STRING(im+1, FORMAT='(i0)'),'SNImax',STRING(SNIres.(im).snivalues(0),FORMAT='(f0.3)')]
-                        cc=cc+1
+                        addTable=STRARR(3,9)
+                        addTable[*,*]='_'
+                        addTable[0,0]=STRING(im+1, FORMAT='(i0)')
+                        addTable[1,*]=TRANSPOSE(['SNI max','SNI L1','SNI L2','SNI S1','SNI S2','SNI S3','SNI S4','SNI S5','SNI S6'])
+                        addTable[2,*]=TRANSPOSE(STRING(SNIres.(im).snivalues, FORMAT='(F0.2)'))
+                        multiExpTable=[[multiExpTable],[addTable]]
                       ENDIF
                     ENDFOR
-                    multiExpTable=[[multiExpTable],[addTable]]
                   ENDIF
                 END
                 3: BEGIN

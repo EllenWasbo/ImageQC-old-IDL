@@ -300,6 +300,7 @@ function readImgInfo, adr, dialog_par
       test=o->GetReference('0018'x,'1411'x)
       test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
       IF test(0) NE -1 THEN EI=*(test_peker[0]) ELSE EI=-1.
+      IF N_ELEMENTS(EI) NE 1 THEN EI=fix(EI, type=7)
 
       test=o->GetReference('0018'x,'6000'x)
       test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
@@ -442,7 +443,7 @@ function readImgInfo, adr, dialog_par
         'frameNo', frameNo)
 
       IF imgStruct.nFrames GT 1 THEN BEGIN; split structure into separate image-structures
-        firstStruct=structArr2elem(imgStruct, ['ZPOS','RADIUS1','RADIUS2'], 0)
+        firstStruct=structArr2elem(imgStruct, ['ZPOS','RADIUS1','RADIUS2','ANGLE'], 0)
         firstStruct.frameNo=1
         imgStructMulti=CREATE_STRUCT('M0',firstStruct)
         FOR ism=1,  imgStruct.nFrames -1 DO BEGIN

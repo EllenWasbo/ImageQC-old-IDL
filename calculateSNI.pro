@@ -63,7 +63,6 @@ end
 
 ;Calculate Structured Noise Index (SNI) based on Nelson et al, J Nucl Med 2014;55:169-174
 function calculateSNI, noiseImg, SNIroi, pix
-
   szI=SIZE(noiseImg,/DIMENSIONS)
 
   temp=TOTAL(SNIroi,2)

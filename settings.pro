@@ -29,10 +29,11 @@ pro settings, GROUP_LEADER = mainbase, xoff, yoff
   ;save new
   lblAdd=WIDGET_LABEL(settingsbox, VALUE='Save current settings to parameter set', /ALIGN_LEFT, FONT="Arial*ITALIC*16")
   bAdd=WIDGET_BASE(settingsbox, /ROW)
-  btnSave=WIDGET_BUTTON(bAdd, VALUE='save.bmp', /BITMAP, UVALUE='s_saveNew')
+  
   mla1=WIDGET_LABEL(bAdd, VALUE='', XSIZE=20)
   lblName=WIDGET_LABEL(bAdd, VALUE='New parameter set name:')
   txtName=WIDGET_TEXT(bAdd, VALUE='', /EDITABLE, XSIZE=15)
+  btnSave=WIDGET_BUTTON(bAdd, VALUE='save.bmp', /BITMAP, UVALUE='s_saveNew')
   bAddComment=WIDGET_BASE(settingsbox, /ROW)
   mla1=WIDGET_LABEL(bAddComment, VALUE='', XSIZE=200)
   lblComment=WIDGET_LABEL(bAddComment, VALUE='(leave blank to overwrite selected parameter set)')

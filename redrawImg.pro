@@ -70,17 +70,17 @@ pro redrawImg, viewpl, newActive
       fileList=getListOpenFiles(structImgs,0,marked, markedMulti)
       IF tempStruct.zpos NE -999. AND tempStruct.sliceThick GT 0. THEN textZpos='z = '+ STRING(tempStruct.zpos,FORMAT='(f0.3)') ELSE textZpos = ''
 
-      oTextZ = OBJ_NEW('IDLgrText', textZpos, LOCATIONS = [2,20], COLOR = 255*([1,0,0]))
+      oTextZ = OBJ_NEW('IDLgrText', textZpos, LOCATIONS = [2,10], COLOR = 255*([1,0,0]));[2,20] when above oTextAdr
       oModel->Add, oTextZ
 
-      preStrLen=2
-      IF markedMulti(0) NE -1 THEN BEGIN
-        nTestMarked=TOTAL(markedMulti[*,sel])
-        preStrLen=3+nTestMarked+(N_ELEMENTS(markedMulti[*,sel])-nTestMarked)*2
-      ENDIF
-      textAdr=STRMID(fileList(sel),preStrLen)
-      oTextAdr = OBJ_NEW('IDLgrText', textAdr, LOCATIONS = [2,2], COLOR = 255*([1,0,0]))
-      oModel->Add, oTextAdr
+;      preStrLen=2
+;      IF markedMulti(0) NE -1 THEN BEGIN
+;        nTestMarked=TOTAL(markedMulti[*,sel])
+;        preStrLen=3+nTestMarked+(N_ELEMENTS(markedMulti[*,sel])-nTestMarked)*2
+;      ENDIF
+;      textAdr=STRMID(fileList(sel),preStrLen)
+;      oTextAdr = OBJ_NEW('IDLgrText', textAdr, LOCATIONS = [2,2], COLOR = 255*([1,0,0]))
+;      oModel->Add, oTextAdr
 
       lineX= OBJ_NEW('IDLgrPolyline', COLOR = 255*([1,0,0]), LINESTYLE=1)
       lineY= OBJ_NEW('IDLgrPolyline', COLOR = 255*([1,0,0]), LINESTYLE=1)
@@ -128,6 +128,29 @@ pro redrawImg, viewpl, newActive
             contour3=OBJ_NEW('IDLgrContour',ROIs[*,*,3],COLOR=colors[*,3], C_VALUE=0.5, N_LEVELS=1)
             contour4=OBJ_NEW('IDLgrContour',ROIs[*,*,4],COLOR=colors[*,4], C_VALUE=0.5, N_LEVELS=1)
             oModel->Add, Contour1 & oModel->Add, Contour2 & oModel->Add, Contour3 & oModel->Add, Contour4
+          ENDIF
+          
+          IF analyse EQ 'SNI' THEN BEGIN
+            ;named ROIs
+            temp=TOTAL(ROIs[*,*,0],2)
+            temp2=WHERE(temp GT 0)
+            firstX=temp2(0)
+            lastX=temp2(-1)
+            temp=TOTAL(ROIs[*,*,0],1)
+            temp2=WHERE(temp GT 0)
+            firstY=temp2(0)
+            lastY=temp2(-1)
+            
+            poss=INTARR(2,8)
+            poss[*,0]=[firstX+5,firstY+5]
+            poss[*,1]=[lastX-5,firstY+5]
+            FOR ir=2, 7 DO poss[*,ir]=ROUND(centroid(ROIs[*,*,ir+1],0.5))
+            oTextL1= OBJ_NEW('IDLgrText', 'L1', LOCATIONS=poss[*,0], COLOR=colors[*,1])
+            oTextL2= OBJ_NEW('IDLgrText', 'L2', LOCATIONS=poss[*,1], COLOR=colors[*,2], ALIGNMENT=1)
+            oTextS1= OBJ_NEW('IDLgrText', 'S1', LOCATIONS=poss[*,2], COLOR=colors[*,3], ALIGNMENT=0.5)
+            oTextS2= OBJ_NEW('IDLgrText', 'S2', LOCATIONS=poss[*,3], COLOR=colors[*,4], ALIGNMENT=0.5)
+            oTextS = OBJ_NEW('IDLgrText', ['S3','S4','S5','S6'], LOCATIONS =poss[*,4:7], COLOR = colors[*,0], ALIGNMENT=0.5)
+            oModel->Add, oTextL1 & oModel->Add, oTextL2 & oModel->Add, oTextS1 & oModel->Add, oTextS2 & oModel->Add, oTextS
           ENDIF
 
           IF analyse EQ 'CONTRAST' OR analyse EQ 'RC' THEN BEGIN
@@ -379,7 +402,7 @@ pro redrawImg, viewpl, newActive
 
     OBJ_DESTROY, oPaletteCT
     IF annot THEN BEGIN
-      OBJ_DESTROY, oTextZ & OBJ_DESTROY, oTextAdr & OBJ_DESTROY,lineX & OBJ_DESTROY,lineY
+      OBJ_DESTROY, oTextZ & OBJ_DESTROY,lineX & OBJ_DESTROY,lineY
 
       IF OBJ_VALID(contour0) THEN BEGIN
         OBJ_DESTROY, contour0
@@ -409,6 +432,10 @@ pro redrawImg, viewpl, newActive
         IF OBJ_VALID(V3) THEN BEGIN
           OBJ_DESTROY, V3 &  OBJ_DESTROY, V3_1 & OBJ_DESTROY, V4 & OBJ_DESTROY, V4_1
         ENDIF
+      ENDIF
+
+      IF OBJ_VALID(oTextL1) THEN BEGIN
+        OBJ_DESTROY, oTextL1 & OBJ_DESTROY, oTextL2 & OBJ_DESTROY, oTextS1 & OBJ_DESTROY, oTextS2 & OBJ_DESTROY, oTextS
       ENDIF
 
       IF OBJ_VALID(dimLine) THEN OBJ_DESTROY, dimLine

@@ -221,14 +221,14 @@ pro updateTable
             nCols=4
             headers=['IU_UFOV %', 'DU_UFOV %', 'IU_CFOV %', 'DU_CFOV %']
             resArrString=STRARR(nCols,nRows)
-            FOR i=0, nRows-1 DO resArrString[*,i]=STRING(unifRes[*,markedTemp(i)], FORMAT='(F0.2)')
+            FOR i=0, nRows-1 DO resArrString[*,i]=STRING(unifRes.table[*,markedTemp(i)], FORMAT='(F0.2)')
           END
 
           'SNI':BEGIN
             nCols=9
             headers=['SNI max','SNI L1','SNI L2','SNI S1','SNI S2','SNI S3','SNI S4','SNI S5','SNI S6']
             resArrString=STRARR(nCols,nRows)
-            FOR i=0, nRows-1 DO IF N_TAGS(SNIres.(markedTemp(i))) NE 1 THEN resArrString[*,i]=STRING(SNIres.(markedTemp(i)).SNIvalues, FORMAT='(F0.3)')
+            FOR i=0, nRows-1 DO IF N_TAGS(SNIres.(markedTemp(i))) NE 1 THEN resArrString[*,i]=STRING(SNIres.(markedTemp(i)).SNIvalues, FORMAT='(F0.2)')
           END
           
           'ACQ':BEGIN

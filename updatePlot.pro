@@ -25,10 +25,6 @@ pro updatePlot, setRangeMinMaxX, setRangeMinMaxY, optionSet
   COMPILE_OPT hidden
   COMMON VARI
 
-  WIDGET_CONTROL, drawImageRes, GET_VALUE = iDrawImageRes
-  WSET, iDrawImageRes
-  TVSCL, INTARR(550,550)
-
   WIDGET_CONTROL, drawPlot, GET_VALUE = iDrawPlot
   iDrawPlot.SELECT
 
@@ -413,14 +409,6 @@ pro updatePlot, setRangeMinMaxX, setRangeMinMaxY, optionSet
                     nqPlot=PLOT([nyqfr,nyqfr]*mm2cm,[0,rangeY(1)],'-',/OVERPLOT)
                     nqTxt=TEXT(nyqfr*.95*mm2cm,rangeY(1)/2,'NQf',/DATA)
                   ENDIF
-                  WIDGET_CONTROL, drawImageRes, GET_VALUE = iDrawImageRes
-                  WSET, iDrawImageRes
-                  activeResImg=NPSres.(sel).NPS
-                  tvRes=activeResImg
-                  szNPS=SIZE(activeResImg, /DIMENSIONS)
-                  szX=450
-                  szY=ROUND(szX*(szNPS(1)*1./szNPS(0)))
-                  TVSCL,congrid(adjustWindowLevel(tvRes, [0,100*max(NPSres.(sel).NPS)]), szX, szY, /INTERP)
 
                 ENDIF ELSE iDrawPlot.erase
               END
@@ -702,15 +690,6 @@ pro updatePlot, setRangeMinMaxX, setRangeMinMaxY, optionSet
                     nqPlot=PLOT([nyqfr,nyqfr],[0,rangeY(1)], '-2', /OVERPLOT)
                     resLeg=LEGEND(TARGET=[resPlotu,resPlotv], FONT_NAME=foName, FONT_SIZE=foSize, POSITION=legPos)
 
-                    WIDGET_CONTROL, drawImageRes, GET_VALUE = iDrawImageRes
-                    WSET, iDrawImageRes
-                    activeResImg=NPSres.(sel).NPS
-                    tvRes=activeResImg
-                    tvRes[*,128]=0 & tvRes[128,*]=0
-                    szNPS=SIZE(activeResImg, /DIMENSIONS)
-                    szX=450
-                    szY=ROUND(szX*(szNPS(1)*1./szNPS(0)))
-                    TVSCL,congrid(adjustWindowLevel(tvRes, [0,max(tvRes)]), szX, szY, /INTERP)
                     valuesPlot=CREATE_STRUCT('frequency mm_1',NPSres.(sel).du,'uNNPS', NPSres.(sel).uNPS/(NPSres.(sel).largeAreaSignal^2), 'vNNPS', NPSres.(sel).vNPS/(NPSres.(sel).largeAreaSignal^2))
                   ENDIF
                 ENDIF ELSE iDrawPlot.erase
@@ -754,6 +733,7 @@ pro updatePlot, setRangeMinMaxX, setRangeMinMaxY, optionSet
                   resPlotLeg=LEGEND(TARGET=resPlot[0:3], FONT_NAME=foName, FONT_SIZE=foSize, POSITION=legPos)
                   resPlot[0].refresh
                 ENDIF
+
               END
               'SNI': BEGIN
                   WIDGET_CONTROL, resTab, GET_VALUE=resArr
@@ -767,25 +747,6 @@ pro updatePlot, setRangeMinMaxX, setRangeMinMaxY, optionSet
                     valuesPlot=CREATE_STRUCT('image number', imgNo, 'SNImax', yValues)
                   ENDIF
                 
-                  ;displaying filtered 2d NPS for selected region'                
-                  tabSel=WIDGET_INFO(resTab,/TABLE_SELECT)
-                  colNo=tabSel(0)
-                  maxstr=''
-                  IF colNo LE 0 THEN BEGIN
-                    colmax=WHERE(resArr[1:8,sel] EQ MAX(resArr[1:8,sel]))
-                    ss=colmax(0)
-                    maxstr=' (max)'
-                  ENDIF ELSE ss=colNo-1
-                  ssnames=['L1','L2','S1','S2','S3','S4','S5','S6']             
-                  WIDGET_CONTROL, drawImageRes, GET_VALUE = iDrawImageRes
-                  WSET, iDrawImageRes
-                  activeResImg=SNIres.(sel).NPS_filt.(ss)
-                  tvRes=activeResImg
-                  szNPS=SIZE(activeResImg, /DIMENSIONS)
-                  szX=450
-                  szY=ROUND(szX*(szNPS(1)*1./szNPS(0)))
-                  TVSCL,congrid(adjustWindowLevel(tvRes, [0,100*max(SNIres.(sel).NPS_filt.(ss))]), szX, szY, /INTERP)
-                  XYOUTS, 0.05,0.05, 'NPS filtered '+ssnames(ss)+maxstr, CHARSIZE=1.5, COLOR=255
                 END
                 
               'ACQ': BEGIN

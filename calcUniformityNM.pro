@@ -21,11 +21,19 @@ function calcUniformityNM, imgMatrix, roiMatrix, pix
 
   szI=SIZE(imgMatrix,/DIMENSIONS)
 
-  ;congrid to 6.4 mm pixels
-  scaleFactor=6.4/pix(0)
-  newSz=ROUND(szI/scaleFactor)
-  newImgMatrix=CONGRID(imgMatrix, newSz(0), newSz(1), /CENTER, /INTERP)
-  newROImatrix=CONGRID(roiMatrix, newSz(0), newSz(1), /CENTER, /INTERP);still integers?
+  ;congrid to 6.4+/-30% mm pixels
+  minPix=6.4*0.7 & maxPix=6.4*1.3
+  scaleFactors=[2,4,8,16,32]
+  possPix=pix(0)*scaleFactors
+  selPix=WHERE(possPix GE minPix)
+  selFact=scaleFactors(selPix(0))
+  pixRes=pix(0)*selFact
+  newImgMatrix=sum2x2pix(imgMatrix, selPix(0))
+  newROImatrix=sum2x2pix(roiMatrix, selPix(0))
+  
+  outSide=WHERE(newROImatrix LE selFact);minimum 50% inside UFOV to be included
+  newROImatrix[*,*]=1
+  newROImatrix(outSide)=0
   
   ;corners of UFOV
   temp=TOTAL(newROImatrix,2)
@@ -90,5 +98,7 @@ function calcUniformityNM, imgMatrix, roiMatrix, pix
   IU_UFOV=100.*(MAX(UFOVmatrix)-MIN(UFOVmatrix))/(MAX(UFOVmatrix)+MIN(UFOVmatrix))
   IU_CFOV=100.*(MAX(CFOVmatrix)-MIN(CFOVmatrix))/(MAX(CFOVmatrix)+MIN(CFOVmatrix))
 
-return, [IU_UFOV, DU_UFOV, IU_CFOV, DU_CFOV]
+  resU=CREATE_STRUCT('matrix',smoothedImg, 'table', [IU_UFOV, DU_UFOV, IU_CFOV, DU_CFOV])
+
+return, resU
 end

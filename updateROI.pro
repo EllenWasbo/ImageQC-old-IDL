@@ -132,9 +132,15 @@ pro updateROI, Ana=ana
         ;IF max(CTlinROIs) EQ 1 THEN ana='CTLIN' ELSE ana='NONE'
       END
       
-      'SNI': SNIroi=getSNIroi(tempImg)
+      'SNI': BEGIN 
+        WIDGET_CONTROL, txtSNIAreaRatio, GET_VALUE=rat
+        SNIroi=getSNIroi(tempImg, FLOAT(rat))
+      END
       
-      'UNIF': unifROI=getUnifRoi(tempImg)
+      'UNIF': BEGIN
+        WIDGET_CONTROL, txtUnifAreaRatio, GET_VALUE=rat
+        unifROI=getUnifRoi(tempImg,rat)
+      END
       
       'CONTRAST': BEGIN
         WIDGET_CONTROL, txtConR1SPECT, GET_VALUE=rad1
