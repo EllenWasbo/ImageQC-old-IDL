@@ -54,7 +54,7 @@ pro ImageQC,  GROUP_LEADER=bMain
     txtCrossVol, txtCrossConc, txtCrossFactorPrev, txtCrossFactor,$
     rcRes, rcROIs, btnRCrev, cwRCexclude, cw_rcType
 
-  currVersion='1.42'
+  currVersion='1.43'
   thisPath=FILE_DIRNAME(ROUTINE_FILEPATH('ImageQC'))+'\'
 
   ;always refresh structure of config file
@@ -140,6 +140,7 @@ pro ImageQC,  GROUP_LEADER=bMain
   btnClose=WIDGET_BUTTON(file_menu, VALUE='Close all images', UVALUE='close', /SEPARATOR)
   btnExit=WIDGET_BUTTON(file_menu, VALUe='Exit', UVALUE='exit', ACCELERATOR='Ctrl+X')
   ;sett_menu
+  btnSaveConfigBackup=WIDGET_BUTTON(sett_menu, VALUE='Backup config file', UVALUE='backupConfig')
   btnRestoreConfig=WIDGET_BUTTON(sett_menu, VALUE='Restore and replace parameter sets with backup config file', UVALUE='restoreConfig')
   btnSettingsMenu=WIDGET_BUTTON(sett_menu, VALUE='Edit/manage parameter sets',UVALUE='manageSettings')
   btnEditLoadTemp=WIDGET_BUTTON(sett_menu, VALUE='Edit/manage automation templates', UVALUE='manageLoadTemp')

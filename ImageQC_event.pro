@@ -64,6 +64,11 @@ pro ImageQC_event, ev
 
       ;********settings menu***************
 
+      'backupConfig':BEGIN
+          adr=DIALOG_PICKFILE(TITLE='Backup config file', /WRITE, FILTER='*.dat', /FIX_FILTER, DIALOG_PARENT=evTop, /OVERWRITE_PROMPT, DEFAULT_EXTENSION='.dat')
+          IF adr(0) NE '' THEN FILE_COPY, thisPath+'data\config.dat', adr
+        END
+      
       'restoreConfig':BEGIN
 
         adr=DIALOG_PICKFILE(TITLE='Locate config file to restore from', /READ, FILTER='*.dat', /FIX_FILTER, DIALOG_PARENT=evTop)
@@ -80,6 +85,7 @@ pro ImageQC_event, ev
             SAVE, configS, quickTemp, loadTemp, FILENAME=thisPath+'data\config.dat'
             ;update values on default parameterset
             selConfig=configS.(0)
+            restoreTagsS=TAG_NAMES(configS)
             refreshParam, configS.(selConfig), restoreTagsS(selConfig)
             fillQuickTempList, quickTemp;pro in refreshParam.pro
 

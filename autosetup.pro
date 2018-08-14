@@ -199,10 +199,15 @@ pro autoSetup_event, event
             RESTORE, thisPath+'data\config.dat'
             loadTemp=removeIDstructstruct(loadTemp, currSel)
             SAVE, configS, quickTemp, loadTemp, FILENAME=thisPath+'data\config.dat'
-            tempnames=removeIDarr(tempnames,currSel)
-            IF N_ELEMENTS(tempnames) EQ 0 THEN tempnames='' 
-            WIDGET_CONTROL, listTemp, SET_VALUE=tempnames, SET_LIST_SELECT=0
-            updateAuto, 0
+            IF N_ELEMENTS(tempnames) EQ 1 THEN BEGIN
+              tempnames=''
+              WIDGET_CONTROL, listTemp, SET_VALUE=tempnames
+              updateAuto, -1
+            ENDIF ELSE BEGIN
+              tempnames=removeIDarr(tempnames,currSel)
+              WIDGET_CONTROL, listTemp, SET_VALUE=tempnames, SET_LIST_SELECT=0
+              updateAuto, 0
+            ENDELSE
           ENDIF
         ENDIF
       END
@@ -265,14 +270,16 @@ pro autoSetup_event, event
               'archive',WIDGET_INFO(btnMoveFiles,/BUTTON_SET))
 
             RESTORE, thisPath+'data\config.dat'
-            IF N_ELEMENTS(loadTemp) EQ 0 THEN BEGIN; new single
+            szLT=SIZE(loadTemp, /TNAME)
+            IF szLT EQ 'STRUCT' THEN alreadyNames=TAG_NAMES(loadTemp) ELSE alreadyNames=''
+            IF alreadyNames(0) EQ 'EMPTY' THEN alreadyNames=''
+            IF alreadyNames(0) EQ '' THEN BEGIN; new single
               loadTemp=CREATE_STRUCT(newName, loadTempSing)
               SAVE, configS, quickTemp, loadTemp, FILENAME=thisPath+'data\config.dat'
               tempnames=newName
               WIDGET_CONTROL, listTemp, SET_VALUE=tempnames, SET_LIST_SELECT=0
               updateAuto,0
             ENDIF ELSE BEGIN; add
-              alreadyNames=TAG_NAMES(loadTemp)
               IF alreadyNames.HasValue(newName) THEN sv=DIALOG_MESSAGE('Template name already exists. Select a new name or use Overwrite.',DIALOG_PARENT=event.top) ELSE BEGIN
                 loadTemp=CREATE_STRUCT(loadTemp, newName, loadTempSing)
                 SAVE, configS, quickTemp, loadTemp, FILENAME=thisPath+'data\config.dat'

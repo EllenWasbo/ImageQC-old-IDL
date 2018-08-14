@@ -428,7 +428,7 @@ function getROIcircle, arrSz, center, radius
   return, circle
 end
 
-;remove ids from 1d-array
+;remove ids from 1d-array; works no good with 1 element string.... not getting set to !null
 function removeIDarr, arr, id
   newArr=arr
   IF id EQ 0 THEN BEGIN
