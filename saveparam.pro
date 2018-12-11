@@ -32,6 +32,7 @@ pro saveParam, overWriteNo, newName
   ;CT tests
   WIDGET_CONTROL, cw_typeMTF, GET_VALUE=typeMTF
   WIDGET_CONTROL, cw_plotMTF, GET_VALUE= plotWhich
+  WIDGET_CONTROL, cw_tableMTF, GET_VALUE= tableWhich
   WIDGET_CONTROL, txtMTFroiSz, GET_VALUE=MTFroiSz
   WIDGET_CONTROL, txtCutLSFW, GET_VALUE=LSFcut1
   WIDGET_CONTROL, txtCutLSFW2, GET_VALUE=LSFcut2
@@ -56,6 +57,7 @@ pro saveParam, overWriteNo, newName
   WIDGET_CONTROL, txtStpROIsz, GET_VALUE=STProiSz
   WIDGET_CONTROL, cw_formLSFX, GET_VALUE=typeMTFX
   WIDGET_CONTROL, cw_plotMTFX, GET_VALUE= plotWhichX
+  WIDGET_CONTROL, cw_tableMTFX, GET_VALUE= tableWhichX
   WIDGET_CONTROL, txtCutLSFWX, GET_VALUE=LSFcutX1
   WIDGET_CONTROL, txtMTFroiSzX, GET_VALUE=MTFroiSzX
   WIDGET_CONTROL, txtMTFroiSzY, GET_VALUE=MTFroiSzY
@@ -87,8 +89,9 @@ pro saveParam, overWriteNo, newName
   WIDGET_CONTROL, txtHomogROIszPET, GET_VALUE=homogROIszPET
   WIDGET_CONTROL, txtHomogROIdistPET, GET_VALUE=homogROIdistPET
 
-  config=CREATE_STRUCT('defPath',defPath, 'deciMark', deciMark, 'copyHeader', copyHeader, 'transposeTable', transposeTable, 'append', WIDGET_INFO(btnAppend, /BUTTON_SET),$
+  config=CREATE_STRUCT('defPath',defPath, 'deciMark', deciMark, 'copyHeader', copyHeader, 'transposeTable', transposeTable, 'append', WIDGET_INFO(btnAppend, /BUTTON_SET),'qtOutTemps',['DEFAULT','DEFAULT','DEFAULT','DEFAULT','DEFAULT'],$
     'MTFtype',typeMTF,'MTFtypeX', typeMTFX, 'MTFtypeNM', typeMTFNM,'MTFtypeSPECT', typeMTFSPECT, 'plotMTF',plotWhich,'plotMTFX',plotWhichX,'plotMTFNM', plotWhichNM,'plotMTFSPECT', plotWhichSPECT,$
+    'tableMTF',tableWhich,'tableMTFX', tableWhichX, $
     'MTFroiSz',FLOAT(MTFroiSz(0)),'MTFroiSzX',[FLOAT(MTFroiSzX(0)),FLOAT(MTFroiSzY(0))],'MTFroiSzNM',[FLOAT(MTFroiSzXNM(0)),FLOAT(MTFroiSzYNM(0))],'MTFroiSzSPECT',FLOAT(MTFroiSzSPECT(0)),'MTF3dSPECT',WIDGET_INFO(MTF3dSPECT, /BUTTON_SET),$
     'cutLSF',WIDGET_INFO(btnCutLSF,/BUTTON_SET),'cutLSF1',LONG(LSFcut1),'cutLSF2',LONG(LSFcut2),'cutLSFX',WIDGET_INFO(btnCutLSFX,/BUTTON_SET),'cutLSFX1',LONG(LSFcutX1),'offxy',offxy,$
     'LinROIrad',FLOAT(rad1(0)),'LinROIradS',FLOAT(radS(0)), 'LinTab', lintab, $
@@ -110,7 +113,7 @@ pro saveParam, overWriteNo, newName
   paramSetNames=TAG_NAMES(configS)
   IF overWriteNo NE -1 THEN BEGIN
     configS=replaceStructStruct(configS, config, overWriteNo)
-    SAVE, configS, quickTemp, loadTemp, FILENAME=thisPath+'data\config.dat' 
+    SAVE, configS, quickTemp, quickTout, loadTemp, FILENAME=thisPath+'data\config.dat'
     selConfig=overWriteNo
     ;current parameterset is active - just change name of parameter set label
     WIDGET_CONTROL, lblSettings, SET_VALUE=paramSetNames(overWriteNo)
@@ -123,12 +126,12 @@ pro saveParam, overWriteNo, newName
         IF sv EQ 'Yes' THEN BEGIN
           alreadyID=WHERE(paramSetNames EQ tempname)
           configS=replaceStructStruct(configS, config, alreadyID)
-          SAVE, configS, quickTemp, loadTemp, FILENAME=thisPath+'data\config.dat'
+          SAVE, configS, quickTemp, quickTout, loadTemp, FILENAME=thisPath+'data\config.dat'
           selConfig=alreadyID
         ENDIF
       ENDIF ELSE BEGIN
         configS=CREATE_STRUCT(configS, tempname, config)
-        SAVE, configS, quickTemp, loadTemp, FILENAME=thisPath+'data\config.dat'
+        SAVE, configS, quickTemp, quickTout, loadTemp, FILENAME=thisPath+'data\config.dat'
         selConfig=N_ELEMENTS(paramSetNames)
       ENDELSE
       IF selConfig NE oldSelConfig THEN BEGIN

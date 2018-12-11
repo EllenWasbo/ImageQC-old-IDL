@@ -15,6 +15,8 @@
 ;along with this program; if not, write to the Free Software
 ;Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
+;************* config updates *****************************
+
 function updateConfigS, file
 
   ;default values if missing:
@@ -29,7 +31,10 @@ function updateConfigS, file
     'copyHeader', 0, $
     'transposeTable', 0, $
     'append',0,$
-    'MTFtype',2,'MTFtypeX',1,'MTFtypeNM',1,'MTFtypeSPECT',1,'plotMTF',3,'plotMTFX', 3, 'plotMTFNM',4,'plotMTFSPECT',4,'MTFroiSz',11.0,'MTFroiSzX',[20.,50.],'MTFroiSzNM',[20.,20.],'MTFroiSzSPECT',30.,'MTF3dSPECT',1, $
+    'qtOutTemps', ['DEFAULT','DEFAULT','DEFAULT','DEFAULT','DEFAULT'], $
+    'MTFtype',2,'MTFtypeX',1,'MTFtypeNM',1,'MTFtypeSPECT',1, $
+    'plotMTF',3,'plotMTFX', 3, 'plotMTFNM',4,'plotMTFSPECT',4, 'tableMTF',0,'tableMTFX', 0, $
+    'MTFroiSz',11.0,'MTFroiSzX',[20.,50.],'MTFroiSzNM',[20.,20.],'MTFroiSzSPECT',30.,'MTF3dSPECT',1, $
     'cutLSF',1,'cutLSF1',3,'cutLSF2',1, 'cutLSFX', 1, 'cutLSFX1', 3, 'offxy', [0,0], $
     'LinROIrad',3.,'LinROIradS',11., 'LinTab',lintab, $
     'RampDist',38.,'RampLen',60.,'RampBackG',5.,'RampSearch',5,'RampAvg',1,'RampType',0,'RampDens',0,$
@@ -90,11 +95,88 @@ function updateQuickT, file
     ENDIF
     IF N_ELEMENTS(configS) NE 0 THEN BEGIN
       oldTags=TAG_NAMES(configS.(1))
-      If oldTags.HasValue('QUICKTEMP') THEN quickT=configS.(1).QUICKTEMP
+      If oldTags.HasValue('QUICKTEMP') THEN quickT=configS.(1).QUICKTEMP;TODO is this correct???
     ENDIF
     IF N_ELEMENTS(quickTemp) NE 0 THEN quickT=quickTemp ELSE quickT=!Null
   ENDELSE
   return, quickT
+end
+
+function updateQuickTout, file
+
+  ;default values if missing:
+  defCT=CREATE_STRUCT($
+    'HOMOG',CREATE_STRUCT($
+    'Center_HU',CREATE_STRUCT('ALT',0,'COLUMNS',4,'CALC',0,'PER_SERIES',0),$
+    'Min_diff_from_Center_HU',CREATE_STRUCT('ALT',0,'COLUMNS',[5,6,7,8],'CALC',1,'PER_SERIES',1),$
+    'Max_diff_from_Center_HU',CREATE_STRUCT('ALT',0,'COLUMNS',[5,6,7,8],'CALC',2,'PER_SERIES',1)),$
+    'NOISE',CREATE_STRUCT('Max_noise',CREATE_STRUCT('ALT',0,'COLUMNS',1,'CALC',2,'PER_SERIES',1)),$
+    'SLICETHICK',CREATE_STRUCT($
+    'Avg_Slicethick',CREATE_STRUCT('ALT',0,'COLUMNS',5,'CALC',0,'PER_SERIES',0),$
+    'Avg_Slicethick_inner',CREATE_STRUCT('ALT',1,'COLUMNS',[1,2,3,4],'CALC',3,'PER_SERIES',0),$
+    'Avg_Slicethick_outer',CREATE_STRUCT('ALT',1,'COLUMNS',[5,6],'CALC',3,'PER_SERIES',0),$
+    'Avg_SlicethickGE',CREATE_STRUCT('ALT',2,'COLUMNS',[1,2],'CALC',3,'PER_SERIES',0)),$
+    'MTF',CREATE_STRUCT($
+    'Avg_xy_MTF50',CREATE_STRUCT('ALT',0,'COLUMNS',[0,3],'CALC',3,'PER_SERIES',0),$
+    'Avg_xy_MTF10',CREATE_STRUCT('ALT',0,'COLUMNS',[1,4],'CALC',3,'PER_SERIES',0),$
+    'MTF50',CREATE_STRUCT('ALT',1,'COLUMNS',[0],'CALC',0,'PER_SERIES',1),$
+    'MTF10',CREATE_STRUCT('ALT',1,'COLUMNS',[1],'CALC',0,'PER_SERIES',1)))
+  defXray=CREATE_STRUCT($
+    'STP', CREATE_STRUCT('Pixel_mean',CREATE_STRUCT('ALT',0,'COLUMNS',2,'CALC',0,'PER_SERIES',0)),$
+    'HOMOG',-1,'NOISE',-1,'EXP',-1,'MTF',-1)
+  defNM=CREATE_STRUCT('UNIF', -1,'SNI',-1,'ACQ',-1)
+  quickToutDefault=CREATE_STRUCT('CT',CREATE_STRUCT('DEFAULT',defCT),'Xray',CREATE_STRUCT('DEFAULT',defXray),'NM',CREATE_STRUCT('DEFAULT',defNM))
+
+  IF file EQ '' THEN quickTout=quickToutDefault ELSE BEGIN
+    ;find existing values and paste into new configS structure
+    RESTORE, file
+    errCounter=0
+    IF N_ELEMENTS(quickTout) NE 0 THEN BEGIN
+      oldQuickTout=quickTout
+
+      ;copy values into newest versions structure
+      quickToutThisVersion=CREATE_STRUCT('ALT',0,'COLUMNS',0,'CALC',0,'PER_SERIES',0)
+      tagNewest=TAG_NAMES(quickToutThisVersion)
+
+      newQuickTout=quickToutDefault;default values
+
+      nMods=N_TAGS(oldQuickTout)
+
+      FOR i=0, N_ELEMENTS(nMods)-1 DO BEGIN;for each modality
+        nTemps=N_TAGS(oldQuickTout.(i))
+        FOR j=0, N_ELEMENTS(nTemps)-1 DO BEGIN; for each template in modality
+          nTests=N_TAGS(oldQuickTout.(i).(j))
+          FOR k=0, N_ELEMENTS(nTests)-1 DO BEGIN; for each defined test
+            nTouts=N_TAGS(oldQuickTout.(i).(j).(k))
+            FOR l=0, N_ELEMENTS(nTouts)-1 DO BEGIN; for each defined output
+              IF SIZE(oldQuickTout.(i).(j).(k).(l), /TNAME) EQ 'STRUCT' THEN BEGIN
+                oldTags=TAG_NAMES(oldQuickTout.(i).(j).(k).(l))
+                IF ~ARRAY_EQUAL(oldTags, tagNewest) THEN BEGIN
+                  structNew=CREATE_STRUCT('DEL',0)
+                  FOR m=0, N_ELEMENTS(tagNewest)-1 DO BEGIN
+                    IF oldTags.HasValue(tagNewest(j)) THEN BEGIN
+                      ;copy tag content
+                      ff=WHERE(oldTags EQ tagNewest(j))
+                      structNew=CREATE_STRUCT(structNew, tagNewest(j), oldQuickTout.(i).(j).(k).(l).(ff))
+                    ENDIF ELSE structNew=CREATE_STRUCT(structNew, tagNewest(j),quickToutThisVersion.(m))
+                  ENDFOR
+                ENDIF
+              ENDIF
+            ENDFOR
+          ENDFOR
+        ENDFOR
+      ENDFOR
+      ;pop off first dummy element
+      IF N_ELEMENTS(structNew) GT 0 THEN BEGIN
+        tagsNew=TAG_NAMES(structNew)
+        IF tagsNew.HasValue('DEL') THEN BEGIN
+          structNew=removeIDstructstruct(structNew, 0)
+        ENDIF
+      ENDIF
+    ENDIF ELSE quickTout=quickToutDefault
+    
+  ENDELSE
+  return, quickTout
 end
 
 function updateLoadT, file
@@ -118,7 +200,8 @@ function updateLoadT, file
         'paramSet','', $
         'quickTemp','',$
         'pathApp','',$
-        'archive',0)
+        'archive',0,$
+        'deleteFiles',0)
       loadTsetDef=CREATE_STRUCT('loadTempDefault',loadTthisVersion)
       tagNewest=TAG_NAMES(loadTthisVersion)
 
@@ -139,14 +222,47 @@ function updateLoadT, file
               loadNew=CREATE_STRUCT(loadNew, tagNewest(j),loadTsetDef.(0).(j))
             ENDELSE
           ENDFOR
-          IF i EQ 0 THEN loadT=CREATE_STRUCT(tempsExist(i),loadNew) ELSE loadT=CREATE_STRUCT(loadT, tempsExist(i),loadNew) 
+          IF i EQ 0 THEN loadT=CREATE_STRUCT(tempsExist(i),loadNew) ELSE loadT=CREATE_STRUCT(loadT, tempsExist(i),loadNew)
         ENDFOR
       ENDIF ELSE loadT=!Null
-      
+
     ENDIF ELSE loadT=!Null
   ENDELSE
   return, loadT
 end
+
+;previously saved .dat-file might miss some newly introduced parameters. Update to avoid crashes and to update current Path (.filename) if replaced since created
+;called by struc='',pathNow ='' gives default, empty structure to be able to find list of available tags
+function imgStructUpdate, struc, pathNow
+  updatedStruct=-1
+  szStru=SIZE(struc, /TNAME)
+  IF szStru EQ 'STRUCT' THEN tnLoaded=TAG_NAMES(struc) ELSE tnLoaded=''
+  IF tnLoaded.HasValue('FILENAME') OR tnLoaded(0) EQ '' THEN BEGIN
+    currStruct=CREATE_STRUCT('filename',pathNow,'acqDate', '', 'imgDate', '', 'institution','','modality', '', 'modelName','','stationName','','detectorID','',$
+      'patientName','', 'patientID', '', 'patientWeight', '-', 'imageType','','presType','','studyDescr','','seriesName','', 'protocolname', '',$
+      'seriesNmb',-1,'acqNmb',-1, 'acqtime','','sliceThick',-1., 'pix', [-1.,-1.],'imageSize',[-1,-1],'kVp',-1.,'FOV',-1.,'rekonFOV',-1.,'mA',-1.,'mAs',-1.,'ExpTime',-1.,'coll',[-1.,-1.],'pitch',-1.,$
+      'ExModType','','CTDIvol',-1.,'DAP',-1.,'EI',-1.,'sensitivity',-1.,'filterAddOn','-','kernel','-',$
+      'zpos', -999., 'imgNo',-1,'nFrames',0,'wCenter',-1,'wWidth',-1,$
+      'collType','-','nEWindows',-1,'EWindowName','-','zoomFactor','-','radius1',-1.,'radius2',-1.,'angle',-999.,'acqFrameDuration',-1.,'acqTerminationCond','-',$
+      'units','-','radiopharmaca','-','admDose','-','admDoseTime','-','reconMethod','-','attCorrMethod','-','scaCorrMethod','-', 'scatterFrac','-',$
+      'frameNo', -1)
+
+    tnCurr=TAG_NAMES(currStruct)
+    updatedStruct=CREATE_STRUCT('filename',pathNow)
+
+    FOR i=1, N_ELEMENTS(tnCurr)-1 DO BEGIN
+      IF tnLoaded.HasValue(tnCurr(i)) THEN BEGIN
+        pos=WHERE(tnLoaded EQ tnCurr(i))
+        updatedStruct=CREATE_STRUCT(updatedStruct, tnCurr(i), struc.(pos(0)))
+      ENDIF ELSE updatedStruct=CREATE_STRUCT(updatedStruct, tnCurr(i), currStruct.(i))
+    ENDFOR
+
+  ENDIF
+
+  return, updatedStruct
+end
+
+; *************** display images *********************************
 
 ; return rescaled image within windowLevel (range) to display with tvscl
 function adjustWindowLevel, arr, range
@@ -161,8 +277,8 @@ end
 ;return image matrix scaled with slope and intercept
 ;frame -1 means single-frame image else frame starting on 1
 function readImg, adr, frame
-    WIDGET_CONTROL, /HOURGLASS
-    IF FILE_TEST(adr) THEN BEGIN
+  WIDGET_CONTROL, /HOURGLASS
+  IF FILE_TEST(adr) THEN BEGIN
     qd=QUERY_DICOM(adr)
     IF qd THEN BEGIN
       o=obj_new('idlffdicom')
@@ -206,26 +322,15 @@ function readImg, adr, frame
       matrix=imageQCmatrix.matrix;IF imageQCmatrix.nFrames GT 0 THEN matrix=imageQCmatrix.matrix[*,*,frame] ELSE matrix=imageQCmatrix.matrix
       imageQCmatrix=!null
     ENDELSE
-    ENDIF ELSE BEGIN
-      sv=DIALOG_MESSAGE('File no longer exists. Renamed or removed. Program might crash. Try closing the file.'+adr, DIALOG_PARENT=0)
-      matrix=-1
-    ENDELSE
+  ENDIF ELSE BEGIN
+    sv=DIALOG_MESSAGE('File no longer exists. Renamed or removed. Program might crash. Try closing the file.'+adr, DIALOG_PARENT=0)
+    matrix=-1
+  ENDELSE
   return, matrix
 end
 
-;return max position [x,y] in array after medianfilter (width 5)
-function findMedianMax, array
-  array=MEDIAN(array, 5)
-  pos=WHERE(array EQ MAX(array))
-  posXY=ARRAY_INDICES(array, pos(0))
-  return, posXY
-end
 
-function linearizeSTP, matrix, STP
-  ;add other STP forms when ready....
-  linMatrix=(matrix-STP.b)/STP.a(0)
-  return, linMatrix
-end
+;**************** formating output and GUI stuff ***********************************
 
 ;adjust to resonable number of decimals
 function formatCode, arr
@@ -252,27 +357,122 @@ function formatCode, arr
   return, strFormatCode
 end
 
-;smoothes irregularly sampled Y within +/- w
-function smoothIrreg, X, Y, w
-  IF w GT 0 THEN BEGIN
-    nY=N_ELEMENTS(Y)
-    smoothedY=0.0*Y
-    FOR i=0, nY-1 DO BEGIN
-      tempX=ABS(X-X(i))
-      idx=WHERE(tempX LE w, nidx)
-      fac=w-tempX(idx)
-      fac=fac/TOTAL(fac)
-      smoothedY(i)=TOTAL(fac*Y(idx))
-    ENDFOR
-  ENDIF ELSE smoothedY=Y
-  return, smoothedY
-end
-
 ;assure . not , for float-inputs
 function comma2pointFloat, txt
   txt=STRJOIN(STRSPLIT(txt, ',',/EXTRACT),'.')
   return, txt
 end
+
+;day month year format
+function formatDMY, str
+  IF STRLEN(str) EQ 8 THEN BEGIN
+    strDMY=STRMID(str, 0, 4)+'.'+STRMID(str, 4, 2)+'.'+STRMID(str, 6, 2)
+  ENDIF ELSE strDMY=str
+  return, strDMY
+end
+
+; return list of filenames for open files
+; struc = structure of structures from readCT.pro
+; full = 0 for only parentfolder\filename, =1 for full path
+; marked = array of indexes for marked files, -1 means none is marked
+;   full=1 returns only marked, full=0 returns all and set an X on the marked
+; mMulti = multiMark array, -1 means no multimarking (X)
+function getListOpenFiles, struc, full, marked, mMulti
+
+  nn=N_TAGS(struc)
+  markedArr=INTARR(nn)
+  szMM=SIZE(mMulti, /DIMENSIONS)
+  IF N_ELEMENTS(szMM) EQ 1 THEN szMM=[szMM,1]
+  IF marked(0) NE -1 THEN markedArr(marked)=1 ELSE markedArr=markedArr+1
+  IF full EQ 1 THEN BEGIN
+    fileList=STRARR(TOTAL(markedArr))
+    counter=0
+    FOR i=0, nn-1 DO BEGIN
+      IF markedArr(i) EQ 1 THEN BEGIN
+        fileList(counter)=struc.(i).filename
+        counter=counter+1
+      ENDIF
+    ENDFOR
+  ENDIF ELSE BEGIN
+    fileList=STRARR(nn)
+
+    FOR i=0, nn-1 DO BEGIN
+      add='   '
+      IF mMulti(0) EQ -1 THEN BEGIN
+        IF markedArr(i) AND marked(0) NE -1 THEN add='X ' ELSE add='   '
+      ENDIF ELSE IF mMulti(0) NE -1 THEN BEGIN
+        add=''
+        IF i LT szMM(1) THEN BEGIN
+          FOR j=0, szMM(0)-1 DO BEGIN
+            IF mMulti[j,i] THEN add=add+STRING(j+1, FORMAT='(i0)') ELSE add=add+'  '
+          ENDFOR
+        ENDIF ELSE add=STRING(STRARR(szMM(0)), FORMAT='('+STRING(szMM(0), FORMAT='(i0)')+'(a2))')
+        add=add+'   '
+      ENDIF
+      t=STRSPLIT(struc.(i).filename,'\',/EXTRACT)
+      nSplit=N_ELeMENTS(t)
+
+      endStr=''
+      IF struc.(i).nFrames GT 1 THEN BEGIN
+        IF struc.(i).zpos NE -999. AND struc.(i).slicethick GT 0. THEN endStr='  zpos '+STRING(struc.(i).zpos,FORMAT='(f0.3)')
+        IF struc.(i).angle NE -999. THEN endStr='  angle '+STRING(struc.(i).zpos,FORMAT='(f0.3)')
+        IF endStr EQ '' THEN endStr='  frame '+STRING(struc.(i).frameNo,FORMAT='(i0)')
+      ENDIF
+
+      fileList(i)=add+STRJOIN(t[nSplit-2:nSplit-1],'\')+endStr
+
+    ENDFOR
+  ENDELSE
+
+  return, fileList
+end
+
+;get test-number based on current modality tab
+function getResNmb, tabNmb, stringElem, allStrings
+  actStrings=allStrings.(tabNmb)
+  i=WHERE(actStrings EQ stringElem)
+  resNmb=i
+  return, resNmb
+end
+
+;get zpos of all marked images
+function getZposMarked, struc, markedTemp
+  nFrames=0
+  IF struc.(0).nFrames GT 1 THEN BEGIN
+    nImg=struc.(0).nFrames
+    nFrames=nImg
+  ENDIF ELSE nImg=N_ELEMENTS(TAG_NAMES(struc))
+  zPos=FLTARR(nImg)
+  IF nFrames EQ 0 THEN BEGIN
+    FOR i = 0, nImg -1 DO zPos(i)=struc.(i).zpos
+  ENDIF ELSE BEGIN
+    zPos=struc.(0).zPos
+  ENDELSE
+  zPosMarked=zPos(markedTemp)
+  return, zPosMarked
+end
+
+;return array (0/1) whether the tag in imgStruct is actual for the current modality
+;arr_tagn - found tagnames in imgStruct for this version
+;arr_isinfo - imgStructInfo array see ImageQC.pro
+;moda - current modality
+function actualTags, arr_tagn, arr_isinfo, moda
+  actArr=INTARR(N_ELEMENTS(arr_tagn))+1;all actual as default
+  tagsMentioned=STRUPCASE(arr_isinfo[0,*])
+  tagsModality=arr_isinfo[2,*]
+  FOR t=0, N_ELEMENTS(arr_tagn)-1 DO BEGIN
+    pos=WHERE(tagsMentioned EQ arr_tagn(t))
+    IF pos(0) NE -1 THEN BEGIN
+      IF tagsModality(pos(0)) NE '' THEN BEGIN
+        modpos=STRPOS(tagsModality(pos(0)),STRING(moda, FORMAT='(i0)'))
+        IF modpos(0) EQ -1 THEN actArr(t)=0; did not find current modality-number in string defining actual modalities
+      ENDIF
+    ENDIF
+  ENDFOR
+  return, actArr
+end
+
+;********** finding center and widths **********************
 
 ;centroid function not accurate enough, use centroid first and optimize center with this after
 ;centerProfile assume all positive values and values to be centered is the maximum values
@@ -302,9 +502,9 @@ function centerProfile, vec
   If above(0) NE -1 THEN BEGIN
     first=above(0)-1;remove noise even more smooths outer edge too -1
     last=above(nn-1)+1;remove noise even more smooths outer edge too +1
- 
+
     IF first GE 1 AND last LE N_ELEMENTS(vec)-2 THEN BEGIN
-      
+
       dy=treshold-vec(first-1)
       IF vec(first) NE vec(first-1) THEN dx=dy/(vec(first)-vec(first-1)) ELSE dx=0.
       x1=first-1+dx
@@ -363,7 +563,7 @@ function Centroid, array, treshold
   RETURN, [optimX, optimY]
 end
 
-;find position of treshold value position
+;find position of treshold value
 function findPosTreshold, vec, treshold
   lenVec=N_ELEMENTS(vec)
   pos=-1
@@ -384,12 +584,60 @@ function findPosTreshold, vec, treshold
   return, pos
 end
 
+;find the width of a profile at specified threshold value using interpolation. Return width and centerpos of profile at threshold
+function getWidthAtThreshold, vec, threshold
+  width=-1
+  center=-1
+
+  aboveInd=WHERE(vec GT threshold)
+  belowInd=WHERE(vec LT threshold)
+
+  IF aboveInd(0) GE 1 THEN above=aboveInd ELSE above=belowInd
+  nn=N_ELEMENTS(above)
+
+  If above(0) GE 1 THEN BEGIN
+    first=above(0)
+    last=above(nn-1)
+    IF last LT N_ELEMENTS(vec)-1 THEN BEGIN
+
+      dy=vec(first)-threshold;dy=treshold-vec(first-1)
+      dx=dy/(vec(first)-vec(first-1))
+      x1=first-dx;x1=first+dx
+
+      dy=vec(last)-threshold
+      dx=dy/(vec(last)-vec(last+1))
+      x2=last+dx
+      center=(x1+x2)/2
+      width=x2-x1
+    ENDIF
+  ENDIF
+
+  return, [width,center]
+
+end
+
 ;find x for given y where linear line is given by two points (left/right)
 function getInterpX, Y,x1,x2,y1,y2
   w=(Y-y2)/(y1-y2)
   X=w*x1+(1-w)*x2
 
   RETURN, X
+end
+
+;smoothes irregularly sampled Y within +/- w
+function smoothIrreg, X, Y, w
+  IF w GT 0 THEN BEGIN
+    nY=N_ELEMENTS(Y)
+    smoothedY=0.0*Y
+    FOR i=0, nY-1 DO BEGIN
+      tempX=ABS(X-X(i))
+      idx=WHERE(tempX LE w, nidx)
+      fac=w-tempX(idx)
+      fac=fac/TOTAL(fac)
+      smoothedY(i)=TOTAL(fac*Y(idx))
+    ENDFOR
+  ENDIF ELSE smoothedY=Y
+  return, smoothedY
 end
 
 ;find the vector from image given start and end position [x,y]
@@ -427,6 +675,8 @@ function getROIcircle, arrSz, center, radius
 
   return, circle
 end
+
+; ***************** editing arrays and structures (adding/deleting) *****************************
 
 ;remove ids from 1d-array; works no good with 1 element string.... not getting set to !null
 function removeIDarr, arr, id
@@ -500,38 +750,7 @@ function structArr2elem, struct, taglist2scalar, valueNmb
   return, structNew
 end
 
-;find the width of a profile at specified threshold value using interpolation. Return width and centerpos of profile at threshold
-function getWidthAtThreshold, vec, threshold
-  width=-1
-  center=-1
-
-  aboveInd=WHERE(vec GT threshold)
-  belowInd=WHERE(vec LT threshold)
-
-  IF aboveInd(0) GE 1 THEN above=aboveInd ELSE above=belowInd
-  nn=N_ELEMENTS(above)
-
-  If above(0) GE 1 THEN BEGIN
-    first=above(0)
-    last=above(nn-1)
-    IF last LT N_ELEMENTS(vec)-1 THEN BEGIN
-
-      dy=vec(first)-threshold;dy=treshold-vec(first-1)
-      dx=dy/(vec(first)-vec(first-1))
-      x1=first-dx;x1=first+dx
-
-      dy=vec(last)-threshold
-      dx=dy/(vec(last)-vec(last+1))
-      x2=last+dx
-      center=(x1+x2)/2
-      width=x2-x1
-    ENDIF
-  ENDIF
-
-  return, [width,center]
-
-end
-
+;*********** fourier and gauss stuff ********************
 function ESFtoLSF, esfVec
   n=N_ELEMENTS(esfVec)
   lsfVec=esfVec*0.
@@ -620,62 +839,6 @@ function getMTFgauss, A, sigmaF
   return, retStruct
 end
 
-; return list of filenames for open files
-; struc = structure of structures from readCT.pro
-; full = 0 for only parentfolder\filename, =1 for full path
-; marked = array of indexes for marked files, -1 means none is marked
-;   full=1 returns only marked, full=0 returns all and set an X on the marked
-; mMulti = multiMark array, -1 means no multimarking (X)
-function getListOpenFiles, struc, full, marked, mMulti
-
-  nn=N_TAGS(struc)
-  markedArr=INTARR(nn)
-  szMM=SIZE(mMulti, /DIMENSIONS)
-  IF N_ELEMENTS(szMM) EQ 1 THEN szMM=[szMM,1]
-  IF marked(0) NE -1 THEN markedArr(marked)=1 ELSE markedArr=markedArr+1
-  IF full EQ 1 THEN BEGIN
-    fileList=STRARR(TOTAL(markedArr))
-    counter=0
-    FOR i=0, nn-1 DO BEGIN
-      IF markedArr(i) EQ 1 THEN BEGIN
-        fileList(counter)=struc.(i).filename
-        counter=counter+1
-      ENDIF
-    ENDFOR
-  ENDIF ELSE BEGIN
-    fileList=STRARR(nn)
-    
-    FOR i=0, nn-1 DO BEGIN
-      add='   '
-      IF mMulti(0) EQ -1 THEN BEGIN
-        IF markedArr(i) AND marked(0) NE -1 THEN add='X ' ELSE add='   '
-      ENDIF ELSE IF mMulti(0) NE -1 THEN BEGIN
-        add=''
-        IF i LT szMM(1) THEN BEGIN
-          FOR j=0, szMM(0)-1 DO BEGIN
-            IF mMulti[j,i] THEN add=add+STRING(j+1, FORMAT='(i0)') ELSE add=add+'  '
-          ENDFOR
-        ENDIF ELSE add=STRING(STRARR(szMM(0)), FORMAT='('+STRING(szMM(0), FORMAT='(i0)')+'(a2))')
-        add=add+'   '
-      ENDIF
-      t=STRSPLIT(struc.(i).filename,'\',/EXTRACT)
-      nSplit=N_ELeMENTS(t)
-
-      endStr=''
-      IF struc.(i).nFrames GT 1 THEN BEGIN
-        IF struc.(i).zpos NE -999. AND struc.(i).slicethick GT 0. THEN endStr='  zpos '+STRING(struc.(i).zpos,FORMAT='(f0.3)')
-        IF struc.(i).angle NE -999. THEN endStr='  angle '+STRING(struc.(i).zpos,FORMAT='(f0.3)')
-        IF endStr EQ '' THEN endStr='  frame '+STRING(struc.(i).frameNo,FORMAT='(i0)')
-      ENDIF
-      
-      fileList(i)=add+STRJOIN(t[nSplit-2:nSplit-1],'\')+endStr
-
-    ENDFOR
-  ENDELSE
-
-  return, fileList
-end
-
 ;calculate filter given sigma and size of filter
 function gaussFilter, sigmaF, nn
   filter=-1
@@ -693,18 +856,32 @@ function gaussFilter, sigmaF, nn
   return, filter
 end
 
-function getResNmb, tabNmb, stringElem, stringArr0, stringArr1, stringArr2, stringArr3, stringArr4
-  CASE tabNmb OF
-    0: actStrings=stringArr0
-    1: actStrings=stringArr1
-    2: actStrings=stringArr2
-    3: actStrings=stringArr3
-    4: actStrings=stringArr4
-  ENDCASE
-  i=WHERE(actStrings EQ stringElem)
-  resNmb=i
-  return, resNmb
+;fft of vector with optional zero-padding
+function FFTvector, vec, padfactor
+  szV=N_ELEMENTS(vec)
+  szPadded=2*((padfactor*szV)/2);assure even number
+  halfsz=szV/2
+  nullPadd=FLTARR(szPadded)
+  nullPadd[szPadded/2-halfsz:szPadded/2-halfsz+szV-1]=vec
+  vecPadd=nullPadd
+  fvecComplex=FFT(vecPadd,/CENTER)
+  fvec=szPadded*SQRT(REAL_PART(fvecComplex)^2+IMAGINARY(fvecComplex)^2); modulus of Fouriertransform * size of submatrix (divided by 1/N during FFT)
+  fvec=fvec[szPadded/2:szPadded-1]
+  fvec=fvec/fvec(0)
+  return, fvec
 end
+
+;zero Padd matrix to 3xn size
+function zeroPadd3, matrix
+
+  sz=SIZE(matrix, /DIMENSIONS)
+  padded=FLTARR(3*sz(0),3*sz(1))
+  padded[sz(0):sz(0)*2-1,sz(1):sz(1)*2-1]=matrix
+
+  return, padded
+end
+
+;***************** all others ***********************
 
 ;correction matrix based on input image with inverse square law when point source flooding planar detektor
 function corrDistPointSource, img, sid, pix, thick, attcoeff
@@ -715,26 +892,27 @@ function corrDistPointSource, img, sid, pix, thick, attcoeff
     FOR j=0, szImg(1)/2-1 DO distCenter(i,j)=SQRT((i+0.5)^2+(j+0.5)^2)
   ENDFOR
   distCenter=pix*distCenter
-  
+
   ;equation A6 from https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3966082/#x0 (doi:  10.1118/1.3125642)
-  ;corrMatrix = f central relativ to f periferral excluding N 
+  ;corrMatrix = f central relativ to f periferral excluding N
   ds=distCenter^2+sid^2
   fCentral =  1. / (sid^2)
   IF thick GT 0. AND attcoeff GT 0. THEN BEGIN
     euT=EXP(-attcoeff*thick)
     fPerif = ((1-euT^(SQRT(ds)/sid))/(1-euT))*(sid/(ds^1.5))
   ENDIF ELSE fPerif=(sid/(ds^1.5))
-  
+
   corrMatrix=img*0.0
   corrQuad=fCentral/fPerif
   corrMatrix[0:szImg(0)/2-1,0:szImg(1)/2-1]=ROTATE(corrQuad,2)
   corrMatrix[0:szImg(0)/2-1,szImg(1)/2:szImg(1)-1]=ROTATE(corrQuad,5)
   corrMatrix[szImg(0)/2:szImg(0)-1,0:szImg(1)/2-1]=ROTATE(corrQuad,7)
   corrMatrix[szImg(0)/2:szImg(0)-1,szImg(1)/2:szImg(1)-1]=corrQuad
-  
+
   return, corrMatrix
 end
 
+;combine 2x2 pixels to get matrix size from 2^n to 2^(n-1)
 function sum2x2pix, img, repeats
   ;if image cannot be divided by 2 - right and top pixels missed
   szImg=SIZE(img, /DIMENSIONS)
@@ -753,48 +931,17 @@ function sum2x2pix, img, repeats
   return, downscaledImg
 end
 
-function FFTvector, vec, padfactor
-  szV=N_ELEMENTS(vec)
-  szPadded=2*((padfactor*szV)/2);assure even number
-  halfsz=szV/2
-  nullPadd=FLTARR(szPadded)
-  nullPadd[szPadded/2-halfsz:szPadded/2-halfsz+szV-1]=vec
-  vecPadd=nullPadd
-  fvecComplex=FFT(vecPadd,/CENTER)
-  fvec=szPadded*SQRT(REAL_PART(fvecComplex)^2+IMAGINARY(fvecComplex)^2); modulus of Fouriertransform * size of submatrix (divided by 1/N during FFT)
-  fvec=fvec[szPadded/2:szPadded-1]
-  fvec=fvec/fvec(0)
-  return, fvec
+;return max position [x,y] in array after medianfilter (width 5)
+function findMedianMax, array
+  array=MEDIAN(array, 5)
+  pos=WHERE(array EQ MAX(array))
+  posXY=ARRAY_INDICES(array, pos(0))
+  return, posXY
 end
 
-function zeroPadd3, matrix
-
-  sz=SIZE(matrix, /DIMENSIONS)
-  padded=FLTARR(3*sz(0),3*sz(1))
-  padded[sz(0):sz(0)*2-1,sz(1):sz(1)*2-1]=matrix
-
-  return, padded
+function linearizeSTP, matrix, STP
+  ;add other STP forms when ready....
+  linMatrix=(matrix-STP.b)/STP.a(0)
+  return, linMatrix
 end
 
-function getZposMarked, struc, markedTemp
-  nFrames=0
-  IF struc.(0).nFrames GT 1 THEN BEGIN
-    nImg=struc.(0).nFrames
-    nFrames=nImg
-  ENDIF ELSE nImg=N_ELEMENTS(TAG_NAMES(struc))
-  zPos=FLTARR(nImg)
-  IF nFrames EQ 0 THEN BEGIN
-    FOR i = 0, nImg -1 DO zPos(i)=struc.(i).zpos
-  ENDIF ELSE BEGIN
-    zPos=struc.(0).zPos
-  ENDELSE
-  zPosMarked=zPos(markedTemp)
-  return, zPosMarked
-end
-
-function formatDMY, str
-  IF STRLEN(str) EQ 8 THEN BEGIN
-    strDMY=STRMID(str, 0, 4)+'.'+STRMID(str, 4, 2)+'.'+STRMID(str, 6, 2)
-  ENDIF ELSE strDMY=str
-  return, strDMY
-end

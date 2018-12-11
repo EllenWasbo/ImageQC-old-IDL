@@ -16,7 +16,7 @@
 ;Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 ;update ROI
-pro updateROI, Ana=ana
+pro updateROI, Ana=ana, SEL=presel
 
   COMMON VARI
   
@@ -27,7 +27,11 @@ pro updateROI, Ana=ana
   tags=TAG_NAMES(structImgs)
   IF tags(0) NE 'EMPTY' THEN BEGIN
 
-    sel=WIDGET_INFO(listFiles, /LIST_SELECT)  & sel=sel(0)
+    IF N_ELEMENTS(presel) EQ 0 THEN BEGIN
+      sel=WIDGET_INFO(listFiles, /LIST_SELECT)
+      sel=sel(0) 
+    ENDIF ELSE sel=presel
+    
     tempImg=activeImg
     szImg=SIZE(tempImg,/DIMENSIONS)
     pix=structImgs.(sel).pix;IF nFrames EQ 0 THEN pix=structImgs.(sel).pix ELSE pix=structImgs.(0).pix

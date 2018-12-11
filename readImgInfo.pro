@@ -54,7 +54,7 @@
 ;  .DAP
 ;  .EI
 ;  .sensitivity
-;  .filter
+;  .kernel
 ;  .zpos
 ;  .imgNo
 ;  .nFrames
@@ -77,8 +77,10 @@
 ;  .scaCorrMethod
 ;  .scatterFrac
 
+;dialog_par = Dialog parent window to let messages be located on top of window calling it
+;silentValue = 0 if error meassages should be displayed, 1 if silent modus
 
-function readImgInfo, adr, dialog_par
+function readImgInfo, adr, dialog_par, silentValue
 
   imgStruct=-1
 
@@ -108,14 +110,14 @@ function readImgInfo, adr, dialog_par
       test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
       IF test(0) NE -1 THEN acqDate=*(test_peker[0]) ELSE acqDate=''
 
-      test=o->GetReference('0008'x,'0023'x)
-      test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
-      IF test(0) NE -1 THEN imgDate=*(test_peker[0]) ELSE imgDate=''
-
       ; acquisition time
       test=o->GetReference('0008'x,'0032'x)
       test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
       IF test(0) NE -1 THEN acqTime=*(test_peker[0]) ELSE acqTime=''
+
+      test=o->GetReference('0008'x,'0023'x)
+      test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
+      IF test(0) NE -1 THEN imgDate=*(test_peker[0]) ELSE imgDate=''
       
       test=o->GetReference('0008'x,'0080'x)
       test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
@@ -128,6 +130,10 @@ function readImgInfo, adr, dialog_par
       test=o->GetReference('0008'x,'1010'x);ECAM
       test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
       IF test(0) NE -1 THEN stationName=*(test_peker[0]) ELSE stationName=''
+      
+      test=o->GetReference('0018'x,'700A'x);
+      test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
+      IF test(0) NE -1 THEN detectorID=*(test_peker[0]) ELSE detectorID=''
 
       test=o->GetReference('0010'x,'0010'x)
       test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
@@ -204,30 +210,48 @@ function readImgInfo, adr, dialog_par
 
       test=o->GetReference('0018'x,'0060'x)
       test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
-      IF test(0) NE -1 THEN kVp=*(test_peker[0]) ELSE kVp=-1
+      IF test(0) NE -1 THEN kVp=*(test_peker[0]) ELSE kVp=-1.
+      IF N_ELEMENTS(kVp) GT 1 THEN kVp=FLOAT(fix(kVp, type=7))
 
       test=o->GetReference('0018'x,'0090'x)
       test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
-      IF test(0) NE -1 THEN dFOV=*(test_peker[0]) ELSE dFOV=-1
+      IF test(0) NE -1 THEN dFOV=*(test_peker[0]) ELSE dFOV=-1.
+      IF N_ELEMENTS(dFOV) GT 1 THEN dFOV=FLOAT(fix(dFOV, type=7))
 
       test=o->GetReference('0018'x,'1100'x)
       test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
-      IF test(0) NE -1 THEN rekonFOV=*(test_peker[0]) ELSE rekonFOV=-1
+      IF test(0) NE -1 THEN rekonFOV=*(test_peker[0]) ELSE rekonFOV=-1.
+      IF N_ELEMENTS(rekonFOV) GT 1 THEN rekonFOV=FLOAT(fix(rekonFOV, type=7))
 
-      mA=-1
-      test=o->GetReference('0018'x,'1151'x)
+      mA=-1.
+      test=o->GetReference('0018'x,'8151'x); mikroA
       test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
-      IF test(0) NE -1 THEN mA=*(test_peker[0]) ELSE BEGIN
-        test=o->GetReference('0018'x,'9330'x)
+      IF test(0) NE -1 THEN BEGIN
+        mA=*(test_peker[0])
+        IF N_ELEMENTS(mA) GT 1 THEN mA=fix(mA,type=7)
+        mA=0.001*FLOAT(mA)
+      ENDIF ELSE BEGIN
+        test=o->GetReference('0018'x,'1151'x); milliA
         test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
-        IF test(0) NE -1 THEN mA=*(test_peker[0])
+        IF test(0) NE -1 THEN mA=*(test_peker[0]) ELSE BEGIN
+          test=o->GetReference('0018'x,'9330'x)
+          test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
+          IF test(0) NE -1 THEN mA=*(test_peker[0])
+        ENDELSE
       ENDELSE
 
-      test=o->GetReference('0018'x,'1152'x)
+      test=o->GetReference('0018'x,'1153'x); mikroAs
       test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
-      IF test(0) NE -1 THEN mAs=*(test_peker[0]) ELSE mAs=-1. ; changed to mA*time/1000 if CR or DX to get floating number, not integer
+      IF test(0) NE -1 THEN mAs=*(test_peker[0]) ELSE mAs=-1. 
+      IF N_ELEMENTS(mAs) GT 1 THEN mAs=float(fix(mAs,type=7))
+      IF mAs LE 0 THEN BEGIN 
+        test=o->GetReference('0018'x,'1152'x); milliAs
+        test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
+        IF test(0) NE -1 THEN mAs=*(test_peker[0]) ELSE mAs=-1.
+        IF N_ELEMENTS(mAs) GT 1 THEN mAs=float(fix(mAs,type=7))
+      ENDIF ELSE mAs=0.001*mAs
       
-      IF modality EQ 'PT' THEN time=-1 ELSE BEGIN
+      IF modality EQ 'PT' THEN time=-1. ELSE BEGIN
         test=o->GetReference('0018'x,'1150'x)
         test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
         IF test(0) NE -1 THEN BEGIN
@@ -235,16 +259,34 @@ function readImgInfo, adr, dialog_par
         ENDIF ELSE time=-1
       ENDELSE
       
-      IF modality EQ 'DX' OR modality EQ 'CR' THEN BEGIN
-        mAs=FLOAT(mA)*FLOAT(time)/1000.
-      ENDIF
+      ;IF modality EQ 'DX' OR modality EQ 'CR' THEN BEGIN
+      ;  mAs=FLOAT(mA)*FLOAT(time)/1000.
+      ;ENDIF
 
-      test=o->GetReference('0018'x,'9323'x)
-      test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
-      IF test(0) NE -1 THEN BEGIN
-        ExModType=*(test_peker[0])
-        IF N_ELEMENTS(ExModType) NE 1 THEN ExModType='?'
+      ;AEC
+      IF modality EQ 'CT' THEN BEGIN
+        test=o->GetReference('0018'x,'9323'x)
+        test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
+        IF test(0) NE -1 THEN BEGIN
+          ExModType=*(test_peker[0])
+          IF N_ELEMENTS(ExModType) GT 1 THEN ExModType=fix(ExModType, type=7)
+        ENDIF ELSE ExModType='-'
       ENDIF ELSE ExModType='-'
+      IF modality EQ 'DX' OR modality EQ 'CR' THEN BEGIN
+        test=o->GetReference('0018'x,'7060'x);MAN/AUT
+        test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
+        IF test(0) NE -1 THEN BEGIN
+          ExModType=*(test_peker[0])
+          IF N_ELEMENTS(ExModType) GT 1 THEN ExModType=fix(ExModType, type=7)
+        ENDIF
+        test=o->GetReference('0018'x,'7062'x);AEC descr
+        test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
+        IF test(0) NE -1 THEN BEGIN
+          ExModType2=*(test_peker[0])
+          IF N_ELEMENTS(ExModType2) GT 1 THEN ExModType2=fix(ExModType2, type=7)
+          IF ExModType NE '' THEN ExModType=ExModType+' | '+ExModType2
+        ENDIF
+      ENDIF
 
       test=o->GetReference('0018'x,'9306'x)
       IF test(0) NE -1 THEN BEGIN
@@ -306,9 +348,38 @@ function readImgInfo, adr, dialog_par
       test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
       IF test(0) NE -1 THEN sensitivity=*(test_peker[0]) ELSE sensitivity=-1.
 
+      ;filterAddOn
+      test=o->GetReference('0018'x,'1160'x); NONE/MULTIPLE....
+      test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
+      IF test(0) NE -1 THEN filterAddOn=*(test_peker[0]) ELSE filterAddOn='-'
+      IF filterAddOn NE 'NONE' AND filterAddOn NE '-' THEN BEGIN
+        test=o->GetReference('0018'x,'7050'x)
+        test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
+        IF test(0) NE -1 THEN BEGIN
+          filterAddOn2=*(test_peker[0])
+          IF N_ELEMENTS(filterAddOn2) GT 1 THEN filterAddOn2=fix(filterAddOn2, type=7)
+          filterAddOn=filterAddOn+' | '+filterAddOn2
+        ENDIF
+        test=o->GetReference('0018'x,'7052'x)
+        test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
+        IF test(0) NE -1 THEN BEGIN
+          filterAddOn2=*(test_peker[0])
+          IF N_ELEMENTS(filterAddOn2) GT 1 THEN filterAddOn2=fix(filterAddOn2, type=7)
+          filterAddOn=filterAddOn+' | '+filterAddOn2
+        ENDIF
+        test=o->GetReference('0018'x,'7054'x)
+        test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
+        IF test(0) NE -1 THEN BEGIN
+          filterAddOn2=*(test_peker[0])
+          IF N_ELEMENTS(filterAddOn2) GT 1 THEN filterAddOn2=fix(filterAddOn2, type=7)
+          filterAddOn=filterAddOn+' | '+filterAddOn2
+        ENDIF
+      ENDIF
+      
+      ;kernel
       test=o->GetReference('0018'x,'1210'x);more than one possible...
       test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
-      IF test(0) NE -1 THEN filter=*(test_peker[0]) ELSE filter='-'
+      IF test(0) NE -1 THEN kernel=*(test_peker[0]) ELSE kernel='-'
 
       IF nFrames EQ 0 THEN BEGIN
         test=o->GetReference('0020'x,'1041'x)
@@ -377,7 +448,7 @@ function readImgInfo, adr, dialog_par
       ;acqFrameDuration (msec)
       test=o->GetReference('0018'x,'1242'x);
       test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
-      IF test(0) NE -1 THEN acqFrameDuration=DOUBLE(*(test_peker[0])) ELSE acqFrameDuration=-1
+      IF test(0) NE -1 THEN acqFrameDuration=DOUBLE(*(test_peker[0])) ELSE acqFrameDuration=-1.
       
       test=o->GetReference('0018'x,'0017'x);
       test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
@@ -433,10 +504,10 @@ function readImgInfo, adr, dialog_par
       
       frameNo=-1
       
-      imgStruct=CREATE_STRUCT('filename',adr,'acqDate', acqDate, 'imgDate', imgDate, 'institution',institution,'modality', modality, 'modelName',modelName,'stationName',stationName,$
+      imgStruct=CREATE_STRUCT('filename',adr,'acqDate', acqDate, 'imgDate', imgDate, 'institution',institution,'modality', modality, 'modelName',modelName,'stationName',stationName,'detectorID',detectorID,$
         'patientName',patientName, 'patientID', patientID, 'patientWeight', patientWeight, 'imageType',imageType,'presType',presType,'studyDescr',studyDescr,'seriesName',seriesName, 'protocolname', protocolname,$
         'seriesNmb',seriesNmb,'acqNmb',acqNmb, 'acqtime',acqtime,'sliceThick',sliceThick, 'pix', pix,'imageSize',imageSize,'kVp',kVp,'FOV',dFOV,'rekonFOV',rekonFOV,'mA',mA,'mAs',mAs,'ExpTime',time,'coll',coll,'pitch',pitch,$
-        'ExModType',ExModType,'CTDIvol',CTDIvol,'DAP',DAP,'EI',EI,'sensitivity',sensitivity,'filter',filter,$
+        'ExModType',ExModType,'CTDIvol',CTDIvol,'DAP',DAP,'EI',EI,'sensitivity',sensitivity,'filterAddOn',filterAddOn,'kernel',kernel,$
         'zpos', zpos, 'imgNo',imgNo,'nFrames',nFrames,'wCenter',wCenter,'wWidth',wWidth,$
         'collType',collType,'nEWindows',nEWindows,'EWindowName',EWindowName,'zoomFactor',zoomFactor,'radius1',radPos1,'radius2',radPos2,'angle',angle,'acqFrameDuration',acqFrameDuration,'acqTerminationCond',acqTerminationCond,$
         'units',units,'radiopharmaca',radiopharmaca,'admDose',admDose,'admDoseTime',admDoseTime,'reconMethod',reconMethod,'attCorrMethod',attCorrMethod,'scaCorrMethod',scaCorrMethod, 'scatterFrac',scatterFrac,$
@@ -463,13 +534,12 @@ function readImgInfo, adr, dialog_par
     CATCH, err_stat
     IF err_stat NE 0 THEN BEGIN
       CATCH, /CANCEL
-      sv=DIALOG_MESSAGE('Not valid dicom or .dat/.sav file: '+adr, /INFORMATION, DIALOG_PARENT=dialog_par)
+      IF silentValue EQ 0 THEN sv=DIALOG_MESSAGE('Not valid dicom or .dat/.sav file: '+adr, /INFORMATION, DIALOG_PARENT=dialog_par)
       RETURN, -1
     ENDIF
     RESTORE, adr 
     IF SIZE(imageQCmatrix, /TNAME) EQ 'STRUCT' THEN BEGIN
-      imageQCmatrix.filename=adr
-      imgStruct=imageQCmatrix
+      imgStruct=imgStructUpdate(imageQCmatrix, adr)
     ENDIF
     imageQCmatrix=!null
   ENDELSE

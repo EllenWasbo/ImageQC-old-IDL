@@ -23,26 +23,14 @@ pro updateMode
   selTab=WIDGET_INFO(wtabModes, /TAB_CURRENT)
   
   CASE selTab OF
-    0: BEGIN
-      selTest=WIDGET_INFO(wtabAnalysisCT, /TAB_CURRENT)
-      analyse=analyseStringsCT(selTest)
-    END
-    1:BEGIN
-      selTest=WIDGET_INFO(wtabAnalysisXray, /TAB_CURRENT)
-      analyse=analyseStringsXray(selTest)
-    END
-    2:BEGIN
-      selTest=WIDGET_INFO(wtabAnalysisNM, /TAB_CURRENT)
-      analyse=analyseStringsNM(selTest)
-    END
-    3:BEGIN
-      selTest=WIDGET_INFO(wtabAnalysisSPECT, /TAB_CURRENT)
-      analyse=analyseStringsSPECT(selTest)
-    END
-    4:BEGIN
-      selTest=WIDGET_INFO(wtabAnalysisPET, /TAB_CURRENT)
-      analyse=analyseStringsPET(selTest)
-    END
+    0: selTest=WIDGET_INFO(wtabAnalysisCT, /TAB_CURRENT)
+    1: selTest=WIDGET_INFO(wtabAnalysisXray, /TAB_CURRENT)
+    2: selTest=WIDGET_INFO(wtabAnalysisNM, /TAB_CURRENT)
+    3: selTest=WIDGET_INFO(wtabAnalysisSPECT, /TAB_CURRENT)
+    4: selTest=WIDGET_INFO(wtabAnalysisPET, /TAB_CURRENT)
+    5: selTest=WIDGET_INFO(wtabAnalysisMR, /TAB_CURRENT)
   ENDCASE
+  analyseStrings=analyseStringsAll.(selTab)
+  analyse=analyseStrings(selTest)
 
 end

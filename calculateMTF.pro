@@ -94,14 +94,19 @@ CASE typeMTF OF
     ppFWHM=pp2-pp1
     first=ROUND(pp1-cutW*ppFWHM)
     last=ROUND(pp2+cutW*ppFWHM)
-    IF first GT 0 THEN BEGIN
-      LSFx[0:first]=0
-      LSFy[0:first]=0
-    ENDIF
-    IF last LT nn-1 THEN BEGIN
-      LSFx[last:nn-1]=0
-      LSFy[last:nn-1]=0
-    ENDIF
+    IF first GT 0 THEN LSFx[0:first]=0
+    IF last LT nn-1 THEN LSFx[last:nn-1]=0
+
+    nn=N_ELEMENTS(LSFy)
+    smdLSF=SMOOTH(LSFy,3)
+    smdLSF=smdLSF/max(smdLSF)
+    over05=WHERE(smdLSF GT 0.5, nover05)
+    pp1=over05(0) & pp2=over05(nover05-1)
+    ppFWHM=pp2-pp1
+    first=ROUND(pp1-cutW*ppFWHM)
+    last=ROUND(pp2+cutW*ppFWHM)
+    IF first GT 0 THEN LSFy[0:first]=0
+    IF last LT nn-1 THEN LSFy[last:nn-1]=0
   ENDIF
   
   MTFx=FFTvector(LSFx, factorPad)
@@ -123,6 +128,14 @@ END
   szM=size(submatrix,/DIMENSIONS)
   
   background=MEAN(subMatrix[0,0,*]);MEAN([MEAN(submatrix[*,0,*]),MEAN(submatrix[*,szM(1)-1,*]),MEAN(submatrix[0,*,*]),MEAN(submatrix[szM(0)-1,*,*])])
+  IF N_ELEMENTS(szM) EQ 2 THEN BEGIN; duplicate image
+    submatrix2=FLTARR(szM(0),szM(1),2)
+    submatrix2[*,*,0]=submatrix
+    submatrix2[*,*,1]=submatrix
+    submatrix=submatrix2
+    background=MEAN(subMatrix[0:1,0:1,0])
+    szM=[szM, 2]
+  ENDIF
 
     MTFstruct=CREATE_STRUCT('subMatrixAll',submatrix)
 
@@ -574,8 +587,17 @@ FOR i=0, 2 DO BEGIN
     IF pos(0) NE -1 THEN res(i+3)=getInterpX(lim(i),MTF.fy(pos(0)-1),MTF.fy(pos(0)),MTF.MTFy(pos(0)-1),MTF.MTFy(pos(0)))
   ENDIF
 ENDFOR
+res2=FLTARR(6)-1
+FOR i=0, 2 DO BEGIN
+  pos=WHERE(MTFx LT lim(i))
+  IF pos(0) NE -1 THEN res2(i)=getInterpX(lim(i),fx(pos(0)-1),fx(pos(0)),MTFx(pos(0)-1),MTFx(pos(0)))
+  IF N_ELEMENTS(MTFy) GT 1 THEN BEGIN
+    pos=WHERE(MTFy LT lim(i))
+    IF pos(0) NE -1 THEN res2(i+3)=getInterpX(lim(i),fy(pos(0)-1),fy(pos(0)),MTFy(pos(0)-1),MTFy(pos(0)))
+  ENDIF
+ENDFOR
 
-MTFstruct=CREATE_STRUCT(MTFstruct, 'F50_10_2', res, 'status', status )
+MTFstruct=CREATE_STRUCT(MTFstruct, 'F50_10_2', res, 'F50_10_2discrete',res2,'status', status )
 
 return, MTFstruct
 end

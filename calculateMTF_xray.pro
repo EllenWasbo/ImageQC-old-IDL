@@ -258,8 +258,16 @@ IF formLSF NE 2 THEN MTFstruct=CREATE_STRUCT(MTFstruct,'smLSF',smLSF, 'gLSF',gLS
   IF pos(0) NE -1 THEN BEGIN
     IF formLSF EQ 2 THEN res(5)=getInterpX(0.5,dx(pos(0)-1),dx(pos(0)),dMTF(pos(0)-1),dMTF(pos(0))) ELSE res(5)=getInterpX(0.5,gx(pos(0)-1),gx(pos(0)),gMTF(pos(0)-1),gMTF(pos(0))) 
   ENDIF ELSE res(5)=-1
+  ;discrete always
+  res2=FLTARR(6)-1
+  FOR i=0, 4 DO BEGIN
+    pos=WHERE(dx GT lim(i))
+    IF pos(0) NE -1 THEN res2(i)=getInterpX(lim(i),dMTF(pos(0)-1),dMTF(pos(0)),dx(pos(0)-1),dx(pos(0))) ELSE res2(i)=-1
+  ENDFOR
+  pos=WHERE(dMTF LT 0.5)
+  IF pos(0) NE -1 THEN res2(5)=getInterpX(0.5,dx(pos(0)-1),dx(pos(0)),dMTF(pos(0)-1),dMTF(pos(0))) ELSE res2(5)=-1
   
-  MTFstruct=CREATE_STRUCT(MTFstruct, 'dx',dx,'dMTF',dMTF, 'lpmm', res, 'slope', slope, 'interc', interc, 'direction',direction,'errMsg',errMsg)
+  MTFstruct=CREATE_STRUCT(MTFstruct, 'dx',dx,'dMTF',dMTF, 'lpmm', res, 'lpmm_discrete', res2, 'slope', slope, 'interc', interc, 'direction',direction,'errMsg',errMsg)
   IF formLSF NE 2 THEN MTFstruct=CREATE_STRUCT(MTFstruct, 'gMTF',gMTF, 'gx',gx)
 
   return, MTFstruct

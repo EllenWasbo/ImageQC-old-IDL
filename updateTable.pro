@@ -22,13 +22,8 @@ pro updateTable
   nCols=-1
   IF analyse NE 'ENERGYSPEC' THEN BEGIN
     sel=WIDGET_INFO(listFiles, /LIST_SELECT) & sel=sel(0)
-    ;IF nFrames EQ 0 THEN BEGIN
-      nImg=N_TAGS(structImgs)
-      pix=structImgs.(sel).pix(0)
-    ;ENDIF ELSE BEGIN
-     ; nImg=nFrames
-      ;pix=structImgs.(0).pix(0)
-    ;ENDELSE
+    nImg=N_TAGS(structImgs)
+    pix=structImgs.(sel).pix(0)
     markedTemp=INDGEN(nImg); all default
     IF marked(0) EQ -1 THEN nRows=nImg ELSE BEGIN
       nRows=N_ELEMENTS(marked)
@@ -47,30 +42,35 @@ pro updateTable
 
         CASE analyse OF
 
-;          'ROI': BEGIN
-;            nCols=4
-;            headers=['Min','Max','Avg','Stdev']
-;            resArrString=STRARR(nCols,nRows)
-;            FOR i=0, nRows-1 DO resArrString[*,i]=STRING(ROIres[*,markedTemp(i)], FORMAT=formatCode(ROIres[*,markedTemp(i)]))
-;          END
-
           'MTF': BEGIN
             ;table results @50,10,2%
             multipRes=WHERE(TAG_NAMES(MTFres) EQ 'M0')
+            WIDGET_CONTROL, cw_tableMTF, GET_VALUE= tableWhich
             IF multipRes(0) NE -1 THEN BEGIN
               nCols=6
-              headers=['MTFx 50%','MTFx 10%','MTFx 2%','MTFy 50%','MTFy 10%','MTFy 2%']
+              currentHeaderAlt(curTab)=0
+              headers=tableHeaders.CT.MTF.Alt1;['MTFx 50%','MTFx 10%','MTFx 2%','MTFy 50%','MTFy 10%','MTFy 2%']
               resArrString=STRARR(nCols,nRows)
               FOR i =0, nRows-1 DO BEGIN
                 tagn=TAG_NAMES(MTFres.(markedTemp(i)))
-                IF tagn.HasValue('F50_10_2') THEN resArrString[*,i]=STRING(MTFres.(markedTemp(i)).F50_10_2, FORMAT='(F0.3)')
+                IF tableWhich EQ 0 THEN BEGIN
+                  IF tagn.HasValue('F50_10_2') THEN resArrString[*,i]=STRING(MTFres.(markedTemp(i)).F50_10_2, FORMAT='(F0.3)')
+                ENDIF ELSE BEGIN
+                  IF tagn.HasValue('F50_10_2DISCRETE') THEN resArrString[*,i]=STRING(MTFres.(markedTemp(i)).F50_10_2DISCRETE, FORMAT='(F0.3)')
+                ENDELSE
               ENDFOR
+
             ENDIF ELSE BEGIN
               nRows=1
               nCols=3
-              headers=['MTF 50%','MTF 10%','MTF 2%']
+              currentHeaderAlt(curTab)=1
+              headers=tableHeaders.CT.MTF.Alt2;['MTF 50%','MTF 10%','MTF 2%']
               tagn=TAG_NAMES(MTFres)
-              IF tagn.HasValue('F50_10_2') THEN resArrString=STRING(MTFres.F50_10_2[0:2], FORMAT='(F0.3)')
+              IF tableWhich EQ 0 THEN BEGIN
+                IF tagn.HasValue('F50_10_2') THEN resArrString=STRING(MTFres.F50_10_2[0:2], FORMAT='(F0.3)')
+              ENDIF ELSE BEGIN
+                IF tagn.HasValue('F50_10_2DISCRETE') THEN resArrString=STRING(MTFres.F50_10_2DISCRETE[0:2], FORMAT='(F0.3)')
+               ENDELSE 
               cellSelHighLight=0
             ENDELSE
           END
@@ -90,15 +90,9 @@ pro updateTable
           'SLICETHICK': BEGIN
             nCols=7
             WIDGET_CONTROL, cw_ramptype, GET_VALUE=ramptype
-            CASE ramptype OF
-              0: headers=['Nominal','H1','H2','V1','V2','Avg','Diff nominal (%)']
-              1: headers=['Nominal','H1','H2','V1','V2','inner V1','inner V2']
-              2: BEGIN
-                headers=['Nominal','V1','V2']
-                nCols=3
-              END
-              ELSE:
-            ENDCASE
+            currentHeaderAlt(curTab)=ramptype
+            headers=tableHeaders.CT.SLICETHICK.(ramptype)
+            IF ramptype EQ 2 THEN nCols=3
             resArrString=STRARR(nCols,nRows)
             IF rampType EQ 2 THEN BEGIN
               FOR i=0, nRows-1 DO BEGIN
@@ -113,7 +107,7 @@ pro updateTable
           'HOMOG': BEGIN
             szTab=SIZE(homogRes, /DIMENSIONS)
             nCols=9
-            headers=['12oClock','15oClock','18oClock','21oClock','Center HU','Diff C 12','Diff C 15','Diff C 18','Diff C 21'];'Std 12','Std 15','Std 18','Std 21','Std center']
+            headers=tableHeaders.CT.HOMOG.Alt1;['12oClock','15oClock','18oClock','21oClock','Center HU','Diff C 12','Diff C 15','Diff C 18','Diff C 21']
             resArrString=STRARR(nCols,nRows)
             FOR i=0, nRows-1 DO BEGIN
               resArrString[0:3,i]=STRING(homogRes[1:4,markedTemp(i)], FORMAT=formatCode(homogRes[1:4,markedTemp(i)]))
@@ -126,7 +120,7 @@ pro updateTable
 
           'NOISE': BEGIN
             nCols=4
-            headers=['CT number (HU)','Noise=Stdev (HU)','Diff avg noise(%)', 'Avg noise (HU)']
+            headers=tableHeaders.CT.NOISE.Alt1;['CT number (HU)','Noise=Stdev (HU)','Diff avg noise(%)', 'Avg noise (HU)']
             resArrString=STRARR(nCols,nRows)
             FOR i=0, nRows-1 DO resArrString[*,i]=STRING(noiseRes[*,markedTemp(i)],FORMAT=formatCode(noiseRes[*,markedTemp(i)]))
             IF nRows GT 1 THEN resArrString[3,1:nRows-1]=''
@@ -159,7 +153,7 @@ pro updateTable
         CASE analyse OF
           'STP':BEGIN
             nCols=4
-            headers=['Dose','Q','Mean pix','Stdev pix']
+            headers=tableHeaders.XRAY.STP.Alt1;['Dose','Q','Mean pix','Stdev pix']
             resArrString=STRARR(nCols,nRows)
             WIDGET_CONTROL, txtRQA, GET_VALUE=Qvalue
             Qvalue=LONG(Qvalue(0))
@@ -173,37 +167,46 @@ pro updateTable
           'HOMOG':BEGIN
             szTab=SIZE(homogRes, /DIMENSIONS)
             nCols=szTab(0)
-            headers=['Center','UpperLeft','LowerLeft','UpperRight','LowerRight','Std center', 'Std UL','Std LL','Std UR','Std LR']
+            headers=tableHeaders.XRAY.HOMOG.Alt1;['Center','UpperLeft','LowerLeft','UpperRight','LowerRight','Std center', 'Std UL','Std LL','Std UR','Std LR']
             resArrString=STRARR(nCols,nRows)
             FOR i=0, nRows-1 DO resArrString[*,i]=STRING(homogRes[*,markedTemp(i)], FORMAT=formatCode(homogRes[*,markedTemp(i)]))
           END
           'NOISE':BEGIN
             nCols=2
-            headers=['Mean pixel value','Stdev']
+            headers=tableHeaders.XRAY.NOISE.Alt1;['Mean pixel value','Stdev']
             resArrString=STRARR(nCols,nRows)
             FOR i=0, nRows-1 DO resArrString[*,i]=STRING(noiseRes[*,markedTemp(i)], FORMAT=formatCode(noiseRes[*,markedTemp(i)]))
           END
-          'EI':BEGIN
-            nCols=2
-            headers=['mAs','EI']
+          'EXP':BEGIN
+            nCols=4
+            headers=tableHeaders.XRAY.EXP.Alt1;['kVp','mAs','EI','DAP']
             resArrString=STRARR(nCols,nRows)
-            FOR i=0, nRows-1 DO resArrString[*,i]=STRING(eiRes[*,markedTemp(i)], FORMAT='(f0.1)')
+            FOR i=0, nRows-1 DO resArrString[0,i]=STRING(expRes[0,markedTemp(i)], FORMAT=formatCode(expRes[0,markedTemp(i)]))
+            FOR i=0, nRows-1 DO resArrString[1,i]=STRING(expRes[1,markedTemp(i)], FORMAT=formatCode(expRes[1,markedTemp(i)]))
+            FOR i=0, nRows-1 DO resArrString[2,i]=STRING(expRes[2,markedTemp(i)], FORMAT=formatCode(expRes[2,markedTemp(i)]))
+            FOR i=0, nRows-1 DO resArrString[3,i]=STRING(expRes[3,markedTemp(i)], FORMAT=formatCode(expRes[3,markedTemp(i)]))
           END
-;          'ROI':BEGIN
-;            nCols=4
-;            headers=['Min','Max','Avg','Stdev']
-;            resArrString=STRARR(nCols,nRows)
-;            FOR i=0, nRows-1 DO resArrString[*,i]=STRING(ROIres[*,markedTemp(i)], FORMAT=formatCode(ROIres[*,markedTemp(i)]))
-;          END
+
           'MTF':BEGIN
             ;table results 0.5-2.5 lp/mm + frq @ MTF 0.5
             nCols=6
-            headers=['MTF @ 0.5/mm','MTF @ 1.0/mm','MTF @ 1.5/mm','MTF @ 2.0/mm','MTF @ 2.5/mm','Freq @ MTF 0.5']
+            headers=tableHeaders.XRAY.MTF.Alt1;['MTF @ 0.5/mm','MTF @ 1.0/mm','MTF @ 1.5/mm','MTF @ 2.0/mm','MTF @ 2.5/mm','Freq @ MTF 0.5']
             resArrString=STRARR(nCols,nRows)
             multipRes=WHERE(TAG_NAMES(MTFres) EQ 'M0')
+            WIDGET_CONTROL, cw_tableMTFX, GET_VALUE= tableWhich
             IF multipRes(0) NE -1 THEN BEGIN
-              FOR i =0, nRows-1 DO IF N_TAGS(MTFres.(markedTemp(i))) NE 1 THEN resArrString[*,i]=STRING(MTFres.(markedTemp(i)).lpmm, FORMAT='(F0.3)')
-            ENDIF ELSE resArrString[*,0]=STRING(MTFres.lpmm, FORMAT='(F0.3)')
+              IF tableWhich EQ 0 THEN BEGIN
+                FOR i =0, nRows-1 DO IF N_TAGS(MTFres.(markedTemp(i))) NE 1 THEN resArrString[*,i]=STRING(MTFres.(markedTemp(i)).lpmm, FORMAT='(F0.3)')
+              ENDIF ELSE BEGIN
+                FOR i =0, nRows-1 DO IF N_TAGS(MTFres.(markedTemp(i))) NE 1 THEN resArrString[*,i]=STRING(MTFres.(markedTemp(i)).lpmm_discrete, FORMAT='(F0.3)')
+              ENDELSE
+            ENDIF ELSE BEGIN
+              IF tableWhich EQ 0 THEN BEGIN
+                resArrString[*,0]=STRING(MTFres.lpmm, FORMAT='(F0.3)')
+              ENDIF ELSE BEGIN
+                resArrString[*,0]=STRING(MTFres.lpmm_discrete, FORMAT='(F0.3)')
+              ENDELSE
+            ENDELSE
           END
           'NPS':
           ELSE:
@@ -219,21 +222,21 @@ pro updateTable
 
           'UNIF':BEGIN
             nCols=4
-            headers=['IU_UFOV %', 'DU_UFOV %', 'IU_CFOV %', 'DU_CFOV %']
+            headers=tableHeaders.NM.UNIF.Alt1;['IU_UFOV %', 'DU_UFOV %', 'IU_CFOV %', 'DU_CFOV %']
             resArrString=STRARR(nCols,nRows)
             FOR i=0, nRows-1 DO resArrString[*,i]=STRING(unifRes.table[*,markedTemp(i)], FORMAT='(F0.2)')
           END
 
           'SNI':BEGIN
             nCols=9
-            headers=['SNI max','SNI L1','SNI L2','SNI S1','SNI S2','SNI S3','SNI S4','SNI S5','SNI S6']
+            headers=tableHeaders.NM.SNI.Alt1;['SNI max','SNI L1','SNI L2','SNI S1','SNI S2','SNI S3','SNI S4','SNI S5','SNI S6']
             resArrString=STRARR(nCols,nRows)
             FOR i=0, nRows-1 DO IF N_TAGS(SNIres.(markedTemp(i))) NE 1 THEN resArrString[*,i]=STRING(SNIres.(markedTemp(i)).SNIvalues, FORMAT='(F0.2)')
           END
           
           'ACQ':BEGIN
             nCols=2
-            headers=['Total Count','Frame Duration (ms)']
+            headers=tableHeaders.NM.ACQ.Alt1;['Total Count','Frame Duration (ms)']
             resArrString=STRARR(nCols,nRows)
             FOR i=0, nRows-1 DO resArrString[*,i]=STRING(acqRes[*,markedTemp(i)], FORMAT='(i0)')
           END
@@ -242,7 +245,7 @@ pro updateTable
             nCols=7
             nRows=2
             cellSelHighLight=0
-            headers=['Method','Max (counts)','keV at max','Stdev (keV)','FWHM','FWTM','Energy resolution']
+            headers=['Method','Max (counts)','keV at max','Stdev (keV)','FWHM','FWTM','Energy res.']
             resArrString=STRARR(nCols,nRows)
             resArrString(0,0)='Interpolated'
             maxC=MAX(energyRes.curve[1,*])
@@ -486,10 +489,10 @@ pro updateTable
     ENDIF
 
     IF nCols GT 0 THEN BEGIN
-      WIDGET_CONTROL, resTab, TABLE_XSIZE=nCols, TABLE_YSIZE=nRows, COLUMN_LABELS=headers, COLUMN_WIDTHS=INTARR(nCols)+630/nCols, SET_VALUE=resArrString, SET_TABLE_SELECT=tabSelect
+      WIDGET_CONTROL, resTab, TABLE_XSIZE=nCols, TABLE_YSIZE=nRows, COLUMN_LABELS=headers, COLUMN_WIDTHS=INTARR(nCols)+630/nCols, SET_VALUE=resArrString, SET_TABLE_SELECT=tabSelect, ALIGNMENT=1
       WIDGET_CONTROL, resTab, FOREGROUND_COLOR=[0,0,0]
       IF markedMulti(0) NE -1 AND TOTAL(markedMulti) GT 0 AND nRows GT 1 THEN BEGIN
-        testNmb=getResNmb(modality,analyse,analyseStringsCT,analyseStringsXray,analyseStringsNM,analyseStringsPET)
+        testNmb=getResNmb(modality,analyse,analyseStringsAll)
         markedArrTemp=markedMulti[testNmb,*]
         FOR ii=0, nImg-1 DO BEGIN
           IF markedArrTemp(ii) EQ 0 THEN WIDGET_CONTROL, resTab, USE_TABLE_SELECT=[0,ii,nCols-1,ii], FOREGROUND_COLOR=[200,200,200]

@@ -25,6 +25,7 @@ pro clearAll
 
   ;clear list
   WIDGET_CONTROL, listFiles, YSIZE=1, SCR_YSIZE=170, SET_VALUE='';, SET_LIST_SELECT=-1; empty none selected
+  WIDGET_CONTROL, lblLoadedN, SET_VALUE='0 )'
   marked=-1
   markedMulti=-1
 
@@ -44,20 +45,14 @@ pro clearRes, analyseStr
     WIDGET_CONTROL, resTab, XSIZE=4, YSIZE=5, COLUMN_WIDTHS=[100,100,100,100], COLUMN_LABELS=['1','2','3','4'], SET_VALUE=STRARR(4,5), SET_TABLE_VIEW=[0,0]
   
     curTab=WIDGET_INFO(wtabModes, /TAB_CURRENT)
-    CASE curTab OF
-      0: analyseStrings=analyseStringsCT
-      1: analyseStrings=analyseStringsXray
-      2: analyseStrings=analyseStringsNM
-      3: analyseStrings=analyseStringsSPECT
-      4: analyseStrings=analyseStringsPET
-    ENDCASE
+    analyseStrings=analyseStringsAll.(curTab)
   
     IF N_ELEMENTS(analyseStr) EQ 0 THEN BEGIN
       dimRes=!Null
       stpRes=!Null
       homogRes=!Null
       noiseRes=!Null
-      eiRes=!Null
+      expRes=!Null
       MTFres=!Null
       NPSres=!Null
       ;ROIres=!Null
@@ -73,13 +68,14 @@ pro clearRes, analyseStr
       radialRes=!Null
       
       results=results*0
+      currentHeaderAlt=currentHeaderAlt*0
     ENDIF ELSE BEGIN
       CASE analyseStr OF
         'DIM': dimRes=!Null
         'STP': stpRes=!Null
         'HOMOG': homogRes=!Null
         'NOISE': noiseRes=!Null
-        'EI': eiRes=!Null
+        'EXP': expRes=!Null
         'MTF': MTFres=!Null
         'NPS': NPSres=!Null
         ;'ROI': ROIres=!Null
@@ -101,7 +97,10 @@ pro clearRes, analyseStr
       ENDCASE
   
       resNo=WHERE(analyseStrings EQ analyse)
-      IF resNo(0) NE -1 THEN results(resNo)=0
+      IF resNo(0) NE -1 THEN BEGIN
+        results(resNo)=0
+        currentHeaderAlt(resNo)=0
+      ENDIF
     ENDELSE
   
     WIDGET_CONTROL, resTab, TABLE_XSIZE=4, TABLE_YSIZE=2, COLUMN_LABELS=['0','1','2','3'], COLUMN_WIDTHS=[100,100,100,100], SET_VALUE=STRARR(4,5), SET_TABLE_SELECT=[-1,-1,-1,-1], SET_TABLE_VIEW=[0,0]

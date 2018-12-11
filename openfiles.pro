@@ -29,19 +29,29 @@ pro openFiles, adrFilesToOpen, SILENT=silent
 
     app=WIDGET_INFO(btnAppend, /BUTTON_SET)
 
-    IF app EQ 0 THEN newSel=0 ELSE app=N_TAGS(structImgs)
-
     nFiles=n_elements(adrFilesToOpen)
     counter=0
-
+    tnSt=TAG_NAMES(structImgs)
+    IF tnSt(0) EQ 'EMPTY' THEN app=0
+    IF app EQ 0 THEN newSel=0 ELSE BEGIN
+      app=N_TAGS(structImgs)
+      ;avoid conflicting structure names after closing images
+      tnSt=TAG_NAMES(structImgs)
+      FOR i=0, app-1 DO tnSt(i)=STRMID(tnSt(i),1,STRLEN(tnSt(i))-1)
+      tnSt=LONG(tnSt)
+      counter=MAX(tnSt)
+    ENDELSE
+    
     ;read image info from dicom header
     errLogg=''
+    
+    IF N_ELEMENTS(silent) EQ 0 THEN silent = 0
 
     FOR i=0, nFiles-1 DO BEGIN
 
       WIDGET_CONTROL, lblProgress, SET_VALUE='Loading file info: '+STRING(i*100./nFiles, FORMAT='(i0)')+' %'
       
-      structNew=readImgInfo(adrFilesToOpen(i), evTop)
+      structNew=readImgInfo(adrFilesToOpen(i), evTop, silent)
       
       IF SIZE(structNew, /TNAME) EQ 'STRUCT' THEN BEGIN
         tagn=TAG_NAMES(structNew)
@@ -61,6 +71,7 @@ pro openFiles, adrFilesToOpen, SILENT=silent
             counter=counter+1
           ENDELSE
         ENDIF ELSE BEGIN
+          
           IF multiFrame THEN BEGIN
             FOR mf=0, structNew.(0).nFrames-1 DO BEGIN
               structImgs=CREATE_STRUCT(structImgs,'S'+STRING(counter+app,FORMAT='(i0)'),structNew.(mf))
@@ -84,7 +95,7 @@ pro openFiles, adrFilesToOpen, SILENT=silent
     minOne=WHERE(pix0 EQ -1.,nminOne)
     IF minOne(0) NE -1 THEN errLogg=errLogg+'Missing pixel size from DICOM header for '+STRING(nminOne, FORMAT='(i0)')+' images. Edit pixel size manually to avoid corrupted results. Find button for this in the toolbar in the bottom left corner.'+newline
 
-    IF errLogg NE '' THEN sv=DIALOG_MESSAGE(errLogg ,/ERROR, DIALOG_PARENT=evTop)
+    IF errLogg NE '' AND silent EQ 0 THEN sv=DIALOG_MESSAGE(errLogg ,/ERROR, DIALOG_PARENT=evTop)
     errLogg=''
     WIDGET_CONTROL, lblProgress, SET_VALUE=' '
 
@@ -133,14 +144,8 @@ pro openFiles, adrFilesToOpen, SILENT=silent
 
           clearRes
           clearMulti
-          CASE modality OF
-            0: analyse=analyseStringsCT(0)
-            1: analyse=analyseStringsXray(0)
-            2: analyse=analyseStringsNM(0)
-            3: analyse=analyseStringsSPECT(0)
-            4: analyse=analyseStringsPET(0)
-            ELSE:
-          ENDCASE
+          analyseStrings=analyseStringsAll.(modality)
+          analyse=analyseStrings(0)
         ENDIF
       ENDIF
 

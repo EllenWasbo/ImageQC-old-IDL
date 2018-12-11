@@ -38,7 +38,7 @@ pro fillQuickTempList, qT, SELECT_NAME=select_name
       ENDELSE
     ENDIF
 
-    tags=TAG_NAMES(structImgs)
+    If structImgs NE !Null THEN tags=TAG_NAMES(structImgs) ELSE tags='EMPTY'
     IF tags(0) NE 'EMPTY' THEN BEGIN
       fileList=getListOpenFiles(structImgs,0,marked,markedMulti)
       sel=WIDGET_INFO(listFiles, /LIST_SELECT)
@@ -85,6 +85,7 @@ pro refreshParam, paramSet, paramSetName
   ;CT tests
   WIDGET_CONTROL, cw_typeMTF, SET_VALUE=paramSet.MTFTYPE
   WIDGET_CONTROL, cw_plotMTF, SET_VALUE=paramSet.PLOTMTF
+  WIDGET_CONTROL, cw_tableMTF, SET_VALUE=paramSet.TABLEMTF
   WIDGET_CONTROL, txtMTFroiSz, SET_VALUE=STRING(paramSet.MTFROISZ, FORMAT='(f0.1)')
   WIDGET_CONTROL, btnCutLSF, SET_BUTTON=paramSet.CUTLSF
   WIDGET_CONTROL, txtCutLSFW, SET_VALUE=STRING(paramSet.CUTLSF1, FORMAT='(f0.1)')
@@ -115,6 +116,7 @@ pro refreshParam, paramSet, paramSetName
   WIDGET_CONTROL, txtStpROIsz, SET_VALUE=STRING(paramSet.STPROISZ, FORMAT='(f0.1)')
   WIDGET_CONTROL, cw_formLSFX, SET_VALUE=paramSet.MTFtypeX
   WIDGET_CONTROL, cw_plotMTFX, SET_VALUE=paramSet.plotMTFX
+  WIDGET_CONTROL, cw_tableMTFX, SET_VALUE=paramSet.TABLEMTFX
   WIDGET_CONTROL, txtCutLSFWX, SET_VALUE=STRING(paramSet.cutLSFX1, FORMAT='(f0.1)')
   WIDGET_CONTROL, txtMTFroiSzX, SET_VALUE=STRING(paramSet.MTFroiSzX(0), FORMAT='(f0.1)')
   WIDGET_CONTROL, txtMTFroiSzY, SET_VALUE=STRING(paramSet.MTFroiSzX(1), FORMAT='(f0.1)')

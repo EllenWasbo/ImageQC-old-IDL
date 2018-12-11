@@ -24,22 +24,27 @@ pro STPpix
   WIDGET_CONTROL, /HOURGLASS
 
   nImg=N_TAGS(structImgs)
-  szROI=SIZE(stpROI, /DIMENSIONS)
 
-  resArr=FLTARR(4,nImg)-1; mean, stdev all circles
-  testNmb=getResNmb(modality,'STP',analyseStringsCT,analyseStringsXray,analyseStringsNM,analyseStringsSPECT,analyseStringsPET)
+  testNmb=getResNmb(modality,'STP',analyseStringsAll)
   markedArr=INTARR(nImg)
   IF marked(0) EQ -1 THEN BEGIN
     IF markedMulti(0) EQ -1 THEN markedArr=markedArr+1 ELSE markedArr=markedMulti[testNmb,*]
   ENDIF ELSE markedArr(marked)=1
   IF TOTAL(markedArr) GT 0 THEN BEGIN
 
+    anaImg=WHERE(markedArr EQ 1)
+    first=anaImg(0)
+    activeImg=readImg(structImgs.(first).filename, structImgs.(first).frameNo)
+    updateROI, ANA='STP', SEL=first
+    szROI=SIZE(stpROI, /DIMENSIONS)
+    resArr=FLTARR(4,nImg)-1; mean, stdev all circles
+
     FOR i=0, nImg-1 DO BEGIN
       IF markedArr(i) THEN BEGIN
         activeImg=readImg(structImgs.(i).filename, structImgs.(i).frameNo)
         imszTemp=SIZE(activeImg, /DIMENSIONS)
         szROI=SIZE(stpROI, /DIMENSIONS)
-        IF ~ARRAY_EQUAL(imszTemp[0:1], szROI[0:1]) THEN updateROI, ANA='STP'
+        IF ~ARRAY_EQUAL(imszTemp[0:1], szROI[0:1]) THEN updateROI, ANA='STP', SEL=i
 
         maske=stpROI
         IMAGE_STATISTICS, activeImg, COUNT=nPix, MEAN=meanHU, STDDEV=stddevHU, MASK=maske
@@ -57,15 +62,15 @@ pro STPpix
   ENDIF
 end
 
-pro getEI
+pro getExposure
   COMPILE_OPT hidden
   COMMON VARI
 
   WIDGET_CONTROL, /HOURGLASS
   nImg=N_TAGS(structImgs)
-  resArr=FLTARR(2,nImg)-1; mAs and EI
+  resArr=FLTARR(4,nImg)-1; kVp,mAs, EI, DAP
 
-  testNmb=getResNmb(modality,'EI',analyseStringsCT,analyseStringsXray,analyseStringsNM,analyseStringsSPECT,analyseStringsPET)
+  testNmb=getResNmb(modality,'EXP',analyseStringsAll)
   markedArr=INTARR(nImg)
   IF marked(0) EQ -1 THEN BEGIN
     IF markedMulti(0) EQ -1 THEN markedArr=markedArr+1 ELSE markedArr=markedMulti[testNmb,*]
@@ -73,12 +78,14 @@ pro getEI
   IF TOTAL(markedArr) GT 0 THEN BEGIN
     FOR i=0, nImg-1 DO BEGIN
       IF markedArr(i) THEN BEGIN
-        resArr[0,i]=structImgs.(i).mAs
-        resArr[1,i]=structImgs.(i).EI
+        resArr[0,i]=structImgs.(i).kVp
+        resArr[1,i]=structImgs.(i).mAs
+        resArr[2,i]=structImgs.(i).EI
+        resArr[3,i]=structImgs.(i).DAP
       ENDIF
     ENDFOR
     WIDGET_CONTROL, lblProgress, SET_VALUE=''
-    eiRes=resArr
+    expRes=resArr
     results(testNmb)=1
   ENDIF
 end
@@ -89,17 +96,21 @@ pro noise
   WIDGET_CONTROL, /HOURGLASS
 
   nImg=N_TAGS(structImgs)
-  IF N_ELEMENTS(noiseROI) LE 1 THEN updateROI, ANA='NOISE'
-  szROI=SIZE(noiseROI, /DIMENSIONS)
 
   resArr=FLTARR(2,nImg)-1; mean, stdev all circles
-  testNmb=getResNmb(modality,'NOISE',analyseStringsCT,analyseStringsXray,analyseStringsNM,analyseStringsSPECT,analyseStringsPET)
+  testNmb=getResNmb(modality,'NOISE',analyseStringsAll)
   markedArr=INTARR(nImg)
   IF marked(0) EQ -1 THEN BEGIN
     IF markedMulti(0) EQ -1 THEN markedArr=markedArr+1 ELSE markedArr=markedMulti[testNmb,*]
   ENDIF ELSE markedArr(marked)=1
 
   IF TOTAL(markedArr) GT 0 THEN BEGIN
+    anaImg=WHERE(markedArr EQ 1)
+    first=anaImg(0)
+    activeImg=readImg(structImgs.(first).filename, structImgs.(first).frameNo)
+    updateROI, ANA='NOISE', SEL=first
+    szROI=SIZE(noiseROI, /DIMENSIONS)
+    
     totNoise=0.
 
     FOR i=0, nImg-1 DO BEGIN
@@ -108,7 +119,7 @@ pro noise
         activeImg=readImg(structImgs.(i).filename, structImgs.(i).frameNo)
         imszTemp=SIZE(activeImg, /DIMENSIONS)
         szROI=SIZE(noiseROI, /DIMENSIONS)
-        IF ~ARRAY_EQUAL(imszTemp[0:1], szROI[0:1]) THEN updateROI, ANA='NOISE'
+        IF ~ARRAY_EQUAL(imszTemp[0:1], szROI[0:1]) THEN updateROI, ANA='NOISE', SEL=i
 
         maske=noiseROI
         IMAGE_STATISTICS, activeImg, COUNT=nPix, MEAN=meanVal, STDDEV=stddevVal, MASK=maske
@@ -151,17 +162,21 @@ pro homog
   COMMON VARI
 
   nImg=N_TAGS(structImgs)
-  IF N_ELEMENTS(homogROIs) LE 1 THEN updateROI, ANA='HOMOG'
-  szROI=SIZE(homogROIs, /DIMENSIONS)
 
-  resArr=FLTARR(szROI(2)*2,nImg)-1; mean, stdev all circles
-  testNmb=getResNmb(modality,'HOMOG',analyseStringsCT,analyseStringsXray,analyseStringsNM,analyseStringsSPECT,analyseStringsPET)
+  testNmb=getResNmb(modality,'HOMOG',analyseStringsAll)
   markedArr=INTARR(nImg)
   IF marked(0) EQ -1 THEN BEGIN
     IF markedMulti(0) EQ -1 THEN markedArr=markedArr+1 ELSE markedArr=markedMulti[testNmb,*]
   ENDIF ELSE markedArr(marked)=1
 
   IF TOTAL(markedArr) GT 0 THEN BEGIN
+    
+    anaImg=WHERE(markedArr EQ 1)
+    first=anaImg(0)
+    activeImg=readImg(structImgs.(first).filename, structImgs.(first).frameNo)
+    updateROI, ANA='HOMOG', SEL=first
+    szROI=SIZE(homogROIs, /DIMENSIONS)
+    resArr=FLTARR(szROI(2)*2,nImg)-1; mean, stdev all circles
 
     FOR i=0, nImg-1 DO BEGIN
       WIDGET_CONTROL, /HOURGLASS
@@ -169,7 +184,7 @@ pro homog
         activeImg=readImg(structImgs.(i).filename, structImgs.(i).frameNo)
         imszTemp=SIZE(activeImg, /DIMENSIONS)
         szROI=SIZE(homogROIs, /DIMENSIONS)
-        IF ~ARRAY_EQUAL(imszTemp[0:1], szROI[0:1]) THEN updateROI, ANA='HOMOG'
+        updateROI, ANA='HOMOG', SEL=i;IF ~ARRAY_EQUAL(imszTemp[0:1], szROI[0:1]) OR cc EQ 0 THEN updateROI, ANA='HOMOG'
 
         FOR r=0, szROI(2)-1 DO BEGIN
           maske=homogROIs[*,*,r]
@@ -177,6 +192,7 @@ pro homog
           resArr(r,i)=meanVal
           resArr(r+5,i)=stddevVal
         ENDFOR
+
       ENDIF
       WIDGET_CONTROL, lblProgress, SET_VALUE='Progress: '+STRING(i*100./nIMG, FORMAT='(i0)')+' %'
 
@@ -210,7 +226,7 @@ pro slicethick
   nAvg=LONG(nAvg(0))
 
   resArr=FLTARR(7,nImg)
-  testNmb=getResNmb(modality,'SLICETHICK',analyseStringsCT,analyseStringsXray,analyseStringsNM,analyseStringsSPECT,analyseStringsPET)
+  testNmb=getResNmb(modality,'SLICETHICK',analyseStringsAll)
   markedArr=INTARR(nImg)
   IF marked(0) EQ -1 THEN BEGIN
     IF markedMulti(0) EQ -1 THEN markedArr=markedArr+1 ELSE markedArr=markedMulti[testNmb,*]
@@ -337,7 +353,7 @@ pro mtf
   COMMON VARI
 
   nImg=N_TAGS(structImgs)
-  testNmb=getResNmb(modality,'MTF',analyseStringsCT,analyseStringsXray,analyseStringsNM,analyseStringsSPECT,analyseStringsPET)
+  testNmb=getResNmb(modality,'MTF',analyseStringsAll)
   markedArr=INTARR(nImg)
   IF marked(0) EQ -1 THEN BEGIN
     IF markedMulti(0) EQ -1 THEN markedArr=markedArr+1 ELSE markedArr=markedMulti[testNmb,*]
@@ -355,7 +371,7 @@ pro mtf
 
     tempImg=readImg(structImgs.(first).filename, structImgs.(first).frameNo)
     pixFirst=structImgs.(first).pix(0)
-    filtFirst=structImgs.(first).filter
+    filtFirst=structImgs.(first).kernel
 
 
     szFirst=SIZE(tempImg, /DIMENSIONS)
@@ -448,7 +464,7 @@ pro mtf
 
         tempImg=readImg(structImgs.(first).filename, structImgs.(first).frameNo)
         pixFirst=structImgs.(first).pix(0)
-        filtFirst=structImgs.(first).filter
+        filtFirst=structImgs.(first).kernel
 
         ROIsz=ROUND(ROIszPix(0)/pixFirst)
         halfSz=szFirst/2
@@ -467,7 +483,7 @@ pro mtf
             tempImg=readImg(structImgs.(i).filename, structImgs.(i).frameNo)
             szThis=SIZE(tempImg, /DIMENSIONS)
             curPix=structImgs.(i).pix(0)
-            curFilt=structImgs.(i).filter
+            curFilt=structImgs.(i).kernel
             IF curPix NE pixFirst THEN pixStatus=0
             IF curFilt NE filtFirst THEN filtStatus=0
             IF ARRAY_EQUAL(szThis[0:1], szFirst[0:1]) THEN BEGIN
@@ -487,7 +503,7 @@ pro mtf
           MTFres=calculateMTF(subM, pixFirst, dxyaO[0:1], typeMTF, -1, WIDGET_INFO(btnCutLSF, /BUTTON_SET), FLOAT(cutLSFW(0)), FLOAT(cutLSFWf(0)), FLOAT(sampFreq(0)))
           IF MTFres.status EQ 0 THEN sv=DIALOG_MESSAGE('Problem finding center of circle for one or more images. Center of circle assumed to be at center of ROI.', DIALOG_PARENT=evTop)
           results(testNmb)=1
-          IF filtStatus + pixStatus LT 2 THEN sv=DIALOG_MESSAGE('Pixelsize or filter-type do not match for all images in selection.', DIALOG_PARENT=evTop)
+          IF filtStatus + pixStatus LT 2 THEN sv=DIALOG_MESSAGE('Pixelsize or kernel-type do not match for all images in selection.', DIALOG_PARENT=evTop)
         ENDIF
       END;circular edge 3d
       ELSE: sv=DIALOG_MESSAGE('Not implementet selected MTF type yet',/INFORMATION, DIALOG_PARENT=evTop)
@@ -505,7 +521,7 @@ pro mtfx
   WIDGET_CONTROL, txtCutLSFWX, GET_VALUE=cutLSFW
 
   nImg=N_TAGS(structImgs)
-  testNmb=getResNmb(modality,'MTF',analyseStringsCT,analyseStringsXray,analyseStringsNM,analyseStringsSPECT,analyseStringsPET)
+  testNmb=getResNmb(modality,'MTF',analyseStringsAll)
   markedArr=INTARR(nImg)
   IF marked(0) EQ -1 THEN BEGIN
     IF markedMulti(0) EQ -1 THEN markedArr=markedArr+1 ELSE markedArr=markedMulti[testNmb,*]
@@ -569,7 +585,7 @@ pro uniformityNM
   areaRatio=FLOAT(areaRatio(0))
 
   resArr=FLTARR(2,nImg)-1; mean, stdev all circles
-  testNmb=getResNmb(modality,'UNIF',analyseStringsCT,analyseStringsXray,analyseStringsNM,analyseStringsSPECT,analyseStringsPET)
+  testNmb=getResNmb(modality,'UNIF',analyseStringsAll)
   markedArr=INTARR(nImg)
   IF marked(0) EQ -1 THEN BEGIN
     IF markedMulti(0) EQ -1 THEN markedArr=markedArr+1 ELSE markedArr=markedMulti[testNmb,*]
@@ -668,7 +684,7 @@ pro sni
 
   ;IF N_ELEMENTS(SNIroi) GT 1 THEN BEGIN
     resArr=FLTARR(2,nImg)-1; mean, stdev all circles
-    testNmb=getResNmb(modality,'SNI',analyseStringsCT,analyseStringsXray,analyseStringsNM,analyseStringsSPECT,analyseStringsPET)
+    testNmb=getResNmb(modality,'SNI',analyseStringsAll)
     markedArr=INTARR(nImg)
     IF marked(0) EQ -1 THEN BEGIN
       IF markedMulti(0) EQ -1 THEN markedArr=markedArr+1 ELSE markedArr=markedMulti[testNmb,*]
@@ -763,7 +779,34 @@ pro getAcqNM
   nImg=N_TAGS(structImgs)
   resArr=FLTARR(2,nImg)-1; frame duration and total counts
 
-  testNmb=getResNmb(modality,'ACQ',analyseStringsCT,analyseStringsXray,analyseStringsNM,analyseStringsSPECT,analyseStringsPET)
+  testNmb=getResNmb(modality,'ACQ',analyseStringsAll)
+  markedArr=INTARR(nImg)
+  IF marked(0) EQ -1 THEN BEGIN
+    IF markedMulti(0) EQ -1 THEN markedArr=markedArr+1 ELSE markedArr=markedMulti[testNmb,*]
+  ENDIF ELSE markedArr(marked)=1
+  IF TOTAL(markedArr) GT 0 THEN BEGIN
+    FOR i=0, nImg-1 DO BEGIN
+      IF markedArr(i) THEN BEGIN
+        tempImg=readImg(structImgs.(i).filename, structImgs.(i).frameNo)
+        resArr[0,i]=TOTAL(tempImg)
+        resArr[1,i]=structImgs.(i).acqFrameDuration
+      ENDIF
+    ENDFOR
+    WIDGET_CONTROL, lblProgress, SET_VALUE=''
+    acqRes=resArr
+    results(testNmb)=1
+  ENDIF
+end
+
+pro getDcmMR
+  COMPILE_OPT hidden
+  COMMON VARI
+
+  WIDGET_CONTROL, /HOURGLASS
+  nImg=N_TAGS(structImgs)
+  resArr=FLTARR(2,nImg)-1; frame duration and total counts
+
+  testNmb=getResNmb(modality,'DCM',analyseStringsAll)
   markedArr=INTARR(nImg)
   IF marked(0) EQ -1 THEN BEGIN
     IF markedMulti(0) EQ -1 THEN markedArr=markedArr+1 ELSE markedArr=markedMulti[testNmb,*]

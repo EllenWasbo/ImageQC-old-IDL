@@ -26,7 +26,7 @@ pro updateImageRes
 
   curMode=WIDGET_INFO(wTabModes, /TAB_CURRENT)
 
-  IF results(getResNmb(curMode,analyse,analyseStringsCT,analyseStringsXray,analyseStringsNM,analyseStringsSPECT, analyseStringsPET)) THEN BEGIN
+  IF results(getResNmb(curMode,analyse,analyseStringsAll)) THEN BEGIN
 
     rowNo=-1
     tags=TAG_NAMES(structImgs)

@@ -15,14 +15,40 @@
 ;along with this program; if not, write to the Free Software
 ;Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
+
+function getValString, actTable, calc
+
+  CASE calc OF
+    0: val=actTable
+    1: val=MIN(actTable)
+    2: val=MAX(actTable)
+    3: val=MEAN(actTable)
+    4: val=STDDEV(actTable)
+    ELSE:
+  ENDCASE
+
+  addValString=STRING(val, formatCode(val))
+
+  RETURN, addValString
+end
+
 pro calculateQuickTest
   COMPILE_OPT hidden
   COMMON VARI
-  
+
   IF TOTAL(multiOpt.(modality)) GT 0 THEN BEGIN
 
     imgWithMark=WHERE(TOTAL(markedMulti,1) GT 0, nTested)
     IF nTested GT 0 THEN BEGIN
+      RESTORE, thisPath+'data\config.dat'
+      qtOutName=configS.(selConfig).qtOutTemps(modality)
+      qtOutNames=TAG_NAMES(quickTout.(modality))
+      tempNmb=WHERE(qtOutNames EQ qtOutName)
+      IF tempNmb NE -1 THEN currQTout=quickTout.(modality).(tempNmb) ELSE BEGIN
+        sv=DIALOG_MESSAGE('The output template ('+qtOutName+') assigned to this parameter set is missing. Default is used.',DIALOG_PARENT=evTop)
+        currQTout=quickTout.(modality).(0)
+      ENDELSE
+      currTestsOut=TAG_NAMES(currQTout)
 
       ;top list of images, adress and date
       multiExpTable=STRARR(3, nTested+4); +4=header)
@@ -39,268 +65,54 @@ pro calculateQuickTest
       ENDFOR
       multiExpTable[*,nTested+3]=['ImageNo','Parameter','Value']
 
+      analyseStrings=analyseStringsAll.(modality)
+
       szMM=SIZE(markedMulti,/DIMENSIONS)
       FOR tt=0, szMM(0)-1 DO BEGIN
         markedTemp=WHERE(markedMulti[tt,*] EQ 1)
         test=tt+1
-        addrows=N_ELEMENTS(markedTemp)
-        IF addrows NE 0 THEN BEGIN
+        IF markedTemp(0) NE -1 THEN BEGIN
           cc=0
           CASE modality OF
             ;***************CT***************
-            0:BEGIN; 'HOMOG', 'NOISE','SLICETHICK','DIM', 'MTF'
+            0:BEGIN; 'HOMOG', 'NOISE','SLICETHICK', 'MTF'
+
+              testPos=WHERE(currTestsOut EQ analyseStrings(test-1))
+              WIDGET_CONTROL,wtabAnalysisCT, SET_TAB_CURRENT=test-1
+              analyse=analyseStrings(test-1)
               CASE test OF
-                1:BEGIN
-                  homog
-                  If results(test-1) EQ 1 THEN BEGIN
-                    addTable=STRARR(3,addrows)
-                    ;HU in central ROI homogtest (typically water or close to water)
-                    FOR im=0, nImg-1 DO BEGIN
-                      IF markedMulti(tt,im) THEN BEGIN
-                        addTable[*,cc]=[STRING(im+1, FORMAT='(i0)'),'Center_HU',STRING(homogRes[0,im],FORMAT='(f0.2)')]
-                        cc=cc+1
-                      ENDIF
-                    ENDFOR
-                    multiExpTable=[[multiExpTable],[addTable]]
-                    ;max and min diff from center HU periferral
-                    tempTable=FLTARR(4,addrows)
-                    cc=0
-                    FOR im=0, nImg-1 DO BEGIN
-                      IF markedMulti(tt,im) THEN BEGIN
-                        tempTable[*,cc]=homogRes[1:4,im]-homogRes[0,im]
-                        cc=cc+1
-                      ENDIF
-                    ENDFOR
-                    IF TOTAL(markedMulti[tt,*]) EQ 1 THEN BEGIN
-                      imgNo=WHERE(markedMulti[tt,*] EQ 1)
-                      imgTxt=STRING(imgNo+1, FORMAT='(i0)')
-                    ENDIF ELSE imgTxt='selection'
-                    multiExpTable=[[multiExpTable],[[imgTxt,'Max_diff_from_Center_HU',STRING(MAX(tempTable), FORMAT='(f0.2)')],['selection','Min_diff_from_Center_HU',STRING(MIN(tempTable), FORMAT='(f0.2)')]]]
-                  ENDIF
-                END
-                2:BEGIN
-                  noise
-                  If results(test-1) EQ 1 THEN BEGIN
-                    tempTable=FLTARR(addrows)
-                    cc=0
-                    FOR im=0, nImg-1 DO BEGIN
-                      IF markedMulti(tt,im) THEN BEGIN
-                        tempTable(cc)=noiseRes[1,im]
-                        cc=cc+1
-                      ENDIF
-                    ENDFOR
-                    IF TOTAL(markedMulti[tt,*]) EQ 1 THEN BEGIN
-                      imgNo=WHERE(markedMulti[tt,*] EQ 1)
-                      imgTxt=STRING(imgNo+1, FORMAT='(i0)')
-                    ENDIF ELSE imgTxt='selection'
-                    multiExpTable=[[multiExpTable],[imgTxt,'Max_noise', STRING(MAX(tempTable), FORMAT='(f0.2)')]]
-                  ENDIF
-                END
-                3:BEGIN
-                  sliceThick
-                  If results(test-1) EQ 1 THEN BEGIN
-                    addTable=STRARR(3,addrows)
-                    cc=0
-                    WIDGET_CONTROL, cw_ramptype, GET_VALUE=ramptype
-                    CASE ramptype OF
-                      0: BEGIN
-                        FOR im=0, nImg-1 DO BEGIN
-                          IF markedMulti(tt,im) THEN BEGIN
-                            addTable[*,cc]=[STRING(im+1, FORMAT='(i0)'),'Avg_Slicethick',STRING(sliceThickResTab[5,im],FORMAT='(f0.2)')]
-                            cc=cc+1
-                          ENDIF
-                        ENDFOR
-                      END
-                      1: BEGIN
-                        FOR im=0, nImg-1 DO BEGIN
-                          IF markedMulti(tt,im) THEN BEGIN
-                            addTable[*,cc]=[STRING(im+1, FORMAT='(i0)'),'Avg_Slicethick_Outer',STRING(0.25*TOTAL(sliceThickResTab[1:4,im]),FORMAT='(f0.2)')]
-                            cc=cc+1
-                          ENDIF
-                        ENDFOR
-                        multiExpTable=[[multiExpTable],[addTable]]
-                        addTable=STRARR(3,addrows)
-                        cc=0
-                        FOR im=0, nImg-1 DO BEGIN
-                          IF markedMulti(tt,im) THEN BEGIN
-                            addTable[*,cc]=[STRING(im+1, FORMAT='(i0)'),'Avg_Slicethick_Inner',STRING(0.5*TOTAL(sliceThickResTab[5:6,im]),FORMAT='(f0.2)')]
-                            cc=cc+1
-                          ENDIF
-                        ENDFOR
-                      END
-                      2: BEGIN
-                        FOR im=0, nImg-1 DO BEGIN
-                          IF markedMulti(tt,im) THEN BEGIN
-                            addTable[*,cc]=[STRING(im+1, FORMAT='(i0)'),'Avg_Slicethick',STRING(0.5*TOTAL(sliceThickResTab[3:4,im]),FORMAT='(f0.2)')]
-                            cc=cc+1
-                          ENDIF
-                        ENDFOR
-                      END
-                      ELSE:
-                    ENDCASE
-
-                    multiExpTable=[[multiExpTable],[addTable]]
-                  ENDIF
-                END
-                4:BEGIN
-                  mtf
-                  If results(test-1) EQ 1 THEN BEGIN
-                    multipRes=WHERE(TAG_NAMES(MTFres) EQ 'M0')
-                    IF multipRes(0) NE -1 THEN BEGIN
-                      addTable=STRARR(3,addrows)
-                      cc=0
-                      FOR im=0, nImg-1 DO BEGIN
-                        IF markedMulti(tt,im) THEN BEGIN
-                          addTable[*,cc]=[STRING(im+1, FORMAT='(i0)'),'Avg_x/y_MTF_50%',STRING(0.5*(MTFres.(im).F50_10_2(0)+MTFres.(im).F50_10_2(3)),FORMAT='(f0.3)')]
-                          addTable[*,cc]=[STRING(im+1, FORMAT='(i0)'),'Avg_x/y_MTF_10%',STRING(0.5*(MTFres.(im).F50_10_2(1)+MTFres.(im).F50_10_2(4)),FORMAT='(f0.3)')]
-                          cc=cc+1
-                        ENDIF
-                      ENDFOR
-                      multiExpTable=[[multiExpTable],[addTable]]
-                    ENDIF ELSE BEGIN
-                      IF TOTAL(markedMulti[tt,*]) EQ 1 THEN BEGIN
-                        imgNo=WHERE(markedMulti[tt,*] EQ 1)
-                        imgTxt=STRING(imgNo+1, FORMAT='(i0)')
-                      ENDIF ELSE imgTxt='selection'
-
-                      multiExpTable=[[multiExpTable],[imgTxt,'MTF_50%',STRING(MTFres.F50_10_2(0), FORMAT='(F0.3)')]]
-                      multiExpTable=[[multiExpTable],['_','MTF_10%',STRING(MTFres.F50_10_2(1), FORMAT='(F0.3)')]]
-                    ENDELSE
-                  ENDIF
-                END
+                1:homog
+                2:noise
+                3:sliceThick
+                4:mtf
                 ELSE:
               ENDCASE
             END
+
             ;***************Xray***************
-            1:BEGIN; 'STP','HOMOG','NOISE','EI','MTF'
-              cc=0
+            1:BEGIN; 'STP','HOMOG','NOISE','EXP','MTF'
+
+              testPos=WHERE(currTestsOut EQ analyseStrings(test-1))
+              WIDGET_CONTROL,wtabAnalysisXray, SET_TAB_CURRENT=test-1
+              analyse=analyseStrings(test-1)
               CASE test OF
-                1: BEGIN
-                  STPpix
-                  If results(test-1) EQ 1 THEN BEGIN
-                    addTable=STRARR(3,addrows)
-                    FOR im=0, nImg-1 DO BEGIN
-                      IF markedMulti(tt,im) THEN BEGIN
-                        addTable[*,cc]=[STRING(im+1, FORMAT='(i0)'),'Pixel_mean',STRING(STPres.table[2,im],FORMAT='(f0.2)')]
-                        cc=cc+1
-                      ENDIF
-                    ENDFOR
-                    multiExpTable=[[multiExpTable],[addTable]]
-                  ENDIF
-                END
-                2: BEGIN
-                  homog
-                  If results(test-1) EQ 1 THEN BEGIN
-                    FOR im=0, nImg-1 DO BEGIN
-                      IF markedMulti(tt,im) THEN BEGIN
-                        addTable=STRARR(3,10)
-                        addTable[*,*]='_'
-                        addTable[0,0]=STRING(im+1, FORMAT='(i0)')
-                        addTable[1,*]=TRANSPOSE(['Center','UpperLeft','LowerLeft','UpperRight','LowerRight','Std_center', 'Std_UL','Std_LL','Std_UR','Std_LR'])
-                        addTable[2,*]=TRANSPOSE(STRING(homogRes[*,im], FORMAT='(f0.2)'))
-                        multiExpTable=[[multiExpTable],[addTable]]
-                      ENDIF
-                    ENDFOR
-                  ENDIF
-                END
-                3:  BEGIN
-                  noise
-                  If results(test-1) EQ 1 THEN BEGIN
-                    FOR im=0, nImg-1 DO BEGIN
-                      IF markedMulti(tt,im) THEN BEGIN
-                        addTable=STRARR(3,2)
-                        addTable[*,*]='_'
-                        addTable[0,0]=STRING(im+1, FORMAT='(i0)')
-                        addTable[1,*]=TRANSPOSE(['Noise_mean','Noise_stdev'])
-                        addTable[2,*]=TRANSPOSE(STRING(noiseRes[*,im], FORMAT='(f0.3)'))
-                        multiExpTable=[[multiExpTable],[addTable]]
-                      ENDIF
-                    ENDFOR
-                  ENDIF
-                END
-                4:  BEGIN
-                  getEI
-                  If results(test-1) EQ 1 THEN BEGIN
-                    addTable=STRARR(3,addrows)
-                    FOR im=0, nImg-1 DO BEGIN
-                      IF markedMulti(tt,im) THEN BEGIN
-                        addTable[*,cc]=[STRING(im+1, FORMAT='(i0)'),'EI',STRING(eiRes[1,im],FORMAT='(f0.2)')]
-                        cc=cc+1
-                      ENDIF
-                    ENDFOR
-                    multiExpTable=[[multiExpTable],[addTable]]
-                  ENDIF
-                END
-                5: BEGIN
-                  mtfx
-                  If results(test-1) EQ 1 THEN BEGIN
-                    FOR im=0, nImg-1 DO BEGIN
-                      IF markedMulti(tt,im) THEN BEGIN
-                        addTable=STRARR(3,6)
-                        addTable[*,*]='_'
-                        addTable[0,0]=STRING(im+1, FORMAT='(i0)')
-                        addTable[1,*]=TRANSPOSE(['MTF_@_0.5/mm','MTF_@_1.0/mm','MTF_@_1.5/mm','MTF_@_2.0/mm','MTF_@_2.5/mm','Freq_@_MTF_0.5'])
-                        addTable[2,*]=TRANSPOSE(STRING(MTFres.(im).lpmm, FORMAT='(F0.3)'))
-                        multiExpTable=[[multiExpTable],[addTable]]
-                      ENDIF
-                    ENDFOR
-                  ENDIF
-                END
+                1: STPpix
+                2: homog
+                3: noise
+                4: getExposure
+                5: mtfx
                 ELSE:
               ENDCASE
             END
             ;***************NM planar***************
             2:BEGIN
-              cc=0
+              testPos=WHERE(currTestsOut EQ analyseStrings(test-1))
+              WIDGET_CONTROL,wtabAnalysisNM, SET_TAB_CURRENT=test-1
+              analyse=analyseStrings(test-1)
               CASE test OF
-                1: BEGIN
-                  uniformityNM
-                  If results(test-1) EQ 1 THEN BEGIN
-                    addTable=STRARR(3,addrows)
-                    FOR im=0, nImg-1 DO BEGIN
-                      IF markedMulti(tt,im) THEN BEGIN
-                        addTable=STRARR(3,4)
-                        addTable[*,*]='_'
-                        addTable[0,0]=STRING(im+1, FORMAT='(i0)')
-                        addTable[1,*]=TRANSPOSE(['IU_UFOV', 'DU_UFOV', 'IU_CFOV', 'DU_CFOV'])
-                        addTable[2,*]=TRANSPOSE(STRING(unifRes.table[*,im], FORMAT='(F0.2)'))
-                        multiExpTable=[[multiExpTable],[addTable]]
-                      ENDIF
-                    ENDFOR
-                  ENDIF
-                END
-                2: BEGIN
-                  SNI
-                  If results(test-1) EQ 1 THEN BEGIN
-                    addTable=STRARR(3,addrows)
-                    FOR im=0, nImg-1 DO BEGIN
-                      IF markedMulti(tt,im) THEN BEGIN
-                        addTable=STRARR(3,9)
-                        addTable[*,*]='_'
-                        addTable[0,0]=STRING(im+1, FORMAT='(i0)')
-                        addTable[1,*]=TRANSPOSE(['SNI max','SNI L1','SNI L2','SNI S1','SNI S2','SNI S3','SNI S4','SNI S5','SNI S6'])
-                        addTable[2,*]=TRANSPOSE(STRING(SNIres.(im).snivalues, FORMAT='(F0.2)'))
-                        multiExpTable=[[multiExpTable],[addTable]]
-                      ENDIF
-                    ENDFOR
-                  ENDIF
-                END
-                3: BEGIN
-                  getAcqNM
-                  If results(test-1) EQ 1 THEN BEGIN
-                    addTable=STRARR(3,addrows)
-                    FOR im=0, nImg-1 DO BEGIN
-                      IF markedMulti(tt,im) THEN BEGIN
-                        addTable=STRARR(3,2)
-                        addTable[*,*]='_'
-                        addTable[0,0]=STRING(im+1, FORMAT='(i0)')
-                        addTable[1,*]=TRANSPOSE(['Total_Count','Frame_Duration_(ms)'])
-                        addTable[2,*]=TRANSPOSE(STRING(acqRes[*,im], FORMAT='(I0)'))
-                        multiExpTable=[[multiExpTable],[addTable]]
-                      ENDIF
-                    ENDFOR
-                  ENDIF
-                END
+                1: uniformityNM
+                2: SNI
+                3: getAcqNM
                 ELSE:
               ENDCASE
             END
@@ -310,17 +122,126 @@ pro calculateQuickTest
             ;***************PET **************
             4:
 
+
             ELSE:
           ENDCASE
 
+          updateTable; update currentHeaderAlt+get tables
+          WIDGET_CONTROL, resTab, GET_VALUE=resultsTable
+          resultsTable=FLOAT(resultsTable)
 
-        ENDIF; addrows 0
-      ENDFOR
+          If results(test-1) EQ 1 THEN BEGIN
 
-      updateTable
+            IF SIZE(currQTout.(testPos), /TNAME) EQ 'STRUCT' THEN BEGIN
+              nOutp=N_TAGS(currQTout.(testPos))
+              outpNames=TAG_NAMES(currQTout.(testPos))
+              res3d=0
+              FOR iii=0, nOutp-1 DO BEGIN
+
+                alt=currQTout.(testPos).(iii).ALT
+                IF currentHeaderAlt(test-1) EQ alt THEN BEGIN
+                  cols=currQTout.(testPos).(iii).COLUMNS
+                  calc=currQTout.(testPos).(iii).CALC
+
+                  szRes=SIZE(resultsTable, /DIMENSIONS)
+                  IF nImg EQ 1 THEN resUse=resultsTable(cols) ELSE BEGIN
+                    resUse=resultsTable[cols(0),*]
+                    IF N_ELEMENTS(cols) GT 1 THEN BEGIN
+                        FOR r=1, N_ELEMENTS(cols)-1 DO resUse=[resUse, resultsTable[cols(r),*]]
+                    ENDIF
+                    IF N_ELEMENTS(szRes) EQ 1 THEN res3d=1
+                  ENDELSE
+
+                  IF currQTout.(testPos).(iii).PER_SERIES AND calc GT 0 AND res3d EQ 0 THEN BEGIN
+                    serNo=!Null
+                    FOR im=0, nImg-1 DO serNo=[serNo,structImgs.(im).seriesNmb]
+
+                    ;find number of series
+                    nActIm=N_ELEMENTS(serNo)
+                    uniqSerNo=uniq(serNo)
+                    nSeries=N_ELEMENTS(uniqSerNo)
+                    ;loop through series
+                    FOR se=0, nSeries-1 DO BEGIN
+                      imInSeries=WHERE(serNo EQ serNo(uniqSerNo(se)), nIm)
+                      mmThis=markedMulti[tt,*]
+                      IF TOTAL(mmThis(imInSeries)) GT 0 THEN BEGIN
+                        actTable=FLTARR(N_ELEMENTS(cols),nIm)
+                        FOR im=0, nIm-1 DO actTable[*,im]=resUse[*,imInSeries(im)]
+                        imgTxt='ImgInSeriesNmb'+STRING(serNo(uniqSerNo(se)), FORMAT='(i0)')
+                        imgHead=outpNames(iii)
+                        imgVal=getValString(actTable, calc)
+                        multiExpTable=[[multiExpTable],[imgTxt,imgHead,imgVal]]
+                      ENDIF
+                    ENDFOR
+
+                  ENDIF ELSE BEGIN
+                    ;pr image or calc EQ 0 or nImg in series=1 or 3d (one row results independent on number of images)
+                    nCols=1
+                    IF calc EQ 0 THEN nCols=N_ELEMENTS(cols)
+                    IF res3d THEN BEGIN
+                      imgTxt='AllInSelection'
+                      imgHead=outpNames(iii)
+                      imgVal=getValString(resUse, calc)
+                      multiExpTable=[[multiExpTable],[imgTxt,imgHead,imgVal]]
+                    ENDIF ELSE BEGIN
+                      FOR im=0, nImg-1 DO BEGIN
+                        IF markedMulti(tt,im) THEN BEGIN
+                          addTable=STRARR(3,nCols)
+                          addTable[*,*]='_'
+                          addTable[0,0]=STRING(im+1, FORMAT='(i0)')
+                          IF calc GT 0 THEN BEGIN
+                            addTable(1)=outpNames(iii)
+                            IF N_ELEMENTS(cols) EQ 1 THEN addTable(2)=getValString(resUse(im), calc) ELSE addTable(2)=getValString(resUse[*,im], calc)
+                          ENDIF ELSE BEGIN
+                            heads=tableHeaders.(modality).(tt).(alt)
+                            IF N_ELEMENTS(cols) EQ 1 THEN BEGIN
+                              addTable(1)=heads(cols)
+                              addTable(2)=STRING(resUse(im), FORMAT=formatCode(resUse(im)))
+                            ENDIF ELSE BEGIN
+                              addTable[1,*]=TRANSPOSE(heads(cols))
+                              FOR c=0, nCols-1 DO addTable[2,c]=STRING(resUse[c,im], FORMAT=formatCode(resUse[c,im]))
+                            ENDELSE
+                            
+                          ENDELSE
+                          multiExpTable=[[multiExpTable],[addTable]]
+                        ENDIF
+                      ENDFOR
+                    ENDELSE
+
+                  ENDELSE; PER_image
+                ENDIF;No specified output for current test alternative
+              ENDFOR;nOutp
+
+            ENDIF ELSE BEGIN; outp=-1
+              szRes=SIZE(resultsTable, /DIMENSIONS)
+              resUse=resultsTable;(cols)
+              nCols=szRes(0)
+              alt=currentHeaderAlt(tt)
+
+              FOR im=0, nImg-1 DO BEGIN
+                IF markedMulti(tt,im) THEN BEGIN
+                  addTable=STRARR(3,nCols)
+                  addTable[*,*]='_'
+                  addTable[0,0]=STRING(im+1, FORMAT='(i0)')
+                  addTable[1,*]=TRANSPOSE(tableHeaders.(modality).(tt).(alt))
+                  FOR c=0, nCols-1 DO addTable[2,c]=STRING(resUse[c,im], FORMAT=formatCode(resUse[c,im]))
+                  multiExpTable=[[multiExpTable],[addTable]]
+                ENDIF
+              ENDFOR
+
+            ENDELSE; outp=-1
+
+        ENDIF; results NE=0
+        
+       ENDIF; none marked
+        
+      ENDFOR; tests
+
+      ;updateTable
+      redrawImg, 0,0
       updatePlot,1,1,0
       WIDGET_CONTROL, wtabResult, SET_TAB_CURRENT=0
     ENDIF
   ENDIF ELSE sv=DIALOG_MESSAGE('QuickTest not available for this mode yet (numbered tests only).', DIALOG_PARENT=evTop)
-  
+
 end

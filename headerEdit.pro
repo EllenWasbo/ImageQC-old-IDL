@@ -42,10 +42,12 @@ pro headerEdit_event, event
       'useEdit':BEGIN
         WIDGET_CONTROL, tblHeader, GET_VALUE=curTable
         sz=SIZE(curTable, /DIMENSIONS)
+        includeArr=actualTags(TAG_NAMES(structImgs.(imgNmb)), imgStructInfo, modality)
+        idsInclude=WHERE(includeArr EQ 1)
         FOR i=0, sz(1)-1 DO BEGIN
           IF curTable(i) NE origTbl(i) THEN BEGIN  
-
-            oldVal=structImgs.(imgNmb).(i)
+            
+            oldVal=structImgs.(imgNmb).(idsInclude(i))
             typeOld=SIZE(oldVal, /TNAME)
             newVal=STRSPLIT(curTable(i), ',', /EXTRACT)
             IF typeOld NE 'STRING' THEN newVal=FLOAT(newVal)
@@ -53,7 +55,7 @@ pro headerEdit_event, event
             IF N_ELEMENTS(newVal) EQ N_ELEMENTS(oldVal) THEN valid=1
             IF valid EQ 0 THEN sv=DIALOG_MESSAGE('Wrong format of new value for tag '+tagN(i), DIALOG_PARENT=event.TOP) 
 
-            If valid THEN structImgs.(imgNmb).(i)=newVal
+            If valid THEN structImgs.(imgNmb).(idsInclude(i))=newVal
           ENDIF
         ENDFOR
         WIDGET_CONTROL, event.top, /DESTROY
