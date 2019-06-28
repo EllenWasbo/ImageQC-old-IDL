@@ -84,8 +84,10 @@ function calculateNPS, noiseImg, NPSrois, pix, smoothWidth, sampFreq
 
   AUC=INT_TABULATED(dr,NPSvalsInterp)
   NPS2dintegral=TOTAL(NPS)*unity^2
+  
+  centr=INT_TABULATED(dr, dr*NPSvalsInterp)/AUC
 
-  NPSstruct=CREATE_STRUCT('dr',dr,'rNPS',NPSvalsInterp,'NPS',NPS, 'AUC', AUC, 'varianceIntNPS',NPS2dintegral,'varianceImg',stdevImg)
+  NPSstruct=CREATE_STRUCT('dr',dr,'rNPS',NPSvalsInterp,'NPS',NPS, 'AUC', AUC, 'varianceIntNPS',NPS2dintegral,'varianceImg',stdevImg,'centroid',centr)
 
   return, NPSstruct
 end

@@ -73,15 +73,6 @@ pro redrawImg, viewpl, newActive
       oTextZ = OBJ_NEW('IDLgrText', textZpos, LOCATIONS = [2,10], COLOR = 255*([1,0,0]));[2,20] when above oTextAdr
       oModel->Add, oTextZ
 
-;      preStrLen=2
-;      IF markedMulti(0) NE -1 THEN BEGIN
-;        nTestMarked=TOTAL(markedMulti[*,sel])
-;        preStrLen=3+nTestMarked+(N_ELEMENTS(markedMulti[*,sel])-nTestMarked)*2
-;      ENDIF
-;      textAdr=STRMID(fileList(sel),preStrLen)
-;      oTextAdr = OBJ_NEW('IDLgrText', textAdr, LOCATIONS = [2,2], COLOR = 255*([1,0,0]))
-;      oModel->Add, oTextAdr
-
       lineX= OBJ_NEW('IDLgrPolyline', COLOR = 255*([1,0,0]), LINESTYLE=1)
       lineY= OBJ_NEW('IDLgrPolyline', COLOR = 255*([1,0,0]), LINESTYLE=1)
 
@@ -90,23 +81,27 @@ pro redrawImg, viewpl, newActive
 ;        oModel->Add, thisROI
 ;      ENDIF
 
-      analyseArr=['HOMOG', 'NOISE','STP','UNIF','SNI','CONTRAST','CROSSCALIB','RC']
-      IF analyseArr.HasValue(analyse) THEN BEGIN; EQ 'HOMOG' OR analyse EQ 'NOISE' OR analyse EQ 'STP' OR analyse EQ 'CONTRAST' OR analyse EQ 'CROSSCALIB' OR analyse EQ 'RC' THEN BEGIN
+      analyseArr=['HOMOG', 'NOISE','HUWATER','STP','UNIF','SNI','BAR','CONTRAST','CROSSCALIB','RC']
+      IF analyseArr.HasValue(analyse) THEN BEGIN
         CASE analyse OF
           'HOMOG': ROIs=homogROIs
           'NOISE': ROIs=noiseROI
+          'HUWATER': ROIs=HUwaterROI
           'CROSSCALIB': ROIs=crossROI
           'STP': ROIs=stpROI
           'UNIF': ROIs=unifROI
           'SNI': ROIs=SNIroi
+          'BAR': ROIs=barROI
           'CONTRAST': ROIs=conROIs
           'RC': ROIs=rcROIs
           ELSE:
         ENDCASE
+        
+        szROIs=SIZE(ROIs, /DIMENSIONS)
 
         IF N_ELEMENTS(ROIs) GT 1 THEN BEGIN
           colors=INTARR(3,9)
-          IF analyse EQ 'HOMOG' OR analyse EQ 'SNI' THEN BEGIN
+          IF analyse EQ 'HOMOG' OR analyse EQ 'SNI' OR analyse EQ 'BAR' THEN BEGIN
             colors[*,0]= [255,255,0]
             colors[*,1]= [255,0,0]
             colors[*,2]= [0,0,255]
@@ -122,12 +117,13 @@ pro redrawImg, viewpl, newActive
             oModel->Add, Contour0
           ENDIF
 
-          IF analyse EQ 'HOMOG' OR analyse EQ 'CONTRAST' OR analyse EQ 'RC' OR analyse EQ 'SNI' THEN BEGIN
-            contour1=OBJ_NEW('IDLgrContour',ROIs[*,*,1],COLOR=colors[*,1], C_VALUE=0.5, N_LEVELS=1)
-            contour2=OBJ_NEW('IDLgrContour',ROIs[*,*,2],COLOR=colors[*,2], C_VALUE=0.5, N_LEVELS=1)
-            contour3=OBJ_NEW('IDLgrContour',ROIs[*,*,3],COLOR=colors[*,3], C_VALUE=0.5, N_LEVELS=1)
-            contour4=OBJ_NEW('IDLgrContour',ROIs[*,*,4],COLOR=colors[*,4], C_VALUE=0.5, N_LEVELS=1)
-            oModel->Add, Contour1 & oModel->Add, Contour2 & oModel->Add, Contour3 & oModel->Add, Contour4
+          IF analyse EQ 'HOMOG' OR analyse EQ 'CONTRAST' OR analyse EQ 'RC' OR analyse EQ 'SNI' OR analyse EQ 'BAR' THEN BEGIN
+            contour1=OBJ_NEW('IDLgrContour',ROIs[*,*,1],COLOR=colors[*,1], C_VALUE=0.5, N_LEVELS=1) & oModel->Add, Contour1
+            contour2=OBJ_NEW('IDLgrContour',ROIs[*,*,2],COLOR=colors[*,2], C_VALUE=0.5, N_LEVELS=1) & oModel->Add, Contour2
+            contour3=OBJ_NEW('IDLgrContour',ROIs[*,*,3],COLOR=colors[*,3], C_VALUE=0.5, N_LEVELS=1) & oModel->Add, Contour3
+            IF szROIs(2) GT 4 THEN BEGIN
+              contour4=OBJ_NEW('IDLgrContour',ROIs[*,*,4],COLOR=colors[*,4], C_VALUE=0.5, N_LEVELS=1) & oModel->Add, Contour4
+            ENDIF
           ENDIF
           
           IF analyse EQ 'SNI' THEN BEGIN
@@ -151,6 +147,15 @@ pro redrawImg, viewpl, newActive
             oTextS2= OBJ_NEW('IDLgrText', 'S2', LOCATIONS=poss[*,3], COLOR=colors[*,4], ALIGNMENT=0.5)
             oTextS = OBJ_NEW('IDLgrText', ['S3','S4','S5','S6'], LOCATIONS =poss[*,4:7], COLOR = colors[*,0], ALIGNMENT=0.5)
             oModel->Add, oTextL1 & oModel->Add, oTextL2 & oModel->Add, oTextS1 & oModel->Add, oTextS2 & oModel->Add, oTextS
+          ENDIF
+
+          IF analyse EQ 'BAR' THEN BEGIN
+            ;numbered ROIs
+            poss=INTARR(2,4)
+            FOR ig=0, 3 DO poss[*,ig]=ROUND(centroid(ROIs[*,*,ig],0.5))
+            labels=['1 lowest freq','2','3','4 highest freq']
+            oText = OBJ_NEW('IDLgrText', labels, LOCATIONS =poss, COLOR = 255*([1,0,0]))
+            oModel->Add, oText
           ENDIF
 
           IF analyse EQ 'CONTRAST' OR analyse EQ 'RC' THEN BEGIN
@@ -316,11 +321,41 @@ pro redrawImg, viewpl, newActive
             0: BEGIN;CT
               WIDGET_CONTROL, txtMTFroiSz, GET_VALUE=ROIsz
               ROIsz=ROUND(ROIsz(0)/tempStruct.pix)
-              x1=halfSz(0)+dxyaO(0)-ROIsz(0) & x2=halfSz(0)+dxyaO(0)+ROIsz(0)
-              y1=halfSz(1)+dxyaO(1)-ROIsz(0) & y2=halfSz(1)+dxyaO(1)+ROIsz(0)
+              WIDGET_CONTROL, cw_typeMTF, GET_VALUE=typeMTF
+              IF WIDGET_INFO(btnSearchMaxMTF, /BUTTON_SET) THEN BEGIN
+                ;search for max in image
+                CASE typeMTF OF
+                  0: BEGIN;bead
+                    halfmax=0.5*(MAX(activeImg)+MIN(activeImg))
+                    centerPos=ROUND(centroid(activeImg, halfmax))
+                    END
+                  1:BEGIN;wire
+                    halfmax=0.5*(MAX(activeImg)+MIN(activeImg))
+                    centerPos=ROUND(centroid(activeImg, halfmax))
+                    END
+                  2:BEGIN;circular edge
+                    ;firstguess: center = max, search for centroid within ROI size
+                    mx=MAX(activeImg, loc)
+                    ind=ARRAY_INDICES(activeImg, loc)
+                    xx1=ind(0)-ROIsz(0) & xx2=ind(0)+ROIsz(0)
+                    IF xx1 LT 0 THEN xx1=0 & IF xx2 GT sizeAct(0)-1 THEN xx2=sizeAct(0)-1
+                    yy1=ind(1)-ROIsz(0) & yy2=ind(1)+ROIsz(0)
+                    IF yy1 LT 0 THEN yy1=0 & IF yy2 GT sizeAct(1)-1 THEN yy2=sizeAct(1)-1
+                    subma=activeImg[xx1:xx2,yy1:yy2]
+                    centerPosSubma=ROUND(centroid(subma, MIN(subma)))
+                    centerPos=[xx1,yy1]+centerPosSubma
+                  END
+                  ELSE:
+                ENDCASE         
+                x1=centerPos(0)-ROIsz(0) & x2=centerPos(0)+ROIsz(0)
+                y1=centerPos(1)-ROIsz(0) & y2=centerPos(1)+ROIsz(0)
+              ENDIF ELSE BEGIN
+                x1=halfSz(0)+dxyaO(0)-ROIsz(0) & x2=halfSz(0)+dxyaO(0)+ROIsz(0)
+                y1=halfSz(1)+dxyaO(1)-ROIsz(0) & y2=halfSz(1)+dxyaO(1)+ROIsz(0)
+              ENDELSE
               lineROI = OBJ_NEW('IDLgrPolyline', [[x1,y1],[x2,y1],[x2,y2],[x1,y2],[x1,y1]], COLOR = 255*([1,0,0]), LINESTYLE=0)
               oModel->Add, lineROI
-              WIDGET_CONTROL, cw_typeMTF, GET_VALUE=typeMTF
+              
               IF typeMTF EQ 0 THEN BEGIN
                 y1=y1-(ROIsz(0)*2+1) & y2=y2-(ROIsz(0)*2+1)
                 lineROI2 = OBJ_NEW('IDLgrPolyline', [[x1,y1],[x2,y1],[x2,y2],[x1,y2],[x1,y1]], COLOR = 255*([1,0,0]), LINESTYLE=0)

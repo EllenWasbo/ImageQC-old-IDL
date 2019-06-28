@@ -33,6 +33,7 @@ pro saveParam, overWriteNo, newName
   WIDGET_CONTROL, cw_typeMTF, GET_VALUE=typeMTF
   WIDGET_CONTROL, cw_plotMTF, GET_VALUE= plotWhich
   WIDGET_CONTROL, cw_tableMTF, GET_VALUE= tableWhich
+  WIDGET_CONTROL, cw_cyclMTF, GET_VALUE=MTFcyclWhich
   WIDGET_CONTROL, txtMTFroiSz, GET_VALUE=MTFroiSz
   WIDGET_CONTROL, txtCutLSFW, GET_VALUE=LSFcut1
   WIDGET_CONTROL, txtCutLSFW2, GET_VALUE=LSFcut2
@@ -50,6 +51,7 @@ pro saveParam, overWriteNo, newName
   WIDGET_CONTROL, txtHomogROIsz, GET_VALUE=homogROIsz
   WIDGET_CONTROL, txtHomogROIdist, GET_VALUE=homogROIdist
   WIDGET_CONTROL, txtNoiseROIsz, GET_VALUE=noiseROIsz
+  WIDGET_CONTROL, txtHUwaterROIsz, GET_VALUE=HUwaterROIsz
   WIDGET_CONTROL, txtNPSroiSz, GET_VALUE=NPSroiSz
   WIDGET_CONTROL, txtNPSroiDist, GET_VALUE=NPSroiDist
   WIDGET_CONTROL, txtNPSsubNN, GET_VALUE=NPSsubNN
@@ -77,6 +79,12 @@ pro saveParam, overWriteNo, newName
   WIDGET_CONTROL, txtUnifAttCorr, GET_VALUE=attCorr
   WIDGET_CONTROL, txtUnifAreaRatio, GET_VALUE=unifAreaRatio
   WIDGET_CONTROL, txtSNIAreaRatio, GET_VALUE=SNIAreaRatio
+  WIDGET_CONTROL, txtBarROIsize, GET_VALUE=barROIsz
+  WIDGET_CONTROL, txtBar1, GET_VALUE=bar1
+  WIDGET_CONTROL, txtBar2, GET_VALUE=bar2
+  WIDGET_CONTROL, txtBar3, GET_VALUE=bar3
+  WIDGET_CONTROL, txtBar4, GET_VALUE=bar4
+  barWidths=FLOAT([bar1(0),bar2(0),bar3(0),bar4(0)])
   ;SPECT tests
   WIDGET_CONTROL, cw_typeMTFSPECT, GET_VALUE=typeMTFSPECT
   WIDGET_CONTROL, cw_plotMTFSPECT, GET_VALUE= plotWhichSPECT
@@ -89,18 +97,20 @@ pro saveParam, overWriteNo, newName
   WIDGET_CONTROL, txtHomogROIszPET, GET_VALUE=homogROIszPET
   WIDGET_CONTROL, txtHomogROIdistPET, GET_VALUE=homogROIdistPET
 
-  config=CREATE_STRUCT('defPath',defPath, 'deciMark', deciMark, 'copyHeader', copyHeader, 'transposeTable', transposeTable, 'append', WIDGET_INFO(btnAppend, /BUTTON_SET),'qtOutTemps',['DEFAULT','DEFAULT','DEFAULT','DEFAULT','DEFAULT'],$
+  config=CREATE_STRUCT('deciMark', deciMark, 'copyHeader', copyHeader, 'includeFilename', WIDGET_INFO(btnIncFilename,/BUTTON_SET),'transposeTable', transposeTable, 'append', WIDGET_INFO(btnAppend, /BUTTON_SET),'qtOutTemps',['DEFAULT','DEFAULT','DEFAULT','DEFAULT','DEFAULT'],$
     'MTFtype',typeMTF,'MTFtypeX', typeMTFX, 'MTFtypeNM', typeMTFNM,'MTFtypeSPECT', typeMTFSPECT, 'plotMTF',plotWhich,'plotMTFX',plotWhichX,'plotMTFNM', plotWhichNM,'plotMTFSPECT', plotWhichSPECT,$
-    'tableMTF',tableWhich,'tableMTFX', tableWhichX, $
+    'tableMTF',tableWhich,'cyclMTF',MTFcyclWhich,'tableMTFX', tableWhichX, $
     'MTFroiSz',FLOAT(MTFroiSz(0)),'MTFroiSzX',[FLOAT(MTFroiSzX(0)),FLOAT(MTFroiSzY(0))],'MTFroiSzNM',[FLOAT(MTFroiSzXNM(0)),FLOAT(MTFroiSzYNM(0))],'MTFroiSzSPECT',FLOAT(MTFroiSzSPECT(0)),'MTF3dSPECT',WIDGET_INFO(MTF3dSPECT, /BUTTON_SET),$
     'cutLSF',WIDGET_INFO(btnCutLSF,/BUTTON_SET),'cutLSF1',LONG(LSFcut1),'cutLSF2',LONG(LSFcut2),'cutLSFX',WIDGET_INFO(btnCutLSFX,/BUTTON_SET),'cutLSFX1',LONG(LSFcutX1),'offxy',offxy,$
+    'searchMaxMTF_ROI',WIDGET_INFO(btnSearchMaxMTF,/BUTTON_SET),$
     'LinROIrad',FLOAT(rad1(0)),'LinROIradS',FLOAT(radS(0)), 'LinTab', lintab, $
     'RampDist',FLOAT(rampDist(0)),'RampLen',FLOAT(rampLen(0)),'RampBackG',FLOAT(rampBackG(0)),'RampSearch',LONG(RampSearch(0)),'RampAvg',LONG(rampAvg(0)),'RampType',ramptype,'RampDens',rampdens,$
     'HomogROIsz',FLOAT(homogROIsz(0)), 'HomogROIszPET',FLOAT(homogROIszPET(0)), 'HomogROIszX',FLOAT(homogROIszX(0)),'HomogROIdist',FLOAT(homogROIdist(0)), 'HomogROIdistPET',FLOAT(homogROIdistPET(0)),$
-    'NoiseROIsz',FLOAT(noiseROIsz(0)), $
+    'NoiseROIsz',FLOAT(noiseROIsz(0)), 'HUwaterROIsz', FLOAT(HUwaterROIsz(0)),$
     'NPSroiSz', LONG(NPSroiSz(0)), 'NPSroiDist', FLOAT(NPSroiDist(0)),'NPSsubNN', LONG(NPSsubNN(0)), 'NPSroiSzX', LONG(NPSroiSzX(0)), 'NPSsubSzX', LONG(NPSsubSzX(0)), 'NPSavg',WIDGET_INFO(btnNPSavg, /BUTTON_SET),$
     'STProiSz', FLOAT(STProiSz(0)), $
-    'unifAreaRatio', FLOAT(unifAreaRatio(0)),'SNIAreaRatio', FLOAT(SNIAreaRatio(0)),'unifCorr',WIDGET_INFO(btnUnifCorr,/BUTTON_SET),'SNIcorr',WIDGET_INFO(btnSNICorr,/BUTTON_SET),'distCorr',FLOAT(distCorr(0)),'attCoeff',FLOAT(attCorr(0)),'detThick',FLOAT(thickCorr(0)),$
+    'unifAreaRatio', FLOAT(unifAreaRatio(0)),'SNIAreaRatio', FLOAT(SNIAreaRatio(0)),'unifCorr',WIDGET_INFO(btnUnifCorr,/BUTTON_SET),'SNIcorr',WIDGET_INFO(btnSNICorr,/BUTTON_SET),'distCorr',FLOAT(distCorr(0)),'attCoeff',FLOAT(attCorr(0)),'detThick',FLOAT(thickCorr(0)), $
+    'barROIsz', FLOAT(barROIsz(0)),'barWidths',barWidths,$
     'scanSpeedAvg',LONG(scanSpeedAvg(0)), 'scanSpeedHeight', FLOAT(scanSpeedHeight(0)), 'scanSpeedFiltW', LONG(scanSpeedFiltW(0)), $
     'contrastRad1', FLOAT(contrastRad1(0)), 'contrastRad2', FLOAT(contrastRad2(0)),$
     'CrossROIsz', FLOAT(crossROIsz(0)), 'CrossVol', FLOAT(crossVol(0)) )

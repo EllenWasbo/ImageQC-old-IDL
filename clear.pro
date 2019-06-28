@@ -57,11 +57,13 @@ pro clearRes, analyseStr
       NPSres=!Null
       ;ROIres=!Null
       CTlinRes=!Null
+      HUwaterRes=!Null
       sliceThickRes=!Null
       sliceThickResTab=!Null
       fwhmRes=!Null
       unifRes=!Null
       SNIres=!Null
+      barRes=!Null
       energyRes=!Null
       crossRes=!Null
       rcRes=!Null
@@ -80,6 +82,7 @@ pro clearRes, analyseStr
         'NPS': NPSres=!Null
         ;'ROI': ROIres=!Null
         'CTLIN':CTlinres=!Null
+        'HUWATER': HUwaterRes=!Null
         'SLICETHICK': BEGIN
           sliceThickRes=!Null
           sliceThickResTab=!Null
@@ -87,6 +90,7 @@ pro clearRes, analyseStr
         'FWHM': fwhmRes=!Null
         'UNIF': unifRes=!Null
         'SNI': SNIres=!Null
+        'BAR': barRes=!Null
         'ENERGYSPEC': energyRes=!Null
         'SCANSPEED':
         'CONTRAST': contrastRes=!Null

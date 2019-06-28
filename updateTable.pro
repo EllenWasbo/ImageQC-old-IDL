@@ -20,12 +20,16 @@ pro updateTable
   COMMON VARI
 
   nCols=-1
+  szM=SIZE(markedMulti, /DIMENSIONS)
   IF analyse NE 'ENERGYSPEC' THEN BEGIN
     sel=WIDGET_INFO(listFiles, /LIST_SELECT) & sel=sel(0)
     nImg=N_TAGS(structImgs)
     pix=structImgs.(sel).pix(0)
     markedTemp=INDGEN(nImg); all default
-    IF marked(0) EQ -1 THEN nRows=nImg ELSE BEGIN
+    IF marked(0) EQ -1 THEN BEGIN      
+      IF N_ELEMENTS(szM) EQ 2 THEN nI=MIN([nImg,szM(1)]) ELSE nI=nImg
+      nRows=nI
+    ENDIF ELSE BEGIN
       nRows=N_ELEMENTS(marked)
       markedTemp=marked
     ENDELSE
@@ -46,6 +50,8 @@ pro updateTable
             ;table results @50,10,2%
             multipRes=WHERE(TAG_NAMES(MTFres) EQ 'M0')
             WIDGET_CONTROL, cw_tableMTF, GET_VALUE= tableWhich
+            WIDGET_CONTROL, cw_cyclMTF, GET_VALUE=MTFcyclWhich
+            IF MTFcyclWhich EQ 0 THEN cyclFactor=1.0 ELSE cyclFactor=10.0
             IF multipRes(0) NE -1 THEN BEGIN
               nCols=6
               currentHeaderAlt(curTab)=0
@@ -54,9 +60,9 @@ pro updateTable
               FOR i =0, nRows-1 DO BEGIN
                 tagn=TAG_NAMES(MTFres.(markedTemp(i)))
                 IF tableWhich EQ 0 THEN BEGIN
-                  IF tagn.HasValue('F50_10_2') THEN resArrString[*,i]=STRING(MTFres.(markedTemp(i)).F50_10_2, FORMAT='(F0.3)')
+                  IF tagn.HasValue('F50_10_2') THEN resArrString[*,i]=STRING(cyclFactor*MTFres.(markedTemp(i)).F50_10_2, FORMAT='(F0.3)')
                 ENDIF ELSE BEGIN
-                  IF tagn.HasValue('F50_10_2DISCRETE') THEN resArrString[*,i]=STRING(MTFres.(markedTemp(i)).F50_10_2DISCRETE, FORMAT='(F0.3)')
+                  IF tagn.HasValue('F50_10_2DISCRETE') THEN resArrString[*,i]=STRING(cyclFactor*MTFres.(markedTemp(i)).F50_10_2DISCRETE, FORMAT='(F0.3)')
                 ENDELSE
               ENDFOR
 
@@ -67,9 +73,9 @@ pro updateTable
               headers=tableHeaders.CT.MTF.Alt2;['MTF 50%','MTF 10%','MTF 2%']
               tagn=TAG_NAMES(MTFres)
               IF tableWhich EQ 0 THEN BEGIN
-                IF tagn.HasValue('F50_10_2') THEN resArrString=STRING(MTFres.F50_10_2[0:2], FORMAT='(F0.3)')
+                IF tagn.HasValue('F50_10_2') THEN resArrString=STRING(cyclFactor*MTFres.F50_10_2[0:2], FORMAT='(F0.3)')
               ENDIF ELSE BEGIN
-                IF tagn.HasValue('F50_10_2DISCRETE') THEN resArrString=STRING(MTFres.F50_10_2DISCRETE[0:2], FORMAT='(F0.3)')
+                IF tagn.HasValue('F50_10_2DISCRETE') THEN resArrString=STRING(cyclFactor*MTFres.F50_10_2DISCRETE[0:2], FORMAT='(F0.3)')
                ENDELSE 
               cellSelHighLight=0
             ENDELSE
@@ -78,8 +84,7 @@ pro updateTable
           'CTLIN': BEGIN
             szTab=SIZE(CTlinRes, /DIMENSIONS)
             nCols=szTab(0)
-            WIDGET_CONTROL, tblLin, GET_VALUE=linTable
-            headers=TRANSPOSE(linTable[0,*])
+            headers=tableHeaders.CT.CTLIN.Alt1;WIDGET_CONTROL, tblLin, GET_VALUE=linTable; headers=TRANSPOSE(linTable[0,*])
             resArrString=STRARR(nCols,nRows)
             FOR i=0, nRows-1 DO BEGIN
               resArrString[*,i]=STRING(CTlinRes[*,markedTemp(i)], FORMAT='(F0.1)')
@@ -118,12 +123,26 @@ pro updateTable
             ENDFOR
           END
 
+          'EXP':BEGIN
+            nCols=N_ELEMENTS(tableHeaders.CT.EXP.Alt1)
+            headers=tableHeaders.CT.EXP.Alt1;['kVp','mAs','CTDIvol','SWversion']
+            resArrString=STRARR(nCols,nRows)
+            FOR i=0, nRows-1 DO resArrString[*,i]=expRes[*,markedTemp(i)]
+          END
+
           'NOISE': BEGIN
             nCols=4
             headers=tableHeaders.CT.NOISE.Alt1;['CT number (HU)','Noise=Stdev (HU)','Diff avg noise(%)', 'Avg noise (HU)']
             resArrString=STRARR(nCols,nRows)
             FOR i=0, nRows-1 DO resArrString[*,i]=STRING(noiseRes[*,markedTemp(i)],FORMAT=formatCode(noiseRes[*,markedTemp(i)]))
-            IF nRows GT 1 THEN resArrString[3,1:nRows-1]=''
+            ;IF nRows GT 1 THEN resArrString[3,1:nRows-1]=''
+          END
+          
+          'HUWATER': BEGIN
+            nCols=2
+            headers=tableHeaders.CT.HUWATER.Alt1;['CT number (HU)','Noise=Stdev (HU)']
+            resArrString=STRARR(nCols,nRows)
+            FOR i=0, nRows-1 DO resArrString[*,i]=STRING(HUwaterRes[*,markedTemp(i)],FORMAT=formatCode(HUwaterRes[*,markedTemp(i)]))
           END
 
           'FWHM': BEGIN
@@ -178,13 +197,10 @@ pro updateTable
             FOR i=0, nRows-1 DO resArrString[*,i]=STRING(noiseRes[*,markedTemp(i)], FORMAT=formatCode(noiseRes[*,markedTemp(i)]))
           END
           'EXP':BEGIN
-            nCols=4
-            headers=tableHeaders.XRAY.EXP.Alt1;['kVp','mAs','EI','DAP']
+            nCols=6
+            headers=tableHeaders.XRAY.EXP.Alt1;['kVp','mAs','EI','DAP','SDD','DetID']
             resArrString=STRARR(nCols,nRows)
-            FOR i=0, nRows-1 DO resArrString[0,i]=STRING(expRes[0,markedTemp(i)], FORMAT=formatCode(expRes[0,markedTemp(i)]))
-            FOR i=0, nRows-1 DO resArrString[1,i]=STRING(expRes[1,markedTemp(i)], FORMAT=formatCode(expRes[1,markedTemp(i)]))
-            FOR i=0, nRows-1 DO resArrString[2,i]=STRING(expRes[2,markedTemp(i)], FORMAT=formatCode(expRes[2,markedTemp(i)]))
-            FOR i=0, nRows-1 DO resArrString[3,i]=STRING(expRes[3,markedTemp(i)], FORMAT=formatCode(expRes[3,markedTemp(i)]))
+            FOR i=0, nRows-1 DO resArrString[*,i]=expRes[*,markedTemp(i)]
           END
 
           'MTF':BEGIN
@@ -240,6 +256,13 @@ pro updateTable
             resArrString=STRARR(nCols,nRows)
             FOR i=0, nRows-1 DO resArrString[*,i]=STRING(acqRes[*,markedTemp(i)], FORMAT='(i0)')
           END
+          
+          'BAR': BEGIN
+            nCols=8
+            headers=tableHeaders.NM.BAR.Alt1;['MTF_1','MTF_2','MTF_3','MTF_4','FWHM1','FWHM2','FWHM3','FWHM4']
+            resArrString=STRARR(nCols, nRows)
+            FOR i=0, nRows-1 DO resArrString[*,i]=STRING(barRes[*,i], FORMAT='(F0.3)')
+            END
 
           'ENERGYSPEC': BEGIN
             nCols=7
@@ -470,32 +493,36 @@ pro updateTable
       SET_VALUE=STRARR(4,5), SET_TABLE_SELECT=[-1,-1,-1,-1], SET_TABLE_VIEW=[0,0], FOREGROUND_COLOR=[0,0,0]
   ENDIF ELSE BEGIN
     ;which cell should be highlighted
+    tabSelect=[-1,-1,-1,-1]
     IF cellSelHighLight THEN BEGIN
       markedArr=INTARR(nImg)
-      tabSelect=[-1,-1,-1,-1]
+      ;tabSelect=[-1,-1,-1,-1]
       tabView=[0,0]
-      IF marked(0) NE -1 THEN markedArr(marked)=1 ELSE markedArr=markedArr+1
-
-      IF markedArr(sel) EQ 1 THEN BEGIN
-        nMarked=TOTAL(markedArr)
-        IF marked(0) EQ -1 THEN rowNo=sel ELSE rowNo=WHERE(marked EQ sel)
-        ; select row in result-table according to file
-        oldSel=WIDGET_INFO(resTab,/TABLE_SELECT)
-        colNo=oldSel(0);keep column number
-        tabSelect=[colNo,rowNo,colNo,rowNo]
-        IF rowNo GT nMarked-5 THEN top=nMarked-5 ELSE top=rowNo
-        tabView=[0,top]
+      IF N_ELEMENTS(szM) EQ 2 THEN nI=MIN([nImg,szM(1)]) ELSE nI=nImg
+      IF marked(0) NE -1 THEN markedArr(marked)=1 ELSE markedArr[0:nI-1]=1
+      
+      IF sel LT nI THEN BEGIN
+        IF markedArr(sel) EQ 1 THEN BEGIN
+          nMarked=TOTAL(markedArr)
+          IF marked(0) EQ -1 THEN rowNo=sel ELSE rowNo=WHERE(marked EQ sel)
+          ; select row in result-table according to file
+          oldSel=WIDGET_INFO(resTab,/TABLE_SELECT)
+          colNo=oldSel(0);keep column number
+          If colNo NE -1 THEN tabSelect=[colNo,rowNo,colNo,rowNo] ELSE tabSelect=[0,rowNo,nCols-1,rowNo]
+        ENDIF
       ENDIF
     ENDIF
 
     IF nCols GT 0 THEN BEGIN
-      WIDGET_CONTROL, resTab, TABLE_XSIZE=nCols, TABLE_YSIZE=nRows, COLUMN_LABELS=headers, COLUMN_WIDTHS=INTARR(nCols)+630/nCols, SET_VALUE=resArrString, SET_TABLE_SELECT=tabSelect, ALIGNMENT=1
+      WIDGET_CONTROL, resTab, TABLE_XSIZE=nCols, TABLE_YSIZE=nRows, COLUMN_LABELS=headers, COLUMN_WIDTHS=INTARR(nCols)+630/nCols, SET_VALUE=resArrString, ALIGNMENT=1
+      IF MIN(tabSelect) EQ -1 THEN WIDGET_CONTROL, resTab, SET_TABLE_SELECT=[-1,-1,-1,-1] ELSE WIDGET_CONTROL, resTab, SET_TABLE_SELECT=tabSelect
       WIDGET_CONTROL, resTab, FOREGROUND_COLOR=[0,0,0]
       IF markedMulti(0) NE -1 AND TOTAL(markedMulti) GT 0 AND nRows GT 1 THEN BEGIN
         testNmb=getResNmb(modality,analyse,analyseStringsAll)
         markedArrTemp=markedMulti[testNmb,*]
-        FOR ii=0, nImg-1 DO BEGIN
-          IF markedArrTemp(ii) EQ 0 THEN WIDGET_CONTROL, resTab, USE_TABLE_SELECT=[0,ii,nCols-1,ii], FOREGROUND_COLOR=[200,200,200]
+        nI=MIN([nImg,N_ELEMENTS(markedArrTemp)])
+        FOR ii=0, nI-1 DO BEGIN
+            IF markedArrTemp(ii) EQ 0 THEN WIDGET_CONTROL, resTab, USE_TABLE_SELECT=[0,ii,nCols-1,ii], FOREGROUND_COLOR=[200,200,200]
         ENDFOR
       ENDIF
     ENDIF ELSE WIDGET_CONTROL, resTab, TABLE_XSIZE=4, TABLE_YSIZE=2, COLUMN_LABELS=['0','1','2','3'], COLUMN_WIDTHS=[100,100,100,100], SET_VALUE=STRARR(4,5), SET_TABLE_SELECT=tabSelect, FOREGROUND_COLOR=[0,0,0]

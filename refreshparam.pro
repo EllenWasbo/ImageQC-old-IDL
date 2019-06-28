@@ -63,7 +63,6 @@ pro refreshParam, paramSet, paramSetName
 
   IF paramSetName NE '' THEN WIDGET_CONTROL, lblSettings, SET_VALUE=paramSetName
 
-  defPath=paramSet.defPath
   decimMark=paramSet.deciMark
   CASE deciMark OF
     '.':  WIDGET_CONTROL, listDeciMark, SET_DROPLIST_SELECT=0
@@ -75,7 +74,7 @@ pro refreshParam, paramSet, paramSetName
   WIDGET_CONTROL, btnCopyHeader, SET_BUTTON=paramSet.COPYHEADER
   transposeTable=paramSet.transposeTable
   WIDGET_CONTROL, btnTranspose, SET_BUTTON=paramSet.TRANSPOSETABLE
-  
+  WIDGET_CONTROL, btnIncFilename, SET_BUTTON=paramSet.INCLUDEFILENAME
   WIDGET_CONTROL, btnAppend, SET_BUTTON=paramSet.APPEND
   ;offxy both CT and Xray
   strOff=STRING(paramSet.OFFXY(0), FORMAT='(i0)')+','+STRING(paramSet.OFFXY(1), FORMAT='(i0)')
@@ -86,10 +85,12 @@ pro refreshParam, paramSet, paramSetName
   WIDGET_CONTROL, cw_typeMTF, SET_VALUE=paramSet.MTFTYPE
   WIDGET_CONTROL, cw_plotMTF, SET_VALUE=paramSet.PLOTMTF
   WIDGET_CONTROL, cw_tableMTF, SET_VALUE=paramSet.TABLEMTF
+  WIDGET_CONTROL, cw_cyclMTF, SET_VALUE=paramSet.CYCLMTF
   WIDGET_CONTROL, txtMTFroiSz, SET_VALUE=STRING(paramSet.MTFROISZ, FORMAT='(f0.1)')
   WIDGET_CONTROL, btnCutLSF, SET_BUTTON=paramSet.CUTLSF
   WIDGET_CONTROL, txtCutLSFW, SET_VALUE=STRING(paramSet.CUTLSF1, FORMAT='(f0.1)')
   WIDGET_CONTROL, txtCutLSFW2, SET_VALUE=STRING(paramSet.CUTLSF2, FORMAT='(f0.1)')
+  WIDGET_CONTROL, btnSearchMaxMTF, SET_BUTTON=paramSet.SEARCHMAXMTF_ROI
   WIDGET_CONTROL, txtLinROIrad, SET_VALUE=STRING(paramSet.LINROIRAD, FORMAT='(f0.1)')
   WIDGET_CONTROL, txtLinROIradS, SET_VALUE=STRING(paramSet.LINROIRADS, FORMAT='(f0.1)')
   ysz=N_ELEMENTS(paramSet.LINTAB.Materials)
@@ -98,6 +99,7 @@ pro refreshParam, paramSet, paramSetName
   fillLin[1,*]=STRING(TRANSPOSE(paramSet.LINTAB.posX), FORMAT='(f0.1)')
   fillLin[2,*]=STRING(TRANSPOSE(paramSet.LINTAB.posY), FORMAT='(f0.1)')
   fillLin[3,*]=STRING(TRANSPOSE(paramSet.LINTAB.RelMassD), FORMAT='(f0.3)')
+  tableHeaders=updateMaterialHeaders(tableHeaders, TRANSPOSE(paramSet.LINTAB.Materials))
   WIDGET_CONTROL, tblLin, TABLE_YSIZE=ysz, SET_VALUE=fillLin, SET_TABLE_SELECT=[-1,-1,-1,-1], SET_TABLE_VIEW=[0,0]
   WIDGET_CONTROL, txtRampDist, SET_VALUE=STRING(paramSet.RAMPDIST, FORMAT='(f0.1)')
   WIDGET_CONTROL, txtRampLen, SET_VALUE=STRING(paramSet.RAMPLEN, FORMAT='(f0.1)')
@@ -109,6 +111,7 @@ pro refreshParam, paramSet, paramSetName
   WIDGET_CONTROL, txtHomogROIsz, SET_VALUE=STRING(paramSet.HOMOGROISZ, FORMAT='(f0.1)')
   WIDGET_CONTROL, txtHomogROIdist, SET_VALUE=STRING(paramSet.HOMOGROIDIST, FORMAT='(f0.1)')
   WIDGET_CONTROL, txtNoiseROIsz, SET_VALUE=STRING(paramSet.NOISEROISZ, FORMAT='(f0.1)')
+  WIDGET_CONTROL, txtHUwaterROIsz, SET_VALUE=STRING(paramSet.HUWATERROISZ, FORMAT='(f0.1)')
   WIDGET_CONTROL, txtNPSroiSz, SET_VALUE=STRING(paramSet.NPSROISZ, FORMAT='(i0)')
   WIDGET_CONTROL, txtNPSroiDist, SET_VALUE=STRING(paramSet.NPSROIDIST, FORMAT='(f0.1)')
   WIDGET_CONTROL, txtNPSsubNN, SET_VALUE=STRING(paramSet.NPSSUBNN, FORMAT='(i0)')
@@ -145,6 +148,11 @@ pro refreshParam, paramSet, paramSetName
   WIDGET_CONTROL, txtSNIDistCorr, SET_VALUE=STRING(paramSet.distCorr, FORMAT='(f0.1)')
   WIDGET_CONTROL, txtSNIThickCorr, SET_VALUE=STRING(paramSet.detThick, FORMAT='(f0.1)')
   WIDGET_CONTROL, txtSNIAttCorr, SET_VALUE=STRING(paramSet.attCoeff, FORMAT='(f0.1)')
+  WIDGET_CONTROL, txtBarROIsize, SET_VALUE=STRING(paramSet.barROIsz, FORMAT='(f0.1)')
+  WIDGET_CONTROL, txtBar1, SET_VALUE=STRING(paramSet.barWidths(0), FORMAT='(f0.1)')
+  WIDGET_CONTROL, txtBar2, SET_VALUE=STRING(paramSet.barWidths(1), FORMAT='(f0.1)')
+  WIDGET_CONTROL, txtBar3, SET_VALUE=STRING(paramSet.barWidths(2), FORMAT='(f0.1)')
+  WIDGET_CONTROL, txtBar4, SET_VALUE=STRING(paramSet.barWidths(3), FORMAT='(f0.1)')
   ;SPECT tests
   WIDGET_CONTROL, cw_typeMTFSPECT, SET_VALUE=paramSet.MTFtypeSPECT
   WIDGET_CONTROL, cw_plotMTFSPECT, SET_VALUE=paramSet.plotMTFSPECT

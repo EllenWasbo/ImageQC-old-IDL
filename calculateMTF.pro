@@ -463,7 +463,8 @@ END
     ss2=nn-1
     LSFx=lsf
     ddx=newdists
-    svar=DIALOG_MESSAGE('Failed to fit LSF to gaussian. LSF used as is further. NB smoothed LSF!',/ERROR)
+    status=2
+    ;svar=DIALOG_MESSAGE('Failed to fit LSF to gaussian. LSF used as is further. NB smoothed LSF!',/ERROR)
   ENDELSE
   
   IF N_ELEMENTS(res) EQ 2 THEN ddx= newdists-res(1)*pixNew ELSE ddx=newdists
@@ -506,32 +507,36 @@ END
     lastF=ROUND(last+cutF*ppFWHM)
     IF lastF-firstF GT 0 THEN factorArr=INTARR(lastF-firstF)+1
     IF cutF NE 0 THEN BEGIN
-      grad=INDGEN(first-firstF)
-      factorArr[0:first-firstF-1]=grad
-      factorArr[last-firstF:lastF-firstF-1]=REVERSE(grad)
-      factorArr[first-firstF:last-firstF-1]=first-firstF
-      factorArr=1.0/(MAX(factorArr))*factorArr
+      IF first-firstF GT 0 THEN BEGIN
+        grad=INDGEN(first-firstF)
+        factorArr[0:first-firstF-1]=grad
+        factorArr[last-firstF:lastF-firstF-1]=REVERSE(grad)
+        factorArr[first-firstF:last-firstF-1]=first-firstF
+        factorArr=1.0/(MAX(factorArr))*factorArr
+      ENDIF
     ENDIF
-
-    factorArr2=LSFx*0.
-    IF firstF GE 0 AND lastF LE (nn-1) THEN BEGIN
-       factorArr2[firstF:lastF-1]=factorArr
-       LSFx=LSFx*factorArr2
-    ENDIF ELSE BEGIN
-      ;sv=DIALOG_MESSAGE('Cut of LSF close to border of data. Not implemented yet... LSF preserved.')
-      A1=0 & B1=N_ELEMENTS(factorArr)-1
-      A2=firstF & B2=lastF-1
-      IF firstF LT 0 THEN BEGIN
-        A2=0
-        A1=ABS(firstF)
-      ENDIF
-      IF lastF GE nn THEN BEGIN
-        B2=nn-1
-        B1=B1-(lastF-(nn-1))+1
-      ENDIF
-      factorArr2[A2:B2]=factorArr[A1:B1]
-      LSFx=LSFx*factorArr2
-    ENDELSE
+    
+    IF N_ELEMENTS(factorArr) GT 0 THEN BEGIN
+      factorArr2=LSFx*0.
+      IF firstF GE 0 AND lastF LE (nn-1) THEN BEGIN
+         factorArr2[firstF:lastF-1]=factorArr
+         LSFx=LSFx*factorArr2
+      ENDIF ELSE BEGIN
+        ;sv=DIALOG_MESSAGE('Cut of LSF close to border of data. Not implemented yet... LSF preserved.')
+        A1=0 & B1=N_ELEMENTS(factorArr)-1
+        A2=firstF & B2=lastF-1
+        IF firstF LT 0 THEN BEGIN
+          A2=0
+          A1=ABS(firstF)
+        ENDIF
+        IF lastF GE nn THEN BEGIN
+          B2=nn-1
+          B1=B1-(lastF-(nn-1))+1
+        ENDIF
+        factorArr2[A2:B2]=factorArr[A1:B1]
+        LSFx=LSFx*factorArr2
+      ENDELSE
+    ENDIF
 
   ENDIF
   

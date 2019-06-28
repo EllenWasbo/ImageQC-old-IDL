@@ -21,19 +21,25 @@ pro exportMulti
    
   IF N_ELEMENTS(multiExpTable) GT 1 THEN BEGIN
 
-    IF copyHeader EQ 0 THEN multiExpTableTemp=multiExpTable[2,*] ELSE multiExpTableTemp=multiExpTable
+    IF copyHeader EQ 0 THEN BEGIN
+      szME=SIZE(multiExpTable, /DIMENSIONS)
+      multiExpTableTemp=multiExpTable[1:szME(0)-1,*] 
+    ENDIF ELSE multiExpTableTemp=multiExpTable
 
     szT=SIZE(multiExpTableTemp, /DIMENSIONS)
-    firstBlank=WHERE(multiExpTableTemp[0,*] EQ '')
+    
+    incFilenames=WIDGET_INFO(btnIncFilename, /BUTTON_SET)
+    IF incFilenames THEN imgWithMark=WHERE(TOTAL(markedMulti,1) GT 0, nAvoidDeciMark) ELSE nAvoidDeciMark=0
+     
     IF deciMark EQ ',' THEN BEGIN
       IF N_ELEMENTS(szT) EQ 2 THEN BEGIN
         FOR i=0, szT(0)-1 DO BEGIN
-          FOR j=firstBlank(0), szT(1)-1 DO BEGIN
+          FOR j=nAvoidDeciMark+1, szT(1)-1 DO BEGIN
             multiExpTableTemp[i,j]=STRJOIN(STRSPLIT(multiExpTableTemp[i,j], '.',/EXTRACT),',')
           ENDFOR
         ENDFOR
       ENDIF ELSE BEGIN
-        FOR i=firstBlank(0), szT(0)-1 DO multiExpTableTemp[i]=STRJOIN(STRSPLIT(multiExpTableTemp[i], '.',/EXTRACT),',')
+        FOR i=nAvoidDeciMark+1, szT(0)-1 DO multiExpTableTemp[i]=STRJOIN(STRSPLIT(multiExpTableTemp[i], '.',/EXTRACT),',')
       ENDELSE
     ENDIF
 

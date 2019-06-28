@@ -18,7 +18,7 @@
 ;selec = selected loadtemp template from previous dialogbox
 pro autoSetup, GROUP_LEADER = mainbase, selec, xoff, yoff
 
-  COMMON AUTO, listTemp, txtName, txtBrowse, listSets, listQT, listElem, listSort, btnInclSub, btnOnlyLastDate,txtBrowseApp, btnMoveFiles, btnDeleteFiles,$
+  COMMON AUTO, listTemp, txtName, txtBrowse, txtStatName, listSets, listQT, listElem, listSort, btnInclSub, btnOnlyLastDate,txtBrowseApp, btnMoveFiles, btnDeleteFiles,$
     selecTemp,tempnames,paramSetNames,quickTempNames, tags_imgStruct, sortElem
   COMMON VARI
   COMPILE_OPT hidden
@@ -26,13 +26,7 @@ pro autoSetup, GROUP_LEADER = mainbase, selec, xoff, yoff
   selecTemp=selec
 
   dummyImgStruct=imgStructUpdate('','')
-  tags_imgStruct=TAG_NAMES(dummyImgStruct);['filename','acqDate', 'imgDate', 'institution','modality', 'modelName','stationName',$
-  ;    'patientName', 'patientID', 'patientWeight', 'imageType','presType','studyDescr','seriesName','protocolname',$
-  ;    'seriesNmb','acqNmb','acqtime','sliceThick', 'pix', 'imageSize','kVp','FOV','rekonFOV','mA','mAs','ExpTime','coll','pitch',$
-  ;    'ExModType','CTDIvol','DAP','EI','sensitivity','filter',$
-  ;    'zpos', 'imgNo','nFrames','wCenter','wWidth',$
-  ;    'collType','nEWindows','EWindowName','zoomFactor','radius1','radius2','angle','acqFrameDuration','acqTerminationCond',$
-  ;    'units','radiopharmaca','admDose','admDoseTime','reconMethod','attCorrMethod','scaCorrMethod', 'scatterFrac','frameNo']
+  tags_imgStruct=TAG_NAMES(dummyImgStruct)
 
   tags_imgStruct=tags_imgStruct(SORT(STRUPCASE(tags_imgStruct)))
 
@@ -46,6 +40,7 @@ pro autoSetup, GROUP_LEADER = mainbase, selec, xoff, yoff
 
   tempname=''
   path=''
+  statName=''
   selParam=selConfig-1
   selQT=0; (no marking = all images all quickTests)
   selLoad=0
@@ -58,6 +53,7 @@ pro autoSetup, GROUP_LEADER = mainbase, selec, xoff, yoff
     tempnames=TAG_NAMES(loadTemp)
     tempname=tempnames(selec)
     path=loadTemp.(selec).path
+    statName=loadTemp.(selec).statName
     ;paramSet - exists still?
     paramSetName=STRUPCASE(loadTemp.(selec).paramSet)
     IF paramSetNames.HasValue(paramSetName) THEN BEGIN
@@ -78,24 +74,16 @@ pro autoSetup, GROUP_LEADER = mainbase, selec, xoff, yoff
   ENDIf ELSE tempnames=''
 
   autobox = WIDGET_BASE(TITLE='Edit or add automation template', GROUP_LEADER=mainbase,  $
-    /ROW, XSIZE=650, YSIZE=750, XOFFSET=xoff, YOFFSET=yoff, /MODAL)
+    /ROW, XSIZE=650, YSIZE=670, XOFFSET=xoff, YOFFSET=yoff, /MODAL)
    
-  ml0=WIDGET_LABEL(autobox, VALUE='', xSIZE=5)
+  ml0=WIDGET_LABEL(autobox, VALUE='', YSIZE=20)
+  
   autobox1=WIDGET_BASE(autobox, /COLUMN, XSIZE=650)
 
-  ml1=WIDGET_LABEL(autobox1, VALUE='', YSIZE=10)
-  bInfo0=WIDGET_BASE(autobox1,/ROW)
-  bInfo=WIDGET_BASE(bInfo0, FRAME=1, /COLUMN,XSIZE=600)
-  info0=WIDGET_LABEL(bInfo, VALUE='INFO:', /ALIGN_LEFT, FONT=font0)
-  info1=WIDGET_LABEL(bInfo, VALUE='Edit or add template for ', /ALIGN_LEFT, FONT=font1)
-  info2=WIDGET_LABEL(bInfo, VALUE='  -opening images from specified path', /ALIGN_LEFT, FONT=font1)
-  info3=WIDGET_LABEL(bInfo, VALUE='  -sort by specified rules', /ALIGN_LEFT, FONT=font1)
-  info4=WIDGET_LABEL(bInfo, VALUE='  -and combine with defined parameterset and QuickTest template', /ALIGN_LEFT, FONT=font1)
-  ml2=WIDGET_LABEL(autobox1, VALUE='', YSIZE=15)
   ;templates
+  lblTemp=WIDGET_LABEL(autobox1, VALUE='Automation templates:', /ALIGN_LEFT, FONT=font0)
   bTemp=WIDGET_BASE(autobox1, /ROW)
-  lblTemp=WIDGET_LABEL(bTemp, VALUE='Automation templates:', FONT=font1)
-  listTemp=WIDGET_LIST(bTemp, VALUE=tempNames, XSIZE=20, FONT=font1, SCR_YSIZE=80, UVALUE='listTemp')
+  listTemp=WIDGET_LIST(bTemp, VALUE=tempNames, XSIZE=20, FONT=font1, SCR_YSIZE=150, UVALUE='listTemp')
   IF tempnames(0) NE '' THEN WIDGET_CONTROL, listTemp, SET_LIST_SELECT=selec
   bButtEndTemp=WIDGET_BASE(bTemp, /COLUMN)
   btnDelTemp=WIDGET_BUTTON(bButtEndTemp, VALUE=thisPath+'images\delete.bmp',/BITMAP, UVALUE='a_delTemp', TOOLTIP='Delete template')
@@ -104,20 +92,26 @@ pro autoSetup, GROUP_LEADER = mainbase, selec, xoff, yoff
   ;name
   bName=WIDGET_BASE(bTemp, /ROW, YSIZE=25)
   lblName=WIDGET_LABEL(bName, VALUE='Save (new) as:', FONT=font1)
-  txtName=WIDGET_TEXT(bName, VALUE=tempname, /EDITABLE, XSIZE=15, /KBRD_FOCUS_EVENTS)
+  txtName=WIDGET_TEXT(bName, VALUE=tempname, /EDITABLE, XSIZE=15, /KBRD_FOCUS_EVENTS, FONT=font1)
   btnsSave=WIDGET_BASE(bTemp, /COLUMN)
-  btnSaveAsAuto=WIDGET_BUTTON(btnsSave, VALUE='Save as', UVALUE='a_saveas', FONT=font1)
+  btnSaveAsAuto=WIDGET_BUTTON(btnsSave, VALUE='Save new', UVALUE='a_saveas', FONT=font1)
   btnOverWriteAuto=WIDGET_BUTTON(btnsSave, VALUE='Overwrite selected', UVALUE='a_overwrite', FONT=font1)
   ml3=WIDGET_LABEL(autobox1, VALUE='', YSIZE=15)
   ;path
   bBrowse=WIDGET_BASE(autobox1, /ROW)
   lblBrowse=WIDGET_LABEL(bBrowse, VALUE='Path:', FONT=font1)
-  txtBrowse=WIDGET_TEXT(bBrowse, VALUE=path, XSIZE=70,/EDITABLE)
+  txtBrowse=WIDGET_TEXT(bBrowse, VALUE=path, XSIZE=70,/EDITABLE, FONT=font1)
   btnBrowse=WIDGET_BUTTON(bBrowse, VALUE='Browse', UVALUE='a_Browse',  FONT=font1)
   ml4=WIDGET_LABEL(autobox1, VALUE='', YSIZE=15)
-
+  ;stationname
+  bStatName=WIDGET_BASE(autobox1, /ROW)
+  lblStatName=WIDGET_LABEL(bStatName, VALUE='Station name (DICOM 0008,1010):', FONT=font1)
+  txtStatName=WIDGET_TEXT(bStatName, VALUE=statname, XSIZE=20,/EDITABLE, FONT=font1)
+  btnStatName=WIDGET_BUTTON(bStatName, VALUE='Retrieve from DICOM file', UVALUE='a_getStatName', FONT=font1)
+  ml5=WIDGET_LABEL(autobox1, VALUE='', YSIZE=15)
+  
   bOpenDetails=WIDGET_BASE(autobox1, /Row)
-  bSortBy=WIDGET_BASE(bOpenDetails, XSIZE=350,/COLUMN, FRAME=1)
+  bSortBy=WIDGET_BASE(bOpenDetails, XSIZE=355,/COLUMN, FRAME=1)
   lblSortBy=WIDGET_LABEL(bSortBy, VALUE='Add elements from DICOM-header to sort the images by', FONT=font1)
   bSortByLists=WIDGET_BASE(bSortBy, /ROW)
   listElem=WIDGET_DROPLIST(bSortByLists, VALUE=tags_imgStruct, XSIZE=150, FONT=font1)
@@ -133,7 +127,7 @@ pro autoSetup, GROUP_LEADER = mainbase, selec, xoff, yoff
   btnInclSub=WIDGET_BUTTON(bBtnInclSub, VALUE='Include images in subfolders', FONT=font1)
   btnOnlyLastDate=WIDGET_BUTTON(bBtnInclSub, VALUE='Last date images only (file creation date)', FONT=font1)
 
-  ml5=WIDGET_LABEL(autobox1, VALUe='', YSIZE=15)
+  ml60=WIDGET_LABEL(autobox1, VALUe='', YSIZE=15)
   ;parameter set
   bSets=WIDGET_BASE(autobox1, /ROW, YSIZE=25)
   lblSets=WIDGET_LABEL(bSets, VALUE='Use parameter set:', XSIZE=150, FONT=font1)
@@ -143,11 +137,7 @@ pro autoSetup, GROUP_LEADER = mainbase, selec, xoff, yoff
   ml6=WIDGET_LABEL(autobox1, VALUe='', YSIZE=15)
   bInfo2=WIDGET_BASE(autobox1, /ROW)
   ml7=WIDGET_LABEL(bInfo2, VALUE='', XSIZE=5)
-  bInfo3=WIDGET_BASE(bInfo2, /COLUMN)
-  lblQTinfo=WIDGET_LABEL(bInfo3, VALUE='If a QuickTest template is selected the calculation will start automatically and generate results to clipboard.', FONT=font1, /ALIGN_LEFT)
-  lblQTinfo2=WIDGET_LABEL(bInfo3, VALUE='The images will be sorted on acquisition date first and the results will be generated per acquisition date found.', FONT=font1, /ALIGN_LEFT)
-  lblQTinfo3=WIDGET_LABEL(bInfo3, VALUE='If a result file is specified the results will be appended to this as a row with no headers per acquisition date,', FONT=font1, /ALIGN_LEFT)
-  lblQTinfo3=WIDGET_LABEL(bInfo3, VALUE='else the program will pause for each date and give the opportunity to paste the results into any file or Excel.', FONT=font1, /ALIGN_LEFT)
+
   bQTall=WIDGET_BASE(autobox1, /ROW)
   marg=WIDGET_LABEL(bQTall, VALUe='', XSIZE=30)
   bQT2=WIDGET_BASE(bQTall,/COLUMN)
@@ -176,6 +166,7 @@ pro autoSetup, GROUP_LEADER = mainbase, selec, xoff, yoff
   ml3=WIDGET_LABEL(autobox1, VALUE='', YSIZE=10)
   bButtons=WIDGET_BASE(autobox1, /ROW)
   lblBtns0=WIDGET_LABEL(bButtons, VALUE='', XSIZE=450)
+  btnInfoAuto=WIDGET_BUTTON(bButtons, VALUE='Info', UVALUE='a_info', FONT=font1)
   btnCancelAuto=WIDGET_BUTTON(bButtons, VALUE='Close', UVALUE='a_cancel', FONT=font1)
   btnRunAuto=WIDGET_BUTTON(bButtons, VALUE='Run selected', UVALUE='a_run', FONT=font1)
 
@@ -183,6 +174,32 @@ pro autoSetup, GROUP_LEADER = mainbase, selec, xoff, yoff
 
   WIDGET_CONTROL, autobox, /REALIZE
   XMANAGER, 'autoSetup', autobox
+
+end
+
+pro autoInfo, GROUP_LEADER = mainAI
+
+  autoInfo_box = WIDGET_BASE(TITLE='Info automation templates', /COLUMN, $
+    XSIZE=650, YSIZE=300, XOFFSET=200, YOFFSET=200, GROUP_LEADER=mainAI, /MODAL)
+
+  bInfo0=WIDGET_BASE(autoInfo_box ,/ROW)
+  bInfo=WIDGET_BASE(bInfo0, FRAME=1, /COLUMN,XSIZE=600)
+  info0=WIDGET_LABEL(bInfo, VALUE='INFO:', /ALIGN_LEFT, FONT=font0)
+  info1=WIDGET_LABEL(bInfo, VALUE='Edit or add template for ', /ALIGN_LEFT, FONT=font1)
+  info2=WIDGET_LABEL(bInfo, VALUE='  -opening images from specified path', /ALIGN_LEFT, FONT=font1)
+  info3=WIDGET_LABEL(bInfo, VALUE='  -sort by specified rules', /ALIGN_LEFT, FONT=font1)
+  info4=WIDGET_LABEL(bInfo, VALUE='  -and combine with defined parameterset and QuickTest template', /ALIGN_LEFT, FONT=font1)
+  ml2=WIDGET_LABEL(autoInfo_box , VALUE='', YSIZE=15)
+
+  bInfo3=WIDGET_BASE(autoInfo_box, /COLUMN)
+  lblQTinfo=WIDGET_LABEL(bInfo3, VALUE='If a QuickTest template is selected the calculation will start automatically and generate results to clipboard.', FONT=font1, /ALIGN_LEFT)
+  lblQTinfo2=WIDGET_LABEL(bInfo3, VALUE='The images will be sorted on acquisition date first and the results will be generated per acquisition date found.', FONT=font1, /ALIGN_LEFT)
+  lblQTinfo3=WIDGET_LABEL(bInfo3, VALUE='If a result file is specified the results will be appended to this as a row with no headers per acquisition date,', FONT=font1, /ALIGN_LEFT)
+  lblQTinfo3=WIDGET_LABEL(bInfo3, VALUE='else the program will pause for each date and give the opportunity to paste the results into any file or Excel.', FONT=font1, /ALIGN_LEFT)
+
+
+  WIDGET_CONTROL, autoInfo_box , /REALIZE
+  XMANAGER, 'autoInfo', autoInfo_box
 
 end
 
@@ -211,6 +228,7 @@ pro autoSetup_event, event
           IF tempnames(0) NE '' THEN BEGIN
             RESTORE, thisPath+'data\config.dat'
             loadTemp=removeIDstructstruct(loadTemp, currSel)
+            IF N_ELEMENTS(tempnames) EQ 1 THEN loadTemp=!Null
             SAVE, configS, quickTemp, quickTout, loadTemp, FILENAME=thisPath+'data\config.dat'
             IF N_ELEMENTS(tempnames) EQ 1 THEN BEGIN
               tempnames=''
@@ -254,13 +272,36 @@ pro autoSetup_event, event
       END
 
       'a_Browse':BEGIN
-        adr=dialog_pickfile(PATH=defPath,/DIRECTORY, /READ, TITLE='Select folder', DIALOG_PARENT=event.top)
+        adr=dialog_pickfile(PATH=defPath, GET_PATH=defPath, /DIRECTORY, /READ, TITLE='Select folder', DIALOG_PARENT=event.top)
         IF adr(0) NE '' THEN WIDGET_CONTROL, txtBrowse, SET_VALUE=adr(0)
       END
 
       'a_BrowseApp':BEGIN
-        adr=dialog_pickfile(PATH=defPath, /READ, TITLE='Select result file to append', FILTER='*.txt', /FIX_FILTER, DIALOG_PARENT=event.top)
+        adr=dialog_pickfile(PATH=defPath, GET_PATH=defPath, /READ, TITLE='Select result file to append', FILTER='*.txt', /FIX_FILTER, DIALOG_PARENT=event.top)
         IF adr(0) NE '' THEN WIDGET_CONTROL, txtBrowseApp, SET_VALUE=adr(0)
+      END
+      
+      'a_getStatName':BEGIN
+        WIDGET_CONTROL, txtBrowse, GET_VALUE=pathNow
+        If pathNow EQ '' THEN pathNow=defPath
+        adr=dialog_pickfile(PATH=pathNow, /READ, TITLE='Select DICOM image to retrieve the station name', DIALOG_PARENT=event.top)
+        IF adr(0) NE '' THEN BEGIN
+          IF FILE_BASENAME(adr) EQ 'DICOMDIR' THEN okDcm = 0 ELSE okDcm=QUERY_DICOM(adr)
+          IF okDcm THEN BEGIN
+            o=obj_new('idlffdicom')
+            t=o->read(adr)
+
+            ;check if directoryfile
+            test=o->GetReference('0004'x,'1220'x)
+            IF test(0) EQ -1 THEN BEGIN
+              test=o->GetReference('0008'x,'1010'x);
+              test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
+              IF test(0) NE -1 THEN stationName=*(test_peker[0]) ELSE stationName=''
+              WIDGET_CONTROL, txtStatName, SET_VALUE=stationName
+            ENDIF ELSE sv=DIALOG_MESSAGE('Selected file is not an DICOM image file.',DIALOG_PARENT=event.top)
+            
+          ENDIF ELSE sv=DIALOG_MESSAGE('Selected file is not an DICOM image file.',DIALOG_PARENT=event.top)
+        ENDIF
       END
 
       'a_ClearApp': WIDGET_CONTROL, txtBrowseApp, SET_VALUE=''
@@ -270,10 +311,12 @@ pro autoSetup_event, event
         IF newName NE '' THEN BEGIN
           WIDGET_CONTROL, txtBrowse, GET_VALUE=newPath
           WIDGET_CONTROL, txtBrowseApp, GET_VALUE=newPathApp
+          WIDGET_CONTROL, txtStatName, GET_VALUE=newStatName
           IF newPath NE '' THEN BEGIN
 
             loadTempSing=CREATE_STRUCT($
               'path',newPath,$
+              'statName',newStatName,$
               'loadBy',WIDGET_INFO(btnOnlyLastDate,/BUTTON_SET),$
               'includeSub',WIDGET_INFO(btnInclSub,/BUTTON_SET),$
               'sortBy', sortElem, $
@@ -313,9 +356,11 @@ pro autoSetup_event, event
             WIDGET_CONTROL, txtBrowse, GET_VALUE=newPath
             IF newPath NE '' THEN BEGIN
               WIDGET_CONTROL, txtBrowseApp, GET_VALUE=newPathApp
+              WIDGET_CONTROL, txtStatName, GET_VALUE=newStatName
 
               loadTempSing=CREATE_STRUCT($
                 'path',newPath,$
+                'statName', newStatName,$
                 'loadBy',WIDGET_INFO(btnOnlyLastDate,/BUTTON_SET),$
                 'includeSub',WIDGET_INFO(btnInclSub,/BUTTON_SET),$
                 'sortBy', sortElem, $
@@ -337,6 +382,7 @@ pro autoSetup_event, event
           ENDIF ELSE sv=DIALOG_MESSAGE('Specify template name.',DIALOG_PARENT=event.top)
         ENDIF ELSE sv=DIALOG_MESSAGE('No template selected to overwrite.',DIALOG_PARENT=event.top)
       END
+      'a_info': autoInfo, GROUP_LEADER=Event.top
       'a_cancel': WIDGET_CONTROL, Event.top, /DESTROY
       'a_run': BEGIN
         selecTemp=WIDGET_INFO(listTemp, /LIST_SELECT)
@@ -439,6 +485,7 @@ pro updateAuto, selT
     RESTORE, thisPath+'data\config.dat'
     WIDGET_CONTROL, txtName, SET_VALUE=tempnames(selT)
     WIDGET_CONTROL, txtBrowse, SET_VALUE=loadTemp.(selT).path
+    WIDGET_CONTROL, txtStatName, SET_VALUE=loadTemp.(selT).statName
     WIDGET_CONTROL, txtBrowseApp, SET_VALUE=loadTemp.(selT).pathApp
     WIDGET_CONTROL, btnOnlyLastDate, SET_BUTTON=loadTemp.(selT).loadBy
     WIDGET_CONTROL, btnInclSub, SET_BUTTON=loadTemp.(selT).includeSub
@@ -470,6 +517,7 @@ pro updateAuto, selT
     WIDGET_CONTROL, listQT, SET_DROPLIST_SELECT=selQT
   ENDIF ELSE BEGIN
     WIDGET_CONTROL, txtName, SET_VALUE=''
+    WIDGET_CONTROL, txtStatName, SET_VALUE=''
     WIDGET_CONTROL, txtBrowse, SET_VALUE=''
     WIDGET_CONTROL, btnInclSub, SET_BUTTON=0
     WIDGET_CONTROL, btnOnlyLastDate, SET_BUTTON=0

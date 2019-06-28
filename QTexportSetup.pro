@@ -58,18 +58,14 @@ pro QTexportSetup, GROUP_LEADER = mainbase, xoff, yoff
   ml10= WIDGET_LABEL(bLft, VALUE='', YSIZE=29)
   lbltblQTout=WIDGET_LABEL(bLft, VALUE='Selected output template ', FONT=font0, /ALIGN_LEFT)
   tblQTout=WIDGET_TABLE(bLft, XSIZE=6, YSIZE=100, COLUMN_LABELS=['Test', 'Alternative', 'Columns', 'Calculation', 'Pr img or series','Description'], COLUMN_WIDTHS=[100,70,100,70,100,190], /NO_ROW_HEADERS, SCR_XSIZE=100*6+60, SCR_YSIZE=170, /ALL_EVENTS, FONT=font1)
-  ;bHeaders=WIDGET_BASE(bLft, /ROW)
-  ;lblNoHeaders=WIDGET_LABEL(bHeaders, VALUE='', XSIZE=500, FONT=font1)
-  ;lblDescr=WIDGET_LABEL(bHeaders, VALUE='Description/Name', XSIZE=98, FONT=font1)
+
   bEdit=WIDGET_BASE(bLft, /ROW)
   lstTest=WIDGET_DROPLIST(bEdit, VALUE=testVisualQTNames.(0), XSIZE=98, FONT=font1,UVALUE='qto_lstTest')
   lstAlt=WIDGET_DROPLIST(bEdit, VALUE=TAG_NAMES(tableHeaders.(0).(0)), XSIZE=68, FONT=font1,UVALUE='qto_lstAlt')
   lstCols=WIDGET_LIST(bEdit, VALUE=tableHeaders.(0).(0).(0), /MULTIPLE, SCR_XSIZE=98, SCR_YSIZE=100, FONT=font1)
-  lstCalc=WIDGET_DROPLIST(bEdit, VALUE=['=', 'Min','Max','Avg','Std'], XSIZE=68, FONT=font1)
+  lstCalc=WIDGET_DROPLIST(bEdit, VALUE=['=', 'Min','Max','Avg','Std','Max abs'], XSIZE=68, FONT=font1)
   lstPer=WIDGET_DROPLIST(bEdit, VALUE=['Per image', 'Per series'], XSIZE=98, FONT=font1)
 
-
-  ;ml1=WIDGET_LABEL(bLft, VALUE='', YSIZE=10)
   bLowRgt=WIDGET_BASE(bEdit, /COLUMN)
   bEditBtns=WIDGET_BASE(bLowRgt, /ROW, YSIZE=28)
   txtDescr=WIDGET_TEXT(bEditBtns, VALUE='', XSIZE=100, SCR_XSIZE=150, YSIZE=1, SCR_YSIZE=20, FONT=font1, /EDITABLE)
@@ -79,8 +75,7 @@ pro QTexportSetup, GROUP_LEADER = mainbase, xoff, yoff
   btnDelQTO=WIDGET_BUTTON(bEditBtns, VALUE=thisPath+'images\delete.bmp' ,/BITMAP, TOOLTIP='Delete output', UVALUE='qto_deleteOutp', FONT=font1)
 
   ml3=WIDGET_LABEL(bLowRgt, VALUE='', YSIZE=50)
-  ;bBottom=WIDGET_BASE(bLft, /ROW)
-  ;ml4=WIDGET_LABEL(bBottom, VALUE='', XSIZE=570)
+
   btnAddQTO=WIDGET_BUTTON(bLowRgt, VALUE='Close window', UVALUE='qto_cancel', FONT=font1)
 
   qto_fillTable, 1
@@ -229,21 +224,27 @@ pro QTexportSetup_event, event
 
           RESTORE, thisPath+'data\config.dat'
           currStruct=quickTout.(qto_currMod).(qto_currTemp).(testno)
-          currNames=TAG_NAMES(currStruct)
-          IF currNames.HasValue(testDescr) THEN BEGIN
-            sv=DIALOG_MESSAGE('Test-description need to be unique. Could not add to template.', DIALOG_PARENT=event.top)
-          ENDIF ELSE BEGIN
+          proceed=1
+          IF SIZE(currStruct, /TNAME) EQ 'STRUCT' THEN BEGIN
+            currNames=TAG_NAMES(currStruct)
+            IF currNames.HasValue(testDescr) THEN BEGIN
+              sv=DIALOG_MESSAGE('Test-description need to be unique. Could not add to template.', DIALOG_PARENT=event.top)
+              proceed=0
+            ENDIF
+          ENDIF
+          
+          IF proceed THEN BEGIN
 
-            newStruct=CREATE_STRUCT('ALT',WIDGET_INFO(lstAlt, /DROPLIST_SELECT),'COLUMNS',WIDGET_INFO(lstCols, /LIST_SELECT),'CALC',WIDGET_INFO(lstCalc, /DROPLIST_SELECT),'PER_SERIES',WIDGET_INFO(lstPer, /DROPLIST_SELECT))
-            tempstructTest=CREATE_STRUCT(currStruct, testDescr, newStruct)
-            quickToutTemp=replaceStructStruct(quickTout.(qto_currMod).(qto_currTemp), tempstructTest, testno)
-            quickToutMod=replaceStructStruct(quickTout.(qto_currMod), quickToutTemp, qto_currTemp)
-            quickTout=replaceStructStruct(quickTout, quickToutMod, qto_currMod)
-
-            SAVE, configS, quickTemp, quickTout, loadTemp, FILENAME=thisPath+'data\config.dat'
-            WIDGET_CONTROL, lstTemplates, SET_VALUE=TAG_NAMES(quickTout.(qto_currMod)), SET_LIST_SELECT=qto_currTemp, SCR_YSIZE=150
-            qto_fillTable, 1
-          ENDELSE
+              newStruct=CREATE_STRUCT('ALT',WIDGET_INFO(lstAlt, /DROPLIST_SELECT),'COLUMNS',WIDGET_INFO(lstCols, /LIST_SELECT),'CALC',WIDGET_INFO(lstCalc, /DROPLIST_SELECT),'PER_SERIES',WIDGET_INFO(lstPer, /DROPLIST_SELECT))
+              IF SIZE(currStruct, /TNAME) EQ 'STRUCT' THEN tempstructTest=CREATE_STRUCT(currStruct, testDescr, newStruct) ELSE tempstructTest=CREATE_STRUCT(testDescr, newStruct)
+              quickToutTemp=replaceStructStruct(quickTout.(qto_currMod).(qto_currTemp), tempstructTest, testno)
+              quickToutMod=replaceStructStruct(quickTout.(qto_currMod), quickToutTemp, qto_currTemp)
+              quickTout=replaceStructStruct(quickTout, quickToutMod, qto_currMod)
+  
+              SAVE, configS, quickTemp, quickTout, loadTemp, FILENAME=thisPath+'data\config.dat'
+              WIDGET_CONTROL, lstTemplates, SET_VALUE=TAG_NAMES(quickTout.(qto_currMod)), SET_LIST_SELECT=qto_currTemp, SCR_YSIZE=150
+              qto_fillTable, 1
+           ENDIF
         ENDIF ELSE sv=DIALOG_MESSAGE('The default template can not be changed. Duplicate to make changes.', DIALOG_PARENT=event.top)
       END
       'qto_overwrite':BEGIN
@@ -319,14 +320,16 @@ pro QTexportSetup_event, event
       FOR i=0, nTests-1 DO BEGIN
         IF SIZE(currTemp.(i), /TNAME) EQ 'STRUCT' THEN outputs=[outputs, INTARR(N_TAGS(currTemp.(i)))+i] ELSE outputs=[outputs, i]
       ENDFOR
-      qto_currTest=outputs(sel)
-      actOutputs=WHERE(outputs EQ qto_currTest, nActOut)
-      outputs=outputs*0
-      outputs(actOutputs)=INDGEN(nActOut)
-      qto_currOutp=outputs(sel)
-      qto_currSel=sel
-      
-      qto_UpdSelections
+      IF sel LT N_ELEMENTS(outputs) THEN BEGIN
+        qto_currTest=outputs(sel)
+        actOutputs=WHERE(outputs EQ qto_currTest, nActOut)
+        outputs=outputs*0
+        outputs(actOutputs)=INDGEN(nActOut)
+        qto_currOutp=outputs(sel)
+        qto_currSel=sel
+        
+        qto_UpdSelections
+      ENDIF
     ENDIF
 
   ENDIF
@@ -346,7 +349,7 @@ pro qto_fillTable, zero
 
   nTests=N_TAGS(tempstruct)
   testNames=TAG_NAMES(tempstruct)
-  calcStrings=['=','Min','Max','Avg','Std']
+  calcStrings=['=','Min','Max','Avg','Std','Max abs']
   co=0
   FOR i=0,nTests-1 DO BEGIN; for each defined test
     IF SIZE(tempstruct.(i), /TNAME) NE 'STRUCT' THEN BEGIN

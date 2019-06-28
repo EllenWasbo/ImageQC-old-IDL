@@ -17,7 +17,7 @@
 
 pro settings, GROUP_LEADER = mainbase, xoff, yoff
 
-  COMMON SETT, listSets, thisPa, txtDefPath, lstCT, lstX, lstNM, btnUseCurr
+  COMMON SETT, listSets, thisPa, lstCT, lstX, lstNM, btnUseCurr
   COMMON VARI
   COMPILE_OPT hidden
   
@@ -46,13 +46,13 @@ pro settings, GROUP_LEADER = mainbase, xoff, yoff
   bBtnsRow=WIDGET_BASE(bRgt, /ROW)
   btnDump=WIDGET_BUTTON(bBtnsRow, VALUE='See dump of saved parameters', TOOLTIP='See dump of all parameters in this set or current values if <use current> selected', UVALUE='s_dump', FONT=font1)
   bUseCurr=WIDGET_BASE(bRgt, /NONEXCLUSIVE)
-  btnUseCurr=WIDGET_BUTTON(bUseCurr, VALUE='Get parameters currently in main window', UVALUE='s_useCurr', FONT=font1)
+  btnUseCurr=WIDGET_BUTTON(bUseCurr, VALUE='Get parameters currently in main window',FONT=font1)
   
-  mlR1=WIDGET_LABEL(bRgt, VALUE='', YSIZE=10)
-  bDefPath=WIDGET_BASE(bRgt, /ROW)
-  lblDefPath=WIDGET_LABEL(bDefPath, VALUE='Default path:', /ALIGN_LEFT, FONT=font1)
-  txtDefPath=WIDGET_TEXT(bDefPath, VALUE='', XSIZE=150, SCR_XSIZE=300, FONT=font1)
-  btnBrowseDefPath=WIDGET_BUTTON(bDefPath, VALUE='Browse', UVALUE='s_browse', FONT=font1)
+;  mlR1=WIDGET_LABEL(bRgt, VALUE='', YSIZE=10)
+;  bDefPath=WIDGET_BASE(bRgt, /ROW)
+;  lblDefPath=WIDGET_LABEL(bDefPath, VALUE='Default path:', /ALIGN_LEFT, FONT=font1)
+;  txtDefPath=WIDGET_TEXT(bDefPath, VALUE='', XSIZE=150, SCR_XSIZE=300, FONT=font1)
+;  btnBrowseDefPath=WIDGET_BUTTON(bDefPath, VALUE='Browse', UVALUE='s_browse', FONT=font1)
   
   mlR2=WIDGET_LABEL(bRgt, VALUE='', YSIZE=10)
   bTempHead=WIDGET_BASE(bRgt, /ROW)
@@ -136,28 +136,26 @@ pro settings_event, event
         FREE_LUN, outunit
         XDISPLAYFILE, thisPath+'data\dumpTemp.txt', TITLE='Dump of parameters', /MODAL
           END
-      's_useCurr':BEGIN
-        END
       
       's_listSets': BEGIN
         RESTORE, thisPath+'data\config.dat'
         s_upd, WIDGET_INFO(listSets, /LIST_SELECT)
 
       END
-      's_browse': BEGIN
-        newdef=DIALOG_PICKFILE(PATH=defPath, /DIRECTORY, DIALOG_PARENT=event.TOP)
-        IF newdef(0) NE '' THEN WIDGET_CONTROL, txtDefPath, SET_VALUE=newdef(0)
-      END
+;      's_browse': BEGIN
+;        newdef=DIALOG_PICKFILE(PATH=defPath, /DIRECTORY, DIALOG_PARENT=event.TOP)
+;        IF newdef(0) NE '' THEN WIDGET_CONTROL, txtDefPath, SET_VALUE=newdef(0)
+;      END
       's_overwrite':BEGIN
-          sv=DIALOG_MESSAGE('Are you sure you want to overwrite the selected parameterset?', /QUESTION)
+          sv=DIALOG_MESSAGE('Are you sure you want to overwrite the selected parameterset?', /QUESTION, DIALOG_PARENT=event.TOP)
           IF sv EQ 'Yes' THEN BEGIN
           
           selSet=WIDGET_INFO(listSets, /LIST_SELECT)
           
           IF WIDGET_INFO(btnUseCurr, /BUTTON_SET) THEN saveParam, selSet+1,''
           RESTORE, thisPath+'data\config.dat'
-          WIDGET_CONTROL, txtDefPath, GET_VALUE=newdef
-          IF newdef(0) NE '' THEN configS.(selSet+1).defPath=newdef(0)
+          ;WIDGET_CONTROL, txtDefPath, GET_VALUE=newdef
+          ;IF newdef(0) NE '' THEN configS.(selSet+1).defPath=newdef(0)
           namesCT=TAG_NAMES(quickTout.(0))
           namesX=TAG_NAMES(quickTout.(1))
           namesNM=TAG_NAMES(quickTout.(2))
@@ -196,8 +194,8 @@ pro settings_event, event
               
               ;saveNmb?       
               saveNmb=WHERE(TAG_NAMES(configS) EQ tempname)
-              WIDGET_CONTROL, txtDefPath, GET_VALUE=newdef
-              IF newdef(0) NE '' THEN configS.(saveNmb).defPath=newdef(0) ELSE configS.(saveNmb).defPath='C:\'
+              ;WIDGET_CONTROL, txtDefPath, GET_VALUE=newdef
+              ;IF newdef(0) NE '' THEN configS.(saveNmb).defPath=newdef(0) ELSE configS.(saveNmb).defPath='C:\'
               WIDGET_CONTROL, lstCT, GET_VALUE=strCT
               WIDGET_CONTROL, lstX, GET_VALUE=strX
               WIDGET_CONTROL, lstNM, GET_VALUE=strNM
@@ -235,7 +233,7 @@ pro s_upd, listNmb
   COMPILE_OPT hidden
 
   RESTORE, thisPath+'data\config.dat'
-  WIDGET_CONTROL, txtDefPath, SET_VALUE=configS.(listNmb+1).defPath
+  ;WIDGET_CONTROL, txtDefPath, SET_VALUE=configS.(listNmb+1).defPath
   WIDGET_CONTROL, btnUseCurr, SET_BUTTON=0
   tempNamesSel=configS.(listNmb+1).qtOutTemps
   nmbs=INTARR(5)

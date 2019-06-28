@@ -15,6 +15,101 @@
 ;along with this program; if not, write to the Free Software
 ;Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
+; ***************** editing arrays and structures (adding/deleting) *****************************
+
+;remove ids from 1d-array; works no good with 1 element string.... not getting set to !null
+function removeIDarr, arr, id
+  newArr=arr
+  IF id EQ 0 THEN BEGIN
+    IF N_ELEMENTS(arr) GT 1 THEN newArr=arr[1:N_ELEMENTS(arr)-1] ELSE newArr=!null
+  ENDIF
+  IF id EQ N_ELEMENTS(arr)-1 THEN newArr=arr[0:N_ELEMENTS(arr)-2]
+  IF id GT 0 AND id LT N_ELEMENTS(arr)-1 THEN newArr=[arr[0:id-1],arr[id+1:N_ELEMENTS(arr)-1]]
+  return, newArr
+end
+
+;remove ids from structure of structures
+function removeIDstructstruct, struct, ids
+  structNew=CREATE_STRUCT('EMPTY',0)
+  counter=0
+  ntags=N_TAGS(struct)
+  tagname=TAG_NAMES(struct)
+  FOR i=0, ntags-1 DO BEGIN
+    inSel=WHERE(ids EQ i)
+    IF inSel(0) EQ -1 THEN BEGIN
+      stillEmpty=WHERE(TAG_NAMES(structNew) EQ 'EMPTY')
+      IF stillEmpty(0) EQ -1 THEN structNew=CREATE_STRUCT(structNew,tagname(i),struct.(i)) ELSE structNew=CREATE_STRUCT(tagname(i),struct.(i))
+    ENDIF
+  ENDFOR
+  return, structNew
+end
+
+;reorder ids in structure of structures
+function reorderStructStruct, struct, newOrder
+  ntags=N_TAGS(struct)
+  tagname=TAG_NAMES(struct)
+  structNew=CREATE_STRUCT(tagname(newOrder(0)),struct.(newOrder(0)))
+  FOR i=1, ntags-1 DO structNew=CREATE_STRUCT(structNew,tagname(newOrder(i)),struct.(newOrder(i)))
+  return, structNew
+end
+
+;replace numbered structure in structure of structures
+;numb = id to replace
+function replaceStructStruct, fullStruct, newSubStruct, numb, NEW_TAG_NAME=new_tag_name
+  structNew=CREATE_STRUCT('EMPTY',0)
+  counter=0
+  ntags=N_TAGS(fullStruct)
+  tagname=TAG_NAMES(fullStruct)
+  FOR i=0, ntags-1 DO BEGIN
+    stillEmpty=WHERE(TAG_NAMES(structNew) EQ 'EMPTY')
+    IF i NE numb THEN BEGIN
+      IF stillEmpty(0) EQ -1 THEN structNew=CREATE_STRUCT(structNew,tagname(counter),fullStruct.(i)) ELSE structNew=CREATE_STRUCT(tagname(0),fullStruct.(i))
+      counter=counter+1
+    ENDIF ELSE BEGIN
+      IF N_ELEMENTS(new_tag_name) GT 0 THEN tname=new_tag_name ELSE tname=tagname(counter)
+      IF stillEmpty(0) EQ -1 THEN structNew=CREATE_STRUCT(structNew,tname,newSubStruct) ELSE structNew=CREATE_STRUCT(tname,newSubStruct)
+      counter=counter+1
+    ENDELSE
+  ENDFOR
+  return, structNew
+end
+
+function updateMaterialHeaders, currTableHeaders, newMaterialHeaders
+  newTableHeaders=currTableHeaders
+  modNames=TAG_NAMES(currTableHeaders)
+  idCT=WHERE(modNames EQ 'CT')
+  IF idCT(0) NE -1 THEN BEGIN
+    IF N_ELEMENTS(newMaterialHeaders) GT 1 THEN BEGIN
+      szHeaders=SIZE(newMaterialHeaders, /DIMENSIONS)
+      IF szHeaders(0) EQ 1 THEN newMaterialHeaders=TRANSPOSE(newMaterialHeaders)
+    ENDIF
+    testNames=TAG_NAMES(currTableHeaders.CT)
+    idTest=WHERE(testNames EQ 'CTLIN')
+    IF idTest(0) NE -1 THEN BEGIN
+      newCTLINStruct=CREATE_STRUCT('Alt1',newMaterialHeaders)
+      newCTstruct=replaceStructStruct(currTableHeaders.CT, newCTLINStruct, idTest)
+      newTableHeaders=replaceStructStruct(currTableHeaders, newCTstruct, idCT)
+    ENDIF
+  ENDIF
+  
+  return, newTableHeaders
+end
+
+;change structure tags from array to one-element-values. Values are set to the numbered value
+function structArr2elem, struct, taglist2scalar, valueNmb
+  ntags=N_TAGS(struct)
+  tagname=TAG_NAMES(struct)
+  IF taglist2scalar.HasValue(tagname(0)) THEN val=struct.(0)[valueNmb] ELSE val=struct.(0)
+  structNew=CREATE_STRUCT(tagname(0),val)
+  FOR i=1, ntags-1 DO BEGIN
+    IF taglist2scalar.HasValue(tagname(i)) THEN BEGIN
+      IF N_ELEMENTS(struct.(i)) GT valueNmb THEN val=struct.(i)[valueNmb] ELSE val=struct.(i)
+    ENDIF ELSE val=struct.(i)
+    structNew=CREATE_STRUCT(structNew,tagname(i),val)
+  ENDFOR
+  return, structNew
+end
+
 ;************* config updates *****************************
 
 function updateConfigS, file
@@ -26,23 +121,25 @@ function updateConfigS, file
   posY=[-50.,0.,50.,58.,50.,0.,-50.,-58.]
   lintab=CREATE_STRUCT('materials', materials, 'relMassD', relMassD, 'posX', posX, 'posY', posY)
   configDefault=CREATE_STRUCT($
-    'defPath','C:\',$
     'deciMark',',', $
     'copyHeader', 0, $
+    'includeFilename', 1, $
     'transposeTable', 0, $
     'append',0,$
     'qtOutTemps', ['DEFAULT','DEFAULT','DEFAULT','DEFAULT','DEFAULT'], $
     'MTFtype',2,'MTFtypeX',1,'MTFtypeNM',1,'MTFtypeSPECT',1, $
-    'plotMTF',3,'plotMTFX', 3, 'plotMTFNM',4,'plotMTFSPECT',4, 'tableMTF',0,'tableMTFX', 0, $
+    'plotMTF',3,'plotMTFX', 3, 'plotMTFNM',4,'plotMTFSPECT',4, 'tableMTF',0,'cyclMTF',0,'tableMTFX', 0, $
     'MTFroiSz',11.0,'MTFroiSzX',[20.,50.],'MTFroiSzNM',[20.,20.],'MTFroiSzSPECT',30.,'MTF3dSPECT',1, $
     'cutLSF',1,'cutLSF1',3,'cutLSF2',1, 'cutLSFX', 1, 'cutLSFX1', 3, 'offxy', [0,0], $
+    'searchMaxMTF_ROI',0,$
     'LinROIrad',3.,'LinROIradS',11., 'LinTab',lintab, $
     'RampDist',38.,'RampLen',60.,'RampBackG',5.,'RampSearch',5,'RampAvg',1,'RampType',0,'RampDens',0,$
     'HomogROIsz',10., 'HomogROIszX',10., 'HomogROIszPET', 10.,'HomogROIdist',55.,'HomogROIdistPET',55.,'HomogROIszNM',25.,'HomogROIdistNM',[100.,200.],$
-    'NoiseROIsz',55., $
+    'NoiseROIsz',55., 'HUwaterROIsz', 55.,$
     'NPSroiSz', 50, 'NPSroiDist', 50., 'NPSsubNN', 20, 'NPSroiSzX', 256, 'NPSsubSzX', 5, 'NPSavg', 1, $
     'STProiSz', 11.3, $
     'unifAreaRatio', 0.95,'SNIAreaRatio', 0.9,'unifCorr',0,'SNIcorr',0,'distCorr',385.0,'attCoeff',2.2,'detThick',9.5,$
+    'barWidths',[6.4,4.8,4.0,3.2],'barROIsz',50.0,$
     'ScanSpeedAvg', 25, 'ScanSpeedHeight', 100., 'ScanSpeedFiltW', 15, $
     'ContrastRad1', 20., 'ContrastRad2', 58.,$
     'CrossROIsz', 60., 'CrossVol', 0.0)
@@ -63,7 +160,7 @@ function updateConfigS, file
       newConfigS=CREATE_STRUCT('defConfigNo',oldConfigS.(0))
       FOR i=1, N_ELEMENTS(restoreTagsS)-1 DO BEGIN;for each parameterset
         oldTags=TAG_NAMES(oldConfigS.(i))
-        configTemp=CREATE_STRUCT('DEFPATH',oldConfigS.(i).DEFPATH)
+        configTemp=CREATE_STRUCT('DECIMARK',oldConfigS.(i).DECIMARK)
         FOR j=1, N_ELEMENTS(defaultTags)-1 DO BEGIN;for each parameter in parameterset
           IF oldTags.HasValue(defaultTags(j)) THEN BEGIN
             ;copy tag content
@@ -77,7 +174,7 @@ function updateConfigS, file
         newConfigS=CREATE_STRUCT(newConfigS,restoreTagsS(i),configTemp)
       ENDFOR
 
-    ENDIF ELSE sv=DIALOG_MESSAGE('Found no valid config structure in selected file.', DIALOG_PARENT=0)
+    ENDIF ELSE sv=DIALOG_MESSAGE('Found no valid config structure.', DIALOG_PARENT=0)
 
   ENDELSE;file ''
 
@@ -95,14 +192,14 @@ function updateQuickT, file
     ENDIF
     IF N_ELEMENTS(configS) NE 0 THEN BEGIN
       oldTags=TAG_NAMES(configS.(1))
-      If oldTags.HasValue('QUICKTEMP') THEN quickT=configS.(1).QUICKTEMP;TODO is this correct???
+      If oldTags.HasValue('QUICKTEMP') THEN quickT=configS.(1).QUICKTEMP
     ENDIF
     IF N_ELEMENTS(quickTemp) NE 0 THEN quickT=quickTemp ELSE quickT=!Null
   ENDELSE
   return, quickT
 end
 
-function updateQuickTout, file
+function updateQuickTout, file, analyseStrAll
 
   ;default values if missing:
   defCT=CREATE_STRUCT($
@@ -120,11 +217,12 @@ function updateQuickTout, file
     'Avg_xy_MTF50',CREATE_STRUCT('ALT',0,'COLUMNS',[0,3],'CALC',3,'PER_SERIES',0),$
     'Avg_xy_MTF10',CREATE_STRUCT('ALT',0,'COLUMNS',[1,4],'CALC',3,'PER_SERIES',0),$
     'MTF50',CREATE_STRUCT('ALT',1,'COLUMNS',[0],'CALC',0,'PER_SERIES',1),$
-    'MTF10',CREATE_STRUCT('ALT',1,'COLUMNS',[1],'CALC',0,'PER_SERIES',1)))
+    'MTF10',CREATE_STRUCT('ALT',1,'COLUMNS',[1],'CALC',0,'PER_SERIES',1)),$
+    'CTLIN',-1,'HUWATER',-1,'EXP',-1)
   defXray=CREATE_STRUCT($
     'STP', CREATE_STRUCT('Pixel_mean',CREATE_STRUCT('ALT',0,'COLUMNS',2,'CALC',0,'PER_SERIES',0)),$
     'HOMOG',-1,'NOISE',-1,'EXP',-1,'MTF',-1)
-  defNM=CREATE_STRUCT('UNIF', -1,'SNI',-1,'ACQ',-1)
+  defNM=CREATE_STRUCT('UNIF', -1,'SNI',-1,'ACQ',-1,'BAR',-1)
   quickToutDefault=CREATE_STRUCT('CT',CREATE_STRUCT('DEFAULT',defCT),'Xray',CREATE_STRUCT('DEFAULT',defXray),'NM',CREATE_STRUCT('DEFAULT',defNM))
 
   IF file EQ '' THEN quickTout=quickToutDefault ELSE BEGIN
@@ -133,48 +231,99 @@ function updateQuickTout, file
     errCounter=0
     IF N_ELEMENTS(quickTout) NE 0 THEN BEGIN
       oldQuickTout=quickTout
+      quickTout=CREATE_STRUCT('popit',0)
 
       ;copy values into newest versions structure
       quickToutThisVersion=CREATE_STRUCT('ALT',0,'COLUMNS',0,'CALC',0,'PER_SERIES',0)
       tagNewest=TAG_NAMES(quickToutThisVersion)
 
-      newQuickTout=quickToutDefault;default values
+      modesCurr=TAG_NAMES(quickToutDefault)
+      modesOld=TAG_NAMES(oldQuickTout)
+      FOR i=0, N_ELEMENTS(modesCurr)-1 DO BEGIN;for each modality in current version
 
-      nMods=N_TAGS(oldQuickTout)
+        IF modesOld.HasValue(modesCurr(i)) THEN BEGIN ;modality defined in old version
+          ;update tags
+          ;add new tests to template with default values
 
-      FOR i=0, N_ELEMENTS(nMods)-1 DO BEGIN;for each modality
-        nTemps=N_TAGS(oldQuickTout.(i))
-        FOR j=0, N_ELEMENTS(nTemps)-1 DO BEGIN; for each template in modality
-          nTests=N_TAGS(oldQuickTout.(i).(j))
-          FOR k=0, N_ELEMENTS(nTests)-1 DO BEGIN; for each defined test
-            nTouts=N_TAGS(oldQuickTout.(i).(j).(k))
-            FOR l=0, N_ELEMENTS(nTouts)-1 DO BEGIN; for each defined output
-              IF SIZE(oldQuickTout.(i).(j).(k).(l), /TNAME) EQ 'STRUCT' THEN BEGIN
-                oldTags=TAG_NAMES(oldQuickTout.(i).(j).(k).(l))
-                IF ~ARRAY_EQUAL(oldTags, tagNewest) THEN BEGIN
-                  structNew=CREATE_STRUCT('DEL',0)
-                  FOR m=0, N_ELEMENTS(tagNewest)-1 DO BEGIN
-                    IF oldTags.HasValue(tagNewest(j)) THEN BEGIN
-                      ;copy tag content
-                      ff=WHERE(oldTags EQ tagNewest(j))
-                      structNew=CREATE_STRUCT(structNew, tagNewest(j), oldQuickTout.(i).(j).(k).(l).(ff))
-                    ENDIF ELSE structNew=CREATE_STRUCT(structNew, tagNewest(j),quickToutThisVersion.(m))
+          ii=WHERE(modesOld EQ modesCurr(i))
+          oldTempsThisMode=TAG_NAMES(oldQuickTout.(ii))
+          IF oldTempsThisMode(0) NE 'EMPTY' THEN BEGIN
+
+            allTestsCurr=TAG_NAMES(quickToutDefault.(i).DEFAULT)
+            nTestsCurr=N_ELEMENTS(allTestsCurr) 
+            allTestsOld=TAG_NAMES(oldQuickTout.(ii).DEFAULT)
+  
+            missingTestsInOld=INTARR(nTestsCurr)
+            FOR a=0, nTestsCurr-1 DO IF ~allTestsOld.HasValue(allTestsCurr(a)) THEN missingTestsInOld(a)=1
+  
+            tempNames=TAG_NAMES(oldQuickTout.(ii))
+            tempsThisMode=CREATE_STRUCT('popit',0)
+            FOR j=0, N_ELEMENTS(tempNames)-1 DO BEGIN; for each template
+  
+              thisTemp=CREATE_STRUCT('popit',0)
+  
+              nTests=N_TAGS(oldQuickTout.(ii).(j))
+              FOR k=0, N_ELEMENTS(allTestsOld)-1 DO BEGIN; for each defined test
+          
+                IF SIZE(oldQuickTout.(ii).(j).(k), /TNAME) EQ 'STRUCT' THEN BEGIN
+                  outputsThisTest=CREATE_STRUCT('popit',0)
+                  outPutNames=TAG_NAMES(oldQuickTout.(ii).(j).(k))
+                  FOR l=0, N_ELEMENTS(outPutNames)-1 DO BEGIN; for each defined output
+                  ;IF SIZE(oldQuickTout.(ii).(j).(k).(l), /TNAME) EQ 'STRUCT' THEN BEGIN
+                    oldTags=TAG_NAMES(oldQuickTout.(ii).(j).(k).(l))
+  
+                    paramsThis=CREATE_STRUCT('popit',0)
+  
+                    IF ~ARRAY_EQUAL(oldTags, tagNewest) THEN BEGIN
+                      FOR m=0, N_ELEMENTS(tagNewest)-1 DO BEGIN
+                        IF oldTags.HasValue(tagNewest(m)) THEN BEGIN
+                          ;copy tag content
+                          ff=WHERE(oldTags EQ tagNewest(m))
+                          paramsThis=CREATE_STRUCT(paramsThis, tagNewest(m), oldQuickTout.(ii).(j).(k).(l).(ff))
+                        ENDIF ELSE paramsThis=CREATE_STRUCT(paramsThis, tagNewest(j),quickToutThisVersion.(m))
+                      ENDFOR
+  
+                      paramsThis=removeIDstructstruct(paramsThis, 0);pop off first dummy element
+  
+                    ENDIF ELSE paramsThis=oldQuickTout.(ii).(j).(k).(l)
+                    outputsThisTest=CREATE_STRUCT(outputsThisTest,outPutNames(l), paramsThis)
+                  
                   ENDFOR
-                ENDIF
+                  outputsThisTest=removeIDstructstruct(outputsThisTest, 0);pop off first dummy element
+                  thisTemp=CREATE_STRUCT(thisTemp,allTestsOld(k), outputsThisTest)
+                ENDIF ELSE thisTemp=CREATE_STRUCT(thisTemp,allTestsOld(k),-1)        
+              ENDFOR
+              IF TOTAL(missingTestsInOld) GT 0 THEN BEGIN
+                testNo=WHERE(missingTestsInOld EQ 1)
+                FOR aa=0, TOTAL(missingTestsInOld)-1 DO thisTemp=CREATE_STRUCT(thisTemp, allTestsCurr(testNo(aa)), quickToutDefault.(i).DEFAULT.(testno(aa)))
               ENDIF
+
+              thisTemp=removeIDstructstruct(thisTemp, 0);pop off first dummy element
+              ;reorder tests according to current order of QuickTests
+              tagsThis=TAG_NAMES(thisTemp)
+              IF ~ARRAY_EQUAL(allTestsCurr, tagsThis) THEN BEGIN
+                nnn=N_ELEMENTS(allTestsCurr)
+                newOrdTests=INTARR(nnn)
+                FOR aaa=0, nnn-1 DO BEGIN
+                  samme=WHERE(tagsThis EQ allTestsCurr(aaa))
+                  newOrdTests(aaa)=samme(0)
+                ENDFOR
+                thisTemp=reorderStructStruct(thisTemp, newOrdTests)
+              ENDIF
+              
+              tempsThisMode=CREATE_STRUCT(tempsThisMode, tempNames(j), thisTemp)
             ENDFOR
-          ENDFOR
-        ENDFOR
+            
+            tempsThisMode=removeIDstructstruct(tempsThisMode, 0);pop off first dummy element 
+            quickTout=CREATE_STRUCT(quickTout, modesCurr(i), tempsThisMode)
+          
+          ENDIF ELSE quickTout=CREATE_STRUCT(quickTout, modesCurr(i), quickToutDefault.(i))
+        ENDIF ELSE quickTout=CREATE_STRUCT(quickTout, modesCurr(i), quickToutDefault.(i))
       ENDFOR
-      ;pop off first dummy element
-      IF N_ELEMENTS(structNew) GT 0 THEN BEGIN
-        tagsNew=TAG_NAMES(structNew)
-        IF tagsNew.HasValue('DEL') THEN BEGIN
-          structNew=removeIDstructstruct(structNew, 0)
-        ENDIF
-      ENDIF
+
+      quickTout=removeIDstructstruct(quickTout, 0);pop off first dummy element
     ENDIF ELSE quickTout=quickToutDefault
-    
+
   ENDELSE
   return, quickTout
 end
@@ -194,6 +343,7 @@ function updateLoadT, file
       ;pathApp- path to append results if successfully calculated
       loadTthisVersion=CREATE_STRUCT($
         'path','',$
+        'statName','',$
         'loadBy',0,$
         'includeSub',0,$
         'sortBy', '', $
@@ -238,10 +388,10 @@ function imgStructUpdate, struc, pathNow
   szStru=SIZE(struc, /TNAME)
   IF szStru EQ 'STRUCT' THEN tnLoaded=TAG_NAMES(struc) ELSE tnLoaded=''
   IF tnLoaded.HasValue('FILENAME') OR tnLoaded(0) EQ '' THEN BEGIN
-    currStruct=CREATE_STRUCT('filename',pathNow,'acqDate', '', 'imgDate', '', 'institution','','modality', '', 'modelName','','stationName','','detectorID','',$
+    currStruct=CREATE_STRUCT('filename',pathNow,'studydatetime','','acqDate', '', 'imgDate', '', 'institution','','modality', '', 'modelName','','stationName','','SWversion','','detectorID','',$
       'patientName','', 'patientID', '', 'patientWeight', '-', 'imageType','','presType','','studyDescr','','seriesName','', 'protocolname', '',$
-      'seriesNmb',-1,'acqNmb',-1, 'acqtime','','sliceThick',-1., 'pix', [-1.,-1.],'imageSize',[-1,-1],'kVp',-1.,'FOV',-1.,'rekonFOV',-1.,'mA',-1.,'mAs',-1.,'ExpTime',-1.,'coll',[-1.,-1.],'pitch',-1.,$
-      'ExModType','','CTDIvol',-1.,'DAP',-1.,'EI',-1.,'sensitivity',-1.,'filterAddOn','-','kernel','-',$
+      'seriesNmb',-1,'seriesTime','','acqNmb',-1, 'acqtime','','sliceThick',-1., 'pix', [-1.,-1.],'imageSize',[-1,-1],'kVp',-1.,'FOV',-1.,'rekonFOV',-1.,'mA',-1.,'mAs',-1.,'ExpTime',-1.,'coll',[-1.,-1.],'pitch',-1.,$
+      'ExModType','','CTDIvol',-1.,'DAP',-1.,'EI',-1.,'sensitivity',-1.,'sdd',-1.,'filterAddOn','-','kernel','-',$
       'zpos', -999., 'imgNo',-1,'nFrames',0,'wCenter',-1,'wWidth',-1,$
       'collType','-','nEWindows',-1,'EWindowName','-','zoomFactor','-','radius1',-1.,'radius2',-1.,'angle',-999.,'acqFrameDuration',-1.,'acqTerminationCond','-',$
       'units','-','radiopharmaca','-','admDose','-','admDoseTime','-','reconMethod','-','attCorrMethod','-','scaCorrMethod','-', 'scatterFrac','-',$
@@ -303,28 +453,34 @@ function readImg, adr, frame
 
       ;multiframe?
       test=o->GetReference('7FE0'x,'0010'x)
-      IF frame EQ -1 THEN BEGIN
-        ;real image is last image (icon images first)
-        test_peker=o->GetValue(REFERENCE=test[N_ELEMENTS(test)-1],/NO_COPY)
-        matrix=FLOAT(*(test_peker[0]))
+      IF test(0) NE -1 THEN BEGIN
+        IF frame EQ -1 THEN BEGIN
+          ;real image is last image (icon images first)
+          test_peker=o->GetValue(REFERENCE=test[N_ELEMENTS(test)-1],/NO_COPY)
+          matrix=FLOAT(*(test_peker[0]))
+        ENDIF ELSE BEGIN
+          ;multiframe
+          test_peker=o->GetValue(REFERENCE=test[frame-1],/NO_COPY)
+          matrix=FLOAT(*(test_peker[0]))
+        ENDELSE
+  
+        matrix=REVERSE(matrix,2)*slope + intercept
+        IF ori EQ 1 THEN matrix=REVERSE(matrix)
+        PTR_FREE, test_peker
       ENDIF ELSE BEGIN
-        ;multiframe
-        test_peker=o->GetValue(REFERENCE=test[frame-1],/NO_COPY)
-        matrix=FLOAT(*(test_peker[0]))
+        matrix=INTARR(100,100)
+        ;sv=DIALOG_MESSAGE('File do not contain image data. Program might crash. Try closing the file.'+adr, DIALOG_PARENT=0)
       ENDELSE
 
-      matrix=REVERSE(matrix,2)*slope + intercept
-      IF ori EQ 1 THEN matrix=REVERSE(matrix)
-
-      OBJ_DESTROY,o & PTR_FREE, test_peker
+      OBJ_DESTROY,o
     ENDIF ELSE BEGIN; 'dat file
       RESTORE, adr
       matrix=imageQCmatrix.matrix;IF imageQCmatrix.nFrames GT 0 THEN matrix=imageQCmatrix.matrix[*,*,frame] ELSE matrix=imageQCmatrix.matrix
       imageQCmatrix=!null
     ENDELSE
   ENDIF ELSE BEGIN
-    sv=DIALOG_MESSAGE('File no longer exists. Renamed or removed. Program might crash. Try closing the file.'+adr, DIALOG_PARENT=0)
-    matrix=-1
+    sv=DIALOG_MESSAGE('File no longer exists. Renamed or removed. Program might work instable with this file in the list. Try closing the file.'+adr, DIALOG_PARENT=0)
+    matrix=INTARR(100,100)
   ENDELSE
   return, matrix
 end
@@ -343,7 +499,7 @@ function formatCode, arr
       IF maxa LT 0.01 THEN BEGIN
         strInner='f0.5'
         IF maxa LT 0.001 THEN BEGIN
-          strInner='g0.2'
+          strInner='g0.5'
         ENDIF
       ENDIF
     ENDIF
@@ -351,7 +507,7 @@ function formatCode, arr
   IF maxa GT 1 THEN strInner='f0.3'
   IF maxa GT 10 THEN strInner='f0.2'
   IF maxa GT 100 THEN strInner='f0.1'
-  IF maxa GT 99999 THEN strInner='g0.2'
+  IF maxa GT 99999 THEN strInner='i0'
   strFormatCode='('+strInner+')'
 
   return, strFormatCode
@@ -366,9 +522,17 @@ end
 ;day month year format
 function formatDMY, str
   IF STRLEN(str) EQ 8 THEN BEGIN
-    strDMY=STRMID(str, 0, 4)+'.'+STRMID(str, 4, 2)+'.'+STRMID(str, 6, 2)
+    strDMY=STRMID(str, 6, 2)+'.'+STRMID(str, 4, 2)+'.'+STRMID(str, 0, 4)
   ENDIF ELSE strDMY=str
   return, strDMY
+end
+
+function DMYtoYMD, str
+  IF STRLEN(str) EQ 10 THEN BEGIN
+    strSpl=STRSPLIT(str,'.',/EXTRACT)
+    IF N_ELEMENTS(strSpl) EQ 3 THEN strYMD=strSpl(2)+'.'+strSpl(1)+'.'+strSpl(0) ELSE strYMD=str
+  ENDIF ELSE strYMD=str
+  return, strYMD
 end
 
 ; return list of filenames for open files
@@ -503,6 +667,7 @@ function centerProfile, vec
     first=above(0)-1;remove noise even more smooths outer edge too -1
     last=above(nn-1)+1;remove noise even more smooths outer edge too +1
 
+    IF first EQ -1 OR first EQ 0 THEN first=1
     IF first GE 1 AND last LE N_ELEMENTS(vec)-2 THEN BEGIN
 
       dy=treshold-vec(first-1)
@@ -525,33 +690,24 @@ end
 ;From: http://www.idlcoyote.com/tip_examples/centroid.pro
 ;added treshold and invert if object lower intensity than outer
 function Centroid, array, treshold
-
-  s = Size(array, /Dimensions)
+  array2=array;avoid problems when array changes activeImg as input
+  s = Size(array2, /Dimensions)
   sHalf= s/2
-  ;centerval=TOTAL(array[sHalf(0)-1:sHalf(0)+1,sHalf(1)-1:sHalf(1)+1])/9.
-  outerVal=MEAN(array[*,0])
-  IF abs(outerVal- min(array)) GT abs(outerVal- max(array)) THEN array= max(array)-array ;invert array
 
-  lower=WHERE(array LT treshold)
-  array=array-MIN(array);starting at zero
-  arrTemp=array
+  outerVal=MEAN(array2[*,0])
+  IF abs(outerVal- min(array2)) GT abs(outerVal- max(array2)) THEN array2= max(array2)-array2 ;invert array
+
+  lower=WHERE(array2 LT treshold)
+  array2=array2-MIN(array2);starting at zero
+  arrTemp=array2
   IF lower(0) NE -1 THEN arrTemp(lower)=0.
 
-  ;totalMass = Total(arrTemp)
-
-  ;IF totalMass GT 0 THEN BEGIN
-  ;  x = Total( Total(arrTemp, 2) * Indgen(s[0]) ) / totalMass
-  ;  y = Total( Total(arrTemp, 1) * Indgen(s[1]) ) / totalMass
-  ;ENDIF ELSE BEGIN
-  ;  x=sHalf[0]
-  ;  y=sHalf[1]
-  ;ENDELSE
   x=centerProfile(SMOOTH(TOTAL(arrTemp,2),3,/EDGE_MIRROR))
   y=centerProfile(SMOOTH(TOTAL(arrTemp,1),3,/EDGE_MIRROR))
 
   ;filter array and average of 3 neighbour profiles to remove noise
   ;filterw=CEIL(0.1*s(0))
-  arrayFilt=SMOOTH(array,5,/EDGE_MIRROR)
+  arrayFilt=SMOOTH(array2,5,/EDGE_MIRROR)
   yNo=ROUND(y)
   xNo=ROUND(x)
   IF yNo GE 1 AND yNo LE s(1)-2 THEN vecX=TOTAL(arrayFilt[*,yNo-1:yNo+1],2)*1./3 ELSE vecX=arrayFilt[*,yNo]
@@ -676,79 +832,7 @@ function getROIcircle, arrSz, center, radius
   return, circle
 end
 
-; ***************** editing arrays and structures (adding/deleting) *****************************
 
-;remove ids from 1d-array; works no good with 1 element string.... not getting set to !null
-function removeIDarr, arr, id
-  newArr=arr
-  IF id EQ 0 THEN BEGIN
-    IF N_ELEMENTS(arr) GT 1 THEN newArr=arr[1:N_ELEMENTS(arr)-1] ELSE newArr=!null
-  ENDIF
-  IF id EQ N_ELEMENTS(arr)-1 THEN newArr=arr[0:N_ELEMENTS(arr)-2]
-  IF id GT 0 AND id LT N_ELEMENTS(arr)-1 THEN newArr=[arr[0:id-1],arr[id+1:N_ELEMENTS(arr)-1]]
-  return, newArr
-end
-
-;remove ids from structure of structures
-function removeIDstructstruct, struct, ids
-  structNew=CREATE_STRUCT('EMPTY',0)
-  counter=0
-  ntags=N_TAGS(struct)
-  tagname=TAG_NAMES(struct)
-  FOR i=0, ntags-1 DO BEGIN
-    inSel=WHERE(ids EQ i)
-    IF inSel(0) EQ -1 THEN BEGIN
-      stillEmpty=WHERE(TAG_NAMES(structNew) EQ 'EMPTY')
-      IF stillEmpty(0) EQ -1 THEN structNew=CREATE_STRUCT(structNew,tagname(i),struct.(i)) ELSE structNew=CREATE_STRUCT(tagname(i),struct.(i))
-    ENDIF
-  ENDFOR
-  return, structNew
-end
-
-;reorder ids in structure of structures
-function reorderStructStruct, struct, newOrder
-  ntags=N_TAGS(struct)
-  tagname=TAG_NAMES(struct)
-  structNew=CREATE_STRUCT(tagname(newOrder(0)),struct.(newOrder(0)))
-  FOR i=1, ntags-1 DO structNew=CREATE_STRUCT(structNew,tagname(newOrder(i)),struct.(newOrder(i)))
-  return, structNew
-end
-
-;replace numbered structure in structure of structures
-;numb = id to replace
-function replaceStructStruct, fullStruct, newSubStruct, numb, NEW_TAG_NAME=new_tag_name
-  structNew=CREATE_STRUCT('EMPTY',0)
-  counter=0
-  ntags=N_TAGS(fullStruct)
-  tagname=TAG_NAMES(fullStruct)
-  FOR i=0, ntags-1 DO BEGIN
-    stillEmpty=WHERE(TAG_NAMES(structNew) EQ 'EMPTY')
-    IF i NE numb THEN BEGIN
-      IF stillEmpty(0) EQ -1 THEN structNew=CREATE_STRUCT(structNew,tagname(counter),fullStruct.(i)) ELSE structNew=CREATE_STRUCT(tagname(0),fullStruct.(i))
-      counter=counter+1
-    ENDIF ELSE BEGIN
-      IF N_ELEMENTS(new_tag_name) GT 0 THEN tname=new_tag_name ELSE tname=tagname(counter)
-      IF stillEmpty(0) EQ -1 THEN structNew=CREATE_STRUCT(structNew,tname,newSubStruct) ELSE structNew=CREATE_STRUCT(tname,newSubStruct)
-      counter=counter+1
-    ENDELSE
-  ENDFOR
-  return, structNew
-end
-
-;change structure tags from array to one-element-values. Values are set to the numbered value
-function structArr2elem, struct, taglist2scalar, valueNmb
-  ntags=N_TAGS(struct)
-  tagname=TAG_NAMES(struct)
-  IF taglist2scalar.HasValue(tagname(0)) THEN val=struct.(0)[valueNmb] ELSE val=struct.(0)
-  structNew=CREATE_STRUCT(tagname(0),val)
-  FOR i=1, ntags-1 DO BEGIN
-    IF taglist2scalar.HasValue(tagname(i)) THEN BEGIN
-      IF N_ELEMENTS(struct.(i)) GT valueNmb THEN val=struct.(i)[valueNmb] ELSE val=struct.(i)
-    ENDIF ELSE val=struct.(i)
-    structNew=CREATE_STRUCT(structNew,tagname(i),val)
-  ENDFOR
-  return, structNew
-end
 
 ;*********** fourier and gauss stuff ********************
 function ESFtoLSF, esfVec

@@ -32,6 +32,7 @@ pro STPpix
   ENDIF ELSE markedArr(marked)=1
   IF TOTAL(markedArr) GT 0 THEN BEGIN
 
+    nI=MIN([nImg,N_ELEMENTS(markedArr)])
     anaImg=WHERE(markedArr EQ 1)
     first=anaImg(0)
     activeImg=readImg(structImgs.(first).filename, structImgs.(first).frameNo)
@@ -39,7 +40,7 @@ pro STPpix
     szROI=SIZE(stpROI, /DIMENSIONS)
     resArr=FLTARR(4,nImg)-1; mean, stdev all circles
 
-    FOR i=0, nImg-1 DO BEGIN
+    FOR i=0, nI-1 DO BEGIN
       IF markedArr(i) THEN BEGIN
         activeImg=readImg(structImgs.(i).filename, structImgs.(i).frameNo)
         imszTemp=SIZE(activeImg, /DIMENSIONS)
@@ -51,7 +52,7 @@ pro STPpix
         resArr(2,i)=meanHU & resArr(3,i)=stddevHU
 
       ENDIF
-      WIDGET_CONTROL, lblProgress, SET_VALUE='Progress pixel values: '+STRING(i*100./nIMG, FORMAT='(i0)')+' %'
+      WIDGET_CONTROL, lblProgress, SET_VALUE='STP progress pixel values: '+STRING(i*100./nImg, FORMAT='(i0)')+' %'
     ENDFOR
     WIDGET_CONTROL, lblProgress, SET_VALUE=''
 
@@ -62,13 +63,13 @@ pro STPpix
   ENDIF
 end
 
-pro getExposure
+pro getHeaderInfo; CT
   COMPILE_OPT hidden
   COMMON VARI
 
   WIDGET_CONTROL, /HOURGLASS
   nImg=N_TAGS(structImgs)
-  resArr=FLTARR(4,nImg)-1; kVp,mAs, EI, DAP
+  resArr=STRARR(4,nImg); kVp,mAs, CTDIvol, software
 
   testNmb=getResNmb(modality,'EXP',analyseStringsAll)
   markedArr=INTARR(nImg)
@@ -76,12 +77,44 @@ pro getExposure
     IF markedMulti(0) EQ -1 THEN markedArr=markedArr+1 ELSE markedArr=markedMulti[testNmb,*]
   ENDIF ELSE markedArr(marked)=1
   IF TOTAL(markedArr) GT 0 THEN BEGIN
-    FOR i=0, nImg-1 DO BEGIN
+    nI=MIN([nImg,N_ELEMENTS(markedArr)])
+    FOR i=0, nI-1 DO BEGIN
       IF markedArr(i) THEN BEGIN
-        resArr[0,i]=structImgs.(i).kVp
-        resArr[1,i]=structImgs.(i).mAs
-        resArr[2,i]=structImgs.(i).EI
-        resArr[3,i]=structImgs.(i).DAP
+        resArr[0,i]=STRING(structImgs.(i).kVp, FORMAT=formatCode(structImgs.(i).kVp))
+        resArr[1,i]=STRING(structImgs.(i).mAs, FORMAT=formatCode(structImgs.(i).mAs))
+        resArr[2,i]=STRING(structImgs.(i).CTDIvol, FORMAT=formatCode(structImgs.(i).CTDIvol))
+        resArr[3,i]=structImgs.(i).SWversion
+      ENDIF
+    ENDFOR
+    WIDGET_CONTROL, lblProgress, SET_VALUE=''
+    expRes=resArr
+    results(testNmb)=1
+  ENDIF
+end
+
+pro getExposure
+  COMPILE_OPT hidden
+  COMMON VARI
+
+  WIDGET_CONTROL, /HOURGLASS
+  nImg=N_TAGS(structImgs)
+  resArr=STRARR(6,nImg); kVp,mAs, EI, DAP, SDD, detector id
+  
+  testNmb=getResNmb(modality,'EXP',analyseStringsAll)
+  markedArr=INTARR(nImg)
+  IF marked(0) EQ -1 THEN BEGIN
+    IF markedMulti(0) EQ -1 THEN markedArr=markedArr+1 ELSE markedArr=markedMulti[testNmb,*]
+  ENDIF ELSE markedArr(marked)=1
+  IF TOTAL(markedArr) GT 0 THEN BEGIN
+    nI=MIN([nImg,N_ELEMENTS(markedArr)])
+    FOR i=0, nI-1 DO BEGIN
+      IF markedArr(i) THEN BEGIN
+        resArr[0,i]=STRING(structImgs.(i).kVp, FORMAT=formatCode(structImgs.(i).kVp))
+        resArr[1,i]=STRING(structImgs.(i).mAs, FORMAT=formatCode(structImgs.(i).mAs))
+        resArr[2,i]=STRING(structImgs.(i).EI, FORMAT=formatCode(structImgs.(i).EI))
+        resArr[3,i]=STRING(structImgs.(i).DAP, FORMAT=formatCode(structImgs.(i).DAP))
+        resArr[4,i]=STRING(structImgs.(i).SDD, FORMAT=formatCode(structImgs.(i).SDD))
+        resArr[5,i]=structImgs.(i).DETECTORID
       ENDIF
     ENDFOR
     WIDGET_CONTROL, lblProgress, SET_VALUE=''
@@ -96,7 +129,7 @@ pro noise
   WIDGET_CONTROL, /HOURGLASS
 
   nImg=N_TAGS(structImgs)
-
+  
   resArr=FLTARR(2,nImg)-1; mean, stdev all circles
   testNmb=getResNmb(modality,'NOISE',analyseStringsAll)
   markedArr=INTARR(nImg)
@@ -110,10 +143,10 @@ pro noise
     activeImg=readImg(structImgs.(first).filename, structImgs.(first).frameNo)
     updateROI, ANA='NOISE', SEL=first
     szROI=SIZE(noiseROI, /DIMENSIONS)
-    
-    totNoise=0.
 
-    FOR i=0, nImg-1 DO BEGIN
+    totNoise=0.
+    nI=MIN([nImg,N_ELEMENTS(markedArr)])
+    FOR i=0, nI-1 DO BEGIN
       IF markedArr(i) THEN BEGIN
         ;check if same size
         activeImg=readImg(structImgs.(i).filename, structImgs.(i).frameNo)
@@ -125,26 +158,42 @@ pro noise
         IMAGE_STATISTICS, activeImg, COUNT=nPix, MEAN=meanVal, STDDEV=stddevVal, MASK=maske
         resArr(0,i)=meanVal
         resArr(1,i)=stddevVal
-        totNoise=totNoise+stddevVal
+        ;totNoise=totNoise+stddevVal
 
       ENDIF
-      WIDGET_CONTROL, lblProgress, SET_VALUE='Progress: '+STRING(i*100./nIMG, FORMAT='(i0)')+' %'
+      WIDGET_CONTROL, lblProgress, SET_VALUE='Noise progress: '+STRING(i*100./nI, FORMAT='(i0)')+' %'
     ENDFOR
     WIDGET_CONTROL, lblProgress, SET_VALUE=''
 
-    avgNoise=totNoise/TOTAL(markedArr)
-
-    noiseRes=FLTARR(4,nImg)
-    noiseRes[0:1,*]=resArr
-    noiseRes[3,0]=avgNoise
-    noiseRes[2,*]=100.0*(resArr[1,*]-avgNoise)/avgNoise
+    ;avgNoise=totNoise/TOTAL(markedArr)
 
     CASE modality OF
       0: BEGIN
         noiseRes=FLTARR(4,nImg)
         noiseRes[0:1,*]=resArr
-        noiseRes[3,0]=avgNoise
-        noiseRes[2,*]=100.0*(resArr[1,*]-avgNoise)/avgNoise
+        
+        ;find and sort by series (same seriesNmb)
+        serNo=!Null
+        FOR im=0, nImg-1 DO serNo=[serNo,structImgs.(im).seriesNmb]
+        ;find number of series
+        nActIm=N_ELEMENTS(serNo)
+        uniqSerNo=uniq(serNo)
+        nSeries=N_ELEMENTS(uniqSerNo)
+        ;loop through series
+        FOR se=0, nSeries-1 DO BEGIN
+          imInSeries=WHERE(serNo EQ serNo(uniqSerNo(se)), nIm)
+          serArr=markedArr*0
+          serArr(imInSeries)=1
+          actImg=serArr*markedArr
+          ids=WHERE(actImg EQ 1, nids)
+          IF ids(0) NE -1 THEN BEGIN
+            noiseRes[3,ids]=TOTAL(resArr[1,ids])/nids
+            noiseRes[2,ids]=100.0*(resArr[1,ids]-noiseRes[3,ids(0)])/noiseRes[3,ids(0)]
+          ENDIF
+        ENDFOR
+            
+        ;noiseRes[3,0]=avgNoise
+        ;noiseRes[2,*]=100.0*(resArr[1,*]-avgNoise)/avgNoise
       END
       1: BEGIN
         noiseRes=FLTARR(2,nImg)
@@ -155,6 +204,52 @@ pro noise
     results(testNmb)=1
     redrawImg,0,1;active back to original selected
   ENDIF
+end
+
+pro HUwater
+  COMPILE_OPT hidden
+  COMMON VARI
+  WIDGET_CONTROL, /HOURGLASS
+
+  nImg=N_TAGS(structImgs)
+
+  resArr=FLTARR(2,nImg)-1; mean, stdev all circles
+  testNmb=getResNmb(modality,'HUWATER',analyseStringsAll)
+  markedArr=INTARR(nImg)
+  IF marked(0) EQ -1 THEN BEGIN
+    IF markedMulti(0) EQ -1 THEN markedArr=markedArr+1 ELSE markedArr=markedMulti[testNmb,*]
+  ENDIF ELSE markedArr(marked)=1
+
+  IF TOTAL(markedArr) GT 0 THEN BEGIN
+    anaImg=WHERE(markedArr EQ 1)
+    first=anaImg(0)
+    activeImg=readImg(structImgs.(first).filename, structImgs.(first).frameNo)
+    updateROI, ANA='HUWATER', SEL=first
+    szROI=SIZE(HUwaterROI, /DIMENSIONS)
+
+    nI=MIN([nImg,N_ELEMENTS(markedArr)])
+    FOR i=0, nI-1 DO BEGIN
+      IF markedArr(i) THEN BEGIN
+        ;check if same size
+        activeImg=readImg(structImgs.(i).filename, structImgs.(i).frameNo)
+        imszTemp=SIZE(activeImg, /DIMENSIONS)
+        szROI=SIZE(HUwaterROI, /DIMENSIONS)
+        IF ~ARRAY_EQUAL(imszTemp[0:1], szROI[0:1]) THEN updateROI, ANA='HUWATER', SEL=i
+
+        maske=HUwaterROI
+        IMAGE_STATISTICS, activeImg, COUNT=nPix, MEAN=meanVal, STDDEV=stddevVal, MASK=maske
+        resArr(0,i)=meanVal
+        resArr(1,i)=stddevVal
+      ENDIF
+      WIDGET_CONTROL, lblProgress, SET_VALUE='HU water progress: '+STRING(i*100./nI, FORMAT='(i0)')+' %'
+    ENDFOR
+    WIDGET_CONTROL, lblProgress, SET_VALUE=''
+
+    HUwaterRes=resArr
+    results(testNmb)=1
+    redrawImg,0,1;active back to original selected
+  ENDIF
+  
 end
 
 pro homog
@@ -170,7 +265,7 @@ pro homog
   ENDIF ELSE markedArr(marked)=1
 
   IF TOTAL(markedArr) GT 0 THEN BEGIN
-    
+
     anaImg=WHERE(markedArr EQ 1)
     first=anaImg(0)
     activeImg=readImg(structImgs.(first).filename, structImgs.(first).frameNo)
@@ -178,7 +273,8 @@ pro homog
     szROI=SIZE(homogROIs, /DIMENSIONS)
     resArr=FLTARR(szROI(2)*2,nImg)-1; mean, stdev all circles
 
-    FOR i=0, nImg-1 DO BEGIN
+    nI=MIN([nImg,N_ELEMENTS(markedArr)])
+    FOR i=0, nI-1 DO BEGIN
       WIDGET_CONTROL, /HOURGLASS
       IF markedArr(i) THEN BEGIN
         activeImg=readImg(structImgs.(i).filename, structImgs.(i).frameNo)
@@ -194,7 +290,7 @@ pro homog
         ENDFOR
 
       ENDIF
-      WIDGET_CONTROL, lblProgress, SET_VALUE='Progress: '+STRING(i*100./nIMG, FORMAT='(i0)')+' %'
+      WIDGET_CONTROL, lblProgress, SET_VALUE='Homogeneity progress: '+STRING(i*100./nI, FORMAT='(i0)')+' %'
 
     ENDFOR
     WIDGET_CONTROL, lblProgress, SET_VALUE=''
@@ -236,8 +332,9 @@ pro slicethick
 
     daRad=dxya(3)*dxya(2)/!radeg
 
+    nI=MIN([nImg,N_ELEMENTS(markedArr)])
     errLogg=''
-    FOR i=0, nImg-1 DO BEGIN
+    FOR i=0, nI-1 DO BEGIN
       IF markedArr(i) THEN BEGIN
 
         tempImg=readImg(structImgs.(i).filename, structImgs.(i).frameNo)
@@ -337,7 +434,7 @@ pro slicethick
         resArr[6,i]=100.0*(resArr[5,i]-resArr[0,i])/resArr[0,i]
       ENDIF
 
-      WIDGET_CONTROL, lblProgress, SET_VALUE='Progress: '+STRING(i*100./nIMG, FORMAT='(i0)')+' %'
+      WIDGET_CONTROL, lblProgress, SET_VALUE='Slice thickness progress: '+STRING(i*100./nI, FORMAT='(i0)')+' %'
     ENDFOR
     WIDGET_CONTROL, lblProgress, SET_VALUE=''
     IF errLogg NE '' THEN sv=DIALOG_MESSAGE(errLogg, DIALOG_PARENT=evTop)
@@ -348,6 +445,7 @@ pro slicethick
   ENDIF
 end;slicethick
 
+;CT
 pro mtf
   COMPILE_OPT hidden
   COMMON VARI
@@ -358,6 +456,7 @@ pro mtf
   IF marked(0) EQ -1 THEN BEGIN
     IF markedMulti(0) EQ -1 THEN markedArr=markedArr+1 ELSE markedArr=markedMulti[testNmb,*]
   ENDIF ELSE markedArr(marked)=1
+  nI=MIN([nImg,N_ELEMENTS(markedArr)])
   markedTemp=WHERE(markedArr EQ 1)
   first=markedTemp(0)
 
@@ -372,7 +471,6 @@ pro mtf
     tempImg=readImg(structImgs.(first).filename, structImgs.(first).frameNo)
     pixFirst=structImgs.(first).pix(0)
     filtFirst=structImgs.(first).kernel
-
 
     szFirst=SIZE(tempImg, /DIMENSIONS)
 
@@ -391,8 +489,9 @@ pro mtf
 
         IF roiOK THEN BEGIN
           errBead=0
+          errBeadClose=0
           errSize=0
-          FOR i=0, nImg-1 DO BEGIN
+          FOR i=0, nI-1 DO BEGIN
             IF markedArr(i) THEN BEGIN
               ;check if same size
               IF i GT 0 THEN BEGIN
@@ -404,11 +503,24 @@ pro mtf
 
               szImg=SIZE(tempImg, /DIMENSIONS)
               IF ARRAY_EQUAL(szImg[0:1], szFirst[0:1]) AND curPix EQ pixFirst THEN BEGIN
+                IF WIDGET_INFO(btnSearchMaxMTF, /BUTTON_SET) THEN BEGIN
+                  ;search for max in image
+                  halfmax=0.5*(MAX(tempImg)+MIN(tempImg))
+                  centerPos=ROUND(centroid(tempImg, halfmax))
+                  x1=centerPos(0)-ROIsz(0) & x2=centerPos(0)+ROIsz(0)
+                  y1=centerPos(1)-ROIsz(0) & y2=centerPos(1)+ROIsz(0)
+                  IF x1 GE 0 AND x2 LT szImg(0)-1 AND y1 GE 0 AND y1-(ROIsz(0)*2+1) GE 0 AND y2 LT szImg(1)-1 AND y2-(ROIsz(0)*2+1) LT szImg(1)-1 THEN roiOk=1 ELSE BEGIN
+                    errBeadClose = errBeadClose+1
+                    x1=ROUND(halfSz(0)+dxyaO(0)-ROIsz) & x2=ROUND(halfSz(0)+dxyaO(0)+ROIsz)
+                    y1=ROUND(halfSz(1)+dxyaO(1)-ROIsz) & y2=ROUND(halfSz(1)+dxyaO(1)+ROIsz)
+                  ENDELSE
+                ENDIF
                 submatrix=tempImg[x1:x2,y1:y2]
                 backMatrix=tempImg[x1:x2,y1-(ROIsz(0)*2+1):y2-(ROIsz(0)*2+1)]
 
                 MTF=calculateMTF(submatrix, curPix, dxyaO[0:1], typeMTF, backMatrix, WIDGET_INFO(btnCutLSF, /BUTTON_SET), FLOAT(cutLSFW(0)), FLOAT(cutLSFWf(0)), FLOAT(sampFreq(0)))
                 IF MTF.status EQ 0 THEN errBead=errBead+1
+
               ENDIF ELSE BEGIN
                 MTF=CREATE_STRUCT('empty',0)
                 errSize=1
@@ -416,6 +528,7 @@ pro mtf
             ENDIF ELSE MTF=CREATE_STRUCT('empty',0)
             IF i EQ 0 THEN MTFres=CREATE_STRUCT('M0',MTF) ELSE MTFres=CREATE_STRUCT(MTFres, 'M'+STRING(i, FORMAT='(i0)'), MTF)
           ENDFOR
+          IF errBeadClose GT 0 THEN sv=DIALOG_MESSAGE('ROI for bead too close to image border for '+STRING(errBeadClose, FORMAT='(i0)') +' of '+STRING(TOTAL(markedArr), FORMAT='(i0)') + ' images. ROI center search ignored.', DIALOG_PARENT=evTop)
           IF errBead GT 0 THEN sv=DIALOG_MESSAGE('Problem finding center of bead for '+STRING(errBead, FORMAT='(i0)') +' of '+STRING(TOTAL(markedArr), FORMAT='(i0)') + ' images. Bead position assumed to be at the selected ROI center.', DIALOG_PARENT=evTop)
           If errSize THEN sv=DIALOG_MESSAGE('The images have different size. Results restricted to images with same size.',/INFORMATION, DIALOG_PARENT=evTop)
           results(testNmb)=1
@@ -435,7 +548,29 @@ pro mtf
         proceed=1
         counter=0
 
-        FOR i=0, nImg-1 DO BEGIN
+        IF WIDGET_INFO(btnSearchMaxMTF, /BUTTON_SET) THEN BEGIN
+          ;generate sum of fullmatrix
+          sumImg=tempImg*0.0
+          FOR i=0, nI-1 DO BEGIN
+            IF markedArr(i) THEN BEGIN
+              tempImg=readImg(structImgs.(i).filename, structImgs.(i).frameNo)
+
+              szThis=SIZE(tempImg, /DIMENSIONS)
+              IF ARRAY_EQUAL(szThis[0:1], szFirst[0:1]) THEN BEGIN
+                sumImg=sumImg+tempImg
+              ENDIF
+            ENDIF
+          ENDFOR
+
+          IF TOTAL(sumImg) NE 0 THEN BEGIN
+            halfmax=0.5*(MAX(sumImg)+MIN(sumImg))
+            centerPos=ROUND(centroid(sumImg, halfmax))
+            x1=centerPos(0)-ROIsz & x2=centerPos(0)+ROIsz
+            y1=centerPos(1)-ROIsz & y2=centerPos(1)+ROIsz
+          ENDIF
+        ENDIF
+
+        FOR i=0, nI-1 DO BEGIN
           IF markedArr(i) THEN BEGIN
             tempImg=readImg(structImgs.(i).filename, structImgs.(i).frameNo)
             szThis=SIZE(tempImg, /DIMENSIONS)
@@ -474,11 +609,39 @@ pro mtf
         nnImg=TOTAL(markedArr)
         subM=FLTARR(x2-x1+1,y2-y1+1,nnImg)
 
+        IF WIDGET_INFO(btnSearchMaxMTF, /BUTTON_SET) THEN BEGIN
+          ;generate sum of fullmatrix
+          sumImg=tempImg*0.0
+          FOR i=0, nI-1 DO BEGIN
+            IF markedArr(i) THEN BEGIN
+              tempImg=readImg(structImgs.(i).filename, structImgs.(i).frameNo)
+
+              szThis=SIZE(tempImg, /DIMENSIONS)
+              IF ARRAY_EQUAL(szThis[0:1], szFirst[0:1]) THEN BEGIN
+                sumImg=sumImg+tempImg
+              ENDIF
+            ENDIF
+          ENDFOR
+
+          IF TOTAL(sumImg) NE 0 THEN BEGIN
+            ;firstguess: center = max, search for centroid within ROI size
+            mx=MAX(sumImg, loc)
+            ind=ARRAY_INDICES(sumImg, loc)
+            xx1=ind(0)-ROIsz & xx2=ind(0)+ROIsz
+            yy1=ind(1)-ROIsz & yy2=ind(1)+ROIsz
+            subma=sumImg[xx1:xx2,yy1:yy2]
+            centerPosSubma=ROUND(centroid(subma, MIN(subma)))
+            centerPos=[xx1,yy1]+centerPosSubma
+            x1=centerPos(0)-ROIsz & x2=centerPos(0)+ROIsz
+            y1=centerPos(1)-ROIsz & y2=centerPos(1)+ROIsz
+          ENDIF
+        ENDIF
+
         filtStatus=1
         pixStatus=1
         proceed=1
         counter=0
-        FOR i=0, nImg-1 DO BEGIN
+        FOR i=0, nI-1 DO BEGIN
           IF markedArr(i) THEN BEGIN
             tempImg=readImg(structImgs.(i).filename, structImgs.(i).frameNo)
             szThis=SIZE(tempImg, /DIMENSIONS)
@@ -502,6 +665,7 @@ pro mtf
         IF proceed THEN BEGIN
           MTFres=calculateMTF(subM, pixFirst, dxyaO[0:1], typeMTF, -1, WIDGET_INFO(btnCutLSF, /BUTTON_SET), FLOAT(cutLSFW(0)), FLOAT(cutLSFWf(0)), FLOAT(sampFreq(0)))
           IF MTFres.status EQ 0 THEN sv=DIALOG_MESSAGE('Problem finding center of circle for one or more images. Center of circle assumed to be at center of ROI.', DIALOG_PARENT=evTop)
+          IF MTFres.status EQ 2 THEN sv=DIALOG_MESSAGE('Failed to fit LSF to gaussian. LSF used as is further. NB smoothed LSF!', DIALOG_PARENT=evTop)
           results(testNmb)=1
           IF filtStatus + pixStatus LT 2 THEN sv=DIALOG_MESSAGE('Pixelsize or kernel-type do not match for all images in selection.', DIALOG_PARENT=evTop)
         ENDIF
@@ -546,8 +710,9 @@ pro mtfx
 
     IF N_ELEMENTS(stpRes) EQ 0 THEN stpRes=0
 
+    nI=MIN([nImg,N_ELEMENTS(markedArr)])
     errLogg=''
-    FOR i=0, nImg-1 DO BEGIN
+    FOR i=0, nI-1 DO BEGIN
       IF markedArr(i) THEN BEGIN
         tempImg=readImg(structImgs.(i).filename, structImgs.(i).frameNo)
         szThis=SIZE(tempImg, /DIMENSIONS)
@@ -568,6 +733,97 @@ pro mtfx
     results(testNmb)=1
   ENDIF;none selected
 end;mtfx
+
+pro ctlin; CT
+  COMPILE_OPT hidden
+  COMMON VARI
+
+  WIDGET_CONTROL, /HOURGLASS
+  nImg=N_TAGS(structImgs)
+  nMaterials=N_ELEMENTS(tableHeaders.CT.CTLIN.Alt1)
+  resArr=FLTARR(nMaterials,nImg)-1
+
+  testNmb=getResNmb(modality,'CTLIN',analyseStringsAll)
+  markedArr=INTARR(nImg)
+  IF marked(0) EQ -1 THEN BEGIN
+    IF markedMulti(0) EQ -1 THEN markedArr=markedArr+1 ELSE markedArr=markedMulti[testNmb,*]
+  ENDIF ELSE markedArr(marked)=1
+  markedTemp=WHERE(markedArr EQ 1)
+  first=markedTemp(0)
+
+  IF TOTAL(markedArr) GT 0 THEN BEGIN
+    pix=structImgs.(first).pix
+    WIDGET_CONTROL, txtLinROIrad, GET_VALUE=rad1
+    WIDGET_CONTROL, txtLinROIradS, GET_VALUE=radS
+    rad1=ROUND(FLOAT(rad1(0))/pix(0))
+    radS=ROUND(FLOAT(radS(0))/pix(0))
+    rad2=radS*2
+    updateROI, ANA='CTLIN', SEL=markedArr(0)
+    szROI=SIZE(CTlinROIs, /DIMENSIONS)
+    resArr=FLTARR(szROI(2),nImg)-1;mean for all materials
+
+    searchAvoid=WIDGET_INFO(btnLinAvoidSearch, /BUTTON_SET)
+    CTlinROIpos=INTARR(2,szROI(2))
+    errStatus=0
+    errSearch=0
+    imSum=FLTARR(szROI[0:1])
+    nI=MIN([nImg,N_ELEMENTS(markedArr)])
+    FOR i=0, nI-1 DO BEGIN
+      IF markedArr(i) THEN BEGIN
+        ;check if same size
+        tempImg=readImg(structImgs.(i).filename, structImgs.(i).frameNo)
+        imszTemp=SIZE(tempImg, /DIMENSIONS)
+        IF ARRAY_EQUAL(imszTemp[0:1], szROI[0:1]) THEN BEGIN
+          imSum=imSum+tempImg
+        ENDIF ELSE errStatus=1
+      ENDIF;markedArr
+      WIDGET_CONTROL, lblProgress, SET_VALUE='CT number progress - initializing: '+STRING(i*50./nIMG, FORMAT='(i0)')+' %'
+    ENDFOR
+    IF errStatus NE 1 THEN BEGIN
+      imSum=imSum/TOTAL(markedArr)
+      FOR r=0, szROI(2)-1 DO BEGIN
+        searchMask=CTlinROIs[*,*,r]
+        ;find center
+        IMAGE_STATISTICS, imSum, MINIMUM=mini, MAXIMUM=maxi, MASK=searchMask
+        halfMax=(mini+maxi)/2
+        xarr=TOTAL(searchMask,2)
+        yarr=TOTAL(searchMask,1)
+        xnonZero=WHERE(xarr NE 0)
+        ynonZero=WHERE(yarr NE 0)
+        centerPos=-1
+        IF searchAvoid EQ 0 THEN centerPos=ROUND(centroid(imSum[xnonZero(0):xnonZero(0)+rad2,ynonZero(0):ynonZero(0)+rad2], halfmax))
+        IF MIN(centerPos) EQ -1 THEN BEGIN
+          IF N_ELEMENTS(centerPos) EQ 2 THEN errSearch=errSearch+1
+          centerPos=[radS,radS]
+        ENDIF
+        centerPos=centerPos+[xnonZero(0),ynonZero(0)]
+        CTlinROIpos[*,r]=centerPos
+      ENDFOR
+      WIDGET_CONTROL, lblProgress, SET_VALUE='CT number progress - searching for center: 75 %'
+      statMask=INTARR(szROI)
+      FOR r=0, szROI(2)-1 DO statMask[*,*,r]=getSampleRois(szROI[0:1], [-szROI(0)/2,-szROI(1)/2,0,0], rad1, CTlinROIpos[*,r])
+      WIDGET_CONTROL, lblProgress, SET_VALUE='CT number progress - calculating mean values: 90 %'
+      FOR i=0, nImg-1 DO BEGIN
+        IF markedArr(i) THEN BEGIN
+          tempImg=readImg(structImgs.(i).filename, structImgs.(i).frameNo)
+          FOR r=0, szROI(2)-1 DO BEGIN
+            thisMask=statMask[*,*,r]
+            IMAGE_STATISTICS, tempImg, MEAN=meanHU, MASK=thisMask
+            resArr(r,i)=meanHU
+          ENDFOR
+        ENDIF
+      ENDFOR
+    ENDIF;not errStatus
+    WIDGET_CONTROL, lblProgress, SET_VALUE=' '
+    If errstatus THEN sv=DIALOG_MESSAGE('The images have different size. Results restricted to images with same size.',/INFORMATION, DIALOG_PARENT=evTop)
+    IF errSearch THEN sv=DIALOG_MESSAGE('Failed searching center for one or more samples. Geometric center of search ROI is used for those.', DIALOG_PARENT=evTop)
+    CTlinRes=resArr
+    results(getResNmb(modality,analyse,analyseStringsAll))=1
+    updateTable
+    updatePlot, 1,1,0
+    redrawImg,0,0
+  ENDIF
+end
 
 pro uniformityNM
   COMPILE_OPT hidden
@@ -598,8 +854,8 @@ pro uniformityNM
     errLogg=''
     adrToSave=!Null
     corrMatrix=!Null
-
-    FOR i=0, nImg-1 DO BEGIN
+    nI=MIN([nImg,N_ELEMENTS(markedArr)])
+    FOR i=0, nI-1 DO BEGIN
       IF markedArr(i) THEN BEGIN
         ;check if same size
         tempImg=readImg(structImgs.(i).filename, structImgs.(i).frameNo)
@@ -655,7 +911,7 @@ pro uniformityNM
         resArr[*,i]=uR.table
         IF i EQ 0 THEN unifRes=CREATE_STRUCT('U0',uR) ELSE unifRes=CREATE_STRUCT(unifRes, 'U'+STRING(i, FORMAT='(i0)'), uR)
       ENDIF
-      WIDGET_CONTROL, lblProgress, SET_VALUE='Progress: '+STRING(i*100./nIMG, FORMAT='(i0)')+' %'
+      WIDGET_CONTROL, lblProgress, SET_VALUE='Uniformity progress: '+STRING(i*100./nIMG, FORMAT='(i0)')+' %'
     ENDFOR
     WIDGET_CONTROL, lblProgress, SET_VALUE=''
 
@@ -683,93 +939,146 @@ pro sni
   areaRatio=FLOAT(areaRatio(0))
 
   ;IF N_ELEMENTS(SNIroi) GT 1 THEN BEGIN
-    resArr=FLTARR(2,nImg)-1; mean, stdev all circles
-    testNmb=getResNmb(modality,'SNI',analyseStringsAll)
-    markedArr=INTARR(nImg)
-    IF marked(0) EQ -1 THEN BEGIN
-      IF markedMulti(0) EQ -1 THEN markedArr=markedArr+1 ELSE markedArr=markedMulti[testNmb,*]
-    ENDIF ELSE markedArr(marked)=1
-    markedTemp=WHERE(markedArr EQ 1)
-    first=markedTemp(0)
+  resArr=FLTARR(2,nImg)-1; mean, stdev all circles
+  testNmb=getResNmb(modality,'SNI',analyseStringsAll)
+  markedArr=INTARR(nImg)
+  IF marked(0) EQ -1 THEN BEGIN
+    IF markedMulti(0) EQ -1 THEN markedArr=markedArr+1 ELSE markedArr=markedMulti[testNmb,*]
+  ENDIF ELSE markedArr(marked)=1
+  markedTemp=WHERE(markedArr EQ 1)
+  first=markedTemp(0)
 
-    IF TOTAL(markedArr) GT 0 THEN BEGIN
+  IF TOTAL(markedArr) GT 0 THEN BEGIN
 
-      errLogg=''
-      adrToSave=!Null
-      corrMatrix=!Null
+    errLogg=''
+    adrToSave=!Null
+    corrMatrix=!Null
+    nI=MIN([nImg,N_ELEMENTS(markedArr)])
+    FOR i=0, nI-1 DO BEGIN
+      IF markedArr(i) THEN BEGIN
+        ;check if same size
+        tempImg=readImg(structImgs.(i).filename, structImgs.(i).frameNo)
+        sz=SIZE(tempImg, /DIMENSIONS)
+        SNIroi=getSNIroi(tempImg, areaRatio)
 
-      FOR i=0, nImg-1 DO BEGIN
-        IF markedArr(i) THEN BEGIN
-          ;check if same size
-          tempImg=readImg(structImgs.(i).filename, structImgs.(i).frameNo)
-          sz=SIZE(tempImg, /DIMENSIONS)
-          SNIroi=getSNIroi(tempImg, areaRatio)
+        IF i EQ markedTemp(0) THEN BEGIN
+          prevCurPix=0
+          prevImgSize=sz
+          corrMatrix=FLTARR(sz)+1
+        ENDIF ELSE BEGIN
+          prevCurPix=curPix
+          prevImgSize=curImgSize
+        ENDELSE
+        curPix=structImgs.(i).pix(0)
+        curImgSize=SIZE(tempImg, /DIMENSIONS)
 
-          IF i EQ markedTemp(0) THEN BEGIN
-            prevCurPix=0
-            prevImgSize=sz
-            corrMatrix=FLTARR(sz)+1
-          ENDIF ELSE BEGIN
-            prevCurPix=curPix
-            prevImgSize=curImgSize
-          ENDELSE
-          curPix=structImgs.(i).pix(0)
-          curImgSize=SIZE(tempImg, /DIMENSIONS)
+        ;correct for point source at distance shorter than 5 x UFOV
+        IF WIDGET_INFO(btnSNICorr, /BUTTON_SET) THEN BEGIN
+          IF curPix NE prevCurPix OR ~ARRAY_EQUAL(curImgSize, prevImgSize) THEN BEGIN
+            corrMatrix=corrDistPointSource(tempImg, distSource, curPix, detThick, detAtt/10) ; functionsMini
+          ENDIF
 
-          ;correct for point source at distance shorter than 5 x UFOV
-          IF WIDGET_INFO(btnSNICorr, /BUTTON_SET) THEN BEGIN
-            IF curPix NE prevCurPix OR ~ARRAY_EQUAL(curImgSize, prevImgSize) THEN BEGIN
-              corrMatrix=corrDistPointSource(tempImg, distSource, curPix, detThick, detAtt/10) ; functionsMini
+          tempImg=tempImg*corrMatrix;
+
+          ;save corrected image as dat and upload as last image
+          IF WIDGET_INFO(btnSaveSNICorr, /BUTTON_SET) THEN BEGIN
+
+            IF  structImgs.(i).nFrames GT 1 THEN ftxt='_frame'+STRING(structImgs.(i).frameNo,FORMAT='(i0)') ELSE ftxt=''
+            adr=STRMID(structImgs.(i).filename, 0, STRLEN(structImgs.(i).filename)-4)+ ftxt +'_corrected.dat';assuming three letters as suffix eg .dcm or .dat
+            fi=FILE_INFO(adr)
+            IF fi.exists THEN BEGIN
+              c=0
+              WHILE fi.exists AND c LT 10 DO BEGIN
+                adr=STRMID(structImgs.(i).filename, 0, STRLEN(structImgs.(i).filename)-4)+'_corrected'+STRING(c, FORMAT='(i0)')+'.dat'
+                fi=FILE_INFO(adr)
+                c=c+1
+                IF c EQ 10 THEN BEGIN
+                  errLogg=errLogg+'Restricted to save more than 10 corrected files with same original filepath.'+newline
+                  adr=''
+                ENDIF
+              ENDWHILE
+            ENDIF
+            IF STRLEN(adr) NE 0 THEN BEGIN
+              adrToSave=[adrToSave,adr]
+              imageQCmatrix=CREATE_STRUCT(structImgs.(i),'matrix', tempImg)
+              imageQCmatrix.filename=adr; changed when opened so that renaming/moving file is possible
+              SAVE, imageQCmatrix, FILENAME=adr
             ENDIF
 
-            tempImg=tempImg*corrMatrix;
+          ENDIF   ;save?
+        ENDIF; correct?
+        IF N_ELEMENTS(SNIroi) GT 1 THEN BEGIN
+          SNI=calculateSNI(tempImg, SNIroi[*,*,0], curPix)
+        ENDIF ELSE BEGIN
+          SNI=CREATE_STRUCT('empty',0)
+          errLogg=errLogg+'Image #'+STRING(i+1, FORMAT='(i0)')+' not in expected shape/signal.'+newline
+        ENDELSE
 
-            ;save corrected image as dat and upload as last image
-            IF WIDGET_INFO(btnSaveSNICorr, /BUTTON_SET) THEN BEGIN
+      ENDIF ELSE SNI=CREATE_STRUCT('empty',0)
 
-              IF  structImgs.(i).nFrames GT 1 THEN ftxt='_frame'+STRING(structImgs.(i).frameNo,FORMAT='(i0)') ELSE ftxt=''
-              adr=STRMID(structImgs.(i).filename, 0, STRLEN(structImgs.(i).filename)-4)+ ftxt +'_corrected.dat';assuming three letters as suffix eg .dcm or .dat
-              fi=FILE_INFO(adr)
-              IF fi.exists THEN BEGIN
-                c=0
-                WHILE fi.exists AND c LT 10 DO BEGIN
-                  adr=STRMID(structImgs.(i).filename, 0, STRLEN(structImgs.(i).filename)-4)+'_corrected'+STRING(c, FORMAT='(i0)')+'.dat'
-                  fi=FILE_INFO(adr)
-                  c=c+1
-                  IF c EQ 10 THEN BEGIN
-                    errLogg=errLogg+'Restricted to save more than 10 corrected files with same original filepath.'+newline
-                    adr=''
-                  ENDIF
-                ENDWHILE
-              ENDIF
-              IF STRLEN(adr) NE 0 THEN BEGIN
-                adrToSave=[adrToSave,adr]
-                imageQCmatrix=CREATE_STRUCT(structImgs.(i),'matrix', tempImg)
-                imageQCmatrix.filename=adr; changed when opened so that renaming/moving file is possible
-                SAVE, imageQCmatrix, FILENAME=adr
-              ENDIF
+      IF i EQ 0 THEN SNIres=CREATE_STRUCT('S0',SNI) ELSE SNIres=CREATE_STRUCT(SNIres, 'S'+STRING(i, FORMAT='(i0)'), SNI)
+      WIDGET_CONTROL, lblProgress, SET_VALUE='SNI progress: '+STRING(i*100./nIMG, FORMAT='(i0)')+' %'
+    ENDFOR
+    WIDGET_CONTROL, lblProgress, SET_VALUE=''
+    If errLogg NE '' THEN sv=DIALOG_MESSAGE(errLogg, DIALOG_PARENT=evTop)
 
-            ENDIF   ;save?
-          ENDIF; correct?
-          IF N_ELEMENTS(SNIroi) GT 1 THEN BEGIN
-            SNI=calculateSNI(tempImg, SNIroi[*,*,0], curPix)
-          ENDIF ELSE BEGIN
-            SNI=CREATE_STRUCT('empty',0)
-            errLogg=errLogg+'Image #'+STRING(i+1, FORMAT='(i0)')+' not in expected shape/signal.'+newline
-          ENDELSE
-
-        ENDIF ELSE SNI=CREATE_STRUCT('empty',0)
-
-        IF i EQ 0 THEN SNIres=CREATE_STRUCT('S0',SNI) ELSE SNIres=CREATE_STRUCT(SNIres, 'S'+STRING(i, FORMAT='(i0)'), SNI)
-        WIDGET_CONTROL, lblProgress, SET_VALUE='Progress: '+STRING(i*100./nIMG, FORMAT='(i0)')+' %'
-      ENDFOR
-      WIDGET_CONTROL, lblProgress, SET_VALUE=''
-      If errLogg NE '' THEN sv=DIALOG_MESSAGE(errLogg, DIALOG_PARENT=evTop)
-
-      results(testNmb)=1
-    ENDIF
+    results(testNmb)=1
+  ENDIF
   ;ENDIF ELSE sv=DIALOG_MESSAGE('ROI for SNI not found for active image. Not in expected shape/signal.', DIALOG_PARENT=evTop)
 end
+
+pro barNM
+  COMPILE_OPT hidden
+  COMMON VARI
+  WIDGET_CONTROL, /HOURGLASS
+  nImg=N_TAGS(structImgs)
+
+  resArr=FLTARR(8,nImg)-1; fwhm for each quadrant
+  testNmb=getResNmb(modality,'BAR',analyseStringsAll)
+  markedArr=INTARR(nImg)
+  IF marked(0) EQ -1 THEN BEGIN
+    IF markedMulti(0) EQ -1 THEN markedArr=markedArr+1 ELSE markedArr=markedMulti[testNmb,*]
+  ENDIF ELSE markedArr(marked)=1
+  markedTemp=WHERE(markedArr EQ 1)
+  first=markedTemp(0)
+
+  WIDGET_CONTROL, txtBar1, GET_VALUE=bar1
+  WIDGET_CONTROL, txtBar2, GET_VALUE=bar2
+  WIDGET_CONTROL, txtBar3, GET_VALUE=bar3
+  WIDGET_CONTROL, txtBar4, GET_VALUE=bar4
+  barw=FLOAT([bar1(0),bar2(0),bar3(0),bar4(0)])
+
+  IF TOTAL(markedArr) GT 0 THEN BEGIN
+
+    errLogg=''
+    nI=MIN([nImg,N_ELEMENTS(markedArr)])
+    FOR i=0, nI-1 DO BEGIN
+      IF markedArr(i) THEN BEGIN
+        ;check if same size
+        tempImg=readImg(structImgs.(i).filename, structImgs.(i).frameNo)
+        sz=SIZE(tempImg, /DIMENSIONS)
+
+        curPix=structImgs.(i).pix(0)
+        updateROI, ANA='BAR', SEL=i
+
+        IF TOTAL(barROI) GT 4 THEN BEGIN
+          resArr[0:3,i]=calculateBarNM(tempImg, barROI, curPix);MTF
+          const=4.*SQRT(ALOG(2))/!pi
+          resArr[4:7,i]=const*barw*SQRT(ALOG(1/resArr[0:3,i]));FWHM
+        ENDIF
+
+      ENDIF
+
+      WIDGET_CONTROL, lblProgress, SET_VALUE='Bar phantom progress: '+STRING(i*100./nIMG, FORMAT='(i0)')+' %'
+    ENDFOR
+    WIDGET_CONTROL, lblProgress, SET_VALUE=''
+    If errLogg NE '' THEN sv=DIALOG_MESSAGE(errLogg, DIALOG_PARENT=evTop)
+    barRes=resArr
+    results(testNmb)=1
+  ENDIF
+
+end
+
 
 pro getAcqNM
   COMPILE_OPT hidden
@@ -785,7 +1094,8 @@ pro getAcqNM
     IF markedMulti(0) EQ -1 THEN markedArr=markedArr+1 ELSE markedArr=markedMulti[testNmb,*]
   ENDIF ELSE markedArr(marked)=1
   IF TOTAL(markedArr) GT 0 THEN BEGIN
-    FOR i=0, nImg-1 DO BEGIN
+    nI=MIN([nImg,N_ELEMENTS(markedArr)])
+    FOR i=0, nI-1 DO BEGIN
       IF markedArr(i) THEN BEGIN
         tempImg=readImg(structImgs.(i).filename, structImgs.(i).frameNo)
         resArr[0,i]=TOTAL(tempImg)
@@ -812,7 +1122,8 @@ pro getDcmMR
     IF markedMulti(0) EQ -1 THEN markedArr=markedArr+1 ELSE markedArr=markedMulti[testNmb,*]
   ENDIF ELSE markedArr(marked)=1
   IF TOTAL(markedArr) GT 0 THEN BEGIN
-    FOR i=0, nImg-1 DO BEGIN
+    nI=MIN([nImg,N_ELEMENTS(markedArr)])
+    FOR i=0, nI-1 DO BEGIN
       IF markedArr(i) THEN BEGIN
         tempImg=readImg(structImgs.(i).filename, structImgs.(i).frameNo)
         resArr[0,i]=TOTAL(tempImg)

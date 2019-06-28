@@ -55,7 +55,7 @@ function calculateMTF_xray, subMatrix, pix, center, stp, formLSF, cutLSF, cutW;,
   ENDFOR
 
   notFoundEdge=WHERE(edgePos EQ -1, nNotFound)
-  IF nNotFound GT 0 THEN errMsg=errMsg+'Edge position not found for full ROI. This part is attempted to be ignored, but carefully inspect edge-fit to verify this.'
+  IF nNotFound GT 0 THEN errMsg=errMsg+'Edge position not found for full ROI. This part is attempted to be ignored, but carefully inspect plot results to verify this.'
   foundEdge=WHERE(edgePos GE 0, nFound)
   distTemp=FINDGEN(szM(1))
 
@@ -74,7 +74,7 @@ function calculateMTF_xray, subMatrix, pix, center, stp, formLSF, cutLSF, cutW;,
 
   angle=(180/!PI)*ATAN((xx(1)-xx(0))/(yy(1)-yy(0))) ; *pix(0)/pix(1) if pix not isotropic
 
-  IF ABS(angle) GT 8 OR ABS(angle) LT 2 THEN errMsg=errMsg+'Info: This edge is found to be ' + STRING(ABS(angle), FORMAT='(f0.1)') +' degrees. '
+  ;IF ABS(angle) GT 8 OR ABS(angle) LT 2 THEN errMsg=errMsg+' Info: This edge is found to be ' + STRING(ABS(angle), FORMAT='(f0.1)') +' degrees. '
 
   ;sort pixels by distance normal to edge
   distArr=FLTARR(szM(0),szM(1))

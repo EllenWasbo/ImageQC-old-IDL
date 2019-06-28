@@ -120,6 +120,8 @@ pro updatePlot, setRangeMinMaxX, setRangeMinMaxY, optionSet
                 y1=ROUND(halfSz(1)+dxya(1)-ROIsz(0)) & y2=ROUND(halfSz(1)+dxya(1)+ROIsz(0))
 
                 WIDGET_CONTROL, cw_plotMTF, GET_VALUE= plotWhich
+                WIDGET_CONTROL, cw_cyclMTF, GET_VALUE=MTFcyclWhich
+                IF MTFcyclWhich EQ 0 THEN cyclFactor=1.0 ELSE cyclFactor=10.0
 
                 CASE plotWhich OF
 
@@ -264,7 +266,7 @@ pro updatePlot, setRangeMinMaxX, setRangeMinMaxY, optionSet
                   END
                   3: BEGIN ;MTF
 
-                    mm2cm=1.;1. means no converstion to cm, 10. when convert to cm
+                    mm2cm=cyclFactor;1. means no converstion to cm, 10. when convert to cm
                     IF v3d EQ 0 THEN BEGIN
                       IF N_TAGS(MTFres.(sel)) GT 1 THEN BEGIN
 
@@ -479,6 +481,19 @@ pro updatePlot, setRangeMinMaxX, setRangeMinMaxY, optionSet
                   resPlot=plot(zPosMarked, yValues, XTITLE='zPos (mm)', YTITLE='Noise = stdev (HU)' , TITLE='Noise for all (marked) images', $
                     XRANGE=rangeX, YRANGE=rangeY, XSTYLE=1, YSTYLE=1, MARGIN=resPlotMargin, FONT_NAME=foName, FONT_SIZE=foSize, CURRENT=currWin)
                   valuesPlot=CREATE_STRUCT('zPos', zPosMarked, 'Noise', yValues)
+                ENDIF
+              END
+              
+              'HUWATER': BEGIN
+                WIDGET_CONTROL, resTab, GET_VALUE=resArr
+                zPosMarked=getZposMarked(structImgs, markedTemp)
+                yValues = FLOAT(resArr[0,*])
+                IF setRangeMinMaxX THEN rangeX=[min(zPosMarked),max(zPosMarked)]
+                IF setRangeMinMaxY THEN rangeY=[-4.,4.]
+                IF optionSet NE 3 THEN BEGIN
+                  resPlot=plot(zPosMarked, yValues, XTITLE='zPos (mm)', YTITLE='CT number (HU)' , TITLE='HU all (marked) images', $
+                    XRANGE=rangeX, YRANGE=rangeY, XSTYLE=1, YSTYLE=1, MARGIN=resPlotMargin, FONT_NAME=foName, FONT_SIZE=foSize, CURRENT=currWin)
+                  valuesPlot=CREATE_STRUCT('zPos', zPosMarked, 'HU', yValues)
                 ENDIF
               END
 

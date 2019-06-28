@@ -86,95 +86,117 @@ pro openFiles, adrFilesToOpen, SILENT=silent
       ENDIF
     ENDFOR
     
-    nImg=N_TAGS(structImgs)
-    pix0=!Null & pix1=!Null
-    FOR i=0, nImg-1 DO pix0=[pix0,structImgs.(i).pix(0)]
-    FOR i=0, nImg-1 DO pix1=[pix1,structImgs.(i).pix(1)]
+    tags=tag_names(structImgs)
     
-    IF ~ARRAY_EQUAL(pix0,pix1) THEN errLogg=errLogg+'Software not verified to handle non-quadratic pixels. Images found with non-quadratic pixels. First value might be used for both directions.'+newline
-    minOne=WHERE(pix0 EQ -1.,nminOne)
-    IF minOne(0) NE -1 THEN errLogg=errLogg+'Missing pixel size from DICOM header for '+STRING(nminOne, FORMAT='(i0)')+' images. Edit pixel size manually to avoid corrupted results. Find button for this in the toolbar in the bottom left corner.'+newline
+    IF tags(0) NE 'EMPTY' THEN BEGIN;any image header in memory
+      nImg=N_TAGS(structImgs)
+      
+      ;close non image files?
+      imsz=!Null
+      FOR i=0, nImg-1 DO imsz=[imsz,structImgs.(i).imagesize(0)]
+      closeIds=WHERE(imsz EQ -1)
+      IF closeIds(0) NE -1 THEN BEGIN
+        
+        IF silent THEN sv='Yes' ELSE sv=DIALOG_MESSAGE(STRING(N_ELEMENTS(closeIds),FORMAT='(i0)')+' of '+STRING(nImg,FORMAT='(i0)')+ ' files contain no image data. These files may cause crashes. Close these files now?', DIALOG_PARENT=evTop, /QUESTION)
+        IF sv EQ 'Yes' THEN BEGIN
+          closeImgs, closeIds
+          tags=tag_names(structImgs)
+          IF tags(0) NE 'EMPTY' THEN nImg=N_TAGS(structImgs)
+          IF app NE 0 THEN app=app-N_ELEMENTS(closeIds)
+        ENDIF
+      ENDIF   
+
+      IF tags(0) NE 'EMPTY' THEN BEGIN;after closing files
+        IF TOTAL(results) GT 0 AND counter GT 0 THEN BEGIN
+          IF app EQ 0 THEN BEGIN
+            clearMulti
+          ENDIF ELSE BEGIN
+            IF marked(0) EQ -1 THEN BEGIN
+              marked=INDGEN(app);there is results, but no file was marked and the new files is appended = mark the files already there
+            ENDIF
+          ENDELSE
+        ENDIF ELSE marked=-1
+        IF markedMulti(0) NE -1 THEN BEGIN
+          szMM=SIZE(markedMulti, /DIMENSIONS)
+          markedMultiNew=INTARR(szMM(0),szMM(1)+app)
+          markedMultiNew[*,0:szMM(1)-1]=markedMulti
+          markedMulti=markedMultiNew
+          sv=DIALOG_MESSAGE('Turn off and on MultiMark if you want to update preselection to template.', DIALOG_PARENT=evTop)
+        ENDIF
+        
+        ;warning non-quadratic or missing pixsize
+        pix0=!Null & pix1=!Null
+        FOR i=0, nImg-1 DO pix0=[pix0,structImgs.(i).pix(0)]
+        FOR i=0, nImg-1 DO pix1=[pix1,structImgs.(i).pix(1)]
+        IF ~ARRAY_EQUAL(pix0,pix1) THEN errLogg=errLogg+'Software not verified to handle non-quadratic pixels. Images found with non-quadratic pixels. First value might be used for both directions.'+newline
+        minOne=WHERE(pix0 EQ -1.,nminOne)
+        IF minOne(0) NE -1 THEN errLogg=errLogg+'Missing pixel size from DICOM header for '+STRING(nminOne, FORMAT='(i0)')+' images. Edit pixel size manually to avoid corrupted results. Find button for this in the toolbar in the bottom left corner.'+newline
+  
+        IF app EQ 0 THEN BEGIN
+          wCenter=LONG(structImgs.(0).wCenter)
+          wWidth=LONG(structImgs.(0).wWidth)
+          IF wCenter NE -1 AND wWidth NE -1 THEN minmax=[wCenter-wWidth/2,wCenter+wWidth/2] ELSE minmax=[-200,200]
+          WIDGET_CONTROL, txtMinWL, SET_VALUE=STRING(minmax(0),FORMAT='(i0)')
+          WIDGET_CONTROL, txtMaxWL, SET_VALUE=STRING(minmax(1),FORMAT='(i0)')
+          activeImg=0
+          moda=structImgs.(0).modality
+          newModa=modality
+          CASE moda OF
+            'CT': newModa=0
+            'DX': newModa=1
+            'CR': newModa=1
+            'RG': newModa=1
+            'XA': newModa=1
+            'MG': newModa=1
+            'NM': newModa=2
+            'ST': newModa=3
+            'PT': newModa=4
+            ELSE:
+          ENDCASE
+          IF newModa EQ 2 THEN BEGIN ;SPECT?
+            IF structImgs.(0).sliceThick GT 0. THEN newModa=3
+          ENDIF
+          IF newModa NE modality THEN BEGIN
+            modality=newModa
+  
+            clearRes
+            clearMulti
+            analyseStrings=analyseStringsAll.(modality)
+            analyse=analyseStrings(0)
+          ENDIF
+        ENDIF
+  
+        IF TOTAL(results) GT 0 AND counter GT 0 AND app EQ 0 THEN clearRes
+  
+        IF structImgs.(0).nFrames GT 1 THEN BEGIN
+          infoFile=FILE_INFO(structImgs.(0).filename)
+          IF infoFile.size GT 15000000 THEN sv=DIALOG_MESSAGE('Warning: large files (>15MB) loaded. Consider storing the files locally first to ensure smooth workflow.', DIALOG_PARENT=evTop)
+        ENDIF
+        fileList=getListOpenFiles(structImgs,0,marked, markedMulti)
+  
+        WIDGET_CONTROL, lblProgress, SET_VALUE=' '
+  
+        IF N_ELEMENTS(silent) EQ 0 THEN silent = 0
+        IF silent EQ 0 THEN BEGIN
+          WIDGET_CONTROL, listFiles, YSIZE=n_elements(fileList), SET_VALUE=fileList, SET_LIST_SELECT=newSel
+          WIDGET_CONTROL, listFiles, SCR_YSIZE=170
+          WIDGET_CONTROL, lblLoadedN, SET_VALUE=STRING(n_elements(fileList), FORMAT='(i0)')+' )'
+        ENDIF
+        activeImg=readImg(structImgs.(app).filename, structImgs.(app).frameNo)
+        
+        WIDGET_CONTROL, wtabModes, SET_TAB_CURRENT=modality;include redrawImg, updateROI, updateInfo, but as this is new image and more need it still
+        updateMode
+        switchMode='No'
+  
+        WIDGET_CONTROL, drawLarge, SENSITIVE=1
+  
+        adrFilesToOpen=''
+      ENDIF ELSE WIDGET_CONTROL, drawLarge, SENSITIVE=0
+    ENDIF ELSE WIDGET_CONTROL, drawLarge, SENSITIVE=0
 
     IF errLogg NE '' AND silent EQ 0 THEN sv=DIALOG_MESSAGE(errLogg ,/ERROR, DIALOG_PARENT=evTop)
     errLogg=''
     WIDGET_CONTROL, lblProgress, SET_VALUE=' '
-
-    tags=tag_names(structImgs)
-    IF tags(0) NE 'EMPTY' THEN BEGIN;any image header in memory
-
-      IF TOTAL(results) GT 0 AND counter GT 0 THEN BEGIN
-        IF app EQ 0 THEN BEGIN
-          clearMulti
-        ENDIF ELSE BEGIN
-          IF marked(0) EQ -1 THEN BEGIN
-            marked=INDGEN(app);there is results, but no file was marked and the new files is appended = mark the files already there
-          ENDIF
-        ENDELSE
-      ENDIF ELSE marked=-1
-      IF markedMulti(0) NE -1 THEN BEGIN
-        szMM=SIZE(markedMulti, /DIMENSIONS)
-        markedMultiNew=INTARR(szMM(0),szMM(1)+app)
-        markedMultiNew[*,0:szMM(1)-1]=markedMulti
-        markedMulti=markedMultiNew
-        sv=DIALOG_MESSAGE('Turn off and on MultiMark if you want to update preselection to template.', DIALOG_PARENT=evTop)
-      ENDIF
-
-      IF app EQ 0 THEN BEGIN
-        wCenter=LONG(structImgs.(0).wCenter)
-        wWidth=LONG(structImgs.(0).wWidth)
-        IF wCenter NE -1 AND wWidth NE -1 THEN minmax=[wCenter-wWidth/2,wCenter+wWidth/2] ELSE minmax=[-200,200]
-        WIDGET_CONTROL, txtMinWL, SET_VALUE=STRING(minmax(0),FORMAT='(i0)')
-        WIDGET_CONTROL, txtMaxWL, SET_VALUE=STRING(minmax(1),FORMAT='(i0)')
-        activeImg=0
-        moda=structImgs.(0).modality
-        newModa=modality
-        CASE moda OF
-          'CT': newModa=0
-          'DX': newModa=1
-          'CR': newModa=1
-          'NM': newModa=2
-          'PT': newModa=4
-          ELSE:
-        ENDCASE
-        IF newModa EQ 2 THEN BEGIN ;SPECT?
-          IF structImgs.(0).sliceThick GT 0. THEN newModa=3
-        ENDIF
-        IF newModa NE modality THEN BEGIN
-          modality=newModa
-
-          clearRes
-          clearMulti
-          analyseStrings=analyseStringsAll.(modality)
-          analyse=analyseStrings(0)
-        ENDIF
-      ENDIF
-
-      IF TOTAL(results) GT 0 AND counter GT 0 AND app EQ 0 THEN clearRes
-
-      IF structImgs.(0).nFrames GT 1 THEN BEGIN
-        infoFile=FILE_INFO(structImgs.(0).filename)
-        IF infoFile.size GT 15000000 THEN sv=DIALOG_MESSAGE('Warning: large files (>15MB) loaded. Consider storing the files locally first to ensure smooth workflow.', DIALOG_PARENT=evTop)
-      ENDIF
-      fileList=getListOpenFiles(structImgs,0,marked, markedMulti)
-
-      WIDGET_CONTROL, lblProgress, SET_VALUE=' '
-
-      IF N_ELEMENTS(silent) EQ 0 THEN silent = 0
-      IF silent EQ 0 THEN BEGIN
-        WIDGET_CONTROL, listFiles, YSIZE=n_elements(fileList), SET_VALUE=fileList, SET_LIST_SELECT=newSel
-        WIDGET_CONTROL, listFiles, SCR_YSIZE=170
-        WIDGET_CONTROL, lblLoadedN, SET_VALUE=STRING(n_elements(fileList), FORMAT='(i0)')+' )'
-      ENDIF
-      activeImg=readImg(structImgs.(app).filename, structImgs.(app).frameNo)
-      
-      WIDGET_CONTROL, wtabModes, SET_TAB_CURRENT=modality;include redrawImg, updateROI, updateInfo, but as this is new image and more need it still
-      updateMode
-      switchMode='No'
-
-      WIDGET_CONTROL, drawLarge, SENSITIVE=1
-
-      adrFilesToOpen=''
-    ENDIF ELSE WIDGET_CONTROL, drawLarge, SENSITIVE=0
 
   ENDIF
 end

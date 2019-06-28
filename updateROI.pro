@@ -89,6 +89,12 @@ pro updateROI, Ana=ana, SEL=presel
           END
         ENDCASE
       END
+      
+      'HUWATER': BEGIN
+        WIDGET_CONTROL, txtHUwaterROIsz, GET_VALUE=ROIsz
+        ROIsz=ROUND(FLOAT(ROIsz(0))/pix(0)) ; assume x,y pix equal ! = normal
+        HUwaterROI=getROIcircle(szImg, center, ROIsz)
+        END
 
       'MTF': BEGIN
         dxya(3)=1 ; center option has to be used
@@ -143,7 +149,12 @@ pro updateROI, Ana=ana, SEL=presel
       
       'UNIF': BEGIN
         WIDGET_CONTROL, txtUnifAreaRatio, GET_VALUE=rat
-        unifROI=getUnifRoi(tempImg,rat)
+        unifROI=getUnifRoi(tempImg, FLOAT(rat))
+      END
+      
+      'BAR': BEGIN
+        WIDGET_CONTROL, txtBarROIsize, GET_VALUE=barROIsizeMM
+        barROI=getBarROIs(tempImg, imgCenterOffset, FLOAT(barROIsizeMM(0))/pix(0)); assume x,y pix equal ! = normal
       END
       
       'CONTRAST': BEGIN
@@ -181,7 +192,7 @@ pro updateROI, Ana=ana, SEL=presel
     ENDCASE; ana
 
   ENDIF ELSE BEGIN;no images loaded
-      CTlinROIs=0 & CTlinROIpos=0 & homogROIs=0 & noiseROI=0 & NPSrois=0 & conROIs=0 & crossROI=0
+      CTlinROIs=0 & CTlinROIpos=0 & homogROIs=0 & noiseROI=0 & HUwaterROI=0 & NPSrois=0 & conROIs=0 & crossROI=0 & rcROIs=0 & barROI=0 & unifROI=0 & SNIroi=0
   ENDELSE
 
 end

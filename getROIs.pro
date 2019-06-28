@@ -251,6 +251,54 @@ function getSNIroi, img, areaRatio
   return, SNIroiAll
 end
 
+function getBarROIs, img, imgCenterOffset, ROIsz
+
+  szImg=SIZE(img, /DIMENSIONS)
+
+  ;search image for active part
+  imgAct=INTARR(szImg(0),szImg(1))
+  imgNozero=WHERE(img NE 0)
+  IF imgNozero(0) NE -1 THEN imgAct(imgNozero)=1
+  vecX=TOTAL(imgAct,2)
+  vecY=TOTAL(imgAct,1)
+
+  ysearch=getWidthAtThreshold(vecY,0.5*(MIN(vecY)+MAX(vecY)))
+  xsearch=getWidthAtThreshold(vecX,0.5*(MIN(vecX)+MAX(vecX)))
+  a=ROUND(xsearch(1)-0.5*xsearch(0))
+  b=ROUND(xsearch(1)+0.5*xsearch(0))
+  c=ROUND(ysearch(1)-0.5*ysearch(0))
+  d=ROUND(ysearch(1)+0.5*ysearch(0))
+  roiAct=INTARR(szImg(0),szImg(1))
+  IF MIN([a,b,c,d]) GT -1 THEN roiAct[a:b,c:d]=1
+
+  roiAll=INTARR(szImg(0),szImg(1),4)
+
+  center=szImg/2+imgCenterOffset[0:1]
+  centers=INTARR(2,4); centerpositions x,y for all circles
+
+  dx=MIN([center(0)-a,b-center(0)])/2
+  dy=MIN([center(1)-c,d-center(1)])/2
+  centers[0:1,0]=center+[-dx,dy];upper left
+  centers[0:1,1]=center+[dx,dy];upper right
+  centers[0:1,2]=center+[-dx,-dy];lower left
+  centers[0:1,3]=center+[dx,-dy];lower right
+  FOR i= 0,3 DO roiAll[*,*,i]=getROIcircle(szImg, centers[0:1,i], ROIsz)
+  
+  ;sort by variance (highest to lowest assuming lowest to highest frequency)
+  barVar=FLTARR(4)
+  FOR i=0,3 DO BEGIN
+    thisMask=roiAll[*,*,i]
+    IMAGE_STATISTICS, img, MASK=thisMask, VARIANCE=var
+    barVar(i)=var
+  ENDFOR
+  
+  orderVar=REVERSE(SORT(barVar))
+  roiAll2=roiAll
+  FOR i=0,3 DO roiAll2[*,*,i]=roiAll[*,*,orderVar(i)]
+
+  return, roiAll2
+end
+
 ;Placing rois for NM contrast 6 circles
 ;
 ;imgSize = size of active image
