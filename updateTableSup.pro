@@ -42,6 +42,17 @@ pro updateTableSup
 
         CASE analyse OF
 
+          'HOMOG': BEGIN
+            szTab=SIZE(homogRes, /DIMENSIONS)
+            nCols=5
+            headers=['Stdev 12','Stdev 15','Stdev 18','Stdev 21','Stdev Center']
+            resArrString=STRARR(nCols,nRows)
+            FOR i=0, nRows-1 DO BEGIN
+              resArrString[0:3,i]=STRING(homogRes[6:9,markedTemp(i)], FORMAT=formatCode(homogRes[6:9,markedTemp(i)]))
+              resArrString[4,i]=STRING(homogRes[5,markedTemp(i)], FORMAT=formatCode(homogRes[5,markedTemp(i)]))
+            ENDFOR
+          END
+
           'MTF': BEGIN
             resforeach=WHERE(TAG_NAMES(MTFres) EQ 'M0')
             v3d=0

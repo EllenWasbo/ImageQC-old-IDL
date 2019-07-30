@@ -129,7 +129,7 @@ pro ImageQC_event, ev
 
         sel=WIDGET_INFO(listSelMultiTemp, /DROPLIST_SELECT)
         RESTORE, thisPath+'data\config.dat'; getting the quickTemp-structure
-        IF sel EQ 0 THEN BEGIN
+        IF sel EQ 0 OR SIZE(quickTemp, /TNAME) EQ 'INT' THEN BEGIN
           QTtempArr=-1
           QTname='<none selected>'
         ENDIF ELSE BEGIN
@@ -189,7 +189,7 @@ pro ImageQC_event, ev
             selTemp=res.tempname
           ENDIF
           If res.Get THEN BEGIN
-            adr=DIALOG_PICKFILE(TITLE='Select folder with images to moved to defined ', DIALOG_PARENT=evTop, /DIRECTORY, PATH=defPath, GET_PATH=defPath)
+            adr=DIALOG_PICKFILE(TITLE='Select folder with images to be moved to template-defined paths', DIALOG_PARENT=evTop, /DIRECTORY, PATH=defPath, GET_PATH=defPath)
             IF adr NE '' THEN BEGIN
               Spawn, 'dir '  + '"'+adr(0)+'"* /b /s /a-D', adrTempTemp
               IF adrTempTemp(0) NE '' THEN BEGIN
@@ -2284,7 +2284,10 @@ pro ImageQC_event, ev
       ENDCASE
 
       IF results(curTab) EQ 1 THEN BEGIN
-        WIDGET_CONTROL, resTab, GET_VALUE=resTable;, /USE_TABLE_SELECT
+        
+        IF WIDGET_INFO(wtabResult, /TAB_CURRENT) EQ 0 THEN BEGIN
+          WIDGET_CONTROL, resTab, GET_VALUE=resTable;, /USE_TABLE_SELECT
+        ENDIF ELSE WIDGET_CONTROL, resTabSup, GET_VALUE=resTable
         szT=SIZE(resTable, /DIMENSIONS)
         IF deciMark EQ ',' THEN BEGIN
           IF N_ELEMENTS(szT) EQ 2 THEN BEGIN

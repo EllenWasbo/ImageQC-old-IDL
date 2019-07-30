@@ -56,7 +56,7 @@ pro ImageQC,  GROUP_LEADER=bMain
     rcRes, rcROIs, btnRCrev, cwRCexclude, cw_rcType
 
   !EXCEPT=0;2 to see all errors
-  currVersion='1.60'
+  currVersion='1.61'
   thisPath=FILE_DIRNAME(ROUTINE_FILEPATH('ImageQC'))+'\'
 
   analyseStringsCT=['HOMOG', 'NOISE', 'SLICETHICK', 'MTF', 'CTLIN', 'HUWATER', 'EXP','NPS','DIM', 'FWHM']
@@ -1074,7 +1074,7 @@ pro ImageQC,  GROUP_LEADER=bMain
 
   ;-----suplement table---------
   toolbarTableSup=WIDGET_BASE(bTableSup,/ROW,/TOOLBAR)
-  toolCopyTblSup=WIDGET_BUTTON(toolbarTableSup, VALUE=thisPath+'images\copy.bmp',/BITMAP, TOOLTIP='Copy table to clipboard', UVALUE='copyTblSup')
+  toolCopyTblSup=WIDGET_BUTTON(toolbarTableSup, VALUE=thisPath+'images\copy.bmp',/BITMAP, TOOLTIP='Copy table to clipboard', UVALUE='copyTbl')
   lblResultsSup=WIDGET_LABEL(bTableSup, VALUE='', /DYNAMIC_RESIZE, FONT=font1)
   bResultsSup = WIDGET_BASE(bTableSup, /COLUMN)
   resTabSup=WIDGET_TABLE(bResultsSup, XSIZE=4, YSIZE=5, COLUMN_WIDTHS=[100,100,100,100], /NO_ROW_HEADERS, SCR_XSIZE=650, SCR_YSIZE=300, FONT=font1, ALIGNMENT=1)
