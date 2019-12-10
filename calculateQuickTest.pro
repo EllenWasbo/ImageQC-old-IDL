@@ -55,8 +55,8 @@ pro calculateQuickTest
       nImg=N_TAGS(structImgs)
       szM=SIZE(markedMulti, /DIMENSIONS)
       IF N_ELEMENTS(szM) EQ 2 THEN nI=MIN([nImg,szM(1)]) ELSE nI=1
-      incFilenames=WIDGET_INFO(btnIncFilename, /BUTTON_SET)
-      IF incFilenames THEN BEGIN
+      ;incFilenames=WIDGET_INFO(btnIncFilename, /BUTTON_SET)
+      ;IF incFilenames THEN BEGIN
         multiExpTable=STRARR(2, nTested+1)
         multiExpTable[*,0]=['Date',formatDMY(structImgs.(imgWithMark(0)).acqDate)] 
         
@@ -68,7 +68,7 @@ pro calculateQuickTest
           ENDIF
         ENDFOR
       
-      ENDIF ELSE multiExpTable=['Date',formatDMY(structImgs.(imgWithMark(0)).acqDate)]
+      ;ENDIF ELSE multiExpTable=['Date',formatDMY(structImgs.(imgWithMark(0)).acqDate)]
 
       analyseStrings=analyseStringsAll.(modality)
 
@@ -78,6 +78,11 @@ pro calculateQuickTest
         test=tt+1
         IF markedTemp(0) NE -1 THEN BEGIN
           cc=0
+          sel=WIDGET_INFO(listFiles, /LIST_SELECT)
+          IF sel(0) NE markedTemp(0) THEN BEGIN
+            WIDGET_CONTROL, listFiles, SET_LIST_SELECT=markedTemp(0)
+            redrawImg,0,1 & updateInfo
+          ENDIF
           CASE modality OF
             ;***************CT***************
             0:BEGIN; 'HOMOG', 'NOISE','SLICETHICK', 'MTF'
@@ -130,8 +135,17 @@ pro calculateQuickTest
 
             ;***************PET **************
             4:
-
-
+            ;***************MR **************
+            5:BEGIN
+              testPos=WHERE(currTestsOut EQ analyseStrings(test-1))
+              WIDGET_CONTROL,wtabAnalysisMR, SET_TAB_CURRENT=test-1
+              analyse=analyseStrings(test-1)
+              CASE test OF
+                1: getDCM_MR
+                ELSE:
+              ENDCASE
+            END
+            
             ELSE:
           ENDCASE
 
@@ -175,7 +189,7 @@ pro calculateQuickTest
 
                   IF currQTout.(testPos).(iii).PER_SERIES AND calc GT 0 AND res3d EQ 0 THEN BEGIN
                     serUniq=!Null
-                    FOR im=0, nImg-1 DO serUniq=[serUniq,STRTRIM(STRING(structImgs.(im).seriesNmb),1)+' '+STRTRIM(STRING(structImgs.(im).seriesTime),1)]
+                    FOR im=0, nImg-1 DO serUniq=[serUniq,STRING(structImgs.(im).acqNmb,FORMAT='(i0)')+' '+STRING(structImgs.(im).seriesNmb,FORMAT='(i0)')+' '+STRING(structImgs.(im).seriesTime,FORMAT='(i06)')]
 
                     ;find number of series
                     nActIm=N_ELEMENTS(serUniq)
@@ -252,7 +266,7 @@ pro calculateQuickTest
 
             ENDELSE; outp=-1
             
-            IF err THEN sv=DIALOG_MESSAGE('Some table have less columns now than when the template was created. Check the templatemanager and your results. CT Number test especially prone to this issue.', DIALOG_PARENT=evTop)
+            IF err THEN sv=DIALOG_MESSAGE('Some tables have less columns now than when the template was created. Check the templatemanager and your results. CT Number test especially prone to this issue.', DIALOG_PARENT=evTop)
 
         ENDIF; results NE=0
         

@@ -7,7 +7,8 @@ end
 ;;  update configDefault
 ;configS=updateConfigS('')
 ;thisPath=FILE_DIRNAME(ROUTINE_FILEPATH('ImageQC'))+'\' 
-;SAVE, configS, FILENAME=thisPath+'data\configDefault.dat'; quickTemp and loadTemp = !Null
+;SAVE, configS, FILENAME=thisPath+'data\config.dat'
+;SAVE, configS, FILENAME=thisPath+'data\configDefault.dat'
 
 ;----------------------
 ;

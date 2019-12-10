@@ -26,11 +26,19 @@ pro exportMulti
       multiExpTableTemp=multiExpTable[1:szME(0)-1,*] 
     ENDIF ELSE multiExpTableTemp=multiExpTable
 
-    szT=SIZE(multiExpTableTemp, /DIMENSIONS)
+
     
     incFilenames=WIDGET_INFO(btnIncFilename, /BUTTON_SET)
-    IF incFilenames THEN imgWithMark=WHERE(TOTAL(markedMulti,1) GT 0, nAvoidDeciMark) ELSE nAvoidDeciMark=0
-     
+    imgWithMark=WHERE(TOTAL(markedMulti,1) GT 0, nFilenames)
+    IF incFilenames EQ 0 THEN BEGIN;remove filenames
+      dateLine=multiExpTableTemp[*,0]
+      resultsTab=multiExpTableTemp[*,nFilenames+1:-1]
+      multiExpTableTemp=[[dateLine],[resultsTab]]
+      nAvoidDeciMark=0
+    ENDIF ELSE nAvoidDeciMark=nFilenames
+    
+    ;IF incFilenames THEN imgWithMark=WHERE(TOTAL(markedMulti,1) GT 0, nAvoidDeciMark) ELSE nAvoidDeciMark=0
+    szT=SIZE(multiExpTableTemp, /DIMENSIONS)
     IF deciMark EQ ',' THEN BEGIN
       IF N_ELEMENTS(szT) EQ 2 THEN BEGIN
         FOR i=0, szT(0)-1 DO BEGIN

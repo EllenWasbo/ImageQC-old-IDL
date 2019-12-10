@@ -92,7 +92,7 @@ pro getHeaderInfo; CT
   ENDIF
 end
 
-pro getExposure
+pro getExposure; Xray
   COMPILE_OPT hidden
   COMMON VARI
 
@@ -115,6 +115,32 @@ pro getExposure
         resArr[3,i]=STRING(structImgs.(i).DAP, FORMAT=formatCode(structImgs.(i).DAP))
         resArr[4,i]=STRING(structImgs.(i).SDD, FORMAT=formatCode(structImgs.(i).SDD))
         resArr[5,i]=structImgs.(i).DETECTORID
+      ENDIF
+    ENDFOR
+    WIDGET_CONTROL, lblProgress, SET_VALUE=''
+    expRes=resArr
+    results(testNmb)=1
+  ENDIF
+end
+
+pro getDCM_MR; get DICOM info for MR images
+  COMPILE_OPT hidden
+  COMMON VARI
+
+  WIDGET_CONTROL, /HOURGLASS
+  nImg=N_TAGS(structImgs)
+  resArr=STRARR(1,nImg)
+
+  testNmb=getResNmb(modality,'DCM',analyseStringsAll)
+  markedArr=INTARR(nImg)
+  IF marked(0) EQ -1 THEN BEGIN
+    IF markedMulti(0) EQ -1 THEN markedArr=markedArr+1 ELSE markedArr=markedMulti[testNmb,*]
+  ENDIF ELSE markedArr(marked)=1
+  IF TOTAL(markedArr) GT 0 THEN BEGIN
+    nI=MIN([nImg,N_ELEMENTS(markedArr)])
+    FOR i=0, nI-1 DO BEGIN
+      IF markedArr(i) THEN BEGIN
+        resArr[0,i]=STRING(structImgs.(i).imgFreq, FORMAT=formatCode(structImgs.(i).imgFreq))
       ENDIF
     ENDFOR
     WIDGET_CONTROL, lblProgress, SET_VALUE=''
@@ -383,7 +409,7 @@ pro slicethick
             vec=vecTemp[*,maxminProf]
             IF nAvg GT 0 THEN BEGIN
               IF maxminProf-nAvg GE 0 AND maxminProf+nAvg LT nLines THEN vec=TOTAL(vecTemp[*,maxminProf-nAvg:maxminProf+nAvg],2)/(nAvg*2+1) $
-              ELSE errLogg=errLogg+'Image '+STRING(i,FORMAT='(i0)')+', Line '+STRING(l-sta,FORMAT='(i0)')+': Found profile to close to border of search-area. Single profile with peak used (no averaging).'+newline
+              ELSE errLogg=errLogg+'Image '+STRING(i,FORMAT='(i0)')+', Line '+STRING(l-sta,FORMAT='(i0)')+': Found profile too close to border of search-area. Single profile with peak used (no averaging).'+newline
             ENDIF
 
           ENDIF
@@ -506,7 +532,7 @@ pro mtf
                 IF WIDGET_INFO(btnSearchMaxMTF, /BUTTON_SET) THEN BEGIN
                   ;search for max in image
                   halfmax=0.5*(MAX(tempImg)+MIN(tempImg))
-                  centerPos=ROUND(centroid(tempImg, halfmax))
+                  centerPos=ROUND(centroid(tempImg, halfmax,0))
                   x1=centerPos(0)-ROIsz(0) & x2=centerPos(0)+ROIsz(0)
                   y1=centerPos(1)-ROIsz(0) & y2=centerPos(1)+ROIsz(0)
                   IF x1 GE 0 AND x2 LT szImg(0)-1 AND y1 GE 0 AND y1-(ROIsz(0)*2+1) GE 0 AND y2 LT szImg(1)-1 AND y2-(ROIsz(0)*2+1) LT szImg(1)-1 THEN roiOk=1 ELSE BEGIN
@@ -624,14 +650,14 @@ pro mtf
           ENDFOR
 
           IF TOTAL(sumImg) NE 0 THEN BEGIN
-            ;firstguess: center = max, search for centroid within ROI size
-            mx=MAX(sumImg, loc)
-            ind=ARRAY_INDICES(sumImg, loc)
-            xx1=ind(0)-ROIsz & xx2=ind(0)+ROIsz
-            yy1=ind(1)-ROIsz & yy2=ind(1)+ROIsz
-            subma=sumImg[xx1:xx2,yy1:yy2]
+            ;firstguess: center = as defined, search for centroid within ROI size
+            ;mx=MAX(sumImg, loc)
+            ;ind=ARRAY_INDICES(sumImg, loc)
+            ;xx1=ind(0)-ROIsz & xx2=ind(0)+ROIsz
+            ;yy1=ind(1)-ROIsz & yy2=ind(1)+ROIsz
+            subma=sumImg[x1:x2,y1:y2]
             centerPosSubma=ROUND(centroid(subma, MIN(subma)))
-            centerPos=[xx1,yy1]+centerPosSubma
+            centerPos=[x1,y1]+centerPosSubma
             x1=centerPos(0)-ROIsz & x2=centerPos(0)+ROIsz
             y1=centerPos(1)-ROIsz & y2=centerPos(1)+ROIsz
           ENDIF
@@ -758,7 +784,7 @@ pro ctlin; CT
     rad1=ROUND(FLOAT(rad1(0))/pix(0))
     radS=ROUND(FLOAT(radS(0))/pix(0))
     rad2=radS*2
-    updateROI, ANA='CTLIN', SEL=markedArr(0)
+    updateROI, ANA='CTLIN', SEL=first
     szROI=SIZE(CTlinROIs, /DIMENSIONS)
     resArr=FLTARR(szROI(2),nImg)-1;mean for all materials
 

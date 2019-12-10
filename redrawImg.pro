@@ -322,28 +322,30 @@ pro redrawImg, viewpl, newActive
               WIDGET_CONTROL, txtMTFroiSz, GET_VALUE=ROIsz
               ROIsz=ROUND(ROIsz(0)/tempStruct.pix)
               WIDGET_CONTROL, cw_typeMTF, GET_VALUE=typeMTF
-              IF WIDGET_INFO(btnSearchMaxMTF, /BUTTON_SET) THEN BEGIN
+              IF WIDGET_INFO(btnSearchMaxMTF, /BUTTON_SET) AND ROIsz(0) GT 0 THEN BEGIN
                 ;search for max in image
                 CASE typeMTF OF
                   0: BEGIN;bead
                     halfmax=0.5*(MAX(activeImg)+MIN(activeImg))
-                    centerPos=ROUND(centroid(activeImg, halfmax))
+                    centerPos=ROUND(centroid(activeImg, halfmax, 0))
                     END
                   1:BEGIN;wire
                     halfmax=0.5*(MAX(activeImg)+MIN(activeImg))
                     centerPos=ROUND(centroid(activeImg, halfmax))
                     END
                   2:BEGIN;circular edge
-                    ;firstguess: center = max, search for centroid within ROI size
-                    mx=MAX(activeImg, loc)
-                    ind=ARRAY_INDICES(activeImg, loc)
-                    xx1=ind(0)-ROIsz(0) & xx2=ind(0)+ROIsz(0)
-                    IF xx1 LT 0 THEN xx1=0 & IF xx2 GT sizeAct(0)-1 THEN xx2=sizeAct(0)-1
-                    yy1=ind(1)-ROIsz(0) & yy2=ind(1)+ROIsz(0)
-                    IF yy1 LT 0 THEN yy1=0 & IF yy2 GT sizeAct(1)-1 THEN yy2=sizeAct(1)-1
-                    subma=activeImg[xx1:xx2,yy1:yy2]
+                    ;firstguess: center = as defined, search for centroid within ROI size
+                    ;mx=MAX(activeImg, loc)
+                    ;ind=ARRAY_INDICES(activeImg, loc)
+                    ;xx1=ind(0)-ROIsz(0) & xx2=ind(0)+ROIsz(0)
+                    ;IF xx1 LT 0 THEN xx1=0 & IF xx2 GT sizeAct(0)-1 THEN xx2=sizeAct(0)-1
+                    ;yy1=ind(1)-ROIsz(0) & yy2=ind(1)+ROIsz(0)
+                    ;IF yy1 LT 0 THEN yy1=0 & IF yy2 GT sizeAct(1)-1 THEN yy2=sizeAct(1)-1
+                    x1=ROUND(halfSz(0)+dxyaO(0)-ROIsz(0)) & x2=ROUNd(halfSz(0)+dxyaO(0)+ROIsz(0))
+                    y1=ROUND(halfSz(1)+dxyaO(1)-ROIsz(0)) & y2=ROUND(halfSz(1)+dxyaO(1)+ROIsz(0))
+                    subma=activeImg[x1:x2,y1:y2]
                     centerPosSubma=ROUND(centroid(subma, MIN(subma)))
-                    centerPos=[xx1,yy1]+centerPosSubma
+                    centerPos=[x1,y1]+centerPosSubma
                   END
                   ELSE:
                 ENDCASE         

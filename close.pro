@@ -61,8 +61,10 @@ pro closeImgs, imgIds
               'HOMOG': homogRes=homogRes[*,remain]
               'NOISE': clearRes, 'NOISE'; because avg dependent on rest - recalculation needed
               'EXP': expRes=expRes[*,remain]
+              'DCM': expRes=expRes[*,remain]
               'MTF': MTFres=removeIDstructstruct(MTFres,sel)
               'NPS': NPSres=removeIDstructstruct(NPSres,sel)
+              'VARI': varImgRes=removeIDstructstruct(varImgRes,sel)
               'CTLIN': CTlinres=CTlinres[*,remain]
               'HUWATER': HUwaterRes=HUwaterRes[*,remain]
               'SLICETHICK': BEGIN

@@ -92,6 +92,29 @@ pro updateImageRes
 
                 ENDIF
               END
+              
+              'VARI': BEGIN
+                
+                IF SIZE(varImgRes, /TNAME) EQ 'STRUCT' THEN BEGIN
+                  IF N_ELEMENTS(varImgRes.(sel)) GT 1 THEN BEGIN
+                    activeResImg=varImgRes.(sel)
+                    szImg=SIZE(activeResImg, /DIMENSIONS)
+                    
+                    IMAGE_STATISTICS, activeResImg[szImg(0)*0.25:szImg(0)*0.75,szImg(1)*0.25:szImg(1)*0.75], MEAN=meanVal, STDDEV=stddevVal, MAX=maxxVal, MIN=minnVal
+                    minVal=meanVal-stddevVal;min(varianceImg[ROIrad:szImg(0)-1-ROIrad,ROIrad:szImg(1)-1-ROIrad])
+                    maxVal=meanVal+stddevVal;max(varianceImg[ROIrad:szImg(0)-1-ROIrad,ROIrad:szImg(1)-1-ROIrad])
+                    IF minVal LT 0 THEN BEGIN
+                      minVal=minnVal & maxVal=maxxVal
+                    ENDIF
+
+                    szX=450
+                    szY=ROUND(szX*(szImg(1)*1./szImg(0)))
+                    tvRes=activeResImg
+                    TVSCL,congrid(adjustWindowLevel(tvRes, [minVal,maxVal]), szX, szY, /INTERP)
+ 
+                  ENDIF
+                ENDIF
+              END
 
               ELSE:
             ENDCASE

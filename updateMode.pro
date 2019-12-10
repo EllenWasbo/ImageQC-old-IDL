@@ -33,4 +33,7 @@ pro updateMode
   analyseStrings=analyseStringsAll.(selTab)
   analyse=analyseStrings(selTest)
 
+  RESTORE, thisPath+'data\config.dat'; getting the quickTemp-structure
+  IF N_ELEMENTS(quickTemp) NE 0 THEN fillQuickTempList, quickTemp.(modality);pro in refreshParam.pro
+
 end

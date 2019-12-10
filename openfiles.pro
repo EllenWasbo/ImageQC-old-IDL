@@ -114,6 +114,8 @@ pro openFiles, adrFilesToOpen, SILENT=silent
             IF marked(0) EQ -1 THEN BEGIN
               marked=INDGEN(app);there is results, but no file was marked and the new files is appended = mark the files already there
             ENDIF
+            clearRes
+            
           ENDELSE
         ENDIF ELSE marked=-1
         IF markedMulti(0) NE -1 THEN BEGIN
@@ -135,7 +137,12 @@ pro openFiles, adrFilesToOpen, SILENT=silent
         IF app EQ 0 THEN BEGIN
           wCenter=LONG(structImgs.(0).wCenter)
           wWidth=LONG(structImgs.(0).wWidth)
-          IF wCenter NE -1 AND wWidth NE -1 THEN minmax=[wCenter-wWidth/2,wCenter+wWidth/2] ELSE minmax=[-200,200]
+          If wWidth EQ -1 THEN BEGIN
+            wWidth=400 & wCenter=0
+          ENDIF
+          minmax=[wCenter-wWidth/2,wCenter+wWidth/2]
+          WIDGET_CONTROL, txtCenterWL, SET_VALUE=STRING(wCenter,FORMAT='(i0)')
+          WIDGET_CONTROL, txtWidthWL, SET_VALUE=STRING(wWidth,FORMAT='(i0)')
           WIDGET_CONTROL, txtMinWL, SET_VALUE=STRING(minmax(0),FORMAT='(i0)')
           WIDGET_CONTROL, txtMaxWL, SET_VALUE=STRING(minmax(1),FORMAT='(i0)')
           activeImg=0
@@ -151,6 +158,7 @@ pro openFiles, adrFilesToOpen, SILENT=silent
             'NM': newModa=2
             'ST': newModa=3
             'PT': newModa=4
+            'MR': newModa=5
             ELSE:
           ENDCASE
           IF newModa EQ 2 THEN BEGIN ;SPECT?
@@ -158,11 +166,11 @@ pro openFiles, adrFilesToOpen, SILENT=silent
           ENDIF
           IF newModa NE modality THEN BEGIN
             modality=newModa
-  
             clearRes
             clearMulti
-            analyseStrings=analyseStringsAll.(modality)
-            analyse=analyseStrings(0)
+            ;updateMode; later
+            ;analyseStrings=analyseStringsAll.(modality); included in updateMode
+            ;analyse=analyseStrings(0);included in updateMode
           ENDIF
         ENDIF
   

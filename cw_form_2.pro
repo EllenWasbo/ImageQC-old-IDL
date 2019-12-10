@@ -390,7 +390,7 @@ process_integer:
     cw_form_2_LABEL, parent, nparent, e, frame
     v = strtok(a[2], '|',/EXTRACT)
     if cw_form_2_PARSE(e, 'HEIGHT', temp) eq 0 then temp = n_elements(v)
-    new = WIDGET_LIST(nparent, VALUE = v, YSIZE=temp, SCR_XSIZE=250, SCR_YSIZE=min([200,20*temp]),$
+    new = WIDGET_LIST(nparent, VALUE = v, YSIZE=temp, SCR_XSIZE=250, SCR_YSIZE=min([170,20*temp]),$
 		FRAME=frame, UVALUE=ids[n], /MULTIPLE, _EXTRA=extra)
     if cw_form_2_PARSE(e, 'SET_VALUE', value) then begin
           WIDGET_CONTROL, new, SET_LIST_SELECT = FIX(value)

@@ -80,6 +80,15 @@
 ;  .attCorrMethod
 ;  .scaCorrMethod
 ;  .scatterFrac
+;   .imgFreq (MR)
+;.MRacqType
+;.MRscanSeq
+;.MRseqVariant
+;.TR
+;.TE
+;.NSA
+;.flipAng
+;.spaceSlice
 
 ;dialog_par = Dialog parent window to let messages be located on top of window calling it
 ;silentValue = 0 if error meassages should be displayed, 1 if silent modus
@@ -357,7 +366,11 @@ function readImgInfo, adr, dialog_par, silentValue
   
         test=o->GetReference('0018'x,'115E'x)
         test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
-        IF test(0) NE -1 THEN DAP=*(test_peker[0]) ELSE DAP=-1.
+        IF test(0) NE -1 THEN DAP=*(test_peker[0]) ELSE BEGIN
+          test=o->GetReference('0018'x,'9473'x);Acquired Image Area Dose Product
+          test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)   
+          IF test(0) NE -1 THEN DAP=*(test_peker[0]) ELSE DAP=-1.
+        ENDELSE
   
         test=o->GetReference('0018'x,'1411'x)
         test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
@@ -526,6 +539,43 @@ function readImgInfo, adr, dialog_par, silentValue
           ENDFOR 
         ENDIF ELSE angle=-999.
         
+        ;MR
+        test=o->GetReference('0018'x,'0084'x);
+        test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
+        IF test(0) NE -1 THEN imgFreq=*(test_peker[0]) ELSE imgFreq=-1.
+        
+        test=o->GetReference('0018'x,'0023'x);
+        test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
+        IF test(0) NE -1 THEN MRacqType=*(test_peker[0]) ELSE MRacqType='-'
+        
+        test=o->GetReference('0018'x,'0020'x);
+        test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
+        IF test(0) NE -1 THEN MRscanSeq=*(test_peker[0]) ELSE MRscanSeq='-'
+
+        test=o->GetReference('0018'x,'0021'x);
+        test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
+        IF test(0) NE -1 THEN MRseqVariant=*(test_peker[0]) ELSE MRseqVariant='-'
+        
+        test=o->GetReference('0018'x,'0080'x);repetition time
+        test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
+        IF test(0) NE -1 THEN TR=*(test_peker[0]) ELSE TR=-1.
+        
+        test=o->GetReference('0018'x,'0081'x);echo time
+        test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
+        IF test(0) NE -1 THEN TE=*(test_peker[0]) ELSE TE=-1.
+        
+        test=o->GetReference('0018'x,'0083'x);number of averages
+        test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
+        IF test(0) NE -1 THEN NSA=*(test_peker[0]) ELSE NSA=-1.
+        
+        test=o->GetReference('0018'x,'1314'x);flip angle
+        test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
+        IF test(0) NE -1 THEN flipAng=*(test_peker[0]) ELSE flipAng=-1.
+        
+        test=o->GetReference('0018'x,'0088'x);space between slices
+        test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
+        IF test(0) NE -1 THEN spaceSlice=*(test_peker[0]) ELSE spaceSlice=-1.
+        
         frameNo=-1
         
         imgStruct=CREATE_STRUCT('filename',adr,'studydatetime', studyDate+studyTime, 'acqDate', acqDate, 'imgDate', imgDate, 'institution',institution,'modality', modality, 'modelName',modelName,'stationName',stationName,'SWversion',SWversion,'detectorID',detectorID,$
@@ -535,6 +585,7 @@ function readImgInfo, adr, dialog_par, silentValue
           'zpos', zpos, 'imgNo',imgNo,'nFrames',nFrames,'wCenter',wCenter,'wWidth',wWidth,$
           'collType',collType,'nEWindows',nEWindows,'EWindowName',EWindowName,'zoomFactor',zoomFactor,'radius1',radPos1,'radius2',radPos2,'angle',angle,'acqFrameDuration',acqFrameDuration,'acqTerminationCond',acqTerminationCond,$
           'units',units,'radiopharmaca',radiopharmaca,'admDose',admDose,'admDoseTime',admDoseTime,'reconMethod',reconMethod,'attCorrMethod',attCorrMethod,'scaCorrMethod',scaCorrMethod, 'scatterFrac',scatterFrac,$
+          'imgFreq',imgFreq,'MRacqType',MRacqType,'MRscanSeq',MRscanSeq,'MRseqVariant',MRseqVariant,'TR',TR,'TE',TE,'NSA',NSA,'flipAng',flipAng,'spaceSlice',spaceSlice,$
           'frameNo', frameNo)
   
         IF imgStruct.nFrames GT 1 THEN BEGIN; split structure into separate image-structures

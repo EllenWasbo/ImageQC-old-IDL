@@ -55,7 +55,7 @@ pro updateTable
             IF multipRes(0) NE -1 THEN BEGIN
               nCols=6
               currentHeaderAlt(curTab)=0
-              headers=tableHeaders.CT.MTF.Alt1;['MTFx 50%','MTFx 10%','MTFx 2%','MTFy 50%','MTFy 10%','MTFy 2%']
+              headers=tableHeaders.CT.MTF.BEAD_XY;['MTFx 50%','MTFx 10%','MTFx 2%','MTFy 50%','MTFy 10%','MTFy 2%']
               resArrString=STRARR(nCols,nRows)
               FOR i =0, nRows-1 DO BEGIN
                 tagn=TAG_NAMES(MTFres.(markedTemp(i)))
@@ -70,7 +70,7 @@ pro updateTable
               nRows=1
               nCols=3
               currentHeaderAlt(curTab)=1
-              headers=tableHeaders.CT.MTF.Alt2;['MTF 50%','MTF 10%','MTF 2%']
+              headers=tableHeaders.CT.MTF.WIRE_OR_CIRCULAR_EDGE;['MTF 50%','MTF 10%','MTF 2%']
               tagn=TAG_NAMES(MTFres)
               IF tableWhich EQ 0 THEN BEGIN
                 IF tagn.HasValue('F50_10_2') THEN resArrString=STRING(cyclFactor*MTFres.F50_10_2[0:2], FORMAT='(F0.3)')
@@ -299,6 +299,7 @@ pro updateTable
           END
 
           'MTF': BEGIN
+            IF SIZE(MTFres, /TNAME) EQ 'STRUCT' THEN BEGIN
             tagMTFres=tag_names(MTFres)
 
             WIDGET_CONTROL, cw_typeMTFNM, GET_VALUE=typeMTF
@@ -336,6 +337,7 @@ pro updateTable
                 nCols=4
                 headers=['FWHM LSF smoothed (mm)','FWTM LSF smoothed (mm)','FWHM (mm)','FWTM (mm)']
               ENDIF
+            ENDIF
             ENDIF
 
           END
@@ -485,6 +487,22 @@ pro updateTable
 
       ENDIF
     END; PET
+    ;******************************** MR *************************************************
+    5:BEGIN
+      curTab=WIDGET_INFO(wtabAnalysisPET, /TAB_CURRENT)
+      IF results(curTab) EQ 1 THEN BEGIN
+
+        CASE analyse OF
+          'DCM':BEGIN
+            nCols=1
+            headers=tableHeaders.MR.DCM.Alt1
+            resArrString=STRARR(nCols,nRows)
+            FOR i=0, nRows-1 DO resArrString[*,i]=expRes[*,markedTemp(i)]
+            END
+        ELSE:
+        ENDCASE
+       ENDIF
+       END;MR
 
   ENDCASE
 

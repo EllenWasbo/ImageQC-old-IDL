@@ -62,7 +62,7 @@ pro updateInfo
           'PatientID:'+tab+ tab+tempStruct.PatientID, $
           'Modality:'+tab+tab+tempStruct.modality, $
           'Presentation type:'+tab+tempStruct.presType,$
-          'SeriesNmb / ImageNmb:'+tab+ string(tempStruct.seriesNmb, format='(i0)')+' / '+STRING(tempStruct.imgNo, format='(i0)'), $
+          'SeriesName/Nmb /ImgNmb:'+tab+ tempStruct.seriesName + '(' + string(tempStruct.seriesNmb, format='(i0)')+' / '+STRING(tempStruct.imgNo, format='(i0)') + ')', $
           'Protocol name:'+tab+ tempStruct.protocolName]
 
         infoString2=$
@@ -147,6 +147,29 @@ pro updateInfo
           'Recon: '+tab+tempStruct.reconMethod+'/'+tempStruct.kernel,$
           'Scatter corr: '+tab+tempStruct.scaCorrMethod,$
           'Scatter fraction: '+tab+tempStruct.scatterFrac]
+      END
+      5: BEGIN
+        infoString1=$
+          ['Date' +(tempStruct.acqDate NE '' ? ('OfAcq:'+tab+ tempStruct.acqDate) : ('OfImage:'+tab+ tempStruct.imgDate)), $
+          'Institution:'+tab+ tempStruct.Institution, $
+          'ModelName:'+tab+ tempStruct.ModelName, $
+          'PatientName:'+tab+ tempStruct.PatientName, $
+          'PatientID:'+tab+ tab+tempStruct.PatientID, $
+          'SeriesName:'+tab+ tempStruct.seriesName, $
+          'Acq type:'+tab+ tab+tempStruct.MRacqType, $
+          'Scan sequence:'+tab+ tempStruct.MRscanSeq, $
+          'Seq variant:'+tab+ tempStruct.MRseqVariant]
+
+        infoString2=$
+          ['SliceThick:'+tab+ (tempStruct.SliceThick NE -1 ? string(tempStruct.SliceThick, format='(f0.2)') : '-'), $
+          'Pixelsize:'+tab+tab+ (tempStruct.pix[0] NE -1 ? string(tempStruct.pix[0],format='(f0.2)')+', '+string(tempStruct.pix[1],format='(f0.2)')  : '-'), $
+          'Imagesize:'+tab+string(imSz[0],format='(i0)')+', '+string(imSz[1],format='(i0)'),$
+          'TR:'+tab+tab+(tempStruct.TR NE -1 ? STRING(tempStruct.TR, format='(i0)') : '-'), $
+          'TE:'+tab+tab+(tempStruct.TE NE -1 ? STRING(tempStruct.TE, format='(i0)') : '-'), $
+          'NSA:'+tab+(tempStruct.NSA NE -1 ? STRING(tempStruct.NSA, format='(i0)') : '-'), $
+          'Flip angle:'+tab+tab+(tempStruct.flipAng NE -1 ? STRING(tempStruct.flipAng, format='(i0)') : '-'), $
+          'Slice spacing:'+tab+(tempStruct.spaceSlice NE -1 ? STRING(tempStruct.spaceSlice, format='(i0)') : '-')]
+         
       END
       ELSE:
     ENDCASE

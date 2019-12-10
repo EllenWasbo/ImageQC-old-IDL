@@ -74,6 +74,16 @@ function replaceStructStruct, fullStruct, newSubStruct, numb, NEW_TAG_NAME=new_t
   return, structNew
 end
 
+;rename all tags of a structure
+;assume N_TAGS structIn equals number of newnames
+function renameTagsStruct, structIn, new_tag_names
+  structNew=!Null
+  counter=0
+  ntags=N_TAGS(structIn)
+  FOR i=0, ntags-1 DO structNew=CREATE_STRUCT(structNew,new_tag_names(i),structIn.(i))
+  return, structNew
+end
+
 function updateMaterialHeaders, currTableHeaders, newMaterialHeaders
   newTableHeaders=currTableHeaders
   modNames=TAG_NAMES(currTableHeaders)
@@ -91,7 +101,7 @@ function updateMaterialHeaders, currTableHeaders, newMaterialHeaders
       newTableHeaders=replaceStructStruct(currTableHeaders, newCTstruct, idCT)
     ENDIF
   ENDIF
-  
+
   return, newTableHeaders
 end
 
@@ -121,10 +131,11 @@ function updateConfigS, file
   posY=[-50.,0.,50.,58.,50.,0.,-50.,-58.]
   lintab=CREATE_STRUCT('materials', materials, 'relMassD', relMassD, 'posX', posX, 'posY', posY)
   configDefault=CREATE_STRUCT($
-    'deciMark',',', $
+
     'copyHeader', 0, $
-    'includeFilename', 1, $
     'transposeTable', 0, $
+    'deciMark',',', $
+    'includeFilename', 0, $
     'append',0,$
     'qtOutTemps', ['DEFAULT','DEFAULT','DEFAULT','DEFAULT','DEFAULT'], $
     'MTFtype',2,'MTFtypeX',1,'MTFtypeNM',1,'MTFtypeSPECT',1, $
@@ -134,12 +145,12 @@ function updateConfigS, file
     'searchMaxMTF_ROI',0,$
     'LinROIrad',3.,'LinROIradS',11., 'LinTab',lintab, $
     'RampDist',38.,'RampLen',60.,'RampBackG',5.,'RampSearch',5,'RampAvg',1,'RampType',0,'RampDens',0,$
-    'HomogROIsz',10., 'HomogROIszX',10., 'HomogROIszPET', 10.,'HomogROIdist',55.,'HomogROIdistPET',55.,'HomogROIszNM',25.,'HomogROIdistNM',[100.,200.],$
+    'HomogROIsz',10., 'HomogROIszX',10., 'HomogROIszPET', 10.,'HomogROIdist',55.,'HomogROIdistPET',55.,$
     'NoiseROIsz',55., 'HUwaterROIsz', 55.,$
     'NPSroiSz', 50, 'NPSroiDist', 50., 'NPSsubNN', 20, 'NPSroiSzX', 256, 'NPSsubSzX', 5, 'NPSavg', 1, $
     'STProiSz', 11.3, $
     'unifAreaRatio', 0.95,'SNIAreaRatio', 0.9,'unifCorr',0,'SNIcorr',0,'distCorr',385.0,'attCoeff',2.2,'detThick',9.5,$
-    'barWidths',[6.4,4.8,4.0,3.2],'barROIsz',50.0,$
+    'barROIsz',50.0,'barWidths',[6.4,4.8,4.0,3.2],$
     'ScanSpeedAvg', 25, 'ScanSpeedHeight', 100., 'ScanSpeedFiltW', 15, $
     'ContrastRad1', 20., 'ContrastRad2', 58.,$
     'CrossROIsz', 60., 'CrossVol', 0.0)
@@ -160,8 +171,8 @@ function updateConfigS, file
       newConfigS=CREATE_STRUCT('defConfigNo',oldConfigS.(0))
       FOR i=1, N_ELEMENTS(restoreTagsS)-1 DO BEGIN;for each parameterset
         oldTags=TAG_NAMES(oldConfigS.(i))
-        configTemp=CREATE_STRUCT('DECIMARK',oldConfigS.(i).DECIMARK)
-        FOR j=1, N_ELEMENTS(defaultTags)-1 DO BEGIN;for each parameter in parameterset
+        configTemp=!Null;CREATE_STRUCT('DECIMARK',oldConfigS.(i).DECIMARK)
+        FOR j=0, N_ELEMENTS(defaultTags)-1 DO BEGIN;for each parameter in parameterset
           IF oldTags.HasValue(defaultTags(j)) THEN BEGIN
             ;copy tag content
             ff=WHERE(oldTags EQ defaultTags(j))
@@ -181,7 +192,7 @@ function updateConfigS, file
   return, newConfigS
 end
 
-function updateQuickT, file
+function updateQuickT, file, mOpt
   IF file EQ '' THEN quickT=!Null ELSE BEGIN
     ;find existing values and paste into new quicktemp structure
     RESTORE, file
@@ -195,6 +206,76 @@ function updateQuickT, file
       If oldTags.HasValue('QUICKTEMP') THEN quickT=configS.(1).QUICKTEMP
     ENDIF
     IF N_ELEMENTS(quickTemp) NE 0 THEN quickT=quickTemp ELSE quickT=!Null
+    IF SIZE(quickT, /TNAME) EQ 'STRUCT' THEN BEGIN
+      ;mOpt= Struct 'CT',[1,2,3,4,5,6,7,0,0,0],'Xray',[1,2,3,4,5,0,0],'NM',[1,1,1,1,0,0,0],'SPECT', INTARR(3),'PET',INTARR(3),'MR',INTARR(1))
+      ms=TAG_NAMES(mOpt)
+      tnamQT=TAG_NAMES(quickT)
+      IF ~ARRAY_EQUAL(ms, tnamQT) THEN BEGIN
+        quickTm=quickT
+        quickT=!Null
+        FOR m=0, N_TAGS(mOpt)-1 DO BEGIN
+          quickTthisMod=!Null
+          IF TOTAL(mOpt.(m)) NE 0 THEN BEGIN; QuickTest option exist for this modality
+            names=TAG_NAMES(quickTm)
+            box=[$
+              '1, BASE,, /COLUMN', $
+              '0, LABEL, QuickTest templates now sorted into modality types', $
+              '0, LABEL, Select templates for '+ms(m), $
+              '0, LABEL, Use Ctrl or Shift to select multiple', $
+              '0, LABEL, ',$
+              '2, LIST, ' + STRJOIN(names,'|') + ', TAG=templates', $
+              '1, BASE,, /ROW', $
+              '2, BUTTON, OK, QUIT, TAG=OK']
+            res=CW_FORM_2(box, /COLUMN, TAB_MODE=1, TITLE='Select QuickTest templates assosiated with '+ms(m), XSIZE=300, YSIZE=300, FOCUSNO=3, XOFFSET=200, YOFFSET=200)
+
+            IF N_ELEMENTS(res.templates) NE 0 THEN BEGIN
+              FOR i=0, N_ELEMENTS(res.templates)-1 DO quickTthisMod=CREATE_STRUCT(quickTthisMod, names(res.templates(i)),quickTm.(res.templates(i)))
+              quickTm=removeIDstructstruct(quickTm, res.templates)
+            ENDIF
+          ENDIF
+          IF N_ELEMENTS(quickTthisMod) EQ 0 THEN quickTthisMod=-1
+          quickT=CREATE_STRUCT(quickT, ms(m),quickTthisMod)
+        ENDFOR
+        IF SIZE(quickTm,/TNAME) EQ 'STRUCT' THEN BEGIN
+          t=TAG_NAMES(quickTm)
+          IF t(0) NE 'EMPTY' THEN BEGIN
+            sv=DIALOG_MESSAGE('Not all QuickTest templates were selected in this process. Those templates will be lost. Create a backup file to perform this process once again?', /QUESTION)
+            IF sv EQ 'Yes' THEN BEGIN
+              adr=DIALOG_PICKFILE(TITLE='Backup old config file', /WRITE, FILTER='*.dat', /FIX_FILTER, /OVERWRITE_PROMPT, DEFAULT_EXTENSION='.dat', PATH='C:\')
+              IF adr(0) NE '' THEN FILE_COPY, file, adr
+            ENDIF
+          ENDIF
+        ENDIF
+      ENDIF
+      ;ensure correct size of arrays (columns equal number of tests available
+      ce=0
+      FOR m=0, N_TAGS(mOpt)-1 DO BEGIN
+        IF SIZE(quickT.(m),/TNAME) EQ 'STRUCT' THEN BEGIN
+          idTest=WHERE(mOpt.(m) NE 0)
+          names=TAG_NAMES(quickT.(m))
+          IF idTest(0) NE -1 THEN BEGIN
+            nTests=N_ELEMENTS(idTest)
+            newQuickTmod=!Null
+            FOR i=0, N_TAGS(quickT.(m))-1 DO BEGIN
+              sz=SIZE(quickT.(m).(i), /DIMENSIONS)
+              IF sz(0) NE nTests THEN BEGIN
+                newArr=INTARR(nTests,sz(1))
+                IF sz(0) LT nTests THEN newArr[0:sz(0)-1,*]=quickT.(m).(i) ELSE BEGIN
+                  oldArr=quickT.(m).(i)
+                  newArr=oldArr[0:nTests-1,*]
+                ENDELSE
+                ce=ce+1
+              ENDIF ELSE newArr=quickT.(m).(i)
+              newQuickTmod=CREATE_STRUCT(newQuickTmod,names(i),newArr)
+            ENDFOR
+            quickT=replaceStructStruct(quickT, newQuickTmod, m)
+          ENDIF
+        ENDIF
+      ENDFOR
+      IF ce GT 0 THEN BEGIN
+        sv=DIALOG_MESSAGE('Number of tests saved in QuickTest templates do not correspond to the available tests of this version. Control QuickTest template to verify consistency.', /INFORMATION)
+      ENDIF
+    ENDIF
   ENDELSE
   return, quickT
 end
@@ -223,7 +304,8 @@ function updateQuickTout, file, analyseStrAll
     'STP', CREATE_STRUCT('Pixel_mean',CREATE_STRUCT('ALT',0,'COLUMNS',2,'CALC',0,'PER_SERIES',0)),$
     'HOMOG',-1,'NOISE',-1,'EXP',-1,'MTF',-1)
   defNM=CREATE_STRUCT('UNIF', -1,'SNI',-1,'ACQ',-1,'BAR',-1)
-  quickToutDefault=CREATE_STRUCT('CT',CREATE_STRUCT('DEFAULT',defCT),'Xray',CREATE_STRUCT('DEFAULT',defXray),'NM',CREATE_STRUCT('DEFAULT',defNM))
+  defMR=CREATE_STRUCT('DCM', -1)
+  quickToutDefault=CREATE_STRUCT('CT',CREATE_STRUCT('DEFAULT',defCT),'Xray',CREATE_STRUCT('DEFAULT',defXray),'NM',CREATE_STRUCT('DEFAULT',defNM),'MR',CREATE_STRUCT('DEFAULT',defMR))
 
   IF file EQ '' THEN quickTout=quickToutDefault ELSE BEGIN
     ;find existing values and paste into new configS structure
@@ -250,30 +332,30 @@ function updateQuickTout, file, analyseStrAll
           IF oldTempsThisMode(0) NE 'EMPTY' THEN BEGIN
 
             allTestsCurr=TAG_NAMES(quickToutDefault.(i).DEFAULT)
-            nTestsCurr=N_ELEMENTS(allTestsCurr) 
+            nTestsCurr=N_ELEMENTS(allTestsCurr)
             allTestsOld=TAG_NAMES(oldQuickTout.(ii).DEFAULT)
-  
+
             missingTestsInOld=INTARR(nTestsCurr)
             FOR a=0, nTestsCurr-1 DO IF ~allTestsOld.HasValue(allTestsCurr(a)) THEN missingTestsInOld(a)=1
-  
+
             tempNames=TAG_NAMES(oldQuickTout.(ii))
             tempsThisMode=CREATE_STRUCT('popit',0)
             FOR j=0, N_ELEMENTS(tempNames)-1 DO BEGIN; for each template
-  
+
               thisTemp=CREATE_STRUCT('popit',0)
-  
+
               nTests=N_TAGS(oldQuickTout.(ii).(j))
               FOR k=0, N_ELEMENTS(allTestsOld)-1 DO BEGIN; for each defined test
-          
+
                 IF SIZE(oldQuickTout.(ii).(j).(k), /TNAME) EQ 'STRUCT' THEN BEGIN
                   outputsThisTest=CREATE_STRUCT('popit',0)
                   outPutNames=TAG_NAMES(oldQuickTout.(ii).(j).(k))
                   FOR l=0, N_ELEMENTS(outPutNames)-1 DO BEGIN; for each defined output
-                  ;IF SIZE(oldQuickTout.(ii).(j).(k).(l), /TNAME) EQ 'STRUCT' THEN BEGIN
+                    ;IF SIZE(oldQuickTout.(ii).(j).(k).(l), /TNAME) EQ 'STRUCT' THEN BEGIN
                     oldTags=TAG_NAMES(oldQuickTout.(ii).(j).(k).(l))
-  
+
                     paramsThis=CREATE_STRUCT('popit',0)
-  
+
                     IF ~ARRAY_EQUAL(oldTags, tagNewest) THEN BEGIN
                       FOR m=0, N_ELEMENTS(tagNewest)-1 DO BEGIN
                         IF oldTags.HasValue(tagNewest(m)) THEN BEGIN
@@ -282,16 +364,16 @@ function updateQuickTout, file, analyseStrAll
                           paramsThis=CREATE_STRUCT(paramsThis, tagNewest(m), oldQuickTout.(ii).(j).(k).(l).(ff))
                         ENDIF ELSE paramsThis=CREATE_STRUCT(paramsThis, tagNewest(j),quickToutThisVersion.(m))
                       ENDFOR
-  
+
                       paramsThis=removeIDstructstruct(paramsThis, 0);pop off first dummy element
-  
+
                     ENDIF ELSE paramsThis=oldQuickTout.(ii).(j).(k).(l)
                     outputsThisTest=CREATE_STRUCT(outputsThisTest,outPutNames(l), paramsThis)
-                  
+
                   ENDFOR
                   outputsThisTest=removeIDstructstruct(outputsThisTest, 0);pop off first dummy element
                   thisTemp=CREATE_STRUCT(thisTemp,allTestsOld(k), outputsThisTest)
-                ENDIF ELSE thisTemp=CREATE_STRUCT(thisTemp,allTestsOld(k),-1)        
+                ENDIF ELSE thisTemp=CREATE_STRUCT(thisTemp,allTestsOld(k),-1)
               ENDFOR
               IF TOTAL(missingTestsInOld) GT 0 THEN BEGIN
                 testNo=WHERE(missingTestsInOld EQ 1)
@@ -310,13 +392,13 @@ function updateQuickTout, file, analyseStrAll
                 ENDFOR
                 thisTemp=reorderStructStruct(thisTemp, newOrdTests)
               ENDIF
-              
+
               tempsThisMode=CREATE_STRUCT(tempsThisMode, tempNames(j), thisTemp)
             ENDFOR
-            
-            tempsThisMode=removeIDstructstruct(tempsThisMode, 0);pop off first dummy element 
+
+            tempsThisMode=removeIDstructstruct(tempsThisMode, 0);pop off first dummy element
             quickTout=CREATE_STRUCT(quickTout, modesCurr(i), tempsThisMode)
-          
+
           ENDIF ELSE quickTout=CREATE_STRUCT(quickTout, modesCurr(i), quickToutDefault.(i))
         ENDIF ELSE quickTout=CREATE_STRUCT(quickTout, modesCurr(i), quickToutDefault.(i))
       ENDFOR
@@ -328,61 +410,109 @@ function updateQuickTout, file, analyseStrAll
   return, quickTout
 end
 
-function updateLoadT, file
+function updateLoadT, file, mOpt
   IF file EQ '' THEN loadT=!Null ELSE BEGIN
     ;find existing values and paste into new loadTemp structure (no doing anything yet as this is first version with this)
     RESTORE, file
-    ;securing older versions
     IF N_ELEMENTS(loadTemp) NE 0 THEN BEGIN
-      loadOld=loadTemp
-      ;path - folder close to where the images should be found
-      ;loadBy - choise - 0 = load all images in specified path
-      ;sortBy - STRARR with structure tags in image structure to sort images by
-      ;paramSet - name of paramSet to link to or '' if default
-      ;quickTemp - name of quickTemp to link to or '' to default (all selected)
-      ;pathApp- path to append results if successfully calculated
-      loadTthisVersion=CREATE_STRUCT($
-        'path','',$
-        'statName','',$
-        'loadBy',0,$
-        'includeSub',0,$
-        'sortBy', '', $
-        'paramSet','', $
-        'quickTemp','',$
-        'pathApp','',$
-        'archive',0,$
-        'deleteFiles',0)
-      loadTsetDef=CREATE_STRUCT('loadTempDefault',loadTthisVersion)
-      tagNewest=TAG_NAMES(loadTthisVersion)
+      ;update with modalities from older versions
+      IF SIZE(loadTemp, /TNAME) EQ 'STRUCT' THEN BEGIN
+        tempsExist=TAG_NAMES(loadTemp)
+        loadT=loadTemp
+        IF ~ARRAY_EQUAL(tempsExist[0:2],['CT','XRAY','NM']) THEN BEGIN
+          ;mOpt= Struct 'CT',[1,2,3,4,5,6,7,0,0,0],'Xray',[1,2,3,4,5,0,0],'NM',[1,1,1,1,0,0,0],'SPECT', INTARR(3),'PET',INTARR(3),'MR',INTARR(1))
+          ms=TAG_NAMES(mOpt)
+          loadTm=loadTemp
+          loadT=!Null
+          FOR m=0, N_TAGS(mOpt)-1 DO BEGIN
+            loadTthisMod=!Null
+            IF TOTAL(mOpt.(m)) NE 0 THEN BEGIN; QuickTest option exist for this modality
+              names=TAG_NAMES(loadTm)
+              box=[$
+                '1, BASE,, /COLUMN', $
+                '0, LABEL, Automation templates now sorted into modality types', $
+                '0, LABEL, Select templates for '+ms(m), $
+                '0, LABEL, Use Ctrl or Shift to select multiple', $
+                '0, LABEL, ',$
+                '2, LIST, ' + STRJOIN(names,'|') + ', TAG=templates', $
+                '1, BASE,, /ROW', $
+                '2, BUTTON, OK, QUIT, TAG=OK']
+              res=CW_FORM_2(box, /COLUMN, TAB_MODE=1, TITLE='Select Automation templates assosiated with '+ms(m), XSIZE=300, YSIZE=300, FOCUSNO=3, XOFFSET=200, YOFFSET=200)
 
-      ;copy values into newest version structure
-      tempsExist=TAG_NAMES(loadOld)
-
-      IF tempsExist(0) NE 'EMPTY' THEN BEGIN
-        FOR i=0, N_ELEMENTS(tempsExist)-1 DO BEGIN;for each set
-          oldTags=TAG_NAMES(loadOld.(i))
-          loadNew=CREATE_STRUCT('PATH',loadOld.(i).PATH)
-          FOR j=1, N_ELEMENTS(tagNewest)-1 DO BEGIN;for each parameter in set
-            IF oldTags.HasValue(tagNewest(j)) THEN BEGIN
-              ;copy tag content
-              ff=WHERE(oldTags EQ tagNewest(j))
-              loadNew=CREATE_STRUCT(loadNew, tagNewest(j), loadOld.(i).(ff))
-            ENDIF ELSE BEGIN
-              ;paste default content
-              loadNew=CREATE_STRUCT(loadNew, tagNewest(j),loadTsetDef.(0).(j))
-            ENDELSE
+              IF N_ELEMENTS(res.templates) NE 0 THEN BEGIN
+                FOR i=0, N_ELEMENTS(res.templates)-1 DO loadTthisMod=CREATE_STRUCT(loadTthisMod, names(res.templates(i)),loadTm.(res.templates(i)))
+                loadTm=removeIDstructstruct(loadTm, res.templates)
+              ENDIF
+            ENDIF
+            IF N_ELEMENTS(loadTthisMod) EQ 0 THEN loadTthisMod=-1
+            loadT=CREATE_STRUCT(loadT, ms(m),loadTthisMod)
           ENDFOR
-          IF i EQ 0 THEN loadT=CREATE_STRUCT(tempsExist(i),loadNew) ELSE loadT=CREATE_STRUCT(loadT, tempsExist(i),loadNew)
-        ENDFOR
+          IF SIZE(loadTm,/TNAME) EQ 'STRUCT' THEN BEGIN
+            t=TAG_NAMES(loadTm)
+            IF t(0) NE 'EMPTY' THEN BEGIN
+              sv=DIALOG_MESSAGE('Not all automation templates were selected in this process. Those templates will be lost. Create a backup file to perform this process once again?', /QUESTION)
+              IF sv EQ 'Yes' THEN BEGIN
+                adr=DIALOG_PICKFILE(TITLE='Backup old config file', /WRITE, FILTER='*.dat', /FIX_FILTER, /OVERWRITE_PROMPT, DEFAULT_EXTENSION='.dat', PATH='C:\')
+                IF adr(0) NE '' THEN FILE_COPY, file, adr
+              ENDIF
+            ENDIF
+          ENDIF
+        ENDIF
+      ENDIF
+
+      ;securing older versions tags
+      IF N_ELEMENTS(loadT) GT 0 THEN BEGIN
+        ;path - folder close to where the images should be found
+        ;loadBy - choise - 0 = load all images in specified path
+        ;sortBy - STRARR with structure tags in image structure to sort images by
+        ;paramSet - name of paramSet to link to or '' if default
+        ;quickTemp - name of quickTemp to link to or '' to default (all selected)
+        ;pathApp- path to append results if successfully calculated
+        loadTthisVersion=CREATE_STRUCT($
+          'path','',$
+          'statName','',$
+          'loadBy',0,$
+          'includeSub',0,$
+          'sortBy', '', $
+          'paramSet','', $
+          'quickTemp','',$
+          'pathApp','',$
+          'archive',0,$
+          'deleteFiles',0)
+        loadTsetDef=CREATE_STRUCT('loadTempDefault',loadTthisVersion)
+        tagNewest=TAG_NAMES(loadTthisVersion)
+
+        ;copy values into newest version structure
+        FOR m=0, N_TAGS(mOpt)-1 DO BEGIN
+          IF SIZE(loadT.(m), /TNAME) EQ 'STRUCT' THEN BEGIN
+            tempsExist=TAG_NAMES(loadT.(m))
+            FOR i=0, N_ELEMENTS(tempsExist)-1 DO BEGIN;for each set
+              oldTags=TAG_NAMES(loadT.(m).(i))
+              loadNew=CREATE_STRUCT('PATH',loadT.(m).(i).PATH)
+              FOR j=1, N_ELEMENTS(tagNewest)-1 DO BEGIN;for each parameter in set
+                IF oldTags.HasValue(tagNewest(j)) THEN BEGIN
+                  ;copy tag content
+                  ff=WHERE(oldTags EQ tagNewest(j))
+                  loadNew=CREATE_STRUCT(loadNew, tagNewest(j), loadT.(m).(i).(ff))
+                ENDIF ELSE BEGIN
+                  ;paste default content
+                  loadNew=CREATE_STRUCT(loadNew, tagNewest(j),loadTsetDef.(0).(j))
+                ENDELSE
+              ENDFOR
+              IF i EQ 0 THEN loadTm=CREATE_STRUCT(tempsExist(i),loadNew) ELSE loadTm=CREATE_STRUCT(loadTm, tempsExist(i),loadNew)
+            ENDFOR
+            loadT=replaceStructStruct(loadT, loadTm, m)
+           ENDIF
+          ENDFOR
+        ENDIF ELSE loadT=!Null
+
       ENDIF ELSE loadT=!Null
+    ENDELSE
+    return, loadT
+  end
 
-    ENDIF ELSE loadT=!Null
-  ENDELSE
-  return, loadT
-end
-
-;previously saved .dat-file might miss some newly introduced parameters. Update to avoid crashes and to update current Path (.filename) if replaced since created
-;called by struc='',pathNow ='' gives default, empty structure to be able to find list of available tags
+  ;previously saved .dat-file might miss some newly introduced parameters. Update to avoid crashes and to update current Path (.filename) if replaced since created
+  ;called by struc='',pathNow ='' gives default, empty structure to be able to find list of available tags
 function imgStructUpdate, struc, pathNow
   updatedStruct=-1
   szStru=SIZE(struc, /TNAME)
@@ -463,7 +593,7 @@ function readImg, adr, frame
           test_peker=o->GetValue(REFERENCE=test[frame-1],/NO_COPY)
           matrix=FLOAT(*(test_peker[0]))
         ENDELSE
-  
+
         matrix=REVERSE(matrix,2)*slope + intercept
         IF ori EQ 1 THEN matrix=REVERSE(matrix)
         PTR_FREE, test_peker
@@ -490,25 +620,48 @@ end
 
 ;adjust to resonable number of decimals
 function formatCode, arr
-  maxa=MAX(ABS(arr))
-  strInner='f0'
-  IF maxa LE 1 THEN BEGIN
-    strInner='f0.3'
-    IF maxa LT 0.1 THEN BEGIN
-      strInner='f0.4'
-      IF maxa LT 0.01 THEN BEGIN
-        strInner='f0.5'
-        IF maxa LT 0.001 THEN BEGIN
-          strInner='g0.5'
+  IF SIZE(arr, /TNAME) EQ 'STRING' THEN strFormatCode='(a0)' ELSE BEGIN
+    maxa=MAX(ABS(arr))
+    strInner='f0'
+    IF maxa LE 1 THEN BEGIN
+      strInner='f0.3'
+      IF maxa LT 0.1 THEN BEGIN
+        strInner='f0.4'
+        IF maxa LT 0.01 THEN BEGIN
+          strInner='f0.5'
+          IF maxa LT 0.001 THEN BEGIN
+            strInner='g0.5'
+          ENDIF
         ENDIF
       ENDIF
     ENDIF
-  ENDIF
-  IF maxa GT 1 THEN strInner='f0.3'
-  IF maxa GT 10 THEN strInner='f0.2'
-  IF maxa GT 100 THEN strInner='f0.1'
-  IF maxa GT 99999 THEN strInner='i0'
-  strFormatCode='('+strInner+')'
+    IF maxa GT 1 THEN strInner='f0.3'
+    IF maxa GT 10 THEN strInner='f0.2'
+    IF maxa GT 100 THEN strInner='f0.1'
+    IF maxa GT 99999 THEN strInner='i0'
+    strFormatCode='('+strInner+')'
+  ENDELSE
+  return, strFormatCode
+end
+
+;formatstring according to input type
+function formatCodeType, val, type
+  nVal=N_ELEMENTS(val)
+  CASE type Of
+    'BOOL':IF val EQ 0 THEN strFormatCode='("false ", i0)' ELSE strFormatCode='("true ", i0)'
+    'STRING':strFormatCode='(a0)'
+    'INT':BEGIN
+      IF nVal GT 1 THEN BEGIN
+        strFormatCode='('+STRING(nVal-1, FORMAT='(i0)')+'(i0," / "),i0)'
+      ENDIF ELSE strFormatCode='(i0)'
+    END
+    'FLOAT':BEGIN
+      IF nVal GT 1 THEN BEGIN
+        strFormatCode='('+STRING(nVal-1, FORMAT='(i0)')+'(f0.1," / "),f0.1)'
+      ENDIF ELSE strFormatCode=formatCode(val)
+    END
+    ELSE:
+  ENDCASE
 
   return, strFormatCode
 end
@@ -689,14 +842,17 @@ end
 ;return [x,y] position for center of mass
 ;From: http://www.idlcoyote.com/tip_examples/centroid.pro
 ;added treshold and invert if object lower intensity than outer
-function Centroid, array, treshold
+function Centroid, array, treshold, allowInvert
   array2=array;avoid problems when array changes activeImg as input
   s = Size(array2, /Dimensions)
   sHalf= s/2
 
-  outerVal=MEAN(array2[*,0])
-  IF abs(outerVal- min(array2)) GT abs(outerVal- max(array2)) THEN array2= max(array2)-array2 ;invert array
-
+  IF N_ELEMENTS(allowInvert) EQ 0 THEN allowInvert = 1
+  IF allowInvert THEN BEGIN
+    outerVal=MEAN(array2[*,0])
+    IF abs(outerVal- min(array2)) GT abs(outerVal- max(array2)) THEN array2= max(array2)-array2 ;invert array
+  ENDIF
+  
   lower=WHERE(array2 LT treshold)
   array2=array2-MIN(array2);starting at zero
   arrTemp=array2

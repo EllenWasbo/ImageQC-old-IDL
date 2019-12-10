@@ -51,14 +51,14 @@ pro updateMulti
             RESTORE, thisPath+'data\config.dat'
             nImg=N_TAGS(structImgs)
             testOpt=WHERE(multiOpt.(modality) GT 0, nTests)
-            IF sel LE 0 THEN markedMultiNew=INTARR(nTests, nImg) ELSE markedMultiNew=quickTemp.(sel-1)
+            IF sel LE 0 THEN markedMultiNew=INTARR(nTests, nImg) ELSE markedMultiNew=quickTemp.(modality).(sel-1)
             szMNew=SIZE(markedMultiNew, /DIMENSIONS)
             IF N_ELEMENTS(szMNew) EQ 1 THEN szMNew=[szMNew, 1]
             IF szMNew(0) NE nTests OR szMNew(1) NE nImg THEN BEGIN
               sv=DIALOG_MESSAGE('Warning: Template created with '+STRING(szMNew(0), FORMAT='(i0)')+' tests and '+STRING(szMNew(1), FORMAT='(i0)')+' images. Numbers do not match. Please validate template.', DIALOG_PARENT=evTop)
               markedMultiNew=INTARR(nTests, nImg)
 
-              markedMultiTemp=quickTemp.(sel-1)
+              markedMultiTemp=quickTemp.(modality).(sel-1)
               IF nTests GT szMNew(0) THEN markedMultiTemp=markedMultiTemp[0:szMNew(0)-1,*]
               IF nTests LT szMNew(0) THEN markedMultiTemp=markedMultiTemp[0:nTests-1,*]
               IF nImg GT szMNew(1) THEN markedMultiTemp=markedMultiTemp[*,0:szMNew(1)-1]

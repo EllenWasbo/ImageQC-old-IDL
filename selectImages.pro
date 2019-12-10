@@ -36,15 +36,69 @@ function getSelList, struct
   return, imgTab
 end
 
+function sortImages, struct2sort, sortID
+  structSorted=!Null
+  nam=TAG_NAMES(struct2sort)
+  IF SIZE(struct2sort.(0).(0), /TNAME) EQ 'STRUCT' THEN BEGIN ;already sorted - put all images into one level structure
+    tempStruct =!Null
+    FOR s=0,N_ELEMENTS(nam)-1 DO BEGIN
+      nAlready=N_TAGS(tempStruct)
+      nInSer=N_TAGS(struct2sort.(s))
+      newNames=!Null
+      FOR i=0, nInSer -1 DO newNames=[newNames,'S'+STRING(i+nAlready, FORMAT='(i0)')]
+      tempStruct=CREATE_STRUCT(tempStruct, renameTagsStruct(struct2sort.(s),newNames))
+    ENDFOR
+    struct2sort=tempStruct
+  ENDIF
+  nImg=N_TAGS(struct2sort)
+  studydatetimeArr=!Null
+  FOR i=0, nImg-1 DO studydatetimeArr=[studydatetimeArr,struct2sort.(i).studydatetime]
+
+  studiesInList=studydatetimeArr(UNIQ(studydatetimeArr,BSORT(studydatetimeArr)))
+
+  FOR d=0, N_ELEMENTS(studiesInList)-1 DO BEGIN
+    imgsInStudy=WHERE(studydatetimeArr EQ studiesInList(d), nImgStudy)
+    seriesArr=!Null
+
+    CASE sortID OF
+      0: FOR i=0, nImgStudy-1 DO seriesArr=[seriesArr,STRING(struct2sort.(imgsInStudy(i)).seriesTime, FORMAT='(i0)') + '_'+ STRING(struct2sort.(imgsInStudy(i)).acqNmb, FORMAT='(i0)')]
+      ;1: FOR i=0, nImgStudy-1 DO seriesArr=[seriesArr,struct2sort.(imgsInStudy(i)).acqTime]
+    ENDCASE
+
+    seriesInList=seriesArr(UNIQ(seriesArr,BSORT(LONG(seriesArr))))
+    FOR s=0, N_ELEMENTS(seriesInList)-1 DO BEGIN
+      imgsInSer=WHERE(seriesArr EQ seriesInList(s), nImgSer)
+      IF imgsInSer(0) NE -1 THEN BEGIN
+
+        ;sort by imgNo
+        imgArr=!Null
+        FOR i=0, nImgSer-1 DO imgArr=[imgArr,struct2sort.(imgsInStudy(imgsInSer(i))).imgNo]
+        imgSorted=UNIQ(imgArr,BSORT(LONG(imgArr)))
+        sortedImg=imgsInSer(imgSorted)
+
+        seriesStruct=CREATE_STRUCT('I0',struct2sort.(imgsInStudy(sortedImg(0))))
+        IF nImgSer GT 1 THEN BEGIN
+          FOR j=1, nImgSer-1 DO seriesStruct=CREATE_STRUCT(seriesStruct,'I'+STRING(j,FORMAT='(i0)'),struct2sort.(imgsInStudy((sortedImg(j)))))
+        ENDIF
+        IF N_ELEMENTS(structSorted) EQ 0 THEN structSorted=CREATE_STRUCT('S0', seriesStruct) ELSE BEGIN
+          already=N_TAGS(structSorted)
+          structSorted=CREATE_STRUCT(structSorted,'S'+STRING(already,FORMAT='(i0)'), seriesStruct)
+        ENDELSE
+      ENDIF
+    ENDFOR
+  ENDFOR
+return, structSorted
+end
+
 pro selectImages, markArr, QTstring, defPath
 
-  COMMON SELIM, txtBrowse, lblProgressSelIm, structImgsSelIm, structSelected, lstSer, lstImg, lstSelImg, lstSort, $
+  COMMON SELIM, txtBrowse, lblProgressSelIm, structImgsSelIm, structSelected, lstSer, lstImg, lstSelImg, lstSort, lstQT, nQT, $
     cw_typeSelect, txtSelNZ, txtSelNpos, txtSelCloseZ, cw_SelPos, defPathS
   COMPILE_OPT hidden
 
   defPathS=defPath
-  structImgsSelIm=!Null
-  structSelected=!Null
+  structImgsSelIm=!Null; all images (browse)
+  structSelected=!Null; selected images
 
   thisPath=FILE_DIRNAME(ROUTINE_FILEPATH('ImageQC'))+'\'
   font0="Tahoma*ITALIC*16"
@@ -79,7 +133,7 @@ pro selectImages, markArr, QTstring, defPath
   lblTransfer0=WIDGET_LABEL(bTransfer, VALUE='', YSIZE=100)
   lblTransfer1=WIDGET_LABEL(bTransfer, VALUE='Push', FONT=font1)
   lblTransfer2=WIDGET_LABEL(bTransfer, VALUE='selected', FONT=font1)
-  btnAddSel=WIDGET_BUTTON(bTransfer, VALUE='>>', TOOLTIP='Add selected images if this series to the list of selected images', FONT=font1, UVALUE='addSel')
+  btnAddSel=WIDGET_BUTTON(bTransfer, VALUE='>>', TOOLTIP='Add selected images of this series to the list of selected images', FONT=font1, UVALUE='addSel')
 
   bSelImgList=WIDGET_BASE(bLists, /COLUMN)
   lblSelImg=WIDGET_LABEL(bSelImgList, VALUE='Images to be opened ', FONT=fontTit)
@@ -89,8 +143,9 @@ pro selectImages, markArr, QTstring, defPath
   bQTlist=WIDGET_BASE(bLists, /COLUMN)
   lblQT=WIDGET_LABEL(bQTlist, VALUE='QuickTemp ', FONT=fontTit)
   lblQT2=WIDGET_LABEL(bQTlist, VALUE=QTstring, FONT=font1)
-  lstQT=WIDGET_LIST(bQTlist, XSIZE=50, SCR_XSIZE=50, YSIZE=1, SCR_YSIZE=350, MULTIPLE=1, FONT=font1, UVALUE='qtList');, /CONTEXT_EVENTS)
+  lstQT=WIDGET_LIST(bQTlist, XSIZE=50, SCR_XSIZE=100, YSIZE=1, SCR_YSIZE=350, MULTIPLE=1, FONT=font1, UVALUE='qtList');, /CONTEXT_EVENTS)
 
+  nQT=0
   If markArr(0) NE -1 THEN BEGIN
     szMM=SIZE(markArr, /DIMENSIONS)
     IF N_ELEMENTS(szMM) EQ 1 THEN szMM=[szMM,1]
@@ -100,6 +155,7 @@ pro selectImages, markArr, QTstring, defPath
         IF markArr[j,i] THEN strQTarr(i)=strQTarr(i)+STRING(j+1, FORMAT='(i0)') ELSE strQTarr(i)=strQTarr(i)+'- '
       ENDFOR
     ENDFOR
+    nQT=szMM(1)
     WIDGET_CONTROL, lstQT, SET_VALUE=strQTarr
   ENDIF
 
@@ -108,16 +164,16 @@ pro selectImages, markArr, QTstring, defPath
   b1=WIDGET_BASE(bBottom, XSIZE=250, /COLUMN)
   lblB11=WIDGET_LABEL(b1, VALUE='Select options will affect all', FONT=font1, /ALIGN_LEFT)
   lblB12=WIDGET_LABEL(b1, VALUE='selected series.', FONT=font1,/ALIGN_LEFT)
-  
-  bSortBy=WIDGET_BASE(b1, /ROW)
-  lblSort=WIDGET_LABEL(bSortby, VALUE='Sort by', FONT=font1, /ALIGN_LEFT)
-  lstSort=WIDGET_DROPLIST(bSortby, VALUE=['Series number','Acquisition time'], XSIZE=150, FONT=font1, UVALUE='listSort')
+
+  ;bSortBy=WIDGET_BASE(b1, /ROW)
+  ;lblSort=WIDGET_LABEL(bSortby, VALUE='Sort by', FONT=font1, /ALIGN_LEFT)
+  ;lstSort=WIDGET_DROPLIST(bSortby, VALUE=['Series time / Acquisition number',''], XSIZE=150, FONT=font1, UVALUE='listSort')
 
   lblBtm1=WIDGET_LABEL(bBottom, VALUE='', XSIZE=5)
   b2=WIDGET_BASE(bBottom, /COLUMN, FRAME=1)
-  
+
   b2_top=WIDGET_BASE(b2, /ROW)
- 
+
   cw_typeSelect=CW_BGROUP(b2_top, ['Select all','Select the','Select the'], /EXCLUSIVE, FONT=font1, COLUMN=1, SPACE=7, YPAD=0, SET_VALUE=0, XSIZE=88, UVALUE='cw_typeSelect')
   b2_2=WIDGET_BASE(b2_top, /COLUMN)
   lblemptyall=WIDGET_LABEL(b2_2, VALUE='', YSIZE=25)
@@ -139,7 +195,7 @@ pro selectImages, markArr, QTstring, defPath
   lbl4t=WIDGET_LABEL(b4_top, VALUE='', XSIZE=100)
   btnDesel=WIDGET_BUTTON(b4_top, VALUE='Remove selected from list', UVALUE='removeSel', FONT=font1)
   btnClearSel=WIDGET_BUTTON(B4_top, VALUE='Clear list', UVALUE='clearSel', FONT=font1)
-  
+
   b4ml=WIDGET_LABEL(b4, VALUE='', YSIZE=80)
   b_btm=WIDGET_BASE(b4,/ROW)
   lbl4=WIDGET_LABEL(b_btm, VALUE='', XSIZE=250)
@@ -229,47 +285,8 @@ pro selectImages_event, event
             nImg=N_TAGS(structImgsAll)
             ;sort by studydatetime and seriesNmb
             IF nImg GT 0 THEN BEGIN
-              
-              studydatetimeArr=!Null
-              FOR i=0, nImg-1 DO studydatetimeArr=[studydatetimeArr,structImgsAll.(i).studydatetime]
-
-              studiesInList=studydatetimeArr(UNIQ(studydatetimeArr,BSORT(studydatetimeArr)))
-              
-              sortID=WIDGET_INFO(lstSort, /DROPLIST_SELECT)
-         
-              FOR d=0, N_ELEMENTS(studiesInList)-1 DO BEGIN
-                imgsInStudy=WHERE(studydatetimeArr EQ studiesInList(d), nImgStudy)
-                seriesArr=!Null
-                
-                CASE sortID OF
-                  0: FOR i=0, nImgStudy-1 DO seriesArr=[seriesArr,structImgsAll.(imgsInStudy(i)).seriesTime]
-                  1: FOR i=0, nImgStudy-1 DO seriesArr=[seriesArr,structImgsAll.(imgsInStudy(i)).acqTime]
-                ENDCASE
-                
-                seriesInList=seriesArr(UNIQ(seriesArr,BSORT(LONG(seriesArr))))
-                FOR s=0, N_ELEMENTS(seriesInList)-1 DO BEGIN
-                  imgsInSer=WHERE(seriesArr EQ seriesInList(s), nImgSer)
-                  IF imgsInSer(0) NE -1 THEN BEGIN
-  
-                    ;sort by imgNo
-                    imgArr=!Null
-                    FOR i=0, nImgSer-1 DO imgArr=[imgArr,structImgsAll.(imgsInStudy(imgsInSer(i))).imgNo]
-                    imgSorted=UNIQ(imgArr,BSORT(LONG(imgArr)))
-                    sortedImg=imgsInSer(imgSorted)
-  
-                    seriesStruct=CREATE_STRUCT('I0',structImgsAll.(imgsInStudy(sortedImg(0))))
-                    IF nImgSer GT 1 THEN BEGIN
-                      FOR j=1, nImgSer-1 DO seriesStruct=CREATE_STRUCT(seriesStruct,'I'+STRING(j,FORMAT='(i0)'),structImgsAll.(imgsInStudy((sortedImg(j)))))
-                    ENDIF
-                    IF N_ELEMENTS(structImgsSelIm) EQ 0 THEN structImgsSelIm=CREATE_STRUCT('S0', seriesStruct) ELSE BEGIN
-                      already=N_TAGS(structImgsSelIm)
-                      structImgsSelIm=CREATE_STRUCT(structImgsSelIm,'S'+STRING(already,FORMAT='(i0)'), seriesStruct)
-                    ENDELSE
-                  ENDIF
-                ENDFOR
-              ENDFOR
-              
-              
+              ;sortID=WIDGET_INFO(lstSort, /DROPLIST_SELECT)
+              structImgsSelIm=sortImages(structImgsAll, 0)
             ENDIF
 
             structImgsAll=!Null
@@ -294,16 +311,28 @@ pro selectImages_event, event
         IF imgList(0) NE '' THEN WIDGET_CONTROL, lstImg, SET_VALUE=imgList, SET_LIST_SELECT=0 ELSE WIDGET_CONTROL, lstImg, SET_VALUE='', SET_LIST_SELECT=0
 
       END
-      'listSort':BEGIN
-        IF N_ELEMENTS(structImgsSelIm) GT 0 THEN BEGIN
-          sv=DIALOG_MESSAGE('Lazy programmer - reload dataset (browse) to make the new sorting affect the list', DIALOG_PARENT=evTop)
-        ENDIF
-        END
+;      'listSort':BEGIN
+;        IF N_ELEMENTS(structImgsSelIm) GT 0 THEN BEGIN
+;          WIDGET_CONTROL, lblProgressSelIm, SET_VALUE='Sorting images...'
+;          structSelected=!Null
+;          WIDGET_CONTROL, lstSelImg, SET_VALUE=''
+;          sortID=WIDGET_INFO(lstSort, /DROPLIST_SELECT)
+;          structImgsSelIm=sortImages(structImgsSelIm, sortID)
+;          
+;          serList=getSeriesList(structImgsSelIm)
+;          imgList=getImgList(structImgsSelIm,0)
+;
+;          IF serList(0) NE '' THEN WIDGET_CONTROL, lstSer, SET_VALUE=serList, SET_LIST_SELECT=0 ELSE WIDGET_CONTROL, lstSer, SET_VALUE='', SET_LIST_SELECT=0
+;          IF imgList(0) NE '' THEN WIDGET_CONTROL, lstImg, SET_VALUE=imgList, SET_LIST_SELECT=0 ELSE WIDGET_CONTROL, lstImg, SET_VALUE='', SET_LIST_SELECT=0
+;          WIDGET_CONTROL, lstSelImg, SET_VALUE=''
+;          WIDGET_CONTROL, lblProgressSelIm, SET_VALUE=''
+;        ENDIF
+;      END
       'testSel':BEGIN
         WIDGET_CONTROL, cw_typeSelect, GET_VALUE=type
         selSer=WIDGET_INFO(lstSer, /LIST_SELECT)
         nImg=N_TAGS(structImgsSelIm.(selSer(0)))
-        
+
         CASE type OF
           0:BEGIN;select all
             WIDGET_CONTROL, lstImg, SET_LIST_SELECT=INDGEN(nImg)
@@ -363,7 +392,7 @@ pro selectImages_event, event
         nSelP=LONG(nStr(0))
         WIDGET_CONTROL, txtSelNpos, SET_VALUE=STRING(nSelP, FORMAT='(i0)')
         WIDGET_CONTROL, cw_SelPos, GET_VALUE=pos
-        
+
         selSer=WIDGET_INFO(lstSer, /LIST_SELECT)
         FOR i=0, N_ELEMENTS(selSer)-1 DO BEGIN
           nImg=N_TAGS(structImgsSelIm.(selSer(i)))
@@ -374,11 +403,11 @@ pro selectImages_event, event
             1:BEGIN;select on zpos
               zPosAll=FLTARR(nImg)
               FOR j=0, nImg-1 DO zPosAll(j)=structImgsSelIm.(selSer(i)).(j).zPos
-  
+
               diffZpos=zPosAll-zPos
               absDiffZpos=ABS(diffZpos)
               closestZ=WHERE(absDiffZpos EQ MIN(absDiffZpos))
-  
+
               first=closestZ(0)-FLOOR(nSelZ/2)
               If first LT 0 THEN first=0
               last=first+nSelZ-1
@@ -397,25 +426,25 @@ pro selectImages_event, event
               ENDCASE
               IF firstLast(0) LT 0 THEN firstLast(0)=0
               IF firstLast(1) GT nImg-1 THEN firstLast(1)=nImg-1
-  
+
               selImgs=INDGEN(firstLast(1)-firstLast(0)+1)+firstLast(0)
             END
           ENDCASE
-                   
+
           IF selImgs(0) NE -1 THEN BEGIN
             IF SIZE(structSelected, /TNAME) EQ 'STRUCT' THEN nAlready=N_TAGS(structSelected) ELSE nAlready=0
             FOR j=0, N_ELEMENTS(selImgs)-1 DO structSelected=CREATE_STRUCT(structSelected, 'I'+STRING(j+nAlready,FORMAT='(i0)'), structImgsSelIm.(selSer(i)).(selImgs(j)))
           ENDIF
-          
-         ENDFOR
-         
-         selList=getSelList(structSelected)
-         IF selList(0) NE '' THEN WIDGET_CONTROL, lstSelImg, SET_VALUE=selList ELSE WIDGET_CONTROL, lstImg, SET_VALUE=''
+
+        ENDFOR
+
+        selList=getSelList(structSelected)
+        IF selList(0) NE '' THEN WIDGET_CONTROL, lstSelImg, SET_VALUE=selList ELSE WIDGET_CONTROL, lstImg, SET_VALUE=''
       END
       'addSel':BEGIN
         selSer=WIDGET_INFO(lstSer, /LIST_SELECT)
         selImgs=WIDGET_INFO(lstImg, /LIST_SELECT)
-        
+
         IF SIZE(structSelected, /TNAME) EQ 'STRUCT' THEN nAlready=N_TAGS(structSelected) ELSE nAlready=0
         IF selSer(0) NE -1 THEN BEGIN
           selSer=selSer(0)
@@ -438,12 +467,25 @@ pro selectImages_event, event
             structSelected=removeIDstructstruct(structSelected, selImgs)
             selList=getSelList(structSelected)
             WIDGET_CONTROL, lstSelImg, SET_VALUE=selList
-          ENDELSE 
+          ENDELSE
         ENDIF
       END
       'clearSel': BEGIN
         structSelected=!Null
         WIDGET_CONTROL, lstSelImg, SET_VALUE=''
+      END
+      'selImgList':BEGIN; if QuickTemp loaded scroll this list in parallell
+        IF nQT GT 0 THEN BEGIN
+          topSel=WIDGET_INFO(lstSelImg, /LIST_TOP)
+          If topSel LT nQT THEN WIDGET_CONTROL, lstQT, SET_LIST_TOP=MIN([nQT-1,topSel])
+        ENDIF
+        END
+      'qtList':BEGIN; same as for selImgList
+        IF nQT GT 0 THEN BEGIN
+          topSel=WIDGET_INFO(lstQT, /LIST_TOP)
+          nSel=N_TAGS(structSelected)
+          If topSel LT nSel THEN WIDGET_CONTROL, lstSelImg, SET_LIST_TOP=MIN([nSel-1,topSel])
+        ENDIF
         END
       'openSelim':BEGIN
         IF SIZE(structSelected, /TNAME) EQ 'STRUCT' THEN BEGIN

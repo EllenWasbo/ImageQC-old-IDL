@@ -15,7 +15,7 @@
 ;along with this program; if not, write to the Free Software
 ;Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
-pro autoTempRun, thisTemp
+pro autoTempRun, thisTemp, thisModality, LOOP=loop
 
   COMPILE_OPT hidden
   COMMON VARI
@@ -39,7 +39,8 @@ pro autoTempRun, thisTemp
     adrTempTemp=''
 
     ;ensure path ending with separator
-    IF STRMID(adr(0), 0, /REVERSE_OFFSET) NE PATH_SEP(SEARCH_PATH=adr(0)) THEN adr=adr(0)+PATH_SEP(SEARCH_PATH=adr(0))
+    sep=PATH_SEP()
+    IF STRMID(adr(0), 0, /REVERSE_OFFSET) NE sep THEN adr=adr(0)+sep
 
     IF thisTemp.includeSub THEN Spawn, 'dir '  + '"'+adr(0)+'"' + '*'+ '/b /s', adrTempTemp ELSE BEGIN
       Spawn, 'dir '  + '"'+adr(0)+'"' + '*'+ '/b /a-D', adrTempTemp
@@ -157,22 +158,32 @@ pro autoTempRun, thisTemp
   
             ;set quickTemp
             qtName=thisTemp.quickTemp
-            qtNumb=0
+            qtNumb=-1
+            IF SIZE(quickTemp, /TNAME) EQ 'STRUCT' THEN BEGIN
+              IF SIZE(quickTemp.(thisModality), /TNAME) EQ 'STRUCT' THEN fillQuickTempList, quickTemp.(thisModality) ELSE fillQuickTempList, -1
+            ENDIF ELSE fillQuickTempList, -1
+            modality=thisModality
             IF qtName NE '' THEN BEGIN
-              tnamesQT=TAG_NAMES(quickTemp)
-              tagno=WHERE(STRUPCASE(tnamesQT) EQ STRUPCASE(qtName))
-              IF tagno(0) NE -1 THEN BEGIN
-                fillQuickTempList, quickTemp, SELECT_NAME=qtName;pro in refreshParam.pro
-                qtNumb=tagno(0)
-                WIDGET_CONTROL, btnUseMulti, SET_BUTTON=1
-              ENDIF ELSE sv=DIALOG_MESSAGE('Did not find the saved quickTemp-name in list of quickTemps.',DIALOG_PARENT=evTop)
+              IF SIZE(quickTemp, /TNAME) EQ 'STRUCT' THEN BEGIN
+                IF SIZE(quickTemp.(thisModality), /TNAME) EQ 'STRUCT' THEN BEGIN
+                  tnamesQT=TAG_NAMES(quickTemp.(thisModality))
+                  tagno=WHERE(STRUPCASE(tnamesQT) EQ STRUPCASE(qtName))
+                  IF tagno(0) NE -1 THEN BEGIN
+                    fillQuickTempList, quickTemp.(thisModality), SELECT_NAME=qtName;pro in refreshParam.pro
+                    qtNumb=tagno(0)
+                    WIDGET_CONTROL, btnUseMulti, SET_BUTTON=1
+                  ENDIF 
+                ENDIF
+              ENDIF
+              IF qtNumb EQ -1 THEN sv=DIALOG_MESSAGE('Missing QuickTest template named '+ qtName+ ' for this modality.',DIALOG_PARENT=evTop)
             ENDIF
   
-            IF qtNumb EQ 0 THEN dateList=-1
+            IF qtNumb EQ -1 THEN dateList=-1
   
             oldCopyHeader=copyHeader
             oldTransposeTable=transposeTable
-            infoLogg=''
+            infoLogg1='' & infoLogg2=''
+            writtenToFile=0
             notMove=-1
             FOR q=0, N_ELEMENTS(dateList)-1 DO BEGIN
   
@@ -198,14 +209,13 @@ pro autoTempRun, thisTemp
                 clearRes
                 updateInfo
   
-                IF qtNumb NE 0 THEN BEGIN
+                IF qtNumb NE -1 THEN BEGIN
                   updateMulti
                   tags=TAG_NAMES(structImgs)
                   IF tags(0) NE 'EMPTY' THEN BEGIN
                     calculateQuickTest
                     IF TOTAL(results) GT 0 THEN BEGIN
   
-                      writtenToFile=0
                       errFile=0
                       ;append resultfile?
                       IF thisTemp.pathApp NE '' THEN BEGIN
@@ -221,14 +231,14 @@ pro autoTempRun, thisTemp
                           PRINTF, resfile, CLIPBOARD.GET()
                           CLOSE, resfile & FREE_LUN, resfile
                           writtenToFile=1
-                          infoLogg=infoLogg+'Written results for date '+structImgs.(0).acqDate+' to file '+thisTemp.pathApp+newline
+                          ;IF infoLogg1 EQ '' THEN infoLogg1='Written results to file';commas not working wiht cw_form... for dates: '+structImgs.(0).acqDate ELSE infoLogg1=infoLogg1+', '+structImgs.(0).acqDate
                         ENDIF ELSE errFile=1
   
                       ENDIF ELSE exportMulti;to clipboard
   
                       IF writtenToFile EQ 0 THEN BEGIN
                         IF errFile EQ 1 THEN sv=DIALOG_MESSAGE('Could not find file '+thisTemp.pathApp+newline+'Press OK to continue when current results (in clipboard) are pasted to a result file or ignored.', DIALOG_PARENT=evTop)
-                        IF thisTemp.pathApp EQ '' THEN sv=DIALOG_MESSAGE('No path for results specified. Press OK to continue when current results (in clipboard) are pasted to a result file or ignored.', DIALOG_PARENT=evTop)
+                        IF thisTemp.pathApp EQ '' THEN sv=DIALOG_MESSAGE('No path for results specified. Paste results (from clipboard) or ignore and then click OK to continue.', DIALOG_PARENT=evTop)
                       ENDIF
   
                       ;move files?
@@ -241,7 +251,8 @@ pro autoTempRun, thisTemp
                           IF fi.exists EQ 0 THEN file_move, structImgs.(i).filename, archivePath+FILE_BASENAME(structImgs.(i).filename)
                           structImgs.(i).filename=archivePath+FILE_BASENAME(structImgs.(i).filename)
                         ENDFOR
-                        infoLogg=infoLogg+'Moved files for date '+structImgs.(0).acqDate+' to folder "Archive" in '+thisTemp.path+newline
+                        
+                        IF infoLogg2 EQ '' THEN infoLogg2='Moved files to "Archive" in '+thisTemp.path+newline
                         fileList=getListOpenFiles(structImgs,0,marked, markedMulti)
                         WIDGET_CONTROL, listFiles, YSIZE=n_elements(fileList), SET_VALUE=fileList, SET_LIST_SELECT=0, SET_LIST_TOP=0
                         WIDGET_CONTROL, listFiles, SCR_YSIZE=170
@@ -259,9 +270,11 @@ pro autoTempRun, thisTemp
   
             ENDFOR
             
+            IF writtenToFile EQ 1 THEN infoLogg='Written results to file'+newline+infoLogg2 ELSE infoLogg=infoLogg2 
+            
             IF thisTemp.deleteFiles THEN BEGIN
               IF delAdr NE !Null THEN FILE_DELETE, delAdr, /QUIET;, /RECYCLE to recycle-bin?
-              infoLogg=infoLogg+'Deleted files with no image data. '+newline
+              infoLogg2=infoLogg2+'Deleted files with no image data. '+newline
             ENDIF
             structImgsAll=!Null
             copyHeader=oldCopyHeader
@@ -274,7 +287,18 @@ pro autoTempRun, thisTemp
               updatePlot,1,1,0
               WIDGET_CONTROL, wtabResult, SET_TAB_CURRENT=0
             ENDIF ELSE clearAll
-            IF infoLogg NE '' THEN sv=DIALOG_MESSAGE(infoLogg, /INFORMATION, DIALOG_PARENT=evTop)
+            IF infoLogg NE '' THEN BEGIN
+              IF N_ELEMENTS(loop) NE 0 THEN BEGIN
+                box=[$
+                  '1, BASE,, /COLUMN', $
+                  '2, LABEL, '+ infoLogg, $
+                  '1, BASE,, /ROW', $
+                  '0, BUTTON, Continue to next image set, QUIT, TAG=Cont',$
+                  '2, BUTTON, Stop, QUIT, TAG=Cancel']
+                res=CW_FORM_2(box, /COLUMN, TAB_MODE=1, TITLE='Automation template', XSIZE=300, YSIZE=150, FOCUSNO=3, XOFFSET=xoffset+200, YOFFSET=yoffset+200)
+                IF res.Cancel THEN loop=0
+              ENDIF ELSE sv=DIALOG_MESSAGE(infoLogg, /INFORMATION, DIALOG_PARENT=evTop)
+            ENDIF
           ENDIF;dcm with image content GT 0
         ENDIF;dcm adr GT 0
 
@@ -286,5 +310,5 @@ pro autoTempRun, thisTemp
     ENDIF ELSE sv=DIALOG_MESSAGE('Found no files in selected folder. (NB special characteres in file-path might not work well.)', DIALOG_PARENT=evTop);dirs
   ENDIF;path empty
 
-
+  return
 end

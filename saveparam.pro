@@ -15,20 +15,10 @@
 ;along with this program; if not, write to the Free Software
 ;Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
-
-;save parameters as current set or new set
-;overWriteNo = parameter set number to overwrite (-1 if not to be used), starts on 1 as first parameter is the defaultinfo
-;newName = name of new parameter set (empty string '' if not to be used)
-pro saveParam, overWriteNo, newName
-
+pro getParam, configTemp
   COMMON VARI
   COMPILE_OPT hidden
 
-  RESTORE, thisPath+'data\config.dat'
-
-  configTags=TAG_NAMES(configS.(selConfig))
-  oldConfig=configS.(selConfig)
-  oldSelConfig=selConfig
   ;CT tests
   WIDGET_CONTROL, cw_typeMTF, GET_VALUE=typeMTF
   WIDGET_CONTROL, cw_plotMTF, GET_VALUE= plotWhich
@@ -97,7 +87,7 @@ pro saveParam, overWriteNo, newName
   WIDGET_CONTROL, txtHomogROIszPET, GET_VALUE=homogROIszPET
   WIDGET_CONTROL, txtHomogROIdistPET, GET_VALUE=homogROIdistPET
 
-  config=CREATE_STRUCT('deciMark', deciMark, 'copyHeader', copyHeader, 'includeFilename', WIDGET_INFO(btnIncFilename,/BUTTON_SET),'transposeTable', transposeTable, 'append', WIDGET_INFO(btnAppend, /BUTTON_SET),'qtOutTemps',['DEFAULT','DEFAULT','DEFAULT','DEFAULT','DEFAULT'],$
+  configTemp=CREATE_STRUCT('copyHeader', copyHeader, 'transposeTable', transposeTable, 'deciMark', deciMark, 'includeFilename', WIDGET_INFO(btnIncFilename,/BUTTON_SET),'append', WIDGET_INFO(btnAppend, /BUTTON_SET),'qtOutTemps',['DEFAULT','DEFAULT','DEFAULT','DEFAULT','DEFAULT'],$
     'MTFtype',typeMTF,'MTFtypeX', typeMTFX, 'MTFtypeNM', typeMTFNM,'MTFtypeSPECT', typeMTFSPECT, 'plotMTF',plotWhich,'plotMTFX',plotWhichX,'plotMTFNM', plotWhichNM,'plotMTFSPECT', plotWhichSPECT,$
     'tableMTF',tableWhich,'cyclMTF',MTFcyclWhich,'tableMTFX', tableWhichX, $
     'MTFroiSz',FLOAT(MTFroiSz(0)),'MTFroiSzX',[FLOAT(MTFroiSzX(0)),FLOAT(MTFroiSzY(0))],'MTFroiSzNM',[FLOAT(MTFroiSzXNM(0)),FLOAT(MTFroiSzYNM(0))],'MTFroiSzSPECT',FLOAT(MTFroiSzSPECT(0)),'MTF3dSPECT',WIDGET_INFO(MTF3dSPECT, /BUTTON_SET),$
@@ -114,6 +104,29 @@ pro saveParam, overWriteNo, newName
     'scanSpeedAvg',LONG(scanSpeedAvg(0)), 'scanSpeedHeight', FLOAT(scanSpeedHeight(0)), 'scanSpeedFiltW', LONG(scanSpeedFiltW(0)), $
     'contrastRad1', FLOAT(contrastRad1(0)), 'contrastRad2', FLOAT(contrastRad2(0)),$
     'CrossROIsz', FLOAT(crossROIsz(0)), 'CrossVol', FLOAT(crossVol(0)) )
+
+  RETURN
+end
+
+
+;save parameters as current set or new set
+;overWriteNo = parameter set number to overwrite (-1 if not to be used), starts on 1 as first parameter is the defaultinfo
+;newName = name of new parameter set (empty string '' if not to be used)
+pro saveParam, overWriteNo, newName
+
+  COMMON VARI
+  COMPILE_OPT hidden
+
+  RESTORE, thisPath+'data\config.dat'
+
+  configTags=TAG_NAMES(configS.(selConfig))
+  oldConfig=configS.(selConfig)
+  oldSelConfig=selConfig
+  
+  configTemp=!Null
+  getParam, configTemp
+  config=configTemp
+  configTemp=!Null
     
   tagsOldConfig=TAG_NAMES(oldConfig)
   IF tagsOldConfig.HasValue('QUICKTEMP') THEN BEGIN

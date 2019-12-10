@@ -16,42 +16,47 @@
 ;Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 ;fill quickTemp list
-;qt=quickTemp structure
+;qt=quickTemp structure for given modality
 ;SELECT_NAME = string of the template
 pro fillQuickTempList, qT, SELECT_NAME=select_name
   COMPILE_OPT hidden
   COMMON VARI
-  IF N_ELEMENTS(qT) NE 0 THEN BEGIN
-    typ=SIZE(qT, /TNAME)
-    IF typ EQ 'STRUCT' THEN BEGIN
+  IF N_ELEMENTS(qT) EQ 0 OR SIZE(qt, /TNAME) EQ 'INT' THEN BEGIN
+    WIDGET_CONTROL, listSelMultiTemp, SET_VALUE='', SET_DROPLIST_SELECT=0
+    clearMulti
+    marked=-1
+    WIDGET_CONTROL, btnUseMulti, SET_BUTTON=0
+  ENDIF ELSE BEGIN
+    IF SIZE(qT, /TNAME) EQ 'STRUCT' THEN BEGIN
       tempNames=TAG_NAMES(qT)
+      WIDGET_CONTROL, listSelMultiTemp, SET_VALUE=['',tempNames]
       selno=0
       IF N_ELEMENTS(select_name) NE 0 THEN BEGIN
         tagNo=WHERE(STRUPCASE(tempNames) EQ STRUPCASE(select_name))
         IF tagNo(0) NE -1 THEN selno=tagNo
         WIDGET_CONTROL, listSelMultiTemp, SET_DROPLIST_SELECT=selno+1
       ENDIF ELSE BEGIN;fill new
-        WIDGET_CONTROL, listSelMultiTemp, SET_VALUE=['',tempNames]
+        WIDGET_CONTROL, listSelMultiTemp, SET_DROPLIST_SELECT=0
         clearMulti
         marked=-1
         WIDGET_CONTROL, btnUseMulti, SET_BUTTON=0
       ENDELSE
-    ENDIF
-
-    If structImgs NE !Null THEN tags=TAG_NAMES(structImgs) ELSE tags='EMPTY'
-    IF tags(0) NE 'EMPTY' THEN BEGIN
-      fileList=getListOpenFiles(structImgs,0,marked,markedMulti)
-      sel=WIDGET_INFO(listFiles, /LIST_SELECT)
-      oldTop=WIDGET_INFO(listFiles, /LIST_TOP)
-      WIDGET_CONTROL, listFiles, SET_VALUE=fileList, SET_LIST_SELECT=sel(N_ELEMENTS(sel)-1), SET_LIST_TOP=oldTop
-    ENDIF
+    ENDIF ELSE BEGIN
+      WIDGET_CONTROL, listSelMultiTemp, SET_VALUE=''
+      clearMulti
+      marked=-1
+      WIDGET_CONTROL, btnUseMulti, SET_BUTTON=0
+    ENDELSE
+  ENDELSE
+  
+  If structImgs NE !Null THEN tags=TAG_NAMES(structImgs) ELSE tags='EMPTY'
+  IF tags(0) NE 'EMPTY' THEN BEGIN
+    fileList=getListOpenFiles(structImgs,0,marked,markedMulti)
+    sel=WIDGET_INFO(listFiles, /LIST_SELECT)
+    oldTop=WIDGET_INFO(listFiles, /LIST_TOP)
+    WIDGET_CONTROL, listFiles, SET_VALUE=fileList, SET_LIST_SELECT=sel(N_ELEMENTS(sel)-1), SET_LIST_TOP=oldTop
   ENDIF
   
-end
-
-pro setQuickTempName,  SELECT_NAME=select_name
-  COMPILE_OPT hidden
-  COMMON VARI
 end
 
 ;if paramSetName NE '' Then update also shown name

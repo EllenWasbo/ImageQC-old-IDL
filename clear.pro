@@ -55,6 +55,7 @@ pro clearRes, analyseStr
       expRes=!Null
       MTFres=!Null
       NPSres=!Null
+      varImgRes=!Null
       ;ROIres=!Null
       CTlinRes=!Null
       HUwaterRes=!Null
@@ -78,8 +79,10 @@ pro clearRes, analyseStr
         'HOMOG': homogRes=!Null
         'NOISE': noiseRes=!Null
         'EXP': expRes=!Null
+        'DCM': expRes=!Null
         'MTF': MTFres=!Null
         'NPS': NPSres=!Null
+        'VARI': varImgRes=!Null
         ;'ROI': ROIres=!Null
         'CTLIN':CTlinres=!Null
         'HUWATER': HUwaterRes=!Null
