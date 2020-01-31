@@ -137,7 +137,7 @@ function updateConfigS, file
     'deciMark',',', $
     'includeFilename', 0, $
     'append',0,$
-    'qtOutTemps', ['DEFAULT','DEFAULT','DEFAULT','DEFAULT','DEFAULT'], $
+    'qtOutTemps', ['DEFAULT','DEFAULT','DEFAULT','DEFAULT','DEFAULT','DEFAULT'], $
     'MTFtype',2,'MTFtypeX',1,'MTFtypeNM',1,'MTFtypeSPECT',1, $
     'plotMTF',3,'plotMTFX', 3, 'plotMTFNM',4,'plotMTFSPECT',4, 'tableMTF',0,'cyclMTF',0,'tableMTFX', 0, $
     'MTFroiSz',11.0,'MTFroiSzX',[20.,50.],'MTFroiSzNM',[20.,20.],'MTFroiSzSPECT',30.,'MTF3dSPECT',1, $
@@ -176,7 +176,15 @@ function updateConfigS, file
           IF oldTags.HasValue(defaultTags(j)) THEN BEGIN
             ;copy tag content
             ff=WHERE(oldTags EQ defaultTags(j))
-            configTemp=CREATE_STRUCT(configTemp, defaultTags(j), oldConfigS.(i).(ff))
+            IF defaultTags(j) EQ 'QTOUTTEMPS' THEN BEGIN
+              nModOld=N_ELEMENTS(oldConfigS.(i).(ff))
+              nModNew=N_ELEMENTS(configDefault.(j))
+              IF nModOld LT nModNew THEN BEGIN  
+                modQtOutTemps=configDefault.(j)
+                modQtOutTemps[0:nModOld-1]=oldConfigS.(i).(ff)
+                configTemp=CREATE_STRUCT(configTemp, defaultTags(j), modQtOutTemps)
+              ENDIF ELSE configTemp=CREATE_STRUCT(configTemp, defaultTags(j), oldConfigS.(i).(ff))
+            ENDIF ELSE configTemp=CREATE_STRUCT(configTemp, defaultTags(j), oldConfigS.(i).(ff))
           ENDIF ELSE BEGIN
             ;paste default content
             configTemp=CREATE_STRUCT(configTemp, defaultTags(j),configDefault.(j))

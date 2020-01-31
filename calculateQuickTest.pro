@@ -42,12 +42,19 @@ pro calculateQuickTest
     imgWithMark=WHERE(TOTAL(markedMulti,1) GT 0, nTested)
     IF nTested GT 0 THEN BEGIN
       RESTORE, thisPath+'data\config.dat'
+      availMod=TAG_NAMES(testVisualQTNames)
+      allMod=TAG_NAMES(multiOpt)
+      availModNmb=!Null
+      FOR m=0, N_ELEMENTS(allMod)-1 DO IF availMod.HasValue(allMod(m)) THEN availModNmb=[availModNmb, m]
+      defModality=WHERE(modality EQ availModNmb); modality number in available list
+      IF defModality(0) EQ -1 THEN defModality=0
+      
       qtOutName=configS.(selConfig).qtOutTemps(modality)
-      qtOutNames=TAG_NAMES(quickTout.(modality))
+      qtOutNames=TAG_NAMES(quickTout.(defModality))
       tempNmb=WHERE(qtOutNames EQ qtOutName)
-      IF tempNmb NE -1 THEN currQTout=quickTout.(modality).(tempNmb) ELSE BEGIN
+      IF tempNmb NE -1 THEN currQTout=quickTout.(defModality).(tempNmb) ELSE BEGIN
         sv=DIALOG_MESSAGE('The output template ('+qtOutName+') assigned to this parameter set is missing. Default is used.',DIALOG_PARENT=evTop)
-        currQTout=quickTout.(modality).(0)
+        currQTout=quickTout.(defModality).(0)
       ENDELSE
       currTestsOut=TAG_NAMES(currQTout)
 
@@ -228,7 +235,7 @@ pro calculateQuickTest
                             addTable(0)=outpNames(iii)+'_Img'+STRING(im+1, FORMAT='(i0)')
                             IF N_ELEMENTS(cols) EQ 1 THEN addTable(1)=getValString(resUse(im), calc) ELSE addTable(1)=getValString(resUse[*,im], calc)
                           ENDIF ELSE BEGIN
-                            heads=tableHeaders.(modality).(tt).(alt)
+                            heads=tableHeaders.(defModality).(tt).(alt)
                             IF N_ELEMENTS(cols) EQ 1 THEN BEGIN
                               addTable(0)=heads(cols)+'_Img'+STRING(im+1, FORMAT='(i0)')
                               addTable(1)=resUseString(im);STRING(resUseString(im), FORMAT=formatCode(resUse(im)))
@@ -258,7 +265,7 @@ pro calculateQuickTest
                   addTable=STRARR(2,nCols)
                   addTable[*,*]='_'
                   ;addTable[0,0]=STRING(im+1, FORMAT='(i0)')
-                  addTable[0,*]=TRANSPOSE(tableHeaders.(modality).(tt).(alt))+'_Img'+STRING(im+1, FORMAT='(i0)')
+                  addTable[0,*]=TRANSPOSE(tableHeaders.(defModality).(tt).(alt))+'_Img'+STRING(im+1, FORMAT='(i0)')
                   FOR c=0, nCols-1 DO addTable[1,c]=resUse[c,im];STRING(resUse[c,im], FORMAT=formatCode(resUse[c,im]))
                   multiExpTable=[[multiExpTable],[addTable]]
                 ENDIF

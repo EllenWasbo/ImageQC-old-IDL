@@ -56,7 +56,7 @@ pro ImageQC,  GROUP_LEADER=bMain
     rcRes, rcROIs, btnRCrev, cwRCexclude, cw_rcType
 
   !EXCEPT=0;2 to see all errors
-  currVersion='1.7'
+  currVersion='1.71'
   thisPath=FILE_DIRNAME(ROUTINE_FILEPATH('ImageQC'))+'\'
   xoffset=100
   yoffset=50

@@ -19,7 +19,7 @@
 pro settings, GROUP_LEADER = mainbase, xoff, yoff, tabString;tabString = 'PARAM','QTSETUP', 'QTOUT' or 'AUTOSETUP'
 
   COMMON SETT, wtabSett, listSets_s, listParamAuto_s,autoNames_s, availModNmb, defModality, $
-    tblOutputSett, tblTestSett, orderTblTestSett, tblCurrMaterials, tblSelMaterials, lstCT_s, lstX_s, lstNM_s, $
+    tblOutputSett, tblTestSett, orderTblTestSett, tblCurrMaterials, tblSelMaterials, lstCT_s, lstX_s, lstNM_s,lstMR_s, $
     lstModality_QT, QTnames, lstTempQT, lstQT, lstQTusedAuto, autoNames_qt, lstTest_qt,$
     lstModality_qto, lstTemplates_qto, tblQTout, lstTest, lstAlt, lstCols, lstCalc, lstPer, txtDescr, lstQTOusedParam, setNames_qto, autoNames_qto, $
     qto_currMod, qto_currTemp, qto_currTest, qto_currOutp, qto_currSel, $
@@ -94,13 +94,13 @@ pro settings, GROUP_LEADER = mainbase, xoff, yoff, tabString;tabString = 'PARAM'
   lblExpTemp=WIDGET_LABEL(bQTOtemp, VALUE='QuickTest output template ', /ALIGN_LEFT, FONT=font0)
   bTempCT=WIDGET_BASE(bQTOtemp, /ROW)
   lblCT=WIDGET_LABEL(bTempCT, VALUE='CT', FONT=font1, XSIZE=60)
-  lstCT_s=WIDGET_DROPLIST(bTempCT, VALUE=TAG_NAMES(quickTout.CT), FONT=font1, XSIZE=100)
+  lstCT_s=WIDGET_DROPLIST(bTempCT, VALUE='NA', FONT=font1, XSIZE=100)
   bTempX=WIDGET_BASE(bQTOtemp, /ROW)
   lblX=WIDGET_LABEL(bTempX, VALUE='Xray', FONT=font1, XSIZE=60)
-  lstX_s=WIDGET_DROPLIST(bTempX, VALUE=TAG_NAMES(quickTout.Xray), FONT=font1, XSIZE=100)
+  lstX_s=WIDGET_DROPLIST(bTempX, VALUE='NA', FONT=font1, XSIZE=100)
   bTempNM=WIDGET_BASE(bQTOtemp, /ROW)
   lblNM=WIDGET_LABEL(bTempNM, VALUE='NM planar', FONT=font1, XSIZE=60)
-  lstNM_s=WIDGET_DROPLIST(bTempNM, VALUE=TAG_NAMES(quickTout.NM), FONT=font1, XSIZE=100)
+  lstNM_s=WIDGET_DROPLIST(bTempNM, VALUE='NA', FONT=font1, XSIZE=100)
   bTempSPECT=WIDGET_BASE(bQTOtemp, /ROW)
   lblSPECT=WIDGET_LABEL(bTempSPECT, VALUE='SPECT', FONT=font1, XSIZE=60)
   lblSPECTNA=WIDGET_LABEL(bTempSPECT, VALUE='NA', FONT=font1, XSIZE=50)
@@ -109,7 +109,7 @@ pro settings, GROUP_LEADER = mainbase, xoff, yoff, tabString;tabString = 'PARAM'
   lblPETNA=WIDGET_LABEL(bTempPET, VALUE='NA', FONT=font1, XSIZE=50)
   bTempMR=WIDGET_BASE(bQTOtemp, /ROW)
   lblMR=WIDGET_LABEL(bTempMR, VALUE='MR', FONT=font1, XSIZE=60)
-  lstMR_s=WIDGET_DROPLIST(bTempMR, VALUE=TAG_NAMES(quickTout.MR), FONT=font1, XSIZE=100)
+  lstMR_s=WIDGET_DROPLIST(bTempMR, VALUE='NA', FONT=font1, XSIZE=100)
 
   bOutputSettTable=WIDGET_BASE(bOutputSett, /COLUMN)
   lblTopLfRgt=WIDGET_LABEL(bOutputSettTable, VALUE='Output (export) settings ', /ALIGN_LEFT, FONT=font0)
@@ -530,7 +530,8 @@ pro settings_event, event
               WIDGET_CONTROL, lstCT_s, GET_VALUE=strCT
               WIDGET_CONTROL, lstX_s, GET_VALUE=strX
               WIDGET_CONTROL, lstNM_s, GET_VALUE=strNM
-              configS.(saveNmb).qtOutTemps=[strCT(WIDGET_INFO(lstCT_s, /DROPLIST_SELECT)),strX(WIDGET_INFO(lstX_s, /DROPLIST_SELECT)),strNM(WIDGET_INFO(lstNM_s, /DROPLIST_SELECT)),'DEFAULT','DEFAULT']
+              WIDGET_CONTROL, lstMR_s, GET_VALUE=strMR
+              configS.(saveNmb).qtOutTemps=[strCT(WIDGET_INFO(lstCT_s, /DROPLIST_SELECT)),strX(WIDGET_INFO(lstX_s, /DROPLIST_SELECT)),strNM(WIDGET_INFO(lstNM_s, /DROPLIST_SELECT)),'DEFAULT','DEFAULT',strMR(WIDGET_INFO(lstMR_s, /DROPLIST_SELECT))]
               SAVE, configS, quickTemp, quickTout, loadTemp, FILENAME=thisPath+'data\config.dat'
               s_upd, saveNmb-1, 0
             ENDELSE
@@ -548,7 +549,8 @@ pro settings_event, event
           namesCT=TAG_NAMES(quickTout.(0))
           namesX=TAG_NAMES(quickTout.(1))
           namesNM=TAG_NAMES(quickTout.(2))
-          configS.(selSet+1).qtOutTemps=[namesCT(WIDGET_INFO(lstCT_s, /DROPLIST_SELECT)),namesX(WIDGET_INFO(lstX_s, /DROPLIST_SELECT)),namesNM(WIDGET_INFO(lstNM_s, /DROPLIST_SELECT)),'DEFAULT','DEFAULT']
+          namesMR=TAG_NAMES(quickTout.(3))
+          configS.(selSet+1).qtOutTemps=[namesCT(WIDGET_INFO(lstCT_s, /DROPLIST_SELECT)),namesX(WIDGET_INFO(lstX_s, /DROPLIST_SELECT)),namesNM(WIDGET_INFO(lstNM_s, /DROPLIST_SELECT)),'DEFAULT','DEFAULT',namesMR(WIDGET_INFO(lstMR_s, /DROPLIST_SELECT))]
           SAVE, configS, quickTemp, quickTout, loadTemp, FILENAME=thisPath+'data\config.dat'
 
           s_upd, selSet, 0
@@ -862,7 +864,6 @@ pro settings_event, event
 
       END
 
-
       ;************** QT output **************
 
       'qto_lstModality': BEGIN;modality changed?
@@ -1030,7 +1031,6 @@ pro settings_event, event
           sv=DIALOG_MESSAGE('Are you sure you want to overwrite this output element?', /Question, DIALOG_PARENT=event.top)
           IF sv EQ 'Yes' THEN BEGIN
             RESTORE, thisPath+'data\config.dat'
-
             WIDGET_CONTROL, txtDescr, GET_VALUE=testDescr
             testDescr=STRUPCASE(IDL_VALIDNAME(testDescr, /CONVERT_ALL))
             proceed=1
@@ -1067,7 +1067,6 @@ pro settings_event, event
           sv=DIALOG_MESSAGE('Are you sure you want to delete this output element?', /Question, DIALOG_PARENT=event.top)
           IF sv EQ 'Yes' THEN BEGIN
             RESTORE, thisPath+'data\config.dat'
-
             IF SIZE(quickTout.(qto_currMod).(qto_currTemp).(qto_currTest), /TNAME) EQ 'STRUCT' THEN BEGIN
               nActOut=N_TAGS(quickTout.(qto_currMod).(qto_currTemp).(qto_currTest))
               IF nActOut NE 1 THEN BEGIN;keep at least one
@@ -1517,6 +1516,26 @@ pro s_upd, listNmb, allUpd
   setNames(configS.(0)-1)=setNames(configS.(0)-1)+' (default)'
   WIDGET_CONTROL, listSets_s, SET_VALUE=setNAmes, SET_LIST_SELECT=listNmb
   
+  ;outputTemps
+  If allUpd THEN BEGIN
+    WIDGET_CONTROL, lstCT_s, SET_VALUE=TAG_NAMES(quickTout.CT)
+    WIDGET_CONTROL, lstX_s,SET_VALUE=TAG_NAMES(quickTout.Xray)
+    WIDGET_CONTROL, lstNM_s, SET_VALUE=TAG_NAMES(quickTout.NM)
+    WIDGET_CONTROL, lstMR_s, SET_VALUE=TAG_NAMES(quickTout.MR)
+  Endif
+  tempNamesSel=configS.(listNmb+1).qtOutTemps
+  nmbs=INTARR(5)
+  errMsg=''
+  FOR i=0, N_TAGS(testVisualQTNames)-1 DO BEGIN
+    tempNames=TAG_NAMES(quickTout.(i))
+    nmb=WHERE(tempNames EQ tempNamesSel(i))
+    IF nmb NE -1 THEN nmbs(i)=nmb ELSE errMsg= tempNamesSel(i) + ' '+newline
+  ENDFOR
+  WIDGET_CONTROL, lstCT_s, SET_DROPLIST_SELECT=nmbs(0)
+  WIDGET_CONTROL, lstX_s, SET_DROPLIST_SELECT=nmbs(1)
+  WIDGET_CONTROL, lstNM_s, SET_DROPLIST_SELECT=nmbs(2)
+  WIDGET_CONTROL, lstMR_s, SET_DROPLIST_SELECT=nmbs(3)
+  
   ;output
   output_rows=WHERE(configSinfo[2,*] EQ '-1', nOutpRows)
   IF allUpd THEN BEGIN
@@ -1576,18 +1595,6 @@ pro s_upd, listNmb, allUpd
   IF N_ELEMENTs(rowNotEq) GT 0 THEN BEGIN
     FOR i=0, N_ELEMENTS(rowNotEq)-1 DO WIDGET_CONTROL, tblTestSett, USE_TABLE_SELECT=[3,rowNotEq(i),3,rowNotEq(i)], BACKGROUND_COLOR=[255,100,100]
   ENDIF
-
-  tempNamesSel=configS.(listNmb+1).qtOutTemps
-  nmbs=INTARR(5)
-  errMsg=''
-  FOR i=0, N_TAGS(testVisualQTNames)-1 DO BEGIN
-    tempNames=TAG_NAMES(quickTout.(i))
-    nmb=WHERE(tempNames EQ tempNamesSel(i))
-    IF nmb NE -1 THEN nmbs(i)=nmb ELSE errMsg= tempNamesSel(i) + ' '+newline
-  ENDFOR
-  WIDGET_CONTROL, lstCT_s, SET_DROPLIST_SELECT=nmbs(0)
-  WIDGET_CONTROL, lstX_s, SET_DROPLIST_SELECT=nmbs(1)
-  WIDGET_CONTROL, lstNM_s, SET_DROPLIST_SELECT=nmbs(2)
 
   ;material table
   If allUpd THEN BEGIN
@@ -1692,7 +1699,6 @@ pro qto_updTemp
   qto_currTest=0;currently selected test droplist
   qto_currOutp=0;currently selected output-number for current test
   qto_currSel=0;currently selected row in table
-  qto_currModNmb=availModNmb(qto_currMod)
 
   setNames_qto=!Null
   RESTORE, thisPath+'data\config.dat'
@@ -1707,10 +1713,10 @@ pro qto_updTemp
   autoNames_qto=!Null
   IF N_ELEMENTS(setNames_qto) NE 0 AND SIZE(loadTemp, /TNAME) EQ 'STRUCT' THEN BEGIN
     autoNames_qto=STRARR(N_ELEMENTS(setNames_qto))
-    IF SIZE(loadTemp.(qto_currModNmb), /TNAME) EQ 'STRUCT' THEN BEGIN
+    IF SIZE(loadTemp.(qto_currMod), /TNAME) EQ 'STRUCT' THEN BEGIN
       paramAutoThisMod=!Null
-      loadTempNames=TAG_NAMES(loadTemp.(qto_currModNmb))
-      FOR i=0, N_TAGS(loadTemp.(qto_currModNmb))-1 DO paramAutoThisMod=[paramAutoThisMod, loadTemp.(qto_currModNmb).(i).PARAMSET]
+      loadTempNames=TAG_NAMES(loadTemp.(qto_currMod))
+      FOR i=0, N_TAGS(loadTemp.(qto_currMod))-1 DO paramAutoThisMod=[paramAutoThisMod, loadTemp.(qto_currMod).(i).PARAMSET]
       FOR i = 0, N_ELEMENTS(setNames_qto)-1 DO BEGIN
         ids=WHERE(paramAutoThisMod EQ setNames_qto(i))
         IF ids(0) NE -1 THEN BEGIN

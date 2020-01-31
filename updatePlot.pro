@@ -109,6 +109,7 @@ pro updatePlot, setRangeMinMaxX, setRangeMinMaxY, optionSet
               END
 
               'MTF': BEGIN
+                IF SIZE(MTFres, /TNAME) EQ 'STRUCT' THEN BEGIN
                 resforeach=WHERE(TAG_NAMES(MTFres) EQ 'M0')
                 v3d=0
                 IF resforeach(0) EQ -1 THEN v3d=1
@@ -337,6 +338,7 @@ pro updatePlot, setRangeMinMaxX, setRangeMinMaxY, optionSet
                   END
                   ELSE: iDrawPlot.erase
                 ENDCASE
+                ENDIF ELSE iDrawPlot.erase 
               END
 
               'NPS': BEGIN
@@ -570,7 +572,7 @@ pro updatePlot, setRangeMinMaxX, setRangeMinMaxY, optionSet
               END
 
               'MTF': BEGIN
-
+IF SIZE(MTFres, /TNAME) EQ 'STRUCT' THEN BEGIN
                 IF N_TAGS(MTFres.(sel)) GT 1 THEN BEGIN
                   WIDGET_CONTROL, cw_plotMTFX, GET_VALUE= plotWhich
                   WIDGET_CONTROL, cw_formLSFX, GET_VALUE=formLSF
@@ -672,6 +674,7 @@ pro updatePlot, setRangeMinMaxX, setRangeMinMaxY, optionSet
                   ENDCASE
 
                 ENDIF
+                ENDIF ELSE iDrawPlot.erase
               END
 
               'NPS': BEGIN

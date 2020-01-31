@@ -203,6 +203,8 @@ pro ImageQC_event, ev
                 IF sv EQ 'Yes' THEN BEGIN            
                   countNoTemp=0
                   errF=0
+                  renames=''
+                  nNoImg=0
                   FOR n=0, nn-1 DO BEGIN
                     IF FILE_BASENAME(adrTempTemp(n)) EQ 'DICOMDIR' THEN dcm(n)=0 ELSE dcm(n)=QUERY_DICOM(adrTempTemp(n))
                     IF dcm(n) NE 0 THEN BEGIN
@@ -214,11 +216,11 @@ pro ImageQC_event, ev
   
                       test=o->GetReference('0008'x,'1010'x);
                       test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
-                      IF test(0) NE -1 THEN stationName=*(test_peker[0]) ELSE stationName=''
+                      IF test(0) NE -1 THEN stationName=*(test_peker[0]) ELSE stationName='noStationName'
   
                       test=o->GetReference('0010'x,'0020'x);
                       test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
-                      IF test(0) NE -1 THEN patid=*(test_peker[0]) ELSE patid=''
+                      IF test(0) NE -1 THEN patid=*(test_peker[0]) ELSE patid='noPatID'
   
                       test=o->GetReference('0008'x,'0022'x)
                       test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
@@ -236,19 +238,19 @@ pro ImageQC_event, ev
                       ENDIF ELSE BEGIN
                         test=o->GetReference('0008'x,'1030'x);study description
                         test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
-                        IF test(0) NE -1 THEN protocolName=*(test_peker[0]) ELSE protocolName=''
+                        IF test(0) NE -1 THEN protocolName=*(test_peker[0]) ELSE protocolName='noProtName'
                       ENDELSE
   
                       test=o->GetReference('0020'x,'0011'x)
                       test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
-                      IF test(0) NE -1 THEN seriesNmb=STRING(*(test_peker[0]), FORMAT='(i0)') ELSE seriesNmb=''
+                      IF test(0) NE -1 THEN seriesNmb=STRING(*(test_peker[0]), FORMAT='(i0)') ELSE seriesNmb='noSerNmb'
   
                       test=o->GetReference('0020'x,'0013'x)
                       test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
-                      IF test(0) NE -1 THEN imgNo=STRING(*(test_peker[0]), FORMAT='(i0)') ELSE imgNo=''
+                      IF test(0) NE -1 THEN imgNo=STRING(*(test_peker[0]), FORMAT='(i0)') ELSE imgNo='noImgNmb'
   
                       IF acqdate NE '' AND acqtime NE '' THEN BEGIN
-                        If stationName NE '' THEN basename=stationName+'_'+patid+'_' ELSE basename=patid+'_'
+                        basename=stationName+'_'+patid+'_'
                         basename=basename+acqDate+'_'+acqTime+'_'+protocolName+'_'+seriesNmb+'_'+imgNo
                         basename=IDL_VALIDNAME(basename.compress(),/CONVERT_ALL)
   
@@ -263,9 +265,16 @@ pro ImageQC_event, ev
   
                         IF adrTempTemp(n) NE newAdr(0)+basename+'.dcm' THEN BEGIN
                           resu=FILE_TEST(newAdr(0),/DIRECTORY)
-                          IF resu THEN file_move, adrTempTemp(n), newAdr(0)+basename+'.dcm' ELSE errF=errF+1
+                          IF resu THEN BEGIN
+                            IF renames.HasValue(newAdr(0)+basename) THEN BEGIN
+                              wh=WHERE(renames EQ newAdr(0)+basename, nNames)
+                              basenameN=basename+'_'+STRING(nNames, FORMAT='(i02)')
+                            ENDIF ELSE basenameN=basename
+                            file_move, adrTempTemp(n), newAdr(0)+basenameN+'.dcm'
+                            renames=[renames,newAdr(0)+basename]
+                          ENDIF ELSE errF=errF+1
                         ENDIF
-                      ENDIF; acqdate and acqtime not empty (not regarded as image)
+                      ENDIF ELSE nNoImg=nNoImg+1; acqdate and acqtime not empty (not regarded as image)
   
                     ENDIF; dcm?
                   ENDFOR; n files found
@@ -274,6 +283,10 @@ pro ImageQC_event, ev
                   
                   IF countNoTemp GT 0 THEN BEGIN
                     sv = DIALOG_MESSAGE(STRING(countNoTemp, FORMAT='(i0)')+ ' file(s) with no corresponding template for the specified station name were renamed (stationName, date, time, protocol, imgNumber) and placed directly under the selected folder.', DIALOG_PARENT=evTop)
+                  ENDIF
+                  
+                  IF nNoImg GT 0 THEN BEGIN
+                    sv = DIALOG_MESSAGE(STRING(nNoImg, FORMAT='(i0)')+ ' file(s) had no acquisition date and time. These are not regarded as image files and are left unchanged.', DIALOG_PARENT=evTop)
                   ENDIF
                 ENDIF
                 WIDGET_CONTROL, lblProgress, SET_VALUE=''
@@ -3453,6 +3466,9 @@ end
 
 pro ImageQC_about, GROUP_LEADER = mainB
 
+  COMPILE_OPT hidden
+  COMMON VARI
+
   about_box = WIDGET_BASE(TITLE='About ImageQC', /COLUMN, $
     XSIZE=350, YSIZE=200, XOFFSET=200, YOFFSET=200, GROUP_LEADER=mainB, /MODAL)
 
@@ -3462,7 +3478,7 @@ pro ImageQC_about, GROUP_LEADER = mainB
   info2=WIDGET_LABEL(about_box, /ALIGN_CENTER,VALUE='---------------------------------')
   info3=WIDGET_LABEL(about_box, /ALIGN_CENTER,VALUE='Implemented with IDL v 8.7')
   info9=WIDGET_LABEL(about_box, /ALIGN_CENTER,VALUE='')
-  info12=WIDGET_LABEL(about_box, /ALIGN_CENTER,VALUE='Ellen Wasb'+string(248B)+' 2018 (ellen@wasbo.net)')
+  info12=WIDGET_LABEL(about_box, /ALIGN_CENTER,VALUE='Ellen Wasb'+string(248B)+' 2019 (ellen.wasbo@sus.no)')
   info13=WIDGET_LABEL(about_box, /ALIGN_CENTER,VALUE='Stavanger University Hospital, Norway')
 
   WIDGET_CONTROL, about_box, /REALIZE
