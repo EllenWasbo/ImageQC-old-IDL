@@ -33,6 +33,9 @@ pro clearAll
   WIDGET_CONTROL, txtActive1, SET_VALUE=''
   WIDGET_CONTROL, txtActive2, SET_VALUE=''
   WIDGET_CONTROL, lblDir, SET_VALUE=''
+  
+  currSortElem=!Null
+  currAscElem=!Null
 
   clearRes
   clearMulti

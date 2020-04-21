@@ -20,9 +20,9 @@ pro ImageQC,  GROUP_LEADER=bMain
 
   COMPILE_OPT hidden
   COMMON VARI,  $
-    evTop, currVersion, saveOK, lblDir, btnAppend, switchMode, listFiles,ctmActions, lastList, lblLoadedN, lblProgress, lblSettings, selConfig, activeImg, activeResImg, ROIs,  $
-    marked, markedMulti, multiOpt, testVisualQTNames, currentHeaderAlt, btnUseMulti, listSelMultiTemp, multiExpTable, $
-    txtActive1, txtActive2, newline, pathsep, xoffset, yoffset, font0, font1,$
+    evTop, currVersion, saveOK, lblDir, btnAppend, switchMode, listFiles,ctmActions, lastList, lblLoadedN, lblProgress, lblSettings, selConfig, activeImg, activeResImg, ROIs, newOrder, currSortElem, currAscElem, $
+    marked, markedMulti, autoStopFlag,multiOpt, testVisualQTNames, currentHeaderAlt, btnUseMulti, listSelMultiTemp, multiExpTable, $
+    txtActive1, txtActive2, newline, pathsep, tab, xoffset, yoffset, font0, font1,$
     drawLarge, drawXY, coltable, btnSetColorTable, txtMinWL, txtMaxWL, txtCenterWL, txtWidthWL, lblCursorValue, lblCursorPos,lblCursorPosMM, $
     txtDeltaX, txtDeltaY, txtDeltaA, dxya, useDelta, lblDeltaO, lblDeltaOX, offxy, btnHideAnnot,$
     defPath, thisPath, structImgs, imgStructInfo,configSinfo, deciMark, listDeciMark, copyHeader, btnCopyHeader, transposeTable, btnTranspose, headers, tableHeaders,lastXY, lastXYreleased, mouseDown, lastXYright, mouseDownRight, $
@@ -56,10 +56,11 @@ pro ImageQC,  GROUP_LEADER=bMain
     rcRes, rcROIs, btnRCrev, cwRCexclude, cw_rcType
 
   !EXCEPT=0;2 to see all errors
-  currVersion='1.71'
+  currVersion='1.74'
   thisPath=FILE_DIRNAME(ROUTINE_FILEPATH('ImageQC'))+'\'
   xoffset=100
   yoffset=50
+  retainVal=0
 
   analyseStringsCT=['HOMOG', 'NOISE', 'SLICETHICK', 'MTF', 'CTLIN', 'HUWATER', 'EXP','NPS','DIM', 'FWHM']
   analyseStringsXray=['STP','HOMOG','NOISE','EXP','MTF','NPS','VARI']
@@ -173,6 +174,7 @@ pro ImageQC,  GROUP_LEADER=bMain
   copyHeader=config.copyHeader
   if (!D.NAME eq 'WIN') then newline = string([13B, 10B]) else newline = string(10B)
   if (!D.NAME eq 'WIN') then pathsep = '\' else pathsep = '/'
+  tab=STRING(9B)
   
   ;tags in imgStruct that is not string or are specific to one modality [tag, typestring, modalitynumbers separated by / or empty for all
   set_imgStructInfo, imgStructInfo;in set_Values.pro
@@ -271,7 +273,7 @@ pro ImageQC,  GROUP_LEADER=bMain
   ;image
   bDraw = WIDGET_BASE(bLft, XSIZE=drawXY+180, YSIZE=drawXY+10, /ROW)
   bDrawLft = WIDGET_BASE(bDraw, Ysize=drawXY,XSIZE=180,/COLUMN)
-  drawLarge = WIDGET_DRAW(bDraw, XSIZE=drawXY, YSIZE=drawXY, KEYBOARD_EVENTS=1, /BUTTON_EVENTS, /MOTION_EVENTS, /WHEEL_EVENTS, GRAPHICS_LEVEL=2, RETAIN=2, SENSITIVE=0)
+  drawLarge = WIDGET_DRAW(bDraw, XSIZE=drawXY, YSIZE=drawXY, KEYBOARD_EVENTS=1, /BUTTON_EVENTS, /MOTION_EVENTS, /WHEEL_EVENTS, GRAPHICS_LEVEL=2, RETAIN=retainVal, SENSITIVE=0)
 
   ;window level
   bViz = WIDGET_BASE(bDrawLft, /COLUMN)
@@ -1069,7 +1071,6 @@ pro ImageQC,  GROUP_LEADER=bMain
 
   bResults = WIDGET_BASE(bTableRes, /COLUMN)
   resTab=WIDGET_TABLE(bResults, XSIZE=4, YSIZE=5, COLUMN_WIDTHS=[100,100,100,100], /NO_ROW_HEADERS, SCR_XSIZE=650, SCR_YSIZE=300, /ALL_EVENTS, FONT=font1, ALIGNMENT=1)
-  ;statPlot = WIDGET_TEXT(bResults, XSIZE=50, YSIZE=10, VALUE='', FONT=font1)
 
   ;----plot------------
   toolbarPlot=WIDGET_BASE(bPlotRes,/ROW,/TOOLBAR)
@@ -1077,7 +1078,6 @@ pro ImageQC,  GROUP_LEADER=bMain
   tooliPlot=WIDGET_BUTTON(toolbarPlot, VALUE='iPlot', TOOLTIP='Send curves to separate window with save and edit options', UVALUE='iPlot',FONT=font1)
   toolHintPlot=WIDGET_LABEL(toolbarPlot, VALUE='', /DYNAMIC_RESIZE, FONT=font1)
   bDrawPlot=WIDGET_BASE(bPlotRes, /ROW)
-  ;drawPlot  = WIDGET_DRAW(bDrawPlot, XSIZE=450, YSIZE=380, RETAIN=2)
   drawPlot  = WIDGET_WINDOW(bDrawPlot, XSIZE=650, YSIZE=380, GRAPHICS_LEVEL=2); hvis object graphics
   
   bRangeX=WIDGET_BASE(bPlotRes, /ROW)
@@ -1097,7 +1097,7 @@ pro ImageQC,  GROUP_LEADER=bMain
   ;----image------------
   toolbarImageRes=WIDGET_BASE(bImageRes,/ROW,/TOOLBAR)
   toolIimageRes = WIDGET_BUTTON(toolbarImageRes, VALUE=thisPath+'images\ax.bmp', /BITMAP, UVALUE='iImageRes', TOOLTIP='Send result to iImage')
-  drawImageRes  = WIDGET_DRAW(bImageRes, XSIZE=450, YSIZE=450, RETAIN=2)
+  drawImageRes  = WIDGET_DRAW(bImageRes, XSIZE=450, YSIZE=450, RETAIN=retainVal)
 
   ;-----suplement table---------
   toolbarTableSup=WIDGET_BASE(bTableSup,/ROW,/TOOLBAR)
@@ -1117,7 +1117,7 @@ pro ImageQC,  GROUP_LEADER=bMain
   loadct, 0, /SILENT
   WIDGET_CONTROL, bMain, /REALIZE
   XMANAGER, 'ImageQC', bMain, /NO_BLOCK
-  DEVICE, RETAIN=2, DECOMPOSED=0
+  DEVICE, RETAIN=retainVal, DECOMPOSED=0
   
   WIDGET_CONTROL, drawLarge, GET_VALUE=iDrawPlot
   iDrawPlot.erase

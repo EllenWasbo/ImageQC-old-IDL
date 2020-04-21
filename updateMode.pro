@@ -19,9 +19,9 @@ pro updateMode
 
   COMPILE_OPT hidden
   COMMON VARI
-  
+
   selTab=WIDGET_INFO(wtabModes, /TAB_CURRENT)
-  
+
   CASE selTab OF
     0: selTest=WIDGET_INFO(wtabAnalysisCT, /TAB_CURRENT)
     1: selTest=WIDGET_INFO(wtabAnalysisXray, /TAB_CURRENT)
@@ -34,6 +34,10 @@ pro updateMode
   analyse=analyseStrings(selTest)
 
   RESTORE, thisPath+'data\config.dat'; getting the quickTemp-structure
-  IF N_ELEMENTS(quickTemp) NE 0 THEN fillQuickTempList, quickTemp.(modality);pro in refreshParam.pro
+  IF N_ELEMENTS(quickTemp) NE 0 THEN BEGIN
+    IF SIZE(quickTemp, /TNAME) EQ 'STRUCT' THEN BEGIN
+      IF SIZE(quickTemp.(modality), /TNAME) EQ 'STRUCT' THEN fillQuickTempList, quickTemp.(modality) ELSE fillQuickTempList, -1
+    ENDIF ELSE fillQuickTempList, -1
+  ENDIF ELSE fillQuickTempList, -1
 
 end

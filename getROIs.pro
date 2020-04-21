@@ -131,7 +131,7 @@ function getRamps, imgSize, offset, dista, len
 
 end
 
-;Placing rois for CT number linearity
+;Placing rois for CT number linearity and task based MTF
 ;
 ;imgSize = size of active CT image
 ;imgCenter = shift from the default imSz/2 (same as dxya if in use) [dx, dy, dAngle, (0)]

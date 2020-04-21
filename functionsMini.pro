@@ -137,6 +137,7 @@ function updateConfigS, file
     'deciMark',',', $
     'includeFilename', 0, $
     'append',0,$
+    'autoImportPath','',$
     'qtOutTemps', ['DEFAULT','DEFAULT','DEFAULT','DEFAULT','DEFAULT','DEFAULT'], $
     'MTFtype',2,'MTFtypeX',1,'MTFtypeNM',1,'MTFtypeSPECT',1, $
     'plotMTF',3,'plotMTFX', 3, 'plotMTFNM',4,'plotMTFSPECT',4, 'tableMTF',0,'cyclMTF',0,'tableMTFX', 0, $
@@ -285,6 +286,7 @@ function updateQuickT, file, mOpt
       ENDIF
     ENDIF
   ENDELSE
+  
   return, quickT
 end
 
@@ -473,6 +475,7 @@ function updateLoadT, file, mOpt
         ;path - folder close to where the images should be found
         ;loadBy - choise - 0 = load all images in specified path
         ;sortBy - STRARR with structure tags in image structure to sort images by
+        ;sortAsc - 0/1 ARR where sort order defined 0=ascending, 1=descending , one element=0 (from old template versions) means all ascending
         ;paramSet - name of paramSet to link to or '' if default
         ;quickTemp - name of quickTemp to link to or '' to default (all selected)
         ;pathApp- path to append results if successfully calculated
@@ -482,11 +485,13 @@ function updateLoadT, file, mOpt
           'loadBy',0,$
           'includeSub',0,$
           'sortBy', '', $
+          'sortAsc',0, $
           'paramSet','', $
           'quickTemp','',$
           'pathApp','',$
           'archive',0,$
-          'deleteFiles',0)
+          'deleteFiles',0,$
+          'deleteFilesEnd',0)
         loadTsetDef=CREATE_STRUCT('loadTempDefault',loadTthisVersion)
         tagNewest=TAG_NAMES(loadTthisVersion)
 
@@ -528,11 +533,12 @@ function imgStructUpdate, struc, pathNow
   IF tnLoaded.HasValue('FILENAME') OR tnLoaded(0) EQ '' THEN BEGIN
     currStruct=CREATE_STRUCT('filename',pathNow,'studydatetime','','acqDate', '', 'imgDate', '', 'institution','','modality', '', 'modelName','','stationName','','SWversion','','detectorID','',$
       'patientName','', 'patientID', '', 'patientWeight', '-', 'imageType','','presType','','studyDescr','','seriesName','', 'protocolname', '',$
-      'seriesNmb',-1,'seriesTime','','acqNmb',-1, 'acqtime','','sliceThick',-1., 'pix', [-1.,-1.],'imageSize',[-1,-1],'kVp',-1.,'FOV',-1.,'rekonFOV',-1.,'mA',-1.,'mAs',-1.,'ExpTime',-1.,'coll',[-1.,-1.],'pitch',-1.,$
+      'seriesNmb',-1,'seriesTime','','seriesUID','','acqNmb',-1, 'acqtime','','sliceThick',-1., 'pix', [-1.,-1.],'imageSize',[-1,-1],'kVp',-1.,'FOV',-1.,'rekonFOV',-1.,'mA',-1.,'mAs',-1.,'ExpTime',-1.,'coll',[-1.,-1.],'pitch',-1.,$
       'ExModType','','CTDIvol',-1.,'DAP',-1.,'EI',-1.,'sensitivity',-1.,'sdd',-1.,'filterAddOn','-','kernel','-',$
       'zpos', -999., 'imgNo',-1,'nFrames',0,'wCenter',-1,'wWidth',-1,$
       'collType','-','nEWindows',-1,'EWindowName','-','zoomFactor','-','radius1',-1.,'radius2',-1.,'angle',-999.,'acqFrameDuration',-1.,'acqTerminationCond','-',$
       'units','-','radiopharmaca','-','admDose','-','admDoseTime','-','reconMethod','-','attCorrMethod','-','scaCorrMethod','-', 'scatterFrac','-',$
+      'imgFreq',-1.,'MRacqType','-','MRscanSeq','-','MRseqVariant','-','TR',-1.,'TE',-1.,'NSA',-1.,'flipAng',-1.,'spaceSlice',-1.,$
       'frameNo', -1)
 
     tnCurr=TAG_NAMES(currStruct)
@@ -548,6 +554,29 @@ function imgStructUpdate, struc, pathNow
   ENDIF
 
   return, updatedStruct
+end
+
+function imgStructDescTags
+  ;keep same order as imgStructUpdate! (until code for this is at place)
+  imgStructDesc=CREATE_STRUCT('filename','File Name','studydatetime','Study DateTime','acqDate', 'Acquisition Date', 'imgDate', 'Image Creation Date', $
+    'institution','Institution','modality', 'Modality', 'modelName','Equipment Model Name','stationName','Station Name','SWversion','Software version',$
+    'detectorID','Detector ID',$
+    'patientName','Patient Name', 'patientID', 'Patient ID', 'patientWeight', 'Patient Weight', 'imageType','Image Type','presType','Presentation type',$
+    'studyDescr','Study Description','seriesName','Series Name', 'protocolname', 'Protocol Name',$
+    'seriesNmb','Series Number','seriesTime','Series Time','seriesUID','Series UID','acqNmb','Acquisition Number', 'acqtime','Acquisition Time',$
+    'sliceThick','Slice Thickness', 'pix', 'Pixel size','imageSize','Image Size','kVp','kVp','FOV','FOV','rekonFOV','Reconstruction FOV','mA','mA','mAs','mAs',$
+    'ExpTime','Exposure Time','coll','Collimation','pitch','Pitch',$
+    'ExModType','Exposure Modulation Type','CTDIvol','CTDI vol','DAP','DAP','EI','Exposure Index','sensitivity','Sensitivity','sdd','Source Detector Distance',$
+    'filterAddOn','Filter AddOn','kernel','Reconstruction kernel',$
+    'zpos', 'Z position', 'imgNo','Image Number','nFrames','Number Of Frames','wCenter','Window Center','wWidth','Window Width',$
+    'collType','Collimator Type','nEWindows','Number of Energy Windows','EWindowName','Energy Window Name','zoomFactor','Zoom Factor','radius1','Radius Detector 1','radius2','Radius Detector 2',$
+    'angle','Image Angle','acqFrameDuration','Acquisition Frame Duration','acqTerminationCond','Acquisition Termination Condition',$
+    'units','Units For Pixel Values','radiopharmaca','Radiopharmaca','admDose','Administered Activity (MBq)','admDoseTime','Administered Activity Time',$
+    'reconMethod','Reconstruction Method','attCorrMethod','Attenuation Correction Method','scaCorrMethod','Scatter Correction Method', 'scatterFrac','Scatter Fraction',$
+    'imgFreq','Imaging Frequency (MHz)','MRacqType','MR Acquisition Type','MRscanSeq','MR Scanning Sequence','MRseqVariant','MR Sequence Variant',$
+    'TR','TR (Repetition Time)','TE','TE (Echo Time)','NSA','Number Of Averages','flipAng','Flip Angle','spaceSlice','Spacing Between Slices',$
+    'frameNo', 'Frame Number')
+  return, imgStructDesc
 end
 
 ; *************** display images *********************************
@@ -625,6 +654,14 @@ end
 
 
 ;**************** formating output and GUI stuff ***********************************
+
+function ascDesc01, arr
+  str=['(ASC) ','(DES) '] 
+  newArr=STRARR(N_ELEMENTS(arr))+str(0)
+  desc=WHERE(arr EQ 1)
+  IF desc(0) NE -1 THEN newArr(desc)=str(1)
+  RETURN, newArr
+end
 
 ;adjust to resonable number of decimals
 function formatCode, arr

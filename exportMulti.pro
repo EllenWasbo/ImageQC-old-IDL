@@ -26,8 +26,6 @@ pro exportMulti
       multiExpTableTemp=multiExpTable[1:szME(0)-1,*] 
     ENDIF ELSE multiExpTableTemp=multiExpTable
 
-
-    
     incFilenames=WIDGET_INFO(btnIncFilename, /BUTTON_SET)
     imgWithMark=WHERE(TOTAL(markedMulti,1) GT 0, nFilenames)
     IF incFilenames EQ 0 THEN BEGIN;remove filenames

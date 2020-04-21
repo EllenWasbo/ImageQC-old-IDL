@@ -7,10 +7,10 @@ pro set_imgStructInfo, iSi
     ['nFrames','LONG',''],['frameNo','LONG',''],$
     ['wCenter','FLOAT',''],['wWidth','FLOAT',''],$
     ['zoomFactor','FLOAT',''],$
-    ['sliceThick','FLOAT','0/3/4'], $
+    ['sliceThick','FLOAT','0/3/4/5'], $
     ['pix', 'FLOAT',''],['imageSize','LONG',''],$
-    ['FOV','FLOAT',''],['rekonFOV','FLOAT','0/3/4'],$
-    ['zpos', 'FLOAT','0/3/4'], $
+    ['FOV','FLOAT',''],['rekonFOV','FLOAT','0/3/4/5'],$
+    ['zpos', 'FLOAT','0/3/4/5'], $
     ['reconMethod','STRING','2/3/4'],$
     ['kernel','STRING','0/3/4'],$
     ['kVp','FLOAT','0/1'],['mA','FLOAT','0/1'],['mAs','FLOAT','0/1'],['ExpTime','FLOAT','0/1'],$
@@ -38,6 +38,7 @@ pro set_configSinfo, cSi
     ['includeFilename', 'Include filename','-1','','BOOL'], $
     ['transposeTable', 'Transpose table','-1','','BOOL'], $
     ['append','Append when opening files','-2','','BOOL'],$
+    ['autoImportPath','Default path for automation import','-10','','STRING'],$
     ['qtOutTemps', 'QuickTest Output templates', '-10','','STRING'], $
     ['MTFtype','MTF method (0..2)','0','MTF','INT'],$
     ['MTFtypeX','LSF fit to.. (0..2)','1','MTF','INT'],$

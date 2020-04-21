@@ -26,7 +26,6 @@ pro updateInfo
     tempStruct=structImgs.(sel);IF nFrames EQ 0 THEN tempStruct=structImgs.(sel) ELSE tempStruct=structImgs.(0)
     tempImg=activeImg
     imSz=SIZE(tempImg,/DIMENSIONS)
-    tab=STRING(9B)
 
     CASE modality OF
       0: BEGIN

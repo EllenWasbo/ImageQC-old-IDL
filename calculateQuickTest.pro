@@ -196,7 +196,12 @@ pro calculateQuickTest
 
                   IF currQTout.(testPos).(iii).PER_SERIES AND calc GT 0 AND res3d EQ 0 THEN BEGIN
                     serUniq=!Null
-                    FOR im=0, nImg-1 DO serUniq=[serUniq,STRING(structImgs.(im).acqNmb,FORMAT='(i0)')+' '+STRING(structImgs.(im).seriesNmb,FORMAT='(i0)')+' '+STRING(structImgs.(im).seriesTime,FORMAT='(i06)')]
+                    serNmbs=!Null
+                    FOR im=0, nImg-1 DO BEGIN
+                      serUniq=[serUniq,STRING(structImgs.(im).seriesUID,FORMAT='(a0)')]
+                      serNmbs=[serNmbs,STRING(structImgs.(im).seriesNmb,FORMAT='(i0)')]
+                    ENDFOR
+                    ;serUniq=[serUniq,STRING(structImgs.(im).acqDate,FORMAT='(i0)')+' '+STRING(structImgs.(im).seriesNmb,FORMAT='(i0)')+' '+STRING(structImgs.(im).seriesTime,FORMAT='(i06)')]
 
                     ;find number of series
                     nActIm=N_ELEMENTS(serUniq)
@@ -209,7 +214,7 @@ pro calculateQuickTest
                       IF TOTAL(mmThis(imInSeries)) GT 0 THEN BEGIN
                         actTable=FLTARR(N_ELEMENTS(cols),nIm)
                         FOR im=0, nIm-1 DO actTable[*,im]=resUse[*,imInSeries(im)]
-                        imgTxt='_Series'+STRING(serUniq(uniqSerNo(se)), FORMAT='(i0)')
+                        imgTxt='_Series'+STRING(serNmbs(uniqSerNo(se)), FORMAT='(i0)')
                         imgHead=outpNames(iii)
                         imgVal=getValString(actTable, calc)
                         multiExpTable=[[multiExpTable],[imgHead+imgTxt,imgVal]]

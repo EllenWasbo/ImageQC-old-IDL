@@ -1,3 +1,20 @@
+;ImageQC - quality control of medical images
+;Copyright (C) 2020  Ellen Wasbo, Stavanger University Hospital, Norway
+;ellen@wasbo.no
+;
+;This program is free software; you can redistribute it and/or
+;modify it under the terms of the GNU General Public License version 2
+;as published by the Free Software Foundation.
+;
+;This program is distributed in the hope that it will be useful,
+;but WITHOUT ANY WARRANTY; without even the implied warranty of
+;MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+;GNU General Public License for more details.
+;
+;You should have received a copy of the GNU General Public License
+;along with this program; if not, write to the Free Software
+;Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+
 function getSeriesTable, struct
   serTab=''
   IF SIZE(struct, /TNAME) EQ 'STRUCT' THEN BEGIN
@@ -9,8 +26,6 @@ function getSeriesTable, struct
 end
 
 pro autoMTFNPS, strucParams
-  ;sParams={'SampFreq','cutLSF','cutLSFw', 'cutLSFw2','MTFroisSz',$
-  ;  'materialTable','NPSroiSzInt',,'NPSdist', 'NPSsubNN', 'NPSsmooth'}
 
   COMMON MTFNPS, imgQCstruc, drawMTF, drawNPS, drawMiniMTF, drawMiniNPS, rangeWL, lblProgressMTFNPS, newline, pathMTFNPS, headersMTF, headersNPS, $
     structImgsMTF,structImgsNPS, MTFres, NPSres, wtab, wtabResultMTF, wtabResultNPS, tabMTF, tabNPS, resTabMTF, resTabNPS, drawPlotMTF,drawPlotNPS,$
@@ -419,7 +434,6 @@ pro autoMTFNPS_event, event
                 ;adrTempTemp(d)=dirs(i)+adrTempTemp(d)
                 dcmOk(d)=QUERY_DICOM(adrTempTemp(d))
               ENDELSE
-              ;WIDGET_CONTROL, lblProgress, SET_VALUE='Checking for Dicom files in directory '+STRING(i, FORMAT='(i0)')+': '+STRING(d*100./nFound, FORMAT='(i0)')+' %'
             ENDFOR
 
             dcmOkId=WHERE(dcmOk EQ 1)
@@ -450,14 +464,22 @@ pro autoMTFNPS_event, event
               ENDIF
             ENDFOR
 
-            ;close non image files?
+            ;close non image files, topograms and patient protocol
             tags=tag_names(structImgsMTFNPS)
             IF tags(0) NE 'EMPTY' THEN BEGIN;any image header in memory
               nImg=N_TAGS(structImgsMTFNPS)
               imsz=!Null
-              FOR i=0, nImg-1 DO imsz=[imsz,structImgsMTFNPS.(i).imagesize(0)]
+              FOR i=0, nImg-1 DO BEGIN
+                imsz=[imsz,structImgsMTFNPS.(i).imagesize(0)]
+                spl=STRSPLIT(structImgsMTFNPS.(i).imagetype,'\',/EXTRACT)
+                IF N_ELEMENTS(spl) GE 2 THEN BEGIN
+                  IF spl(2) EQ 'LOCALIZER' OR spl(2) EQ 'OTHER' THEN imsz(-1)=-1
+                ENDIF
+              ENDFOR
+              
               closeIds=WHERE(imsz EQ -1)
-              IF closeIds(0) NE -1 THEN structImgsMTFNPS=removeIDstructstruct(structImgsMTFNPS, closeIds)
+              IF closeIds(0) NE -1 THEN structImgsMTFNPS=removeIDstructstruct(structImgsMTFNPS, closeIds)       
+              
             ENDIF
 
             ;sort by study-datetime, seriesNmb and MTF/NPS
@@ -879,10 +901,14 @@ pro autoMTFNPS_event, event
 
             MTFresThisSer=!Null
             FOR m=0, nMaterials-1 DO BEGIN
-              ;IF CTlinROIpos[0,m]-radS LT 0 THEN stop
-              subM=imgSet[CTlinROIpos[0,m]-radS:CTlinROIpos[0,m]+radS,CTlinROIpos[1,m]-radS:CTlinROIpos[1,m]+radS,*]
-              MTFresThisMat=calculateMTF(subM, pix, [0,0], 2, -1, imgQCstruc.cutLSF, imgQCstruc.cutLSFW, imgQCstruc.cutLSFW2, imgQCstruc.sampFreq)
-              statusArr(m,i)=MTFresThisMat.status
+              IF CTlinROIpos[0,m]-radS LT 0 OR CTlinROIpos[1,m]-radS LT 0 OR CTlinROIpos[0,m]+radS GE szFirst(0) OR CTlinROIpos[1,m]+radS GE szFirst(1) THEN BEGIN
+                statusArr(m,i)=3
+                MTFresThisMat=-1
+              ENDIF ELSE BEGIN
+                subM=imgSet[CTlinROIpos[0,m]-radS:CTlinROIpos[0,m]+radS,CTlinROIpos[1,m]-radS:CTlinROIpos[1,m]+radS,*]
+                MTFresThisMat=calculateMTF(subM, pix, [0,0], 2, -1, imgQCstruc.cutLSF, imgQCstruc.cutLSFW, imgQCstruc.cutLSFW2, imgQCstruc.sampFreq)
+                statusArr(m,i)=MTFresThisMat.status
+              ENDELSE
               MTFresThisSer=CREATE_STRUCT(MTFresThisSer, 'M'+STRING(m, FORMAT='(i0)'), MTFresThisMat)
             ENDFOR
 

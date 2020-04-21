@@ -38,8 +38,11 @@ pro ImageQC_event, ev
         IF saveOK EQ 1 THEN BEGIN
           blockAdr=thisPath+'data\blockSaveStamp.txt'
           result = FILE_TEST(blockAdr)
-          IF result EQ 1 THEN FILE_DELETE, blockAdr
+          IF result EQ 1 THEN FILE_DELETE, blockAdr     
         ENDIF
+        dumpAdr=thisPath+'data\dumpTemp.txt'
+        result = FILE_TEST(dumpAdr)
+        IF result EQ 1 THEN FILE_DELETE, dumpAdr
         WIDGET_CONTROL, ev.top, /DESTROY
       END
       'info': BEGIN
@@ -81,14 +84,8 @@ pro ImageQC_event, ev
           redrawImg, 0,0
         ENDIF
       END
-      'manageLoadTemp': BEGIN
-        settings, GROUP_LEADER=ev.Top, xoffset+100, yoffset+100, 'AUTOSETUP'
-        ;IF N_ELEMENTS(quickTemp) NE 0 THEN fillQuickTempList, quickTemp.(modality);pro in refreshParam.pro
-      END
-      'manageQTexp':BEGIN
-        settings, GROUP_LEADER = ev.Top, xoffset+100, yoffset+100, 'QTOUT'
-        ;IF N_ELEMENTS(quickTemp) NE 0 THEN fillQuickTempList, quickTemp.(modality);pro in refreshParam.pro
-      END
+      'manageLoadTemp': settings, GROUP_LEADER=ev.Top, xoffset+100, yoffset+100, 'AUTOSETUP'
+      'manageQTexp': settings, GROUP_LEADER = ev.Top, xoffset+100, yoffset+100, 'QTOUT'
 
       ;-----button open files------------generate list of adresses to open---------------------------------------------
 
@@ -129,206 +126,8 @@ pro ImageQC_event, ev
         ENDIF
       END
       'openAuto': BEGIN
-        WIDGET_CONTROL, /HOURGLASS
-        ;open list of loads
-        RESTORE, thisPath+'data\config.dat'
-        proceedEdit=0
-        proceed=0
-        selTemp=-1
-        tempnames=!Null
-        modArr=!Null
-        tempIDarr=!Null
-        statNames=!Null
-        loadAdr=!Null
-        IF N_ELEMENTS(loadTemp) NE 0 THEN BEGIN
-          modnames=TAG_NAMES(multiOpt)
-          FOR m=0, N_TAGS(multiOpt)-1 DO BEGIN
-            IF SIZE(loadTemp.(m), /TNAME) EQ 'STRUCT' THEN BEGIN
-              namesThis=modNames(m)+' / '+ TAG_NAMES(loadTemp.(m))
-              ;search for new files (outside Archive)
-              FOR i=0, N_ELEMENTS(namesThis)-1 DO BEGIN
-                statNames=[statNames, loadTemp.(m).(i).statName]
-                adr=loadTemp.(m).(i).path
-                loadAdr=[loadAdr, adr]
-                adrTempTemp=''
-                ;ensure path ending with separator
-                IF STRMID(adr(0), 0, /REVERSE_OFFSET) NE pathsep THEN adr=adr(0)+pathsep
-                Spawn, 'dir '  + '"'+adr(0)+'"' + '*'+ '/b /a-D', adrTempTemp
-                IF adrTempTemp(0) NE '' THEN namesThis(i)=namesThis(i)+' ('+STRING(N_ELEMENTS(adrTempTemp),FORMAT='(i0)')+')'
-              ENDFOR
-              tempnames=[tempnames, namesThis]
-              modArr=[modArr,INTARR(N_ELEMENTS(namesThis))+m]
-              tempIDarr=[tempIDarr,INDGEN(N_ELEMENTS(namesThis))]
-            ENDIF
-          ENDFOR
-        ENDIF
-        IF N_ELEMENTS(tempnames) EQ 0 THEN BEGIN
-          sv=DIALOG_MESSAGE('Found no automation template. Create new?', /QUESTION, DIALOG_PARENT=evTop)
-          IF sv EQ 'Yes' THEN proceedEdit=1
-        ENDIF ELSE BEGIN
-          box=[$
-            '1, BASE,, /COLUMN', $
-            '0, LABEL, Select automation template', $
-            '0, LABEL, Number in paranthesis indicate number of files not analysed i.e. not in Archive', $
-            '0, LABEL, ',$
-            '0, LIST, ' + STRJOIN(tempnames,'|') + ', TAG=tempname, SET_VALUE=0', $
-            '0, LABEL, ',$
-            '0, LABEL, Import images that correspond to a template where station name is defined.',$
-            '0, LABEL, These images will be moved to the corresponding folder defined in the template.',$
-            '2, BUTTON, Import/sort images..., QUIT, Tag=Get',$
-            '1, BASE,, /ROW', $
-            '0, BUTTON, Edit/Add, QUIT, TAG=Edit',$
-            '0, BUTTON, Run this, QUIT, TAG=OK',$
-            '0, BUTTON, Run all, QUIT, TAG=OKall',$
-            '2, BUTTON, Cancel, QUIT']
-          res=CW_FORM_2(box, /COLUMN, TAB_MODE=1, TITLE='Automation template', XSIZE=400, YSIZE=400, FOCUSNO=3, XOFFSET=xoffset+200, YOFFSET=yoffset+200)
-          IF res.Edit THEN BEGIN
-            proceedEdit=1
-            selTemp=res.tempname
-          ENDIF
-          If res.Get THEN BEGIN
-            adr=DIALOG_PICKFILE(TITLE='Select folder with images to be moved to template-defined paths', DIALOG_PARENT=evTop, /DIRECTORY, PATH=defPath, GET_PATH=defPath)
-            IF adr NE '' THEN BEGIN
-              Spawn, 'dir '  + '"'+adr(0)+'"* /b /s /a-D', adrTempTemp
-              IF adrTempTemp(0) NE '' THEN BEGIN
-                WIDGET_CONTROL, /HOURGLASS
-                nn=N_ELEMENTS(adrTempTemp)
-                dcm=INTARR(nn)
-                WIDGET_CONTROL, lblProgress, SET_VALUE='Identifying DICOM files'
-                FOR n=0, nn-1 DO BEGIN
-                  IF FILE_BASENAME(adrTempTemp(n)) EQ 'DICOMDIR' THEN dcm(n)=0 ELSE dcm(n)=QUERY_DICOM(adrTempTemp(n))
-                ENDFOR
-                
-                sv=DIALOG_MESSAGE('Found '+STRING(TOTAL(dcm), FORMAT='(i0)')+' DICOM files in the selected folder. Continue to rename and move these files?', /QUESTION, DIALOG_PARENT=evTop) 
-                IF sv EQ 'Yes' THEN BEGIN            
-                  countNoTemp=0
-                  errF=0
-                  renames=''
-                  nNoImg=0
-                  FOR n=0, nn-1 DO BEGIN
-                    IF FILE_BASENAME(adrTempTemp(n)) EQ 'DICOMDIR' THEN dcm(n)=0 ELSE dcm(n)=QUERY_DICOM(adrTempTemp(n))
-                    IF dcm(n) NE 0 THEN BEGIN
-                      WIDGET_CONTROL, lblProgress, SET_VALUE='Moving and renaming file '+STRING(n, FORMAT='(i0)')+' / '+STRING(nn, FORMAT='(i0)')
-                      o=obj_new('idlffdicom')
-                      t=o->read(adrTempTemp(n))
-  
-                      ;filename: statname_PatID_date_time_protocol
-  
-                      test=o->GetReference('0008'x,'1010'x);
-                      test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
-                      IF test(0) NE -1 THEN stationName=*(test_peker[0]) ELSE stationName='noStationName'
-  
-                      test=o->GetReference('0010'x,'0020'x);
-                      test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
-                      IF test(0) NE -1 THEN patid=*(test_peker[0]) ELSE patid='noPatID'
-  
-                      test=o->GetReference('0008'x,'0022'x)
-                      test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
-                      IF test(0) NE -1 THEN acqDate=*(test_peker[0]) ELSE acqDate=''
-  
-                      test=o->GetReference('0008'x,'0032'x)
-                      test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
-                      IF test(0) NE -1 THEN acqTime=*(test_peker[0]) ELSE acqTime=''
-                      IF acqTime NE '' THEN acqTime=acqTime.substring(0,5)
-  
-                      test=o->GetReference('0018'x,'1030'x)
-                      test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
-                      IF test(0) NE -1 THEN BEGIN
-                        protocolName=*(test_peker[0])
-                      ENDIF ELSE BEGIN
-                        test=o->GetReference('0008'x,'1030'x);study description
-                        test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
-                        IF test(0) NE -1 THEN protocolName=*(test_peker[0]) ELSE protocolName='noProtName'
-                      ENDELSE
-  
-                      test=o->GetReference('0020'x,'0011'x)
-                      test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
-                      IF test(0) NE -1 THEN seriesNmb=STRING(*(test_peker[0]), FORMAT='(i0)') ELSE seriesNmb='noSerNmb'
-  
-                      test=o->GetReference('0020'x,'0013'x)
-                      test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
-                      IF test(0) NE -1 THEN imgNo=STRING(*(test_peker[0]), FORMAT='(i0)') ELSE imgNo='noImgNmb'
-  
-                      IF acqdate NE '' AND acqtime NE '' THEN BEGIN
-                        basename=stationName+'_'+patid+'_'
-                        basename=basename+acqDate+'_'+acqTime+'_'+protocolName+'_'+seriesNmb+'_'+imgNo
-                        basename=IDL_VALIDNAME(basename.compress(),/CONVERT_ALL)
-  
-                        tempID=WHERE(stationName EQ statNames)
-  
-                        IF tempID(0) NE -1 THEN newAdr=loadAdr(tempID(0)) ELSE BEGIN
-                          newAdr=adr(0)
-                          countNoTemp=countNoTemp+1
-                        ENDELSE
-                        ;ensure path ending with separator
-                        IF STRMID(newAdr(0), 0, /REVERSE_OFFSET) NE PATH_SEP() THEN newAdr=newAdr(0)+PATH_SEP()
-  
-                        IF adrTempTemp(n) NE newAdr(0)+basename+'.dcm' THEN BEGIN
-                          resu=FILE_TEST(newAdr(0),/DIRECTORY)
-                          IF resu THEN BEGIN
-                            IF renames.HasValue(newAdr(0)+basename) THEN BEGIN
-                              wh=WHERE(renames EQ newAdr(0)+basename, nNames)
-                              basenameN=basename+'_'+STRING(nNames, FORMAT='(i02)')
-                            ENDIF ELSE basenameN=basename
-                            file_move, adrTempTemp(n), newAdr(0)+basenameN+'.dcm'
-                            renames=[renames,newAdr(0)+basename]
-                          ENDIF ELSE errF=errF+1
-                        ENDIF
-                      ENDIF ELSE nNoImg=nNoImg+1; acqdate and acqtime not empty (not regarded as image)
-  
-                    ENDIF; dcm?
-                  ENDFOR; n files found
-                  
-                  IF errF THEN  sv = DIALOG_MESSAGE(STRING(errF, FORMAT='(i0)')+ ' file(s) not moved as the path defined in template for the specified station name could not be reached.', DIALOG_PARENT=evTop)
-                  
-                  IF countNoTemp GT 0 THEN BEGIN
-                    sv = DIALOG_MESSAGE(STRING(countNoTemp, FORMAT='(i0)')+ ' file(s) with no corresponding template for the specified station name were renamed (stationName, date, time, protocol, imgNumber) and placed directly under the selected folder.', DIALOG_PARENT=evTop)
-                  ENDIF
-                  
-                  IF nNoImg GT 0 THEN BEGIN
-                    sv = DIALOG_MESSAGE(STRING(nNoImg, FORMAT='(i0)')+ ' file(s) had no acquisition date and time. These are not regarded as image files and are left unchanged.', DIALOG_PARENT=evTop)
-                  ENDIF
-                ENDIF
-                WIDGET_CONTROL, lblProgress, SET_VALUE=''
-              ENDIF ELSE sv=DIALOG_MESSAGE('Found no DICOM files in the selected folder.', DIALOG_PARENT=evTop)
-
-            ENDIf;adr=''
-          ENDIF;res.Get
-          IF res.OK THEN BEGIN
-            proceed=1
-            selTemp=res.tempname
-          ENDIF
-          IF res.OKall THEN BEGIN
-            proceed=2
-          ENDIF
-        ENDELSE
-
-        IF proceedEdit EQ 1 THEN BEGIN
-          settings, GROUP_LEADER=ev.Top, xoffset+100, yoffset+100, 'AUTOSETUP'
-          ;IF N_ELEMENTS(quickTemp) NE 0 THEN fillQuickTempList, quickTemp.(modality); if new parameter set in use ( pro in refreshParam.pro)
-        ENDIF
-
-        IF proceed GT 0 THEN BEGIN
-          CASE proceed of
-            1: BEGIN
-              selMod=modArr(selTemp)
-              autoTempRun, loadTemp.(modArr(selTemp)).(tempIDarr(selTemp)), modArr(selTemp)
-            END
-            2: BEGIN
-              loop=1
-              FOR i=0, N_ELEMENTS(tempnames)-1 DO BEGIN
-                IF tempnames(i).substring(-1) EQ ')' THEN BEGIN;any images found
-                  autoTempRun, loadTemp.(modArr(i)).(tempIDarr(i)), modArr(i), LOOP=loop
-                ENDIF
-                If loop NE 1 THEN break
-              ENDFOR
-
-            END
-            ELSE:
-          ENDCASE
-
-        ENDIF
-
+        WIDGET_CONTROL, lblProgress, SET_VALUE=''
+        autoOpen, GROUP_LEADER = evTop, xoffset+200, yoffset+200
       END; openAuto
       'runAutoMTFNPS': BEGIN
         WIDGET_CONTROL,txtfreqMTF,GET_VALUE=sampFreq
@@ -688,7 +487,7 @@ pro ImageQC_event, ev
           redrawImg,0,0
         ENDIF
       END
-      
+
       'WLdcm': BEGIN
         IF tags(0) NE 'EMPTY' THEN BEGIN
           sel=WIDGET_INFO(listFiles, /LIST_SELECT)
@@ -873,7 +672,7 @@ pro ImageQC_event, ev
               '1, BASE,, /ROW', $
               '0, BUTTON, Save, QUIT, TAG=Save',$
               '2, BUTTON, Cancel, QUIT, TAG=Cancel']
-            res=CW_FORM_2(box, /COLUMN, TAB_MODE=1, TITLE='Save template to config file', XSIZE=300, YSIZE=100, FOCUSNO=0, XOFFSET=xoffset+200, YOFFSET=yoffset+200)
+            res=CW_FORM_2(box, /COLUMN, TAB_MODE=1, TITLE='Save template to config file', XSIZE=300, YSIZE=100, FOCUSNO=1, XOFFSET=xoffset+200, YOFFSET=yoffset+200)
 
             newQTmod=!Null
             IF ~res.Cancel THEN BEGIN
@@ -884,7 +683,7 @@ pro ImageQC_event, ev
                 oldQTmod=quickTemp.(modality)
                 IF SIZE(oldQTmod, /TNAME) EQ 'STRUCT' THEN BEGIN
                   IF exTempNames.HasValue(tempname) THEN BEGIN
-                    sv=DIALOG_MESSAGE('A template with this name already exist. Choose another name. Rename can be done in user settings manager.',DIALOG_PARENT=evTop, /QUESTION)
+                    sv=DIALOG_MESSAGE('A template with this name already exist. Choose another name. Rename can be done in user settings manager.',DIALOG_PARENT=evTop)
                     saveChange=0
                   ENDIF ELSE newQTmod=CREATE_STRUCT(oldQTmod, tempname, markedMulti)
                 ENDIF ELSE newQTmod=CREATE_STRUCT(tempname, markedMulti)
@@ -901,7 +700,7 @@ pro ImageQC_event, ev
               multiList=[multiList, tempname]
               WIDGET_CONTROL, listSelMultiTemp, SET_VALUE=multiList, SET_DROPLIST_SELECT=N_ELEMENTS(multiList)-1
             ENDIF
-          ENDIF ELSE sv=DIALOG_MESSAGE('Save blocked by another user session.', DIALOG_PARENT=evTop)
+          ENDIF ELSE sv=DIALOG_MESSAGE('Save blocked by another user session. Go to settings and remove blocking if this is due to a previous program crash.', DIALOG_PARENT=evTop)
 
         ENDIF ELSE sv=DIALOG_MESSAGE('No multiMark to save.', DIALOG_PARENT=evTop)
       END
@@ -938,56 +737,11 @@ pro ImageQC_event, ev
 
               IF saveChange THEN SAVE, configS, quickTemp, quickTout, loadTemp, FILENAME=thisPath+'data\config.dat'
             ENDIF ELSE sv=DIALOG_MESSAGE('Now selected template to overwrite. Use the + button to add a new template.',DIALOG_PARENT=evTop)
-          ENDIF ELSE sv=DIALOG_MESSAGE('Save blocked by another user session.', DIALOG_PARENT=evTop)
+          ENDIF ELSE sv=DIALOG_MESSAGE('Save blocked by another user session. Go to settings and remove blocking if this is due to a previous program crash.', DIALOG_PARENT=evTop)
         ENDIF ELSE sv=DIALOG_MESSAGE('No multiMark to save.', DIALOG_PARENT=evTop)
       END
 
-      'manageQT': BEGIN
-        ;        RESTORE, thisPath+'data\config.dat'
-        ;
-        ;        IF N_ELEMENTS(quickTemp) NE 0 THEN BEGIN
-        ;          qtNa=TAG_NAMES(quickTemp)
-        ;          sel=WIDGET_INFO(listSelMultiTemp, /DROPLIST_SELECT)
-        ;          IF sel NE 0 THEN curTname=qtNa(sel-1)
-        settings, GROUP_LEADER=ev.TOP, xoffset+200, yoffset+200, 'QTSETUP'
-        ;IF N_ELEMENTS(quickTemp) NE 0 THEN fillQuickTempList, quickTemp.(modality);pro in refreshParam.pro
-        ;          RESTORE, thisPath+'data\config.dat'
-        ;
-        ;          IF N_ELEMENTS(quickTemp) GT 0 THEN BEGIN
-        ;            qtNaNew=TAG_NAMES(quickTemp)
-        ;            selnew=0
-        ;            If sel NE 0 THEN BEGIN
-        ;              IF qtNaNew.HasValue(curTname) THEN BEGIN
-        ;                idnew=WHERE(qtNaNew EQ curTname)
-        ;                selnew=idnew(0)+1
-        ;              ENDIF
-        ;            ENDIF
-        ;            WIDGET_CONTROL, listSelMultiTemp, SET_VALUE=['',qtNaNew], SET_DROPLIST_SELECT=selNew
-        ;            IF selnew EQ 0 AND tags(0) NE 'EMPTY' THEN BEGIN
-        ;              nImg=N_TAGS(structImgs)
-        ;              testOpt=WHERE(multiOpt.(modality) GT 0, nTests)
-        ;              markedMulti=INTARR(nTests, nImg)
-        ;              fileList=getListOpenFiles(structImgs,0,marked, markedMulti)
-        ;              fileSel=WIDGET_INFO(listFiles, /LIST_SELECT)
-        ;              nSel=N_ELEMENTS(fileSel)
-        ;              oldTop=WIDGET_INFO(listFiles, /LIST_TOP)
-        ;              WIDGET_CONTROL, listFiles, SET_VALUE=fileList, SET_LIST_SELECT=fileSel(nSel-1), SET_LIST_TOP=oldTop
-        ;            ENDIF
-        ;          ENDIF ELSE BEGIN
-        ;            IF tags(0) NE 'EMPTY' THEN BEGIN
-        ;              clearMulti
-        ;              sel=WIDGET_INFO(listFiles, /LIST_SELECT)
-        ;              IF sel(0) NE -1 THEN BEGIN
-        ;                fileList=getListOpenFiles(structImgs,0,marked,markedMulti)
-        ;                oldTop=WIDGET_INFO(listFiles, /LIST_TOP)
-        ;                WIDGET_CONTROL, listFiles, SET_VALUE=fileList, SET_LIST_SELECT=sel(N_ELEMENTS(sel)-1), SET_LIST_TOP=oldTop
-        ;              ENDIF
-        ;            ENDIF
-        ;          ENDELSE
-        ;
-        ;        ENDIF ELSE sv=DIALOG_MESSAGE('No QuickTest template exists yet to manage...', DIALOG_PARENT=evTop)
-
-      END
+      'manageQT': settings, GROUP_LEADER=ev.TOP, xoffset+200, yoffset+200, 'QTSETUP'
 
       ;***************************************************************************************************************
       ;******************************** TESTS *******************************************************************************
@@ -1205,7 +959,7 @@ pro ImageQC_event, ev
           WIDGET_CONTROL, wtabResult, SET_TAB_CURRENT=0
         ENDIF
       END
-      
+
       'dcmMR':BEGIN
         IF tags(0) NE 'EMPTY' THEN BEGIN
           getDCM_MR; tests_forQuickTest.pro
@@ -1213,7 +967,7 @@ pro ImageQC_event, ev
           updatePlot,1,1,0
           WIDGET_CONTROL, wtabResult, SET_TAB_CURRENT=0
         ENDIF
-        END
+      END
 
       ;-----analyse-tab MTF --------------------------------------------------------------------------------------------------------------------
       'MTF': BEGIN
@@ -1591,18 +1345,18 @@ pro ImageQC_event, ev
       'varImage': BEGIN
         IF tags(0) NE 'EMPTY' THEN BEGIN
           WIDGET_CONTROL, /HOURGLASS
-          
+
           nImg=N_TAGS(structImgs)
           markedArr=INTARR(nImg)
           IF marked(0) EQ -1 THEN markedArr=markedArr+1 ELSE markedArr(marked)=1
           markedTemp=WHERE(markedArr EQ 1)
           nnImg=TOTAL(markedArr)
-          
+
           sel=WIDGET_INFO(listFiles, /LIST_SELECT)
-          
+
           ;first uneditable defaults: 2x2mm (IPEM, recommended 10x10 pix, for xray 2x2 mm, mammo 0.7x0.7mm)
           WIDGET_CONTROL, txtVarImageROIsz, GET_VALUE=ROIszMM
-  
+
           FOR i=0, nImg-1 DO BEGIN
             IF markedArr(i) THEN BEGIN
               pix=structImgs.(i).pix
@@ -1629,18 +1383,7 @@ pro ImageQC_event, ev
       ;-----analyse tab CT number Linearity-----------------------------------------------------------------------------------------
       'Linearity': BEGIN; exctract results
 
-        ;      homog; tests_forQuickTest.pro
-        ;      updateTable
-        ;      updatePlot, 1,1,3
-        ;      WIDGET_CONTROL, wtabResult, SET_TAB_CURRENT=0
-        ;      IF modality EQ 3 THEN BEGIN
-        ;        updatePlot, 1,1,0
-        ;        WIDGET_CONTROL, wtabResult, SET_TAB_CURRENT=1; PET showing slice-to-slice variation as plot rather than table
-        ;      ENDIF
-
-
         IF tags(0) NE 'EMPTY' THEN BEGIN
-
           ctlin; tests_forQuickTest.pro
 
           updateTable
@@ -2241,15 +1984,6 @@ pro ImageQC_event, ev
         ENDIF;tags emtpy
       END;recovCoeff
 
-      ;      'dcmMR': BEGIN
-      ;        IF tags(0) NE 'EMPTY' THEN BEGIN
-      ;          getDcmMR; tests_forQuickTest.pro
-      ;          updateTable
-      ;          updatePlot, 1,1,0
-      ;          WIDGET_CONTROL, wtabResult, SET_TAB_CURRENT=0
-      ;        ENDIF
-      ;      END
-
       ;**************************************************** Copy to clipboard *******************************************
 
       'copyInfo':BEGIN
@@ -2267,7 +2001,7 @@ pro ImageQC_event, ev
           infoTable[*,0]=tagnam(idsInclude)
           FOR i=0, nImg-1 DO BEGIN
             FOR j=0, nInfo-1 DO BEGIN
-              infoTable[j,i+1]=STRING(structImgs.(i).(idsInclude(j)))
+              infoTable[j,i+1]=STRJOIN(STRING(structImgs.(i).(idsInclude(j))),' | ')
             ENDFOR
           ENDFOR
           CLIPBOARD.set, STRJOIN(infoTable, STRING(9B))
@@ -3212,7 +2946,8 @@ pro ImageQC_event, ev
       wtabModes: BEGIN
 
         IF N_ELEMENTS(switchMode) EQ 0 THEN BEGIN
-          IF TOTAL(results) GT 0 THEN sv=DIALOG_MESSAGE('Switch test-mode and loose current results?', /QUESTION, DIALOG_PARENT=evTop) ELSE sv='Yes'
+          sv='Yes'
+          IF TOTAL(results) GT 0 THEN sv=DIALOG_MESSAGE('Switch test-mode and loose current results?', /QUESTION, DIALOG_PARENT=evTop)
           IF sv EQ 'Yes' THEN BEGIN
             modality=selTab
             clearRes
@@ -3315,82 +3050,20 @@ pro ImageQC_event, ev
             newFirstSel=N_ELEMENTS(invSel)
           END
           4: BEGIN; sort by...
-            ;newOrder
             ;check that selection is in a group
             nSel=N_ELEMENTS(sel)
+            newOrder=oldOrder
+            IF nSel LE 1 THEN BEGIN
+              sel=INDGEN(nImg)
+              nSel=nImg
+            ENDIF
             diff=sel-shift(sel,-1)
             ff=uniq(diff)
-            newOrder=oldOrder
             IF diff(0) EQ -1 AND ff(0) EQ nSel-2 THEN BEGIN
-
-              sortTags=['Filename','Acquisition time','Series number','Image number','z position','frame number']
-              box=[$
-                '1, BASE,, /COLUMN', $
-                '0, LABEL, Sort selected images by...', $
-                '0, LABEL, ',$
-                '2, LIST, ' + STRJOIN(sortTags,'|') + ', TAG=sortBy', $
-                '1, BASE,, /ROW', $
-                '2, BUTTON, Ascending|Descending, EXCLUSIVE, LABEL_TOP=Direction, COLUMN, SET_VALUE=0, TAG=dir', $
-                '1, BASE,, /ROW', $
-                '0, BUTTON, OK, QUIT, TAG=OK',$
-                '2, BUTTON, Cancel, QUIT']
-              res=CW_FORM_2(box, /COLUMN, TAB_MODE=1, TITLE='Sort images', XSIZE=300, YSIZE=310, FOCUSNO=3, XOFFSET=xoffset+200, YOFFSET=yoffset+200)
-
-              IF res.OK THEN BEGIN
-                IF N_ELEMENTS(res.sortBy) NE 0 THEN BEGIN
-                  list2Sort=STRARR(nSel)
-                  ccc=0
-                  CASE res.sortBy(0) OF
-                    0:BEGIN;filename
-                      FOR i=sel(0), sel(-1) DO BEGIN
-                        list2Sort(ccc)=structImgs.(i).filename
-                        ccc=ccc+1
-                      ENDFOR
-                    END
-                    1:BEGIN;acqtime
-                      FOR i=sel(0), sel(-1) DO BEGIN
-                        list2Sort(ccc)=structImgs.(i).acqtime
-                        ccc=ccc+1
-                      ENDFOR
-                    END
-                    2:BEGIN;series number
-                      FOR i=sel(0), sel(-1) DO BEGIN
-                        list2Sort(ccc)=structImgs.(i).seriesNmb
-                        ccc=ccc+1
-                      ENDFOR
-                      list2Sort=LONG(list2Sort)
-                    END
-                    3:BEGIN;image number
-                      FOR i=sel(0), sel(-1) DO BEGIN
-                        list2Sort(ccc)=structImgs.(i).imgNo
-                        ccc=ccc+1
-                      ENDFOR
-                      list2Sort=LONG(list2Sort)
-                    END
-                    4:BEGIN;zpos
-                      FOR i=sel(0), sel(-1) DO BEGIN
-                        list2Sort(ccc)=structImgs.(i).zPos
-                        ccc=ccc+1
-                      ENDFOR
-                      list2Sort=FLOAT(list2Sort)
-                    END
-                    5:BEGIN;frame number
-                      FOR i=sel(0), sel(-1) DO BEGIN
-                        list2Sort(ccc)=structImgs.(i).frameNo
-                        ccc=ccc+1
-                      ENDFOR
-                      list2Sort=FLOAT(list2Sort)
-                    END
-                    ELSE:
-                  ENDCASE
-                  sorted=SORT(list2Sort)+sel(0)
-                  IF res.dir EQ 1 THEN sorted=REVERSE(sorted)
-                  newOrder[sel(0):sel(-1)]=sorted
-                ENDIF
-              ENDIF
-
+              sortImgs, GROUP_LEADER=ev.top, xoffset+200, yoffset+200, [sel(0),sel(-1)]
               newFirstSel=0
             ENDIF ELSE sv=DIALOG_MESSAGE('Selection have to be continuous for this option.', DIALOG_PARENT=evTop)
+
           END
           ELSE:newOrder=oldOrder
         ENDCASE
@@ -3423,7 +3096,7 @@ pro ImageQC_event, ev
             clearRes
             updateInfo
           ENDIF
-        ENDIF;newOrder for real
+        ENDIF;newOrder proceed
       ENDIF;selected exists
       ;ENDIF ELSE sv=DIALOG_MESSAGE('Not possible for multiframe images', DIALOG_PARENT=evTop)
       moveSelected = -1
@@ -3452,6 +3125,9 @@ pro ImageQC_event, ev
       result = FILE_TEST(blockAdr)
       IF result EQ 1 THEN FILE_DELETE, blockAdr
     ENDIF
+    dumpAdr=thisPath+'data\dumpTemp.txt'
+    result = FILE_TEST(dumpAdr)
+    IF result EQ 1 THEN FILE_DELETE, dumpAdr
     WIDGET_CONTROL, ev.top, /DESTROY
   ENDIF
 
@@ -3478,7 +3154,7 @@ pro ImageQC_about, GROUP_LEADER = mainB
   info2=WIDGET_LABEL(about_box, /ALIGN_CENTER,VALUE='---------------------------------')
   info3=WIDGET_LABEL(about_box, /ALIGN_CENTER,VALUE='Implemented with IDL v 8.7')
   info9=WIDGET_LABEL(about_box, /ALIGN_CENTER,VALUE='')
-  info12=WIDGET_LABEL(about_box, /ALIGN_CENTER,VALUE='Ellen Wasb'+string(248B)+' 2019 (ellen.wasbo@sus.no)')
+  info12=WIDGET_LABEL(about_box, /ALIGN_CENTER,VALUE='Ellen Wasb'+string(248B)+' 2020 (ellen.wasbo@sus.no)')
   info13=WIDGET_LABEL(about_box, /ALIGN_CENTER,VALUE='Stavanger University Hospital, Norway')
 
   WIDGET_CONTROL, about_box, /REALIZE

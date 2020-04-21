@@ -36,7 +36,7 @@ function getSelList, struct
   return, imgTab
 end
 
-function sortImages, struct2sort, sortID
+function sortImages, struct2sort
   structSorted=!Null
   nam=TAG_NAMES(struct2sort)
   IF SIZE(struct2sort.(0).(0), /TNAME) EQ 'STRUCT' THEN BEGIN ;already sorted - put all images into one level structure
@@ -60,12 +60,11 @@ function sortImages, struct2sort, sortID
     imgsInStudy=WHERE(studydatetimeArr EQ studiesInList(d), nImgStudy)
     seriesArr=!Null
 
-    CASE sortID OF
-      0: FOR i=0, nImgStudy-1 DO seriesArr=[seriesArr,STRING(struct2sort.(imgsInStudy(i)).seriesTime, FORMAT='(i0)') + '_'+ STRING(struct2sort.(imgsInStudy(i)).acqNmb, FORMAT='(i0)')]
-      ;1: FOR i=0, nImgStudy-1 DO seriesArr=[seriesArr,struct2sort.(imgsInStudy(i)).acqTime]
-    ENDCASE
+    ;FOR i=0, nImgStudy-1 DO seriesArr=[seriesArr,STRING(struct2sort.(imgsInStudy(i)).acqDate, FORMAT='(i0)') + '_' + STRING(struct2sort.(imgsInStudy(i)).seriesTime, FORMAT='(i0)') + '_' + STRING(struct2sort.(imgsInStudy(i)).seriesNmb, FORMAT='(i0)')]
+    FOR i=0, nImgStudy-1 DO seriesArr=[seriesArr,STRING(struct2sort.(imgsInStudy(i)).acqDate, FORMAT='(i0)') + '_' + STRING(struct2sort.(imgsInStudy(i)).seriesNmb, FORMAT='(i04)')+ '_' +struct2sort.(imgsInStudy(i)).seriesUID]
 
-    seriesInList=seriesArr(UNIQ(seriesArr,BSORT(LONG(seriesArr))))
+
+    seriesInList=seriesArr(UNIQ(seriesArr,BSORT(seriesArr)))
     FOR s=0, N_ELEMENTS(seriesInList)-1 DO BEGIN
       imgsInSer=WHERE(seriesArr EQ seriesInList(s), nImgSer)
       IF imgsInSer(0) NE -1 THEN BEGIN
@@ -112,7 +111,7 @@ pro selectImages, markArr, QTstring, defPath
   lblBrowse = WIDGET_LABEL(bBrowse, VALUE='Selected folder:', FONT=font1)
   txtBrowse = WIDGET_TEXT(bBrowse, VALUE='', XSIZE=500, SCR_XSIZE=500, FONT=font1)
   btnBrowse = WIDGET_BUTTON(bBrowse, VALUE='Browse...', UVALUE='selectFolder', FONT=font1)
-  lblBrowseTip = WIDGET_LABEL(bBrowse, VALUE='NB - local files quicker accessed than network files', FONT=font1)
+  lblBrowseTip = WIDGET_LABEL(bBrowse, VALUE='NB - files on local disc are accessed faster than files on network disc', FONT=font1)
   lblTopMl0=WIDGET_LABEL(topBase, VALUE='', XSIZE=20)
   lblProgressSelIm=WIDGET_LABEL(selImgbox, VALUE='', /DYNAMIC_RESIZE, XSIZE=200)
 
@@ -283,11 +282,8 @@ pro selectImages_event, event
             ENDIF
 
             nImg=N_TAGS(structImgsAll)
-            ;sort by studydatetime and seriesNmb
-            IF nImg GT 0 THEN BEGIN
-              ;sortID=WIDGET_INFO(lstSort, /DROPLIST_SELECT)
-              structImgsSelIm=sortImages(structImgsAll, 0)
-            ENDIF
+            ;sort by studydatetime and seriesUID
+            IF nImg GT 0 THEN structImgsSelIm=sortImages(structImgsAll)
 
             structImgsAll=!Null
             serList=getSeriesList(structImgsSelIm)
@@ -311,23 +307,6 @@ pro selectImages_event, event
         IF imgList(0) NE '' THEN WIDGET_CONTROL, lstImg, SET_VALUE=imgList, SET_LIST_SELECT=0 ELSE WIDGET_CONTROL, lstImg, SET_VALUE='', SET_LIST_SELECT=0
 
       END
-;      'listSort':BEGIN
-;        IF N_ELEMENTS(structImgsSelIm) GT 0 THEN BEGIN
-;          WIDGET_CONTROL, lblProgressSelIm, SET_VALUE='Sorting images...'
-;          structSelected=!Null
-;          WIDGET_CONTROL, lstSelImg, SET_VALUE=''
-;          sortID=WIDGET_INFO(lstSort, /DROPLIST_SELECT)
-;          structImgsSelIm=sortImages(structImgsSelIm, sortID)
-;          
-;          serList=getSeriesList(structImgsSelIm)
-;          imgList=getImgList(structImgsSelIm,0)
-;
-;          IF serList(0) NE '' THEN WIDGET_CONTROL, lstSer, SET_VALUE=serList, SET_LIST_SELECT=0 ELSE WIDGET_CONTROL, lstSer, SET_VALUE='', SET_LIST_SELECT=0
-;          IF imgList(0) NE '' THEN WIDGET_CONTROL, lstImg, SET_VALUE=imgList, SET_LIST_SELECT=0 ELSE WIDGET_CONTROL, lstImg, SET_VALUE='', SET_LIST_SELECT=0
-;          WIDGET_CONTROL, lstSelImg, SET_VALUE=''
-;          WIDGET_CONTROL, lblProgressSelIm, SET_VALUE=''
-;        ENDIF
-;      END
       'testSel':BEGIN
         WIDGET_CONTROL, cw_typeSelect, GET_VALUE=type
         selSer=WIDGET_INFO(lstSer, /LIST_SELECT)

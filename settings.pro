@@ -18,17 +18,18 @@
 
 pro settings, GROUP_LEADER = mainbase, xoff, yoff, tabString;tabString = 'PARAM','QTSETUP', 'QTOUT' or 'AUTOSETUP'
 
-  COMMON SETT, wtabSett, listSets_s, listParamAuto_s,autoNames_s, availModNmb, defModality, $
+  COMMON SETT, wtabSett, listSets_s, listParamAuto_s,autoNames_s, availModNmb, defModality, allTags,allDesc,$
     tblOutputSett, tblTestSett, orderTblTestSett, tblCurrMaterials, tblSelMaterials, lstCT_s, lstX_s, lstNM_s,lstMR_s, $
-    lstModality_QT, QTnames, lstTempQT, lstQT, lstQTusedAuto, autoNames_qt, lstTest_qt,$
+    lstModality_QT, QTnames, lstTempQT, lstQT, lstQTusedAuto, autoNames_qt, lstTest_qt,txtNimgTest_qt,$
     lstModality_qto, lstTemplates_qto, tblQTout, lstTest, lstAlt, lstCols, lstCalc, lstPer, txtDescr, lstQTOusedParam, setNames_qto, autoNames_qto, $
     qto_currMod, qto_currTemp, qto_currTest, qto_currOutp, qto_currSel, $
-    lstModality_a, listTemp_a, txtBrowse_a, txtStatName_a, listSets_a, listQT_a, listElem, listSort, btnInclSub, btnOnlyLastDate,txtBrowseApp, btnMoveFiles, btnDeleteFiles,$
-    selecTemp_a,tempnames_a,paramSetNames,quickTempNames, tags_imgStruct, sortElem, auto_warningBox, warningTxt1, warningTxt2
+    txtAutoImpPath, lstModality_a, listTemp_a, txtBrowse_a, txtStatName_a, listSets_a, listQT_a, listElem, listSort, btnInclSub, btnOnlyLastDate,txtBrowseApp, btnMoveFiles, btnDeleteFiles,btnDeleteFilesEnd,$
+    selecTemp_a,a_currMod,tempnames_a,paramSetNames,quickTempNames, tags_imgStruct, sortElem, ascElem, auto_warningBox, warningTxt1, warningTxt2,autoChanged
   COMMON VARI
   COMPILE_OPT hidden
 
   IF saveOK EQ 0 THEN sv=DIALOG_MESSAGE('ImageQC is already in use. All changes to config-file (user settings) are blocked. (This block can be removed - see lower left button in Settings window if the block exist due to previous crash.)',/INFORMATION, DIALOG_PARENT=mainbase)
+  autoChanged=0; =1 if any change to the automation template
 
   settingsbox = WIDGET_BASE(TITLE='User settings',  $
     /COLUMN, XSIZE=950, YSIZE=800, XOFFSET=xoff, YOFFSET=yoff,GROUP_LEADER=mainbase, /TLB_KILL_REQUEST_EVENTS, /MODAL)
@@ -50,6 +51,14 @@ pro settings, GROUP_LEADER = mainbase, xoff, yoff, tabString;tabString = 'PARAM'
   defModality=WHERE(modality EQ availModNmb); modality number in available list
   IF defModality(0) EQ -1 THEN defModality=0
 
+  dummyImgStruct=imgStructUpdate('','')
+  allTags=TAG_NAMES(dummyImgStruct)
+  descImgStruct=imgStructDescTags()
+  allDesc=!Null
+  FOR i=0, N_TAGS(dummyImgStruct)-1 DO allDesc=[allDesc,descImgStruct.(i)]
+  allTags=allTags(SORT(STRUPCASE(allDesc)))
+  allDesc=allDesc(SORT(STRUPCASE(allDesc)))
+
   ;************ Parameter sets **************************
   ml1=WIDGET_LABEL(bParamSet, VALUE='', YSIZE=20)
 
@@ -67,7 +76,7 @@ pro settings, GROUP_LEADER = mainbase, xoff, yoff, tabString;tabString = 'PARAM'
   bBtnsLft=WIDGET_BASE(bLft, /ROW)
 
   btnAdd_s=WIDGET_BUTTON(bBtnsLft, VALUE=thisPath+'images\plus.bmp',/BITMAP, UVALUE='s_add', TOOLTIP='Save new parameter set with current values', SENSITIVE=saveOK)
-  btnSave_s=WIDGET_BUTTON(bBtnsLft, VALUE=thisPath+'images\save.bmp',/BITMAP, UVALUE='s_overwrite', TOOLTIP='Overwrite template', SENSITIVE=saveOK); ask wether both quicktest changes (if changed) and current values?
+  btnSave_s=WIDGET_BUTTON(bBtnsLft, VALUE=thisPath+'images\save.bmp',/BITMAP, UVALUE='s_overwrite', TOOLTIP='Overwrite template with current values', SENSITIVE=saveOK); ask wether both quicktest changes (if changed) and current values?
   btnDupliTemp_s=WIDGET_BUTTON(bBtnsLft, VALUE=thisPath+'images\copy.bmp' ,/BITMAP, TOOLTIP='Duplicate', UVALUE='s_duplicate', FONT=font1, SENSITIVE=saveOK)
   btnRenameTemp_s=WIDGET_BUTTON(bBtnsLft, VALUE=thisPath+'images\rename.bmp' ,/BITMAP, UVALUE='s_rename', FONT=font1, SENSITIVE=saveOK)
   btnUpTemp_s=WIDGET_BUTTON(bBtnsLft, VALUE=thisPath+'images\switch_up.bmp',/BITMAP, UVALUE='s_upTemp', TOOLTIP='Move template upwards in list', SENSITIVE=saveOK)
@@ -151,6 +160,10 @@ pro settings, GROUP_LEADER = mainbase, xoff, yoff, tabString;tabString = 'PARAM'
   qt_info01=WIDGET_LABEL(qt_infobox0, VALUE='These templates are created in the main window using MultiMark. Select images and mode and mark images. Save as template.', /ALIGN_LEFT, FONT=font1)
   ml2=WIDGET_LABEL(qt_infobox0, VALUE='', YSIZE=20)
 
+  bRefreshQT=WIDGET_BASE(bQTsetup,/ROW)
+  btnRefreshQT=WIDGET_BUTTON(bRefreshQT, VALUE='Refresh to newest version',UVALUE='qt_refresh',XSIZE=200,SENSITIVE=saveOK,FONT=font1,TOOLTIP='Since v1.7.3 can ignore images exceeding the last image marked for testing. Update old templates to the same functionality.')
+  ml3=WIDGET_LABEL(bQTsetup, VALUE='', YSIZE=20)
+
   bAll=WIDGET_BASE(bQTsetup,/ROW)
   bLft=WIDGET_BASE(bAll, /COLUMN, XSIZE=220)
   bMlLftRgt=WIDGET_LABEL(bAll, VALUE='', XSIZE=10)
@@ -177,15 +190,18 @@ pro settings, GROUP_LEADER = mainbase, xoff, yoff, tabString;tabString = 'PARAM'
   bAutoList=WIDGET_BASE(bLft, /COLUMN)
   lblAuto=WIDGET_LABEL(bAutoList, VALUE='Selected QuickTest template is used ', /ALIGN_LEFT,FONT=font0)
   lblAuto1=WIDGET_LABEL(bAutoList, VALUE='in these automation templates ', /ALIGN_LEFT,FONT=font0)
-  lstQTusedAuto=WIDGET_LIsT(bAutoList, XSIZE=70, SCR_XSIZE=150, YSIZE=1, SCR_YSIZE=200, FONT=font1)
+  lstQTusedAuto=WIDGET_LIsT(bAutoList, XSIZE=70, SCR_XSIZE=150, YSIZE=1, SCR_YSIZE=150, FONT=font1)
 
   bQTlist=WIDGET_BASE(bMid, /COLUMN)
   lblQT=WIDGET_LABEL(bQTlist, VALUE='QuickTest template ', FONT=font0)
-  lstQT=WIDGET_LIST(bQTlist, XSIZE=70, SCR_XSIZE=100, YSIZE=1, SCR_YSIZE=300, FONT=font1, UVALUE='qtList');, /CONTEXT_EVENTS)
+  lstQT=WIDGET_LIST(bQTlist, XSIZE=70, SCR_XSIZE=100, YSIZE=1, SCR_YSIZE=200, FONT=font1, UVALUE='qtList');, /CONTEXT_EVENTS)
 
   bTestlist=WIDGET_BASE(bRgt, /COLUMN)
   lblTestlist=WIDGET_LABEL(bTestlist, VALUE='Test numbers and names', FONT=font0)
   lstTest_qt=WIDGET_LIST(bTestlist, XSIZE=170, SCR_XSIZE=170, SCR_YSIZE=150, FONT=font1, SENSITIVE=0)
+  bNimgTest=WIDGET_BASE(bRgt, /ROW)
+  lblNimgTest=WIDGET_LABEL(bNimgTest, VALUE='Minimum number of images expected:', FONT=font1)
+  txtNimgTest_qt=WIDGET_TEXT(bNimgTest, VALUE='', XSIZE=5, FONT=font1, SENSITIVE=0)
 
   qt_upd, 0
 
@@ -252,6 +268,14 @@ pro settings, GROUP_LEADER = mainbase, xoff, yoff, tabString;tabString = 'PARAM'
   info1=WIDGET_LABEL(auto_infobox0, VALUE='specify path for input and output and specify sorting of the input images.', /ALIGN_LEFT, FONT=font1)
   infoML=WIDGET_LABEL(autobox1, VALUE='', YSIZE=20)
 
+  bAutoImportPath=WIDGET_BASE(autobox1,/ROW)
+  lblAutoImpPath=WIDGET_LABEL(bAutoImportPath, VALUE='Default path where new files for import can be found:', FONT=font1)
+  txtAutoImpPath=WIDGET_TEXT(bAutoImportPath, VALUE=configS.(1).AUTOIMPORTPATH, XSIZE=70,/EDITABLE, FONT=font1)
+  btnAutoImpPath=WIDGET_BUTTON(bAutoImportPath, VALUE='Browse', UVALUE='aimp_Browse',  FONT=font1)
+  btnSaveImpPath=WIDGET_BUTTON(bAutoImportPath, VALUE=thisPath+'images\save.bmp',/BITMAP, UVALUE='aimp_Save',  FONT=font1)
+
+infoML1=WIDGET_LABEL(autobox1, VALUE='', YSIZE=20)
+
   bContA=WIDGET_BASE(autobox1,/ROW)
   ;templates
   bTemp=WIDGET_BASE(bContA, /COLUMN)
@@ -276,61 +300,63 @@ pro settings, GROUP_LEADER = mainbase, xoff, yoff, tabString;tabString = 'PARAM'
   btnRunAuto=WIDGET_BUTTON(bTemp, VALUE='Run selected', UVALUE='a_run', FONT=font1)
 
   bMlA=WIDGET_BASE(bContA, XSIZE=20)
-  bSettA=WIDGET_BASE(bContA,/COLUMN, /ALIGN_LEFT)
+
+  ;framed automation parameters
+  bAutoParam=WIDGET_BASE(bContA,/COLUMN,FRAME=1, /ALIGN_LEFT)
+
   ;stationname
-  bStatName=WIDGET_BASE(bSettA, /ROW)
+  bStatName=WIDGET_BASE(bAutoParam, /ROW)
   lblStatName=WIDGET_LABEL(bStatName, VALUE='Station name (DICOM 0008,1010):', FONT=font1)
-  txtStatName_a=WIDGET_TEXT(bStatName, VALUE='', XSIZE=20,/EDITABLE, FONT=font1)
+  txtStatName_a=WIDGET_TEXT(bStatName, VALUE='', XSIZE=20,/EDITABLE, FONT=font1, UVALUE='txtStatName_a',/KBRD_FOCUS_EVENTS)
   btnStatName=WIDGET_BUTTON(bStatName, VALUE='Retrieve from DICOM file', UVALUE='a_getStatName', FONT=font1)
   lblStatName2=WIDGET_LABEL(bStatName, VALUE='(Used with the import option.)', FONT=font1)
-  ml5=WIDGET_LABEL(bSettA, VALUE='', YSIZE=15)
-  ;path
-  bBrowse=WIDGET_BASE(bSettA, /ROW)
-  lblBrowse=WIDGET_LABEL(bBrowse, VALUE='Path:', FONT=font1)
-  txtBrowse_a=WIDGET_TEXT(bBrowse, VALUE='', XSIZE=70,/EDITABLE, FONT=font1)
-  btnBrowse=WIDGET_BUTTON(bBrowse, VALUE='Browse', UVALUE='a_Browse',  FONT=font1)
-  lblBrowse2=WIDGET_LABEL(bSettA, VALUE='  Info: Where to look for the images', FONT=font1, /ALIGN_LEFT)
-  ml4=WIDGET_LABEL(bSettA, VALUE='', YSIZE=15)
+  ml5=WIDGET_LABEL(bAutoParam, VALUE='', YSIZE=15)
 
-  bOpenDetails=WIDGET_BASE(bSettA, /Row)
+  ;path
+  bBrowse=WIDGET_BASE(bAutoParam, /ROW)
+  lblBrowse=WIDGET_LABEL(bBrowse, VALUE='Path:', FONT=font1)
+  txtBrowse_a=WIDGET_TEXT(bBrowse, VALUE='', XSIZE=70,/EDITABLE, FONT=font1, UVALUE='txtBrowse_a',/KBRD_FOCUS_EVENTS)
+  btnBrowse=WIDGET_BUTTON(bBrowse, VALUE='Browse', UVALUE='a_Browse',  FONT=font1)
+  lblBrowse2=WIDGET_LABEL(bAutoParam, VALUE='  Info: Where to look for the images', FONT=font1, /ALIGN_LEFT)
+  ml4=WIDGET_LABEL(bAutoParam, VALUE='', YSIZE=15)
+
+  bOpenDetails=WIDGET_BASE(bAutoParam, /Row)
   bSortBy=WIDGET_BASE(bOpenDetails, XSIZE=355,/COLUMN, FRAME=1)
   lblSortBy=WIDGET_LABEL(bSortBy, VALUE='Add elements from DICOM-header to sort the images by', FONT=font1)
   bSortByLists=WIDGET_BASE(bSortBy, /ROW)
-  dummyImgStruct=imgStructUpdate('','')
-  tags_imgStruct=TAG_NAMES(dummyImgStruct)
-  tags_imgStruct=tags_imgStruct(SORT(STRUPCASE(tags_imgStruct)))
-  listElem=WIDGET_DROPLIST(bSortByLists, VALUE=tags_imgStruct, XSIZE=150, FONT=font1)
+  listElem=WIDGET_DROPLIST(bSortByLists, VALUE='', XSIZE=150, FONT=font1)
   bButtMid=WIDGET_BASE(bSortByLists, /COLUMN)
   btnAddElem=WIDGET_BUTTON(bButtMid, VALUE='>>', UVALUE='a_addElem', FONT=font1)
-  listSort=WIDGET_LIST(bSortByLists, VALUE='', XSIZE=20, FONT=font1, SCR_YSIZE=80)
+  listSort=WIDGET_LIST(bSortByLists, VALUE='', XSIZE=20, FONT=font1, SCR_YSIZE=100)
   bButtEndSort=WIDGET_BASE(bSortByLists, /COLUMN)
   btnDelElem=WIDGET_BUTTON(bButtEndSort, VALUE=thisPath+'images\delete.bmp',/BITMAP, UVALUE='a_delElem', TOOLTIP='Delete selected element from sort list')
   btnUpElem=WIDGET_BUTTON(bButtEndSort, VALUE=thisPath+'images\switch_up.bmp',/BITMAP, UVALUE='a_upElem', TOOLTIP='Move element upwards in sort list')
   btnDownElem=WIDGET_BUTTON(bButtEndSort, VALUE=thisPath+'images\switch_down.bmp',/BITMAP, UVALUE='a_downElem', TOOLTIP='Move element downwards in sort list')
+  btnAscElem=WIDGET_BUTTON(bButtEndSort, VALUE=thisPath+'images\sort.bmp',/BITMAP, UVALUE='a_sort_asc', TOOLTIP='Reverse sort order')
 
   bOpenDetailsRgt=WIDGET_BASE(bOpenDetails, /COLUMN)
   bBtnInclSub=WIDGET_BASE(bOpenDetailsRgt, /NONEXCLUSIVE)
-  btnInclSub=WIDGET_BUTTON(bBtnInclSub, VALUE='Include images in subfolders', FONT=font1)
-  btnOnlyLastDate=WIDGET_BUTTON(bBtnInclSub, VALUE='Last date images only (file creation date).', FONT=font1)
+  btnInclSub=WIDGET_BUTTON(bBtnInclSub, VALUE='Include images in subfolders', FONT=font1, UVALUE='btnInclSub')
+  btnOnlyLastDate=WIDGET_BUTTON(bBtnInclSub, VALUE='Last date images only (file creation date).', FONT=font1, UVALUE='btnOnlyLastDate')
   lblOpenDetInfo=WIDGET_LABEL(bOpenDetailsRgt, VALUE='Hint: Include images in subfolders useful', FONT=font1, /ALIGN_LEFT)
   lblOpenDetInfo1=WIDGET_LABEL(bOpenDetailsRgt, VALUE='      when re-analysing the full Archive.', FONT=font1, /ALIGN_LEFT)
 
-  ml60=WIDGET_LABEL(bSettA, VALUe='', YSIZE=30)
+  ml60=WIDGET_LABEL(bAutoParam, VALUe='', YSIZE=30)
   ;parameter set
-  bSets=WIDGET_BASE(bSettA, /ROW)
+  bSets=WIDGET_BASE(bAutoParam, /ROW)
   lblSets=WIDGET_LABEL(bSets, VALUE='Use parameter set:', XSIZE=150, FONT=font1)
   listSets_a=WIDGET_DROPLIST(bSets, VALUE=paramSetNames, XSIZE=180, FONT=font1)
   WIDGET_CONTROL, listSets_a, SET_DROPLIST_SELECT=selParam
 
-  ml6=WIDGET_LABEL(bSettA, VALUe='', YSIZE=15)
+  ml6=WIDGET_LABEL(bAutoParam, VALUe='', YSIZE=15)
 
-  bQT2=WIDGET_BASE(bSettA,/COLUMN)
+  bQT2=WIDGET_BASE(bAutoParam,/COLUMN)
   ;quickTemp list
   bQTlist=WIDGET_BASE(bQT2, /ROW)
   lblQT=WIDGET_LABEL(bQTlist, VALUE='Use QuickTest template:', XSIZE=150, FONT=font1)
   listQT_a=WIDGET_DROPLIST(bQTlist, VALUE='', XSIZE=180, FONT=font1)
 
-  bQTalt=WIDGET_BASE(bSettA, /ROW)
+  bQTalt=WIDGET_BASE(bAutoParam, /ROW)
   bQTalt0=WIDGET_BASE(bQTalt, XSIZE=30)
   bQTalt1=WIDGET_BASE(bQTalt, /COLUMN)
 
@@ -338,15 +364,15 @@ pro settings, GROUP_LEADER = mainbase, xoff, yoff, tabString;tabString = 'PARAM'
   lblBrowseApp=WIDGET_LABEL(bQTalt1, VALUE='Append results (row, no headers) to this file:', FONT=font1, /ALIGN_LEFT)
   bBrowseApp=WIDGET_BASE(bQTalt1, /ROW)
   lblmlBrowseApp=WIDGET_LABEL(bBrowseApp, VALUE='', XSIZE=30)
-  txtBrowseApp=WIDGET_TEXT(bBrowseApp, VALUE=pathApp, /EDITABLE, XSIZE=50, FONT=font1)
+  txtBrowseApp=WIDGET_TEXT(bBrowseApp, VALUE=pathApp, /EDITABLE, XSIZE=50, FONT=font1, UVALUE='txtBrowseApp',/KBRD_FOCUS_EVENTS)
   btnBrowseApp=WIDGET_BUTTON(bBrowseApp, VALUE='Browse', UVALUE='a_BrowseApp', FONT=font1)
   btnClearApp=WIDGET_BUTTON(bBrowseApp, VALUE='Clear', UVALUE='a_ClearApp', FONT=font1)
+  btnShowApp=WIDGET_BUTTON(bBrowseApp, VALUE='Open', UVALUE='a_OpenApp', FONT=font1)
 
   bMoveFiles=WIDGET_BASE(bQTalt1, /NONEXCLUSIVE)
-  btnMoveFiles=WIDGET_BUTTON(bMoveFiles, VALUE='Move images automatically to folder named "Archive" when finished calculation.', FONT=font1)
-  WIDGET_CONTROL, btnMoveFiles, SET_BUTTON=archiveSucc
-  btnDeleteFiles=WIDGET_BUTTON(bMoveFiles, VALUE='Delete files not accepted (i.e. SR reports, images with no acquisition date).', FONT=font1)
-  WIDGET_CONTROL, btnDeleteFiles, SET_BUTTON=deleteFiles
+  btnMoveFiles=WIDGET_BUTTON(bMoveFiles, VALUE='Move images automatically to folder named "Archive" when finished calculation.', FONT=font1, UVALUE='btnMoveFiles')
+  btnDeleteFiles=WIDGET_BUTTON(bMoveFiles, VALUE='Delete files not accepted (i.e. SR reports, images with no acquisition date).', FONT=font1, UVALUE='btnDeleteFiles')
+  btnDeleteFilesEnd=WIDGET_BUTTON(bMoveFiles, VALUE='Send files (images) exceeding the last image marked for testing to the recycle bin.', FONT=font1, UVALUE='btnDeleteFilesEnd')
 
   auto_warningBox=WIDGET_BASE(autobox1, XSIZE=800, /ROW, MAP=0)
   warnimg=WIDGET_BUTTON(auto_warningBox, VALUE=thisPath+'images\warning.bmp', /BITMAP)
@@ -355,6 +381,7 @@ pro settings, GROUP_LEADER = mainbase, xoff, yoff, tabString;tabString = 'PARAM'
   warningTxt2=WIDGET_LABEL(auto_warningBox2, /ALIGN_LEFT, VALUE='', /DYNAMIC_RESIZE)
 
   selecTemp_a=0
+  a_currMod=defModality
   auto_upd, selecTemp_a, 1
 
   ;********** Info ***********
@@ -374,7 +401,7 @@ pro settings, GROUP_LEADER = mainbase, xoff, yoff, tabString;tabString = 'PARAM'
 
   qt_infobox=WIDGET_BASE(bInfo, /COLUMN, XSIZE=850, FRAME=1)
   qt_info0=WIDGET_LABEL(qt_infobox, VALUE='QuickTest templates:', /ALIGN_LEFT, FONT=font0)
-  qt_info2=WIDGET_LABEL(qt_infobox, VALUE='The QuickTest template define for a given number of images, which test(s) should be performed on which image(s).', /ALIGN_LEFT, FONT=font1)
+  qt_info2=WIDGET_LABEL(qt_infobox, VALUE='The QuickTest template define, for a given number of images, which test(s) should be performed on which image(s).', /ALIGN_LEFT, FONT=font1)
   qt_info1=WIDGET_LABEL(qt_infobox, VALUE='Pressing QuickTest button will run all defined tests on the selected images and generate a text-output according to the QuickTest output template.', /ALIGN_LEFT, FONT=font1)
   qt_info2b=WIDGET_LABEL(qt_infobox, VALUE='QuickTest is only possible for the numbered tests (tab named with a number before the test name).', /ALIGN_LEFT, FONT=font1)
   qt_info3=WIDGET_LABEL(qt_infobox, VALUE='To create a QuickTest template: open an image set, turn on the MultiMark option,', /ALIGN_LEFT, FONT=font1)
@@ -396,13 +423,13 @@ pro settings, GROUP_LEADER = mainbase, xoff, yoff, tabString;tabString = 'PARAM'
   a_info3=WIDGET_LABEL(auto_infobox, VALUE='The benefit is found when frequently analysing repeated image sets (i.e. constancy tests).', /ALIGN_LEFT, FONT=font1)
   a_ml2=WIDGET_LABEL(auto_infobox , VALUE='', YSIZE=5)
   a_info4=WIDGET_LABEL(auto_infobox, VALUE='Input/output paths ', FONT=font1, /ALIGN_LEFT)
-  a_info5=WIDGET_LABEL(auto_infobox, VALUE='- specify the path where the images will be found or sent to it the Import option for automation is used based on the station name defined.', FONT=font1, /ALIGN_LEFT)
+  a_info5=WIDGET_LABEL(auto_infobox, VALUE='- specify the path where the images will be found or sent to if the Import option for automation is used based on the station name in the DICOM header.', FONT=font1, /ALIGN_LEFT)
   a_info6=WIDGET_LABEL(auto_infobox, VALUE='- specify the sorting of the incoming images based on DICOM tags to facilitate the same order of the images when analysed.' , FONT=font1, /ALIGN_LEFT)
   a_ml3=WIDGET_LABEL(auto_infobox , VALUE='', YSIZE=5)
   a_info7=WIDGET_LABEL(auto_infobox, VALUE='If a QuickTest template is selected the calculation will start automatically and generate results to clipboard.', FONT=font1, /ALIGN_LEFT)
   a_info8=WIDGET_LABEL(auto_infobox, VALUE='The images will be sorted on acquisition date first and the results will be generated per acquisition date found.', FONT=font1, /ALIGN_LEFT)
   a_info9=WIDGET_LABEL(auto_infobox, VALUE='If a result file is specified the results will be appended to this according to the output template (1 row pr date, no headers)', FONT=font1, /ALIGN_LEFT)
-  a_info10=WIDGET_LABEL(auto_infobox, VALUE='else the program will pause for each date and give the opportunity to paste the results into any file or Excel.', FONT=font1, /ALIGN_LEFT)
+  a_info10=WIDGET_LABEL(auto_infobox, VALUE='else the program will pause for each date and give the opportunity to paste the results into any text-file or Excel.', FONT=font1, /ALIGN_LEFT)
   ;*************
 
   lblMlButt=WIDGET_LABEL(settingsbox, VALUE='', YSIZE=20)
@@ -442,9 +469,17 @@ pro settings_event, event
     CASE uval OF
 
       'cancel': BEGIN
-        RESTORE, thisPath+'data\config.dat'
-        IF N_ELEMENTS(quickTemp) NE 0 THEN fillQuickTempList, quickTemp.(modality) ELSE fillQuickTempList, -1
-        WIDGET_CONTROL, Event.top, /DESTROY
+        sv='Yes'
+        IF autoChanged THEN sv=DIALOG_MESSAGE('Possible unsaved changed for the automation template not saved. Continue without saving?', /QUESTION, DIALOG_PARENT=event.top)
+        IF sv EQ 'Yes' THEN BEGIN
+          RESTORE, thisPath+'data\config.dat'
+          IF N_ELEMENTS(quickTemp) NE 0 THEN BEGIN
+            IF SIZE(quickTemp, /TNAME) EQ 'STRUCT' THEN BEGIN
+              IF SIZE(quickTemp.(modality), /TNAME) EQ 'STRUCT' THEN fillQuickTempList, quickTemp.(modality) ELSE fillQuickTempList, -1
+            ENDIF ELSE fillQuickTempList, -1
+          ENDIF ELSE fillQuickTempList, -1
+          WIDGET_CONTROL, Event.top, /DESTROY
+        ENDIF
       END
       'remBlock': BEGIN
         sv=DIALOG_MESSAGE('Make sure no other users save to the same config file. Reset save block?', /QUESTION, DIALOG_PARENT=event.Top)
@@ -473,6 +508,7 @@ pro settings_event, event
         IF saveOK THEN BEGIN
           adr=DIALOG_PICKFILE(TITLE='Locate config file to restore from', /READ, FILTER='*.dat', /FIX_FILTER, DIALOG_PARENT=event.Top, PATH='C:\')
           IF adr(0) NE '' THEN BEGIN
+            WIDGET_CONTROL, /HOURGLASS
             configS=!Null
             config=!Null
             newConfigS=updateConfigS(adr(0))
@@ -512,7 +548,7 @@ pro settings_event, event
           '1, BASE,, /ROW', $
           '0, BUTTON, Save, QUIT, TAG=Save',$
           '2, BUTTON, Cancel, QUIT, TAG=Cancel']
-        res=CW_FORM_2(box, /COLUMN, TAB_MODE=1, TITLE='Save as...', XSIZE=300, YSIZE=100, FOCUSNO=0, XOFFSET=xoffset+200, YOFFSET=yoffset+200)
+        res=CW_FORM_2(box, /COLUMN, TAB_MODE=1, TITLE='Save as...', XSIZE=300, YSIZE=100, FOCUSNO=1, XOFFSET=xoffset+200, YOFFSET=yoffset+200)
 
         IF ~res.Cancel THEN BEGIN
           IF res.newname EQ '' THEN sv=DIALOG_MESSAGE('No name specified. Could not save.', DIALOG_PARENT=event.top) ELSE BEGIN
@@ -564,7 +600,7 @@ pro settings_event, event
           '1, BASE,, /ROW', $
           '0, BUTTON, Save, QUIT, TAG=Save',$
           '2, BUTTON, Cancel, QUIT, TAG=Cancel']
-        res=CW_FORM_2(box, /COLUMN, TAB_MODE=1, TITLE='Name the duplicate', XSIZE=300, YSIZE=100, FOCUSNO=0, XOFFSET=xoffset+200, YOFFSET=yoffset+200)
+        res=CW_FORM_2(box, /COLUMN, TAB_MODE=1, TITLE='Name the duplicate', XSIZE=300, YSIZE=100, FOCUSNO=1, XOFFSET=xoffset+200, YOFFSET=yoffset+200)
 
         IF ~res.Cancel THEN BEGIN
           IF res.newname EQ '' THEN sv=DIALOG_MESSAGE('No name specified. Could not duplicate.', DIALOG_PARENT=event.top) ELSE BEGIN
@@ -594,7 +630,7 @@ pro settings_event, event
           '1, BASE,, /ROW', $
           '0, BUTTON, Save, QUIT, TAG=Save',$
           '2, BUTTON, Cancel, QUIT, TAG=Cancel']
-        res=CW_FORM_2(box, /COLUMN, TAB_MODE=1, TITLE='Rename', XSIZE=300, YSIZE=100, FOCUSNO=0, XOFFSET=xoffset+200, YOFFSET=yoffset+200)
+        res=CW_FORM_2(box, /COLUMN, TAB_MODE=1, TITLE='Rename', XSIZE=300, YSIZE=100, FOCUSNO=1, XOFFSET=xoffset+200, YOFFSET=yoffset+200)
 
         IF ~res.Cancel THEN BEGIN
           IF res.newname EQ '' THEN sv=DIALOG_MESSAGE('No name specified.', DIALOG_PARENT=event.top) ELSE BEGIN
@@ -672,12 +708,11 @@ pro settings_event, event
           IF proceed THEN BEGIN
             configS=removeIDstructstruct(configS, selSet+1)
             IF selSet+1 LT configS.(0) THEN configS.(0)=configS.(0)-1
-            IF selSet+1 EQ configS.(0) THEN BEGIN
-              configS.(0)=1
-              setNames=TAG_NAMES(configS)
-              refreshParam, configS.(selConfig), setNames(selConfig);update main window to not have a deleted parameterset
-            ENDIF
+            IF selSet+1 EQ configS.(0) THEN configS.(0)=1; the default is selected
+            currInMain=selConfig
             selConfig=configS.(0)
+            setNames=TAG_NAMES(configS)
+            IF selSet+1 EQ currInMain THEN refreshParam, configS.(selConfig), setNames(selConfig);the currently selected in main window is deleted, uptdat with default
             SAVE, configS, quickTemp, quickTout, loadTemp, FILENAME=thisPath+'data\config.dat'
             s_upd, selConfig-1, 0
           ENDIF
@@ -704,8 +739,13 @@ pro settings_event, event
 
       ;************** QT setup *********
 
-      'qt_lstModality': qt_upd, 0
-      'qt_listTemp': qt_upd, WIDGET_INFO(lstTempQT, /LIST_SELECT)
+      'qt_refresh': BEGIN
+        upd_QuickTestTemplates  ; (pro in this file)
+        qt_upd, WIDGET_INFO(lstTempQT, /LIST_SELECT); updating current selected test (pro in this file)
+        sv=DIALOG_MESSAGE('Refersh of QuickTest templates finished', DIALOG_PARENT=event.Top)
+      END
+      'qt_lstModality': qt_upd, 0; update new modality (pro in this file)
+      'qt_listTemp': qt_upd, WIDGET_INFO(lstTempQT, /LIST_SELECT); update test (pro in this file)
       'qt_duplicate': BEGIN
         currSel=WIDGET_INFO(lstTempQT, /LIST_SELECT)
         IF currSel(0) GE 0 THEN BEGIN
@@ -716,7 +756,7 @@ pro settings_event, event
             '1, BASE,, /ROW', $
             '0, BUTTON, Save, QUIT, TAG=Save',$
             '2, BUTTON, Cancel, QUIT, TAG=Cancel']
-          res=CW_FORM_2(box, /COLUMN, TAB_MODE=1, TITLE='Name the duplicate', XSIZE=300, YSIZE=100, FOCUSNO=0, XOFFSET=xoffset+200, YOFFSET=yoffset+200)
+          res=CW_FORM_2(box, /COLUMN, TAB_MODE=1, TITLE='Name the duplicate', XSIZE=300, YSIZE=100, FOCUSNO=1, XOFFSET=xoffset+200, YOFFSET=yoffset+200)
 
           IF ~res.Cancel THEN BEGIN
             IF res.newname EQ '' THEN sv=DIALOG_MESSAGE('No name specified. Could not duplicate.', DIALOG_PARENT=event.top) ELSE BEGIN
@@ -752,7 +792,7 @@ pro settings_event, event
             '1, BASE,, /ROW', $
             '0, BUTTON, Save, QUIT, TAG=Rename',$
             '2, BUTTON, Cancel, QUIT, TAG=Cancel']
-          res=CW_FORM_2(box, /COLUMN, TAB_MODE=1, TITLE='Rename template', XSIZE=300, YSIZE=100, FOCUSNO=0, XOFFSET=xoffset+200, YOFFSET=yoffset+200)
+          res=CW_FORM_2(box, /COLUMN, TAB_MODE=1, TITLE='Rename template', XSIZE=300, YSIZE=100, FOCUSNO=1, XOFFSET=xoffset+200, YOFFSET=yoffset+200)
 
           IF ~res.Cancel AND res.newname NE '' THEN BEGIN
             tempname=STRUPCASE(IDL_VALIDNAME(res.newname, /CONVERT_ALL))
@@ -816,51 +856,54 @@ pro settings_event, event
         ENDIF
       END
       'qt_delete':BEGIN
-        RESTORE, thisPath+'data\config.dat'
-        modNmb=WIDGET_INFO(lstModality_QT,/DROPLIST_SELECT)
-        modSel=availModNmb(modNmb)
+
         sel=WIDGET_INFO(lstTempQT, /LIST_SELECT)
-        curQT=quickTemp.(modSel)
-        QTnames=TAG_NAMES(curQT)
+        IF sel(0) LT -1 THEN BEGIN
+          RESTORE, thisPath+'data\config.dat'
+          modNmb=WIDGET_INFO(lstModality_QT,/DROPLIST_SELECT)
+          modSel=availModNmb(modNmb)
+          curQT=quickTemp.(modSel)
+          QTnames=TAG_NAMES(curQT)
 
-        IF N_ELEMENTS(QTnames) EQ 1 THEN BEGIN
-          quickTemp=replaceStructStruct(quickTemp, -1, modSel)
-        ENDIF ELSE BEGIN
-          QTnameDel=QTnames(sel)
+          IF N_ELEMENTS(QTnames) EQ 1 THEN BEGIN
+            quickTemp=replaceStructStruct(quickTemp, -1, modSel)
+          ENDIF ELSE BEGIN
+            QTnameDel=QTnames(sel)
 
-          ;in loadTemp - warning used in automation template
-          proceed=1
-          IF N_eLEMENTS(autoNames_qt) GT 0 THEN BEGIN
-            sv=DIALOG_MESSAGE('Delete this QuickTest template used in '+STRING(N_ELEMENTS(autoNames_qt), FORMAT='(i0)')+' automation templates?', /QUESTION, DIALOG_PARENT=event.Top)
-            IF sv EQ 'No' THEN proceed=0
-          ENDIF
-
-          IF proceed THEN BEGIN
-            ss=INTARR(N_ELEMENTS(QTnames))+1
-            ss(sel)=0
-            remain=WHERE(ss EQ 1)
-            updQT=!Null
-            FOR ii=0, N_ELEMENTS(QTnames)-1 DO BEGIN
-              IF remain.HasValue(ii) THEN BEGIN
-                updQT=CREATE_STRUCT(updQT, QTnames(ii), curQT.(ii))
-              ENDIF
-            ENDFOR
-            quickTemp=replaceStructStruct(quickTemp, updQT, modSel)
-
-            ;update loadTEmp
-            IF N_ELEMENTS(autoNames_qt) NE 0 THEN BEGIN
-              namesAll=TAG_NAMES(loadTemp)
-              FOR i=0, N_ELEMENTS(autoNames_qt)-1 DO BEGIN
-                id=WHERE(namesAll EQ autoNames_qt(i))
-                IF id(0) NE -1 THEN loadTemp.(modSel).(id(0)).QUICKTEMP=''
-              ENDFOR
+            ;in loadTemp - warning used in automation template
+            proceed=1
+            IF N_eLEMENTS(autoNames_qt) GT 0 THEN BEGIN
+              sv=DIALOG_MESSAGE('Delete this QuickTest template used in '+STRING(N_ELEMENTS(autoNames_qt), FORMAT='(i0)')+' automation templates?', /QUESTION, DIALOG_PARENT=event.Top)
+              IF sv EQ 'No' THEN proceed=0
             ENDIF
-          ENDIF
-          QTnames=TAG_NAMES(quickTemp.(modSel))
-        ENDELSE
 
-        SAVE, configS, quickTemp, quickTout, loadTemp, FILENAME=thisPath+'data\config.dat'
-        qt_upd, 0
+            IF proceed THEN BEGIN
+              ss=INTARR(N_ELEMENTS(QTnames))+1
+              ss(sel)=0
+              remain=WHERE(ss EQ 1)
+              updQT=!Null
+              FOR ii=0, N_ELEMENTS(QTnames)-1 DO BEGIN
+                IF remain.HasValue(ii) THEN BEGIN
+                  updQT=CREATE_STRUCT(updQT, QTnames(ii), curQT.(ii))
+                ENDIF
+              ENDFOR
+              quickTemp=replaceStructStruct(quickTemp, updQT, modSel)
+
+              ;update loadTEmp
+              IF N_ELEMENTS(autoNames_qt) NE 0 THEN BEGIN
+                namesAll=TAG_NAMES(loadTemp)
+                FOR i=0, N_ELEMENTS(autoNames_qt)-1 DO BEGIN
+                  id=WHERE(namesAll EQ autoNames_qt(i))
+                  IF id(0) NE -1 THEN loadTemp.(modSel).(id(0)).QUICKTEMP=''
+                ENDFOR
+              ENDIF
+            ENDIF
+            QTnames=TAG_NAMES(quickTemp.(modSel))
+          ENDELSE
+
+          SAVE, configS, quickTemp, quickTout, loadTemp, FILENAME=thisPath+'data\config.dat'
+          qt_upd, 0
+        ENDIF;none in this modality
 
       END
 
@@ -887,7 +930,7 @@ pro settings_event, event
           '1, BASE,, /ROW', $
           '0, BUTTON, Save, QUIT, TAG=Save',$
           '2, BUTTON, Cancel, QUIT, TAG=Cancel']
-        res=CW_FORM_2(box, /COLUMN, TAB_MODE=1, TITLE='Name the duplicate', XSIZE=300, YSIZE=100, FOCUSNO=0, XOFFSET=xoffset+200, YOFFSET=yoffset+200)
+        res=CW_FORM_2(box, /COLUMN, TAB_MODE=1, TITLE='Name the duplicate', XSIZE=300, YSIZE=100, FOCUSNO=1, XOFFSET=xoffset+200, YOFFSET=yoffset+200)
 
         IF ~res.Cancel THEN BEGIN
           IF res.newname EQ '' THEN sv=DIALOG_MESSAGE('No name specified. Could not duplicate.', DIALOG_PARENT=event.top) ELSE BEGIN
@@ -921,7 +964,7 @@ pro settings_event, event
             '1, BASE,, /ROW', $
             '0, BUTTON, Save, QUIT, TAG=Save',$
             '2, BUTTON, Cancel, QUIT, TAG=Cancel']
-          res=CW_FORM_2(box, /COLUMN, TAB_MODE=1, TITLE='Rename', XSIZE=300, YSIZE=100, FOCUSNO=0, XOFFSET=xoffset+200, YOFFSET=yoffset+200)
+          res=CW_FORM_2(box, /COLUMN, TAB_MODE=1, TITLE='Rename', XSIZE=300, YSIZE=100, FOCUSNO=1, XOFFSET=xoffset+200, YOFFSET=yoffset+200)
 
           IF ~res.Cancel THEN BEGIN
             IF res.newname EQ '' THEN sv=DIALOG_MESSAGE('No name specified.', DIALOG_PARENT=event.top) ELSE BEGIN
@@ -1088,15 +1131,21 @@ pro settings_event, event
 
       ;************* Auto setup ********************
       'a_lstModality': BEGIN
-        auto_upd, 0,2
+        sv='Yes'
+        IF autoChanged THEN sv=DIALOG_MESSAGE('Parameters for the current template have changed. Continue without saving?', /QUESTION, DIALOG_PARENT=event.top)
+        IF sv EQ 'Yes' THEN auto_upd, 0,2 ELSE WIDGET_CONTROL, lstModality_a, SET_LIST_SELECT=a_currMod
       END
       'a_listTemp':BEGIN
-        selecTemp_a=WIDGET_INFO(listTemp_a, /LIST_SELECT)
-        clearParam=0
-        IF selecTemp_a(0) NE -1 THEN BEGIN
-          IF tempnames_a(0) NE '' THEN auto_upd, selecTemp_a(0),0 ELSE clearParam=1
-        ENDIF ELSE clearParam=1
-        IF clearParam THEN auto_upd, -1,0
+        sv='Yes'
+        IF autoChanged THEN sv=DIALOG_MESSAGE('Parameters for the current template have changed. Continue without saving?', /QUESTION, DIALOG_PARENT=event.top)
+        IF sv EQ 'Yes' THEN BEGIN
+          selecTemp_a=WIDGET_INFO(listTemp_a, /LIST_SELECT)
+          clearParam=0
+          IF selecTemp_a(0) NE -1 THEN BEGIN
+            IF tempnames_a(0) NE '' THEN auto_upd, selecTemp_a(0),0 ELSE clearParam=1
+          ENDIF ELSE clearParam=1
+          IF clearParam THEN auto_upd, -1,0
+        ENDIF ELSE WIDGET_CONTROL, listTemp_a, SET_LIST_SELECT=selecTemp_a
       END
 
       'a_delTemp':BEGIN
@@ -1159,14 +1208,34 @@ pro settings_event, event
         ENDIF
       END
 
+      'aimp_Browse':BEGIN
+        adr=dialog_pickfile(PATH=defPath, GET_PATH=defPath, /DIRECTORY, /READ, TITLE='Select folder', DIALOG_PARENT=event.top)
+        IF adr(0) NE '' THEN WIDGET_CONTROL, txtAutoImpPath, SET_VALUE=adr(0)
+      END
+
+      'aimp_Save':BEGIN
+        WIDGET_CONTROL, txtAutoImpPath, GET_VALUE=adr
+        ;for each config update adr
+        RESTORE, thisPath+'data\config.dat'
+        psets=TAG_NAMES(configS)
+        FOR i=1, N_ELEMENTS(psets)-1 DO configS.(i).AUTOIMPORTPATH=adr(0)
+        SAVE, configS, quickTemp, quickTout, loadTemp, FILENAME=thisPath+'data\config.dat'
+      END
+
       'a_Browse':BEGIN
         adr=dialog_pickfile(PATH=defPath, GET_PATH=defPath, /DIRECTORY, /READ, TITLE='Select folder', DIALOG_PARENT=event.top)
-        IF adr(0) NE '' THEN WIDGET_CONTROL, txtBrowse_a, SET_VALUE=adr(0)
+        IF adr(0) NE '' THEN BEGIN
+          WIDGET_CONTROL, txtBrowse_a, SET_VALUE=adr(0)
+          autoChanged=1
+        ENDIF
       END
 
       'a_BrowseApp':BEGIN
         adr=dialog_pickfile(PATH=defPath, GET_PATH=defPath, /READ, TITLE='Select result file to append', FILTER='*.txt', /FIX_FILTER, DIALOG_PARENT=event.top)
-        IF adr(0) NE '' THEN WIDGET_CONTROL, txtBrowseApp, SET_VALUE=adr(0)
+        IF adr(0) NE '' THEN BEGIN
+          WIDGET_CONTROL, txtBrowseApp, SET_VALUE=adr(0)
+          autoChanged=1
+        ENDIF
       END
 
       'a_getStatName':BEGIN
@@ -1187,13 +1256,27 @@ pro settings_event, event
               IF test(0) NE -1 THEN stationName=*(test_peker[0]) ELSE stationName=''
               IF stationName EQ '' THEN sv=DIALOG_MESSAGE('Station name in DICOM tag 0008,1010 not found.',DIALOG_PARENT=event.top)
               WIDGET_CONTROL, txtStatName_a, SET_VALUE=stationName
+              autoChanged=1
             ENDIF ELSE sv=DIALOG_MESSAGE('Selected file is not an DICOM image file.',DIALOG_PARENT=event.top)
 
           ENDIF ELSE sv=DIALOG_MESSAGE('Selected file is not an DICOM image file.',DIALOG_PARENT=event.top)
         ENDIF
       END
 
-      'a_ClearApp': WIDGET_CONTROL, txtBrowseApp, SET_VALUE=''
+      'a_ClearApp': BEGIN
+        WIDGET_CONTROL, txtBrowseApp, SET_VALUE=''
+        autoChanged=1
+      END
+
+      'a_OpenApp': BEGIN
+        WIDGET_CONTROL, txtBrowseApp, GET_VALUE=file2open
+        IF FILE_TEST(file2open) THEN BEGIN
+          Case !version.os_family of
+            'Windows': SPAWN, 'notepad.exe '+file2open, /NOSHELL, /NOWAIT
+            Else: if (!version.os_name eq 'Mac OS X') then SPAWN, 'open '+file2open
+          Endcase
+        ENDIF ELSE sv=DIALOG_MESSAGE('File not found.',DIALOG_PARENT=event.top)
+      END
 
       'a_add':BEGIN
         box=[$
@@ -1202,7 +1285,7 @@ pro settings_event, event
           '1, BASE,, /ROW', $
           '0, BUTTON, Save, QUIT, TAG=Save',$
           '2, BUTTON, Cancel, QUIT, TAG=Cancel']
-        res=CW_FORM_2(box, /COLUMN, TAB_MODE=1, TITLE='Name the new template', XSIZE=300, YSIZE=100, FOCUSNO=0, XOFFSET=xoffset+200, YOFFSET=yoffset+200)
+        res=CW_FORM_2(box, /COLUMN, TAB_MODE=1, TITLE='Name the new template', XSIZE=300, YSIZE=100, FOCUSNO=1, XOFFSET=xoffset+200, YOFFSET=yoffset+200)
         IF ~res.Cancel THEN BEGIN
           IF res.newname EQ '' THEN sv=DIALOG_MESSAGE('No name specified. Could not create new.', DIALOG_PARENT=event.top) ELSE BEGIN
             selMod=WIDGET_INFO(lstModality_a,/DROPLIST_SELECT)
@@ -1214,45 +1297,56 @@ pro settings_event, event
             ENDIF ELSE alreadyNames=''
             IF alreadyNames.HasValue(newName) THEN sv=DIALOG_MESSAGE('Template name already exists. Select a new name or use Overwrite.',DIALOG_PARENT=event.top) ELSE BEGIN
 
-              WIDGET_CONTROL, txtBrowse_a, GET_VALUE=newPath
-              WIDGET_CONTROL, txtBrowseApp, GET_VALUE=newPathApp
-              WIDGET_CONTROL, txtStatName_a, GET_VALUE=newStatName
-              IF newPath NE '' THEN BEGIN
+              ;WIDGET_CONTROL, txtBrowse_a, SET_VALUE=''
+              ;WIDGET_CONTROL, txtStatName_a, SET_VALUE=''
+              ;WIDGET_CONTROL, btnOnlyLastDate, SET_VALUE=0
+              ;WIDGET_CONTROL, btnInclSub, SET_VALUE=0
+              ;WIDGET_CONTROL, listSort, SET_VALUE=''
+              sortElem=''
+              ascElem=0
+              ;WIDGET_CONTROL, listQT_a, SET_DROPLIST_SELECT=0
+              ;WIDGET_CONTROL, txtBrowseApp, SET_VALUE=''
+              ;WIDGET_CONTROL, btnMoveFiles, SET_VALUE=0
+              ;WIDGET_CONTROL, btnDeleteFiles, SET_VALUE=0
+              ;WIDGET_CONTROL, btnDeleteFilesEnd, SET_VALUE=0
 
-                loadTempSing=CREATE_STRUCT($
-                  'path',newPath,$
-                  'statName',newStatName,$
-                  'loadBy',WIDGET_INFO(btnOnlyLastDate,/BUTTON_SET),$
-                  'includeSub',WIDGET_INFO(btnInclSub,/BUTTON_SET),$
-                  'sortBy', sortElem, $
-                  'paramSet',paramSetNames(WIDGET_INFO(listSets_a,/DROPLIST_SELECT)), $
-                  'quickTemp',quickTempNames(WIDGET_INFO(listQT_a,/DROPLIST_SELECT)), $
-                  'pathApp',newPathApp,$
-                  'archive',WIDGET_INFO(btnMoveFiles,/BUTTON_SET),$
-                  'deleteFiles',WIDGET_INFO(btnDeleteFiles,/BUTTON_SET))
+              ;IF newPath NE '' THEN BEGIN
+              loadTempSing=CREATE_STRUCT($
+                'path','',$
+                'statName','',$
+                'loadBy',0,$
+                'includeSub',0,$
+                'sortBy', '', $
+                'sortAsc',0, $
+                'paramSet',paramSetNames(WIDGET_INFO(listSets_a,/DROPLIST_SELECT)), $
+                'quickTemp','',$
+                'pathApp','',$
+                'archive',0,$
+                'deleteFiles',0,$
+                'deleteFilesEnd',0)
 
-                IF alreadyNames(0) EQ '' THEN BEGIN; new single
-                  loadTm=CREATE_STRUCT(newName, loadTempSing)
-                  IF SIZE(loadTemp, /TNAME) EQ 'STRUCT' THEN loadTemp=replaceStructStruct(loadTemp, loadTm, thisMod) ELSE BEGIN
-                    loadTemp=!Null
-                    modnames=TAG_NAMES(multiOpt)
-                    FOR m=0, N_TAGS(multiOpt)-1 DO loadTemp=CREATE_STRUCT(loadTemp,modnames(m),-1)
-                    loadTemp=replaceStructStruct(loadTemp, loadTm, thisMod)
-                  ENDELSE
-                  SAVE, configS, quickTemp, quickTout, loadTemp, FILENAME=thisPath+'data\config.dat'
-                  tempnames_a=newName
-                  WIDGET_CONTROL, listTemp_a, SET_VALUE=tempnames_a, SET_LIST_SELECT=0
-                  auto_upd,0,0
-                ENDIF ELSE BEGIN; add
-                  loadTm=loadTemp.(thisMod)
-                  loadTm=CREATE_STRUCT(loadTm, newName, loadTempSing)
+              IF alreadyNames(0) EQ '' THEN BEGIN; new single
+                loadTm=CREATE_STRUCT(newName, loadTempSing)
+                IF SIZE(loadTemp, /TNAME) EQ 'STRUCT' THEN loadTemp=replaceStructStruct(loadTemp, loadTm, thisMod) ELSE BEGIN
+                  loadTemp=!Null
+                  modnames=TAG_NAMES(multiOpt)
+                  FOR m=0, N_TAGS(multiOpt)-1 DO loadTemp=CREATE_STRUCT(loadTemp,modnames(m),-1)
                   loadTemp=replaceStructStruct(loadTemp, loadTm, thisMod)
-                  SAVE, configS, quickTemp, quickTout, loadTemp, FILENAME=thisPath+'data\config.dat'
-                  tempnames_a=[tempnames_a,newName]
-                  WIDGET_CONTROL, listTemp_a, SET_VALUE=tempnames_a, SET_LIST_SELECT=N_ELEMENTS(tempnames_a)-1
-                  auto_upd,N_ELEMENTS(tempnames_a)-1,0
                 ENDELSE
-              ENDIF ELSE  sv=DIALOG_MESSAGE('Specify path.',DIALOG_PARENT=event.top)
+                SAVE, configS, quickTemp, quickTout, loadTemp, FILENAME=thisPath+'data\config.dat'
+                tempnames_a=newName
+                WIDGET_CONTROL, listTemp_a, SET_VALUE=tempnames_a, SET_LIST_SELECT=0
+                auto_upd,0,0
+              ENDIF ELSE BEGIN; add
+                loadTm=loadTemp.(thisMod)
+                loadTm=CREATE_STRUCT(loadTm, newName, loadTempSing)
+                loadTemp=replaceStructStruct(loadTemp, loadTm, thisMod)
+                SAVE, configS, quickTemp, quickTout, loadTemp, FILENAME=thisPath+'data\config.dat'
+                tempnames_a=[tempnames_a,newName]
+                WIDGET_CONTROL, listTemp_a, SET_VALUE=tempnames_a, SET_LIST_SELECT=N_ELEMENTS(tempnames_a)-1
+                auto_upd,N_ELEMENTS(tempnames_a)-1,0
+              ENDELSE
+              ;ENDIF ELSE  sv=DIALOG_MESSAGE('Specify path.',DIALOG_PARENT=event.top)
             ENDELSE; name exist
           ENDELSE;name specified
         ENDIF;cancel specify name
@@ -1272,7 +1366,7 @@ pro settings_event, event
             '1, BASE,, /ROW', $
             '0, BUTTON, Save, QUIT, TAG=Save',$
             '2, BUTTON, Cancel, QUIT, TAG=Cancel']
-          res=CW_FORM_2(box, /COLUMN, TAB_MODE=1, TITLE='Name the new template', XSIZE=300, YSIZE=100, FOCUSNO=0, XOFFSET=xoffset+200, YOFFSET=yoffset+200)
+          res=CW_FORM_2(box, /COLUMN, TAB_MODE=1, TITLE='Name the new template', XSIZE=300, YSIZE=100, FOCUSNO=1, XOFFSET=xoffset+200, YOFFSET=yoffset+200)
           IF ~res.Cancel THEN BEGIN
             IF res.newname EQ '' THEN sv=DIALOG_MESSAGE('No name specified. Could not create new.', DIALOG_PARENT=event.top) ELSE BEGIN
 
@@ -1293,7 +1387,7 @@ pro settings_event, event
       END
       'a_overwrite':BEGIN
         selecTemp_a=WIDGET_INFO(listTemp_a, /LIST_SELECT)
-        IF selecTemp_a NE -1 THEN BEGIN
+        IF selecTemp_a(0) NE -1 AND tempnames_a(0) NE '' THEN BEGIN
           sv=DIALOG_MESSAGE('Are you sure you want to overwrite the selected automation template?', /Question, DIALOG_PARENT=event.top)
           IF sv EQ 'Yes' THEN BEGIN
             WIDGET_CONTROL, txtBrowse_a, GET_VALUE=newPath
@@ -1307,11 +1401,13 @@ pro settings_event, event
                 'loadBy',WIDGET_INFO(btnOnlyLastDate,/BUTTON_SET),$
                 'includeSub',WIDGET_INFO(btnInclSub,/BUTTON_SET),$
                 'sortBy', sortElem, $
+                'sortAsc', ascElem,$
                 'paramSet',paramSetNames(WIDGET_INFO(listSets_a,/DROPLIST_SELECT)), $
                 'quickTemp',quicktempnames(WIDGET_INFO(listQT_a,/DROPLIST_SELECT)),$
                 'pathApp',newPathApp,$
                 'archive',WIDGET_INFO(btnMoveFiles,/BUTTON_SET),$
-                'deleteFiles',WIDGET_INFO(btnDeleteFiles,/BUTTON_SET))
+                'deleteFiles',WIDGET_INFO(btnDeleteFiles,/BUTTON_SET),$
+                'deleteFilesEnd',WIDGET_INFO(btnDeleteFilesEnd,/BUTTON_SET))
 
               RESTORE, thisPath+'data\config.dat'
               selMod=WIDGET_INFO(lstModality_a,/DROPLIST_SELECT)
@@ -1327,7 +1423,7 @@ pro settings_event, event
       END
       'a_rename':BEGIN
         selecTemp_a=WIDGET_INFO(listTemp_a, /LIST_SELECT)
-        IF selecTemp_a NE -1 THEN BEGIN
+        IF selecTemp_a NE -1  AND tempnames_a(0) NE '' THEN BEGIN
           ;ask for new name
           box=[$
             '1, BASE,, /ROW', $
@@ -1335,7 +1431,7 @@ pro settings_event, event
             '1, BASE,, /ROW', $
             '0, BUTTON, Save, QUIT, TAG=Save',$
             '2, BUTTON, Cancel, QUIT, TAG=Cancel']
-          res=CW_FORM_2(box, /COLUMN, TAB_MODE=1, TITLE='Rename template', XSIZE=300, YSIZE=100, FOCUSNO=0, XOFFSET=xoffset+200, YOFFSET=yoffset+200)
+          res=CW_FORM_2(box, /COLUMN, TAB_MODE=1, TITLE='Rename template', XSIZE=300, YSIZE=100, FOCUSNO=1, XOFFSET=xoffset+200, YOFFSET=yoffset+200)
 
           IF ~res.Cancel THEN BEGIN
             IF res.newname EQ '' THEN sv=DIALOG_MESSAGE('No name specified. Could not rename.', DIALOG_PARENT=event.top) ELSE BEGIN
@@ -1368,7 +1464,7 @@ pro settings_event, event
         selMod=WIDGET_INFO(lstModality_a,/DROPLIST_SELECT)
         thisMod=availModNmb(selMod)
         selecTemp_a=WIDGET_INFO(listTemp_a, /LIST_SELECT)
-        IF selecTemp_a NE -1 THEN BEGIN
+        IF selecTemp_a NE -1  AND tempnames_a(0) NE '' THEN BEGIN
           ;check if saved
           RESTORE, thisPath+'data\config.dat'
           equal=1
@@ -1379,11 +1475,15 @@ pro settings_event, event
             IF selTemp.loadBy NE WIDGET_INFO(btnOnlyLastDate,/BUTTON_SET) THEN equal=0 ELSE BEGIN
               IF selTemp.includeSub NE WIDGET_INFO(btnInclSub,/BUTTON_SET) THEN equal=0 ELSE BEGIN
                 IF ~ARRAY_EQUAL(selTemp.sortBy, sortElem) THEN equal=0 ELSE BEGIN
-                  IF selTemp.paramSet NE paramSetNames(WIDGET_INFO(listSets_a,/DROPLIST_SELECT)) THEN equal=0 ELSE BEGIN
-                    IF selTemp.quickTemp NE quickTempNames(WIDGET_INFO(listQT_a,/DROPLIST_SELECT)) THEN equal=0 ELSE BEGIN
-                      IF selTemp.pathApp NE newPathApp THEN equal=0 ELSE BEGIN
-                        IF selTemp.archive NE WIDGET_INFO(btnMoveFiles,/BUTTON_SET) THEN equal=0 ELSE BEGIN
-                          IF selTemp.deleteFiles NE WIDGET_INFO(btnDeleteFiles,/BUTTON_SET) THEN equal=0
+                  IF ~ARRAY_EQUAL(selTemp.sortAsc, ascElem) THEN equal=0 ELSE BEGIN
+                    IF selTemp.paramSet NE paramSetNames(WIDGET_INFO(listSets_a,/DROPLIST_SELECT)) THEN equal=0 ELSE BEGIN
+                      IF selTemp.quickTemp NE quickTempNames(WIDGET_INFO(listQT_a,/DROPLIST_SELECT)) THEN equal=0 ELSE BEGIN
+                        IF selTemp.pathApp NE newPathApp THEN equal=0 ELSE BEGIN
+                          IF selTemp.archive NE WIDGET_INFO(btnMoveFiles,/BUTTON_SET) THEN equal=0 ELSE BEGIN
+                            IF selTemp.deleteFiles NE WIDGET_INFO(btnDeleteFiles,/BUTTON_SET) THEN equal=0 ELSE BEGIN
+                              IF selTemp.deleteFilesEnd NE WIDGET_INFO(btnDeleteFilesEnd,/BUTTON_SET) THEN equal=0
+                            ENDELSE
+                          ENDELSE
                         ENDELSE
                       ENDELSE
                     ENDELSE
@@ -1394,22 +1494,36 @@ pro settings_event, event
           ENDELSE
           IF equal THEN BEGIN
             WIDGET_CONTROL, Event.top, /DESTROY
-            autoTempRun, selTemp, thisMod
+            autoStopFlag=0
+            thisTempName=tempnames_a(0)
+            autoTempRun, selTemp, thisMod, TEMPNAME=thisTempName
           ENDIF ELSE sv=DIALOG_MESSAGE('Saved template and current values do not match. Save before running the template.',DIALOG_PARENT=event.top)
         ENDIF ELSE sv=DIALOG_MESSAGE('No template selected.',DIALOG_PARENT=event.top)
       END
       'a_addElem':BEGIN
         newElem=tags_imgStruct(WIDGET_INFO(listElem,/DROPLIST_SELECT))
         IF sortElem(0) EQ '' THEN sortElem=newElem ELSE BEGIN
-          IF N_ELEMENTS(sortElem) LT 9 THEN sortElem=[sortElem,newElem] ELSE sv=DIALOG_MESSAGE('Maximum 9 sorting levels.',DIALOG_PARENT=event.top)
+          IF N_ELEMENTS(sortElem) LT 9 THEN BEGIN
+            sortElem=[sortElem,newElem]
+            ascElem=[ascElem,0]
+          ENDIF ELSE sv=DIALOG_MESSAGE('Maximum 9 sorting levels.',DIALOG_PARENT=event.top)
         ENDELSE
-        WIDGET_CONTROL, listSort, SET_VALUE=sortElem
+        WIDGET_CONTROL, listSort, SET_VALUE=ascDesc01(ascElem)+sortElem
+        autoChanged=1
       END
       'a_delElem':BEGIN
         currSel=WIDGET_INFO(listSort, /LIST_SELECT)
         IF currSel GE 0 THEN BEGIN
-          IF N_ELEMENTS(sortElem) GT 1 THEN sortElem=removeIDarr(sortElem, currSel) ELSE sortElem=''
-          WIDGET_CONTROL, listSort, SET_VALUE=sortElem
+          IF N_ELEMENTS(sortElem) GT 1 THEN BEGIN
+            sortElem=removeIDarr(sortElem, currSel)
+            ascElem=removeIDarr(ascElem, currSel)
+            WIDGET_CONTROL, listSort, SET_VALUE=ascDesc01(ascElem)+sortElem
+          ENDIF ELSE BEGIN
+            sortElem=''
+            ascElem=0
+            WIDGET_CONTROL, listSort, SET_VALUE=''
+          ENDELSE
+          autoChanged=1
         ENDIF
       END
       'a_upElem':BEGIN
@@ -1420,7 +1534,13 @@ pro settings_event, event
           newList(currSel-1)=sortElem(currSel)
           newList(currSel)=oldPrev
           sortElem=newList
-          WIDGET_CONTROL, listSort, SET_VALUE=sortElem
+          oldPrev=ascElem(currSel-1)
+          newList=ascElem
+          newList(currSel-1)=ascElem(currSel)
+          newList(currSel)=oldPrev
+          ascElem=newList
+          WIDGET_CONTROL, listSort, SET_VALUE=ascDesc01(ascElem)+sortElem
+          autoChanged=1
         ENDIF
       END
       'a_downElem':BEGIN
@@ -1431,9 +1551,32 @@ pro settings_event, event
           newList(currSel+1)=sortElem(currSel)
           newList(currSel)=oldNext
           sortElem=newList
-          WIDGET_CONTROL, listSort, SET_VALUE=sortElem
+          oldNext=ascElem(currSel+1)
+          newList=ascElem
+          newList(currSel+1)=ascElem(currSel)
+          newList(currSel)=oldNext
+          ascElem=newList
+          WIDGET_CONTROL, listSort, SET_VALUE=ascDesc01(ascElem)+sortElem
+          autoChanged=1
         ENDIF
       END
+      'a_sort_asc':BEGIN
+        currSel=WIDGET_INFO(listSort, /LIST_SELECT)
+        IF currSel(0) NE -1 THEN BEGIN
+          IF N_ELEMENTS(ascElem) NE N_ELEMENTS(sortElem) THEN asc=INTARR(N_ELEMENTS(sortElem))
+          FOR i=0, N_ELEMENTS(currSel)-1 DO IF ascElem(currSel(i)) EQ 0 THEN ascElem(currSel(i))=1 ELSE ascElem(currSel(i))=0
+          WIDGET_CONTROL, listSort, SET_VALUE=ascDesc01(ascElem)+sortElem
+          autoChanged=1
+        ENDIF
+      END
+      'btnInclSub': autoChanged=1
+      'btnOnlyLastDate': autoChanged=1
+      'txtStatName_a': autoChanged=1
+      'txtBrowse_a': autoChanged=1
+      'txtBrowseApp': autoChanged=1
+      'btnMoveFiles': autoChanged=1
+      'btnDeleteFiles': autoChanged=1
+      'btnDeleteFilesEnd': autoChanged=1
       ELSE:
     ENDCASE
 
@@ -1442,6 +1585,7 @@ pro settings_event, event
   ;New tab selected
   IF (TAG_NAMES(event, /STRUCTURE_NAME) EQ 'WIDGET_TAB') THEN BEGIN
     selTab=WIDGET_INFO(event.ID, /TAB_CURRENT)
+    IF autoChanged THEN sv=DIALOG_MESSAGE('Possible unsaved changes to automation template were lost.', DIALOG_PARENT=event.Top)
     CASE selTab OF
       0:s_upd, selConfig-1, 1
       1:qt_upd, 0
@@ -1480,9 +1624,17 @@ pro settings_event, event
   ENDIF
 
   IF TAG_NAMES(event, /STRUCTURE_NAME) EQ 'WIDGET_KILL_REQUEST' THEN BEGIN
-    RESTORE, thisPath+'data\config.dat'
-    IF N_ELEMENTS(quickTemp) NE 0 THEN fillQuickTempList, quickTemp.(modality) ELSE fillQuickTempList, -1
-    WIDGET_CONTROL, event.top, /DESTROY
+    sv='Yes'
+    IF autoChanged THEN sv=DIALOG_MESSAGE('Possible unsaved changed for the automation template not saved. Continue without saving?', /QUESTION, DIALOG_PARENT=event.top)
+    IF sv EQ 'Yes' THEN BEGIN
+      RESTORE, thisPath+'data\config.dat'
+      IF N_ELEMENTS(quickTemp) NE 0 THEN BEGIN
+        IF SIZE(quickTemp, /TNAME) EQ 'STRUCT' THEN BEGIN
+          IF SIZE(quickTemp.(modality), /TNAME) EQ 'STRUCT' THEN fillQuickTempList, quickTemp.(modality) ELSE fillQuickTempList, -1
+        ENDIF ELSE fillQuickTempList, -1
+      ENDIF ELSE fillQuickTempList, -1
+      WIDGET_CONTROL, event.top, /DESTROY
+    ENDIF
   ENDIF
 
 end
@@ -1491,6 +1643,8 @@ pro s_upd, listNmb, allUpd
   COMMON SETT
   COMMON VARI
   COMPILE_OPT hidden
+
+  WIDGET_CONTROL, /HOURGLASS
 
   RESTORE, thisPath+'data\config.dat'
   paramNames=TAG_NAMES(configS.(1))
@@ -1515,7 +1669,7 @@ pro s_upd, listNmb, allUpd
 
   setNames(configS.(0)-1)=setNames(configS.(0)-1)+' (default)'
   WIDGET_CONTROL, listSets_s, SET_VALUE=setNAmes, SET_LIST_SELECT=listNmb
-  
+
   ;outputTemps
   If allUpd THEN BEGIN
     WIDGET_CONTROL, lstCT_s, SET_VALUE=TAG_NAMES(quickTout.CT)
@@ -1535,7 +1689,7 @@ pro s_upd, listNmb, allUpd
   WIDGET_CONTROL, lstX_s, SET_DROPLIST_SELECT=nmbs(1)
   WIDGET_CONTROL, lstNM_s, SET_DROPLIST_SELECT=nmbs(2)
   WIDGET_CONTROL, lstMR_s, SET_DROPLIST_SELECT=nmbs(3)
-  
+
   ;output
   output_rows=WHERE(configSinfo[2,*] EQ '-1', nOutpRows)
   IF allUpd THEN BEGIN
@@ -1562,13 +1716,13 @@ pro s_upd, listNmb, allUpd
   IF allUpd THEN BEGIN
     tTest=STRARR(4, nTestRows)
     modals=configSinfo[2,test_rows]
-    ids=WHERE(modals EQ '0') & modals(ids)='0CT '
-    ids=WHERE(modals EQ '1') & modals(ids)='1X  '
-    ids=WHERE(modals EQ '2') & modals(ids)='2NM '
-    ids=WHERE(modals EQ '3') & modals(ids)='3ST '
-    ids=WHERE(modals EQ '4') & modals(ids)='4PT '
-    ids=WHERE(modals EQ '5') & modals(ids)='5MR '
-    ids=WHERE(modals EQ '0/1') & modals(ids)='5CT/X '
+    ids=WHERE(modals EQ '0') & IF ids(0) NE -1 THEN modals(ids)='0CT '
+    ids=WHERE(modals EQ '1') & IF ids(0) NE -1 THEN modals(ids)='1X  '
+    ids=WHERE(modals EQ '2') & IF ids(0) NE -1 THEN modals(ids)='2NM '
+    ids=WHERE(modals EQ '3') & IF ids(0) NE -1 THEN modals(ids)='3ST '
+    ids=WHERE(modals EQ '4') & IF ids(0) NE -1 THEN modals(ids)='4PT '
+    ids=WHERE(modals EQ '5') & IF ids(0) NE -1 THEN modals(ids)='5MR '
+    ids=WHERE(modals EQ '0/1') & IF ids(0) NE -1 THEN modals(ids)='5CT/X '
     testTyp=configSinfo[3, test_rows]
     firstColText=modals+testTyp
     orderTblTestSett=BSORT(firstColText)
@@ -1621,6 +1775,8 @@ pro qt_upd, listNmb
   COMMON SETT
   COMMON VARI
   COMPILE_OPT hidden
+
+  WIDGET_CONTROL, /HOURGLASS
   emptyCheck=0
   RESTORE, thisPath+'data\config.dat'
   modSel=WIDGET_INFO(lstModality_QT,/DROPLIST_SELECT)
@@ -1643,7 +1799,12 @@ pro qt_upd, listNmb
             ENDFOR
           ENDFOR
           WIDGET_CONTROL, lstQT, SET_VALUE=strQTarr
-        ENDIF
+          WIDGET_CONTROL, txtNimgTest_qt, SET_VALUE=STRING(szMM(1),FORMAT='(i0)')
+        ENDIF ELSE BEGIN
+          WIDGET_CONTROL, lstQT, SET_VALUE=''
+          WIDGET_CONTROL, txtNimgTest_qt, SET_VALUE=''
+        ENDELSE
+
 
         WIDGET_CONTROL, lstTempQT, SET_VALUE=QTnames, SET_LIST_SELECT=listNmb
 
@@ -1676,6 +1837,7 @@ pro qto_updMode
   COMMON VARI
   COMPILE_OPT hidden
 
+  WIDGET_CONTROL, /HOURGLASS
   qto_currTemp=0;currently selected template
 
   RESTORE, thisPath+'data\config.dat'
@@ -1695,7 +1857,7 @@ pro qto_updTemp
   COMMON SETT
   COMMON VARI
   COMPILE_OPT hidden
-
+  WIDGET_CONTROL, /HOURGLASS
   qto_currTest=0;currently selected test droplist
   qto_currOutp=0;currently selected output-number for current test
   qto_currSel=0;currently selected row in table
@@ -1739,7 +1901,7 @@ pro qto_fillTable
   COMMON SETT
   COMMON VARI
   COMPILE_OPT hidden
-
+  WIDGET_CONTROL, /HOURGLASS
   RESTORE, thisPath+'data\config.dat'
   tempstruct=quickTout.(qto_currMod).(qto_currTemp)
 
@@ -1782,7 +1944,7 @@ pro qto_UpdSelections
   COMMON SETT
   COMMON VARI
   COMPILE_OPT hidden
-
+  WIDGET_CONTROL, /HOURGLASS
   WIDGET_CONTROL, tblQTout, GET_VALUE=tabRow, USE_TABLE_SELECT=[0,qto_currSel,5,qto_currSel]
 
   WIDGET_CONTROL, lstTest, SET_DROPLIST_SELECT=qto_currTest
@@ -1797,15 +1959,15 @@ pro qto_UpdSelections
 
 end
 
-
-;first = 1 if first time or after tab-switch and all lists should be updated
 ;first = 2 if modality change and QuickTest-list should be updated
+;first = -1 if regret change (when auto changed and not saved)
 pro auto_upd, selT, first
   COMMON SETT
   COMMON VARI
   COMPILE_OPT hidden
-
+  WIDGET_CONTROL, /HOURGLASS
   selMod=WIDGET_INFO(lstModality_a,/DROPLIST_SELECT)
+  a_currMod=selMod
   thisMod=availModNmb(selMod)
 
   IF first GE 1 THEN BEGIN; only first time modal opens or tab switches with possible change to config
@@ -1824,6 +1986,12 @@ pro auto_upd, selT, first
     ENDIF
     WIDGET_CONTROL, listTemp_a, SET_VALUE=tempnames_a, SET_LIST_SELECT=0
 
+    includeArr=actualTags(allTags, imgStructInfo, thisMod)
+    idsInclude=WHERE(includeArr EQ 1)
+    tags_imgStruct=allTags(idsInclude)
+    tags_imgStructDesc=allDesc(idsInclude)
+    WIDGET_CONTROL, listElem, SET_VALUE=tags_imgStructDesc, SET_LIST_SELECT=0
+
     quickTempNames=''
     IF N_ELEMENTS(quickTemp) NE 0 THEN BEGIN
       IF SIZE(quickTemp, /TNAME) EQ 'STRUCT' THEN BEGIN
@@ -1838,7 +2006,7 @@ pro auto_upd, selT, first
 
   IF selT NE -1 THEN BEGIN; selT = -1 if no template exist
     RESTORE, thisPath+'data\config.dat'
-
+    autoChanged=0
     WIDGET_CONTROL, txtBrowse_a, SET_VALUE=loadTemp.(thisMod).(selT).path
     WIDGET_CONTROL, txtStatName_a, SET_VALUE=loadTemp.(thisMod).(selT).statName
     WIDGET_CONTROL, txtBrowseApp, SET_VALUE=loadTemp.(thisMod).(selT).pathApp
@@ -1846,8 +2014,10 @@ pro auto_upd, selT, first
     WIDGET_CONTROL, btnInclSub, SET_BUTTON=loadTemp.(thisMod).(selT).includeSub
     WIDGET_CONTROL, btnMoveFiles, SET_BUTTON=loadTemp.(thisMod).(selT).archive
     WIDGET_CONTROL, btnDeleteFiles, SET_BUTTON=loadTemp.(thisMod).(selT).deleteFiles
-    WIDGET_CONTROL, listSort, SET_VALUE=loadTemp.(thisMod).(selT).sortBy
+    WIDGET_CONTROL, btnDeleteFilesEnd, SET_BUTTON=loadTemp.(thisMod).(selT).deleteFilesEnd
     sortElem=loadTemp.(thisMod).(selT).sortBy
+    ascElem=loadTemp.(thisMod).(selT).sortAsc
+    IF sortElem(0) NE '' THEN WIDGET_CONTROL, listSort, SET_VALUE=ascDesc01(ascElem)+sortElem ELSE WIDGET_CONTROL, listSort, SET_VALUE=''
 
     ;paramSet - exists still?
     paramSetName=STRUPCASE(loadTemp.(thisMod).(selT).paramSet)
@@ -1905,6 +2075,40 @@ pro auto_upd, selT, first
     WIDGET_CONTROL, txtBrowseApp, SET_VALUE=''
     WIDGET_CONTROL, listQT_a, SET_DROPLIST_SELECT=0
     sortElem=''
+    ascElem=0
   ENDELSE
+
+end
+
+pro upd_QuickTestTemplates
+  COMMON VARI
+  COMPILE_OPT hidden
+  WIDGET_CONTROL, /HOURGLASS
+  RESTORE, thisPath+'data\config.dat'
+
+  FOR m=0, N_TAGS(multiOpt)-1 DO BEGIN
+    IF SIZE(quickTemp.(m),/TNAME) EQ 'STRUCT' THEN BEGIN
+      idTest=WHERE(multiOpt.(m) NE 0)
+      names=TAG_NAMES(quickTemp.(m))
+      IF idTest(0) NE -1 THEN BEGIN
+        newQuickTmod=!Null
+        FOR i=0, N_TAGS(quickTemp.(m))-1 DO BEGIN
+          oldArr=quickTemp.(m).(i)
+          sz=SIZE(oldArr, /DIMENSIONS)
+
+          ;remove zeros on last images
+          rowSums=TOTAL(oldArr,1)
+          notZero=WHERE(rowSums GT 0)
+          newArr=oldArr[*,0:notZero(-1)]
+
+          newQuickTmod=CREATE_STRUCT(newQuickTmod,names(i),newArr)
+        ENDFOR
+        quickTemp=replaceStructStruct(quickTemp, newQuickTmod, m)
+      ENDIF
+    ENDIF
+  ENDFOR
+
+  SAVE, configS, quickTemp, quickTout, loadTemp, FILENAME=thisPath+'data\config.dat'
+
 
 end

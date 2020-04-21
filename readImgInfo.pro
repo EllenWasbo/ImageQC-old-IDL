@@ -39,6 +39,7 @@
 ;  .protocolName
 ;  .seriesNmb
 ;  .seriesTime
+;  .seriesUID
 ;  .acqNmb
 ;  .acqtime
 ;  .sliceThick
@@ -130,6 +131,10 @@ function readImgInfo, adr, dialog_par, silentValue
         test=o->GetReference('0008'x,'0031'x)
         test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
         IF test(0) NE -1 THEN seriesTime=*(test_peker[0]) ELSE seriesTime=''
+
+        test=o->GetReference('0020'x,'000E'x)
+        test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
+        IF test(0) NE -1 THEN seriesUID=*(test_peker[0]) ELSE seriesUID=''
         
         test=o->GetReference('0008'x,'0022'x)
         test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
@@ -287,6 +292,9 @@ function readImgInfo, adr, dialog_par, silentValue
             time=*(test_peker[0])
           ENDIF ELSE time=-1
         ENDELSE
+        IF mAs LE 0 THEN BEGIN
+          IF mA GT 0 AND time GT 0 THEN mAs=FLOAT(mA)*FLOAT(time)*.001
+        ENDIF
         
         ;IF modality EQ 'DX' OR modality EQ 'CR' THEN BEGIN
         ;  mAs=FLOAT(mA)*FLOAT(time)/1000.
@@ -580,7 +588,7 @@ function readImgInfo, adr, dialog_par, silentValue
         
         imgStruct=CREATE_STRUCT('filename',adr,'studydatetime', studyDate+studyTime, 'acqDate', acqDate, 'imgDate', imgDate, 'institution',institution,'modality', modality, 'modelName',modelName,'stationName',stationName,'SWversion',SWversion,'detectorID',detectorID,$
           'patientName',patientName, 'patientID', patientID, 'patientWeight', patientWeight, 'imageType',imageType,'presType',presType,'studyDescr',studyDescr,'seriesName',seriesName, 'protocolname', protocolname,$
-          'seriesNmb',seriesNmb,'seriesTime', seriesTime,'acqNmb',acqNmb, 'acqtime',acqtime,'sliceThick',sliceThick, 'pix', pix,'imageSize',imageSize,'kVp',kVp,'FOV',dFOV,'rekonFOV',rekonFOV,'mA',mA,'mAs',mAs,'ExpTime',time,'coll',coll,'pitch',pitch,$
+          'seriesNmb',seriesNmb,'seriesTime', seriesTime,'seriesUID',seriesUID,'acqNmb',acqNmb, 'acqtime',acqtime,'sliceThick',sliceThick, 'pix', pix,'imageSize',imageSize,'kVp',kVp,'FOV',dFOV,'rekonFOV',rekonFOV,'mA',mA,'mAs',mAs,'ExpTime',time,'coll',coll,'pitch',pitch,$
           'ExModType',ExModType,'CTDIvol',CTDIvol,'DAP',DAP,'EI',EI,'sensitivity',sensitivity,'sdd',sdd,'filterAddOn',filterAddOn,'kernel',kernel,$
           'zpos', zpos, 'imgNo',imgNo,'nFrames',nFrames,'wCenter',wCenter,'wWidth',wWidth,$
           'collType',collType,'nEWindows',nEWindows,'EWindowName',EWindowName,'zoomFactor',zoomFactor,'radius1',radPos1,'radius2',radPos2,'angle',angle,'acqFrameDuration',acqFrameDuration,'acqTerminationCond',acqTerminationCond,$
