@@ -72,6 +72,7 @@ pro clearRes, analyseStr
       crossRes=!Null
       rcRes=!Null
       radialRes=!Null
+      MRposRes=!Null
       
       results=results*0
       currentHeaderAlt=currentHeaderAlt*0
@@ -103,6 +104,7 @@ pro clearRes, analyseStr
         'CROSSCALIB': crossRes=!Null
         'RC': rcRes=!Null
         'RADIAL': radialRes=!Null
+        'POS': MRposRes=!Null
         ELSE:
       ENDCASE
   

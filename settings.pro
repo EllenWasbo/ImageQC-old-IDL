@@ -24,9 +24,16 @@ pro settings, GROUP_LEADER = mainbase, xoff, yoff, tabString;tabString = 'PARAM'
     lstModality_qto, lstTemplates_qto, tblQTout, lstTest, lstAlt, lstCols, lstCalc, lstPer, txtDescr, lstQTOusedParam, setNames_qto, autoNames_qto, $
     qto_currMod, qto_currTemp, qto_currTest, qto_currOutp, qto_currSel, $
     txtAutoImpPath, lstModality_a, listTemp_a, txtBrowse_a, txtStatName_a, listSets_a, listQT_a, listElem, listSort, btnInclSub, btnOnlyLastDate,txtBrowseApp, btnMoveFiles, btnDeleteFiles,btnDeleteFilesEnd,$
-    selecTemp_a,a_currMod,tempnames_a,paramSetNames,quickTempNames, tags_imgStruct, sortElem, ascElem, auto_warningBox, warningTxt1, warningTxt2,autoChanged
+    selecTemp_a,a_currMod,tempnames_a,paramSetNames,quickTempNames, tags_imgStruct, sortElem, ascElem, auto_warningBox, warningTxt1, warningTxt2,autoChanged, $
+    tbl_rde, lstTemp_rdt, txtCat_rdt, txtFile_rdt, rdt_names, txtInputTest,txtFormatTest,txtOutputTest,$
+    btnAdd_s,btnSave_s,btnDupliTemp_s,btnRenameTemp_s,btnUpTemp_s,btnDownTemp_s,btnDelete_s,btnSetDef,btnRefreshQT,$
+    btnDuplicate_qt,btnRename_qt,btnUpTemp_qt,btnDownTemp_qt,btnDelete_qt,$
+    btnDupliTemp_qto,btnRenameTemp_qto,btnDeleteTemp_qto,btnAddQTO,btnEditQTO,btnDelQTO,$
+    btnAddTemp_a,btnOverWriteAuto,btnDupliTemp_a,btnRenameTemp_a,btnUpTemp_a,btnDownTemp_a,btnDelTemp_a,$
+    btnAdd_rde,btnOverWrite_rde,btnDupli_rde,btnUp_rde,btnDown_rde,btnDel_rde,btnDuplicate_rdt,btnRename_rdt,btnUpTemp_rdt,btnDownTemp_rdt,btnDelete_rdt
   COMMON VARI
   COMPILE_OPT hidden
+  
 
   IF saveOK EQ 0 THEN sv=DIALOG_MESSAGE('ImageQC is already in use. All changes to config-file (user settings) are blocked. (This block can be removed - see lower left button in Settings window if the block exist due to previous crash.)',/INFORMATION, DIALOG_PARENT=mainbase)
   autoChanged=0; =1 if any change to the automation template
@@ -39,6 +46,7 @@ pro settings, GROUP_LEADER = mainbase, xoff, yoff, tabString;tabString = 'PARAM'
   bQTsetup=WIDGET_BASE(wtabSett, TITLE='QuickTest templates', /COLUMN, UVALUE='tabQTsetup')
   bQTout=WIDGET_BASE(wtabSett, TITLE='QuickTest output templates', /COLUMN, UVALUE='tabQTout')
   bAuto=WIDGET_BASE(wtabSett, TITLE='Automation templates', /ROW, UVALUE='tabAuto')
+  bRename=WIDGET_BASE(wtabSett, TITLE='RenameDICOM settings', /COLUMN, UVALUE='tabRename')
   bInfo=WIDGET_BASE(wtabSett, TITLE='Info', /COLUMN, UVALUE='tabInfo')
 
   RESTORE, thisPath+'data\config.dat'
@@ -229,7 +237,7 @@ pro settings, GROUP_LEADER = mainbase, xoff, yoff, tabString;tabString = 'PARAM'
   WIDGET_CONTROL, lstTemplates_qto, SET_LIST_SELECT=0
   bTempEdit=WIDGET_BASE(bRgt, /ROW)
   btnDupliTemp_qto=WIDGET_BUTTON(bTempEdit, VALUE=thisPath+'images\copy.bmp' ,/BITMAP, TOOLTIP='Duplicate', UVALUE='qto_duplicate', FONT=font1, SENSITIVE=saveOK)
-  btnDeleteTemp_qto=WIDGET_BUTTON(bTempEdit, VALUE=thisPath+'images\rename.bmp' ,/BITMAP, TOOLTIP='Rename', UVALUE='qto_rename', FONT=font1, SENSITIVE=saveOK)
+  btnRenameTemp_qto=WIDGET_BUTTON(bTempEdit, VALUE=thisPath+'images\rename.bmp' ,/BITMAP, TOOLTIP='Rename', UVALUE='qto_rename', FONT=font1, SENSITIVE=saveOK)
   btnDeleteTemp_qto=WIDGET_BUTTON(bTempEdit, VALUE=thisPath+'images\delete.bmp' ,/BITMAP, TOOLTIP='Delete', UVALUE='qto_delete', FONT=font1, SENSITIVE=saveOK)
 
   ml10= WIDGET_LABEL(bLft, VALUE='', YSIZE=29)
@@ -248,7 +256,7 @@ pro settings, GROUP_LEADER = mainbase, xoff, yoff, tabString;tabString = 'PARAM'
   bEditBtns=WIDGET_BASE(bLowRgt, /ROW, YSIZE=28)
   ml2=WIDGET_LABEL(bEditBtns, VALUE='', XSIZE=80)
   btnAddQTO=WIDGET_BUTTON(bEditBtns, VALUE=thisPath+'images\plus.bmp' ,/BITMAP,TOOLTIP='Add as new output', UVALUE='qto_add', FONT=font1, SENSITIVE=saveOK)
-  btnAddQTO=WIDGET_BUTTON(bEditBtns, VALUE=thisPath+'images\save.bmp', /BITMAP, TOOLTIP='Overwrite selected table row', UVALUE='qto_overwrite', FONT=font1, SENSITIVE=saveOK)
+  btnEditQTO=WIDGET_BUTTON(bEditBtns, VALUE=thisPath+'images\save.bmp', /BITMAP, TOOLTIP='Overwrite selected table row', UVALUE='qto_overwrite', FONT=font1, SENSITIVE=saveOK)
   btnDelQTO=WIDGET_BUTTON(bEditBtns, VALUE=thisPath+'images\delete.bmp' ,/BITMAP, TOOLTIP='Delete output', UVALUE='qto_deleteOutp', FONT=font1, SENSITIVE=saveOK)
 
   bParamList=WIDGET_BASE(bQTout, /COLUMN)
@@ -383,6 +391,87 @@ infoML1=WIDGET_LABEL(autobox1, VALUE='', YSIZE=20)
   selecTemp_a=0
   a_currMod=defModality
   auto_upd, selecTemp_a, 1
+  
+  ;************** Rename DICOM ***************'
+  
+  ml_Rd1=WIDGET_LABEL(bRename, VALUE='', YSIZE=20)
+  rd_infobox0=WIDGET_BASE(bRename, /COLUMN, XSIZE=850, FRAME=1)
+  rd_info0=WIDGET_LABEL(rd_infobox0, VALUE='Settings and template manager for RenameDICOM ', /ALIGN_LEFT, FONT=font0)
+  rd_info1=WIDGET_LABEL(rd_infobox0, VALUE='RenameDICOM is a standalone application, but now also included in ImageQC for your convenience.', /ALIGN_LEFT, FONT=font1)
+  rd_info2=WIDGET_LABEL(rd_infobox0, VALUE='Define dicom tags to be used for renaming and define templates on how to combine these to generate reconizable filenames.', /ALIGN_LEFT, FONT=font1)
+  rd_info3=WIDGET_LABEL(rd_infobox0, VALUE='This is the template manager. Templates are built within the RenameDICOM window. Find it from the file menu.', /ALIGN_LEFT, FONT=font1)
+  
+  ml_Rd2=WIDGET_LABEL(bRename, VALUE='', YSIZE=20)
+
+  bRenameMid=WIDGET_BASE(bRename, /ROW)
+  mlMid1=WIDGET_LABEL(bRenameMid, VALUE='', XSIZE=10)
+
+  bTbl_rde=WIDGET_BASE(bRenameMid, /COLUMN)
+  lbl_tbl_rde=WIDGET_LABEL(bTbl_rde, VALUE='DICOM tags ', /ALIGN_LEFT, FONT=font0)
+  tbl_rde=WIDGET_TABLE(bTbl_rde, XSIZE=5, YSIZE=100, SCR_XSIZE=550, SCR_YSIZE=300,COLUMN_WIDTHS=[150,60,70,110,130], /NO_ROW_HEADERS, COLUMN_LABELS=['Tag description','Tag group','Tag element','Default format code','for selected template'], UVALUE='tbl_rde',/ALL_EVENTS)
+  
+  bButt_tbl_rde=WIDGET_BASE(bTbl_rde, /ROW)
+  btnAdd_rde=WIDGET_BUTTON(bButt_tbl_rde, VALUE=thisPath+'images\plus.bmp',/BITMAP, UVALUE='rde_add', TOOLTIP='Add new DICOM tag to list', SENSITIVE=saveOK)
+  btnOverWrite_rde=WIDGET_BUTTON(bButt_tbl_rde, VALUE=thisPath+'images\edit.bmp',/BITMAP,UVALUE='rde_overwrite', TOOLTIP='Overwrite selected tag with new values.', SENSITIVE=saveOK)
+  btnDupli_rde=WIDGET_BUTTON(bButt_tbl_rde, VALUE=thisPath+'images\copy.bmp' ,/BITMAP, UVALUE='rde_duplicate', TOOLTIP='Duplicate', SENSITIVE=saveOK)
+  btnUp_rde=WIDGET_BUTTON(bButt_tbl_rde, VALUE=thisPath+'images\switch_up.bmp',/BITMAP, UVALUE='rde_upTemp', TOOLTIP='Move upwards in list', SENSITIVE=saveOK)
+  btnDown_rde=WIDGET_BUTTON(bButt_tbl_rde, VALUE=thisPath+'images\switch_down.bmp',/BITMAP, UVALUE='rde_downTemp', TOOLTIP='Move downwards in list', SENSITIVE=saveOK)
+  btnDel_rde=WIDGET_BUTTON(bButt_tbl_rde, VALUE=thisPath+'images\delete.bmp',/BITMAP, UVALUE='rde_delTemp', TOOLTIP='Delete element', SENSITIVE=saveOK)
+  
+  mlMid2=WIDGET_LABEL(bRenameMid, VALUE='', XSIZE=10)
+  bFormatInfo=WIDGET_BASE(bRenameMid,/COLUMN)
+  rdf_info0=WIDGET_LABEL(bFormatInfo, VALUE='Format code explained ', /ALIGN_LEFT, FONT=font0)
+  
+  rdf_info1=WIDGET_LABEL(bFormatInfo, VALUE='Text: a<#letters>', /ALIGN_LEFT, FONT=font1)
+  rdf_info2=WIDGET_LABEL(bFormatInfo, VALUE='Integer: i<#digits>', /ALIGN_LEFT, FONT=font1)
+  rdf_info3=WIDGET_LABEL(bFormatInfo, VALUE='Float: f<#digits>.<#decimals>', /ALIGN_LEFT, FONT=font1)
+  rdf_info4=WIDGET_LABEL(bFormatInfo, VALUE='Specify # as 0 means all.', /ALIGN_LEFT, FONT=font1)
+  rdf_info5a=WIDGET_LABEL(bFormatInfo, VALUE='For DICOM tags with \ you can extract one or more of', /ALIGN_LEFT, FONT=font1) 
+  rdf_info5b=WIDGET_LABEL(bFormatInfo, VALUE='these separating format codes with \ and _ for ignore part.', /ALIGN_LEFT, FONT=font1)
+  rdf_info6=WIDGET_LABEL(bFormatInfo, VALUE='', /ALIGN_LEFT, YSIZE=10)
+  rdf_info6a=WIDGET_LABEL(bFormatInfo, VALUE='Examples:', /ALIGN_LEFT, FONT=font1)
+  rdf_info7=WIDGET_LABEL(bFormatInfo, VALUE='testing123:  a3=tes, a0=testing123', /ALIGN_LEFT, FONT=font1)
+  rdf_info8=WIDGET_LABEL(bFormatInfo, VALUE='123:           i4= 123, i04=0123, i2=xx', /ALIGN_LEFT, FONT=font1)
+  rdf_info9=WIDGET_LABEL(bFormatInfo, VALUE='123.123:     f0.1=123.1, f2.1=xx', /ALIGN_LEFT, FONT=font1)
+  rdf_info10=WIDGET_LABEL(bFormatInfo, VALUE='0\1\3:     _\_\i0=3, i0\_\_=0, i0\i0\i0=0_1_3', /ALIGN_LEFT, FONT=font1)
+  rdf_info11=WIDGET_LABEL(bFormatInfo, VALUE='', /ALIGN_LEFT, YSIZE=10)
+  rdf_info12=WIDGET_LABEL(bFormatInfo, VALUE='Note that when renaming folders special characters ', /ALIGN_LEFT, FONT=font1)
+  rdf_info13=WIDGET_LABEL(bFormatInfo, VALUE='including . is converted to characters valid for folder names.', /ALIGN_LEFT, FONT=font1)
+  
+  ml_info=WIDGET_LABEL(bFormatInfo, VALUE='', /ALIGN_LEFT, YSIZE=10)
+  bTestFormat=WIDGET_BASE(bFormatInfo, /ROW)
+  lblInputTest=WIDGET_LABEL(bTestFormat, VALUE='Input string:',FONT=font1,XSIZE=70)
+  txtInputTest=WIDGET_TEXT(bTestFormat, VALUE='123',FONT=font1, XSIZE=10,/EDITABLE)
+  lblFormatTest=WIDGET_LABEL(bTestFormat, VALUE='   Format code:',FONT=font1)
+  txtFormatTest=WIDGET_TEXT(bTestFormat, VALUE='i05',FONT=font1, XSIZE=10,/EDITABLE)
+  bTestFormat2=WIDGET_BASE(bFormatInfo, /ROW)
+  lblOutputTest=WIDGET_LABEL(bTestFormat2, VALUE='Output:',FONT=font1,XSIZE=70)
+  txtOutputTest=WIDGET_TEXT(bTestFormat2, VALUE='00123',FONT=font1, XSIZE=15)
+  btnFormatTestUpdate=WIDGET_BUTTON(bTestFormat2, VALUE='Update',FONT=font1,UVALUE='formatTestUpdate')
+  
+  ml_Rd3=WIDGET_LABEL(bRename, VALUE='', YSIZE=20)
+  bRenameLow=WIDGET_BASE(bRename, /ROW)
+  mlLow1=WIDGET_LABEL(bRenameLow, VALUE='', XSIZE=20)
+  bList_rdt=WIDGET_BASE(bRenameLow, /COLUMN)
+  lblTop_rdt=WIDGET_LABEL(bList_rdt, VALUE='Rename templates ', /ALIGN_LEFT, FONT=font0)
+  lstTemp_rdt=WIDGET_LIST(bList_rdt, VALUE='', XSIZE=50, SCR_XSIZE=200, SCR_YSIZE=100, UVALUE='rdt_listTemp', FONT=font1)
+  bBtns_rdt=WIDGET_BASE(bList_rdt, /ROW)
+  btnDuplicate_rdt=WIDGET_BUTTON(bBtns_rdt, VALUE=thisPath+'images\copy.bmp',/BITMAP, TOOLTIP='Duplicate template', FONT=font1, UVALUE='rdt_duplicate', SENSITIVE=saveOK)
+  btnRename_rdt=WIDGET_BUTTON(bBtns_rdt, VALUE=thisPath+'images\rename.bmp',/BITMAP, TOOLTIP='Rename template', FONT=font1, UVALUE='rdt_rename', SENSITIVE=saveOK)
+  btnUpTemp_rdt=WIDGET_BUTTON(bBtns_rdt, VALUE=thisPath+'images\switch_up.bmp',/BITMAP, UVALUE='rdt_upTemp', TOOLTIP='Move template upwards in list', SENSITIVE=saveOK)
+  btnDownTemp_rdt=WIDGET_BUTTON(bBtns_rdt, VALUE=thisPath+'images\switch_down.bmp',/BITMAP, UVALUE='rdt_downTemp', TOOLTIP='Move template downwards in list', SENSITIVE=saveOK)
+  btnDelete_rdt=WIDGET_BUTTON(bBtns_rdt, VALUE=thisPath+'images\delete.bmp',/BITMAP, TOOLTIP='Delete selected template', UVALUE='rdt_delete', SENSITIVE=saveOK)
+
+  bShow_rdt=WIDGET_BASE(bRenameLow,/COLUMN)
+  bCat_rdt=WIDGET_BASE(bShow_rdt,/ROW)
+  lblCat_rdt=WIDGET_LABEL(bCat_rdt, VALUE='Subfolder name template:', XSIZE=120)
+  txtCat_rdt=WIDGET_TEXT(bCat_rdt, VALUE='', XSIZE=500, SCR_XSIZE=500)
+  bFile_rdt=WIDGET_BASE(bShow_rdt,/ROW)
+  lblFile_rdt=WIDGET_LABEL(bFile_rdt, VALUE='Filename template:', XSIZE=120)
+  txtFile_rdt=WIDGET_TEXT(bFile_rdt, VALUE='', XSIZE=500, SCR_XSIZE=500)
+
+  updRDT, 0
+  updRDE, 0
 
   ;********** Info ***********
   p_1=WIDGET_LABEL(bInfo , VALUE='', YSIZE=10)
@@ -430,6 +519,11 @@ infoML1=WIDGET_LABEL(autobox1, VALUE='', YSIZE=20)
   a_info8=WIDGET_LABEL(auto_infobox, VALUE='The images will be sorted on acquisition date first and the results will be generated per acquisition date found.', FONT=font1, /ALIGN_LEFT)
   a_info9=WIDGET_LABEL(auto_infobox, VALUE='If a result file is specified the results will be appended to this according to the output template (1 row pr date, no headers)', FONT=font1, /ALIGN_LEFT)
   a_info10=WIDGET_LABEL(auto_infobox, VALUE='else the program will pause for each date and give the opportunity to paste the results into any text-file or Excel.', FONT=font1, /ALIGN_LEFT)
+  
+  rename_infobox=WIDGET_BASE(bInfo, /COLUMN, XSIZE=850, FRAME=1)
+  r_info0=WIDGET_LABEL(rename_infobox, VALUE='Rename Dicom Templates:', /ALIGN_LEFT, FONT=font0)
+  r_info1=WIDGET_LABEL(rename_infobox, VALUE='DICOM files often have names that do not reflect the content. Rename the DICOM files based on information in the DICOM header.', /ALIGN_LEFT, FONT=font1)
+  r_info2=WIDGET_LABEL(rename_infobox, VALUE='Specify DICOM tags that should be available for building reasonable names and create templates for automatic renaming (within Rename DICOM).', /ALIGN_LEFT, FONT=font1)
   ;*************
 
   lblMlButt=WIDGET_LABEL(settingsbox, VALUE='', YSIZE=20)
@@ -438,6 +532,7 @@ infoML1=WIDGET_LABEL(autobox1, VALUE='', YSIZE=20)
   mlBtmButt=WIDGET_LABEL(bBtmButt, VALUE='', XSIZE=350)
   btnSaveConfigBackup=WIDGET_BUTTON(bBtmButt, VALUE='Backup', TOOLTIP='Backup config file', UVALUE='backupConfig')
   btnRestoreConfig=WIDGET_BUTTON(bBtmButt, VALUE='Restore', TOOLTIP='Restore and replace config file with backup config file', UVALUE='restoreConfig')
+  btnExpXMLConfig=WIDGET_BUTTON(bBtmButt, VALUE='Export to XML', TOOLTIP='Export config structures to XML file', UVALUE='expXML')
   btnInfoS=WIDGET_BUTTON(bBtmButt, VALUE=thisPath+'images\info.bmp',/BITMAP, UVALUE='s_info')
   btnCancelSett=WIDGET_BUTTON(bBtmButt, VALUE='Close', UVALUE='cancel', FONT=font1)
 
@@ -446,7 +541,8 @@ infoML1=WIDGET_LABEL(autobox1, VALUE='', YSIZE=20)
     'QTSETUP': tabNo=1
     'QTOUT': tabNo=2
     'AUTOSETUP': tabNo=3
-    'INFO': tabNo=4
+    'RENAMEDICOM': tabNo=4
+    'INFO': tabNo=5
     ELSE:
   ENDCASE
   WIDGET_CONTROL, wtabSett, SET_TAB_CURRENT=tabNo
@@ -493,8 +589,47 @@ pro settings_event, event
             OPENW, blockfile, blockAdr, /GET_LUN
             PRINTF, blockfile, 'Saving blocked by user session'
             CLOSE, blockfile & FREE_LUN, blockfile
-            sv=DIALOG_MESSAGE('Blocking now removed. Settings-window will be closed. Reopen to refresh.', /INFORMATION, DIALOG_PARENT=event.Top)
-            WIDGET_CONTROL, Event.top, /DESTROY
+            sv=DIALOG_MESSAGE('Blocking now removed.', /INFORMATION, DIALOG_PARENT=event.Top) ;Settings-window will closed. Reopen to refresh.', /INFORMATION, DIALOG_PARENT=event.Top)
+            
+            WIDGET_CONTROL, btnAdd_s, SENSITIVE=1
+            WIDGET_CONTROL, btnSave_s,SENSITIVE=1
+            WIDGET_CONTROL,btnDupliTemp_s,SENSITIVE=1
+            WIDGET_CONTROL,btnRenameTemp_s,SENSITIVE=1
+            WIDGET_CONTROL,btnUpTemp_s,SENSITIVE=1
+            WIDGET_CONTROL,btnDownTemp_s,SENSITIVE=1
+            WIDGET_CONTROL,btnDelete_s,SENSITIVE=1
+            WIDGET_CONTROL,btnSetDef,SENSITIVE=1
+            WIDGET_CONTROL,btnRefreshQT,SENSITIVE=1
+            WIDGET_CONTROL,btnDuplicate_qt,SENSITIVE=1
+            WIDGET_CONTROL,btnRename_qt,SENSITIVE=1
+            WIDGET_CONTROL,btnUpTemp_qt,SENSITIVE=1
+            WIDGET_CONTROL,btnDownTemp_qt,SENSITIVE=1
+            WIDGET_CONTROL,btnDelete_qt,SENSITIVE=1
+            WIDGET_CONTROL,btnDupliTemp_qto,SENSITIVE=1
+            WIDGET_CONTROL,btnDeleteTemp_qto,SENSITIVE=1
+            WIDGET_CONTROL,btnRenameTemp_qto,SENSITIVE=1
+            WIDGET_CONTROL,btnAddQTO,SENSITIVE=1
+            WIDGET_CONTROL,btnEditQTO,SENSITIVE=1
+            WIDGET_CONTROL,btnDelQTO,SENSITIVE=1
+            WIDGET_CONTROL,btnAddTemp_a,SENSITIVE=1
+            WIDGET_CONTROL,btnOverWriteAuto,SENSITIVE=1
+            WIDGET_CONTROL,btnDupliTemp_a,SENSITIVE=1
+            WIDGET_CONTROL,btnRenameTemp_a,SENSITIVE=1
+            WIDGET_CONTROL,btnUpTemp_a,SENSITIVE=1
+            WIDGET_CONTROL,btnDownTemp_a,SENSITIVE=1
+            WIDGET_CONTROL,btnDelTemp_a,SENSITIVE=1
+            WIDGET_CONTROL,btnAdd_rde,SENSITIVE=1
+            WIDGET_CONTROL,btnOverWrite_rde,SENSITIVE=1
+            WIDGET_CONTROL,btnDupli_rde,SENSITIVE=1
+            WIDGET_CONTROL,btnUp_rde,SENSITIVE=1
+            WIDGET_CONTROL,btnDown_rde,SENSITIVE=1
+            WIDGET_CONTROL,btnDel_rde,SENSITIVE=1
+            WIDGET_CONTROL,btnDuplicate_rdt,SENSITIVE=1
+            WIDGET_CONTROL,btnRename_rdt,SENSITIVE=1
+            WIDGET_CONTROL,btnUpTemp_rdt,SENSITIVE=1
+            WIDGET_CONTROL,btnDownTemp_rdt,SENSITIVE=1
+            WIDGET_CONTROL,btnDelete_rdt,SENSITIVE=1
+            ;WIDGET_CONTROL, Event.top, /DESTROY
           ENDIF
         ENDIF
       END
@@ -503,6 +638,38 @@ pro settings_event, event
         adr=DIALOG_PICKFILE(TITLE='Backup config file', /WRITE, FILTER='*.dat', /FIX_FILTER, DIALOG_PARENT=event.Top, /OVERWRITE_PROMPT, DEFAULT_EXTENSION='.dat', PATH='C:\')
         IF adr(0) NE '' THEN FILE_COPY, thisPath+'data\config.dat', adr
       END
+
+      'expXML':BEGIN
+
+        adr=DIALOG_PICKFILE(TITLE='Select an empty folder to place the 5 xml files', /WRITE, PATH=defPath, /DIRECTORY, DIALOG_PARENT=event.Top)
+        IF adr(0) NE '' THEN BEGIN
+          
+           RESTORE, thisPath+'data\config.dat'
+           configSarr=struct2xml(configS)
+           quickTempArr=struct2xml(quickTemp)
+           quickToutArr=struct2xml(quickTout)
+           loadTempArr=struct2xml(loadTemp)
+           renameTempArr=struct2xml(renameTemp)
+           
+           if (!D.NAME eq 'WIN') then newline = string([13B, 10B]) else newline = string(10B)
+           OPENW, xmlfile, adr+'\configS.xml',/GET_LUN
+           PRINTF, xmlfile, STRJOIN(configSarr,newline)
+           CLOSE, xmlfile & FREE_LUN, xmlfile
+           OPENW, xmlfile, adr+'\quickTemp.xml',/GET_LUN
+           PRINTF, xmlfile, STRJOIN(quickTempArr,newline)
+           CLOSE, xmlfile & FREE_LUN, xmlfile
+           OPENW, xmlfile, adr+'\quickTout.xml',/GET_LUN
+           PRINTF, xmlfile, STRJOIN(quickToutArr,newline)
+           CLOSE, xmlfile & FREE_LUN, xmlfile
+           OPENW, xmlfile, adr+'\loadTemp.xml',/GET_LUN
+           PRINTF, xmlfile, STRJOIN(loadTempArr,newline)
+           CLOSE, xmlfile & FREE_LUN, xmlfile
+           OPENW, xmlfile, adr+'\renameTemp.xml',/GET_LUN
+           PRINTF, xmlfile, STRJOIN(renameTempArr,newline)
+           CLOSE, xmlfile & FREE_LUN, xmlfile
+     
+        ENDIF
+        END
 
       'restoreConfig':BEGIN
         IF saveOK THEN BEGIN
@@ -519,7 +686,7 @@ pro settings_event, event
               quickTemp=updateQuickT(adr(0), multiOpt)
               loadTemp=updateLoadT(adr(0),multiOpt)
               quickTout=updateQuickTout(adr(0))
-              SAVE, configS, quickTemp, quickTout, loadTemp, FILENAME=thisPath+'data\config.dat'
+              SAVE, configS, quickTemp, quickTout, loadTemp, renameTemp, FILENAME=thisPath+'data\config.dat'
               ;update values on default parameterset
               selConfig=configS.(0)
               restoreTagsS=TAG_NAMES(configS)
@@ -550,7 +717,7 @@ pro settings_event, event
           '2, BUTTON, Cancel, QUIT, TAG=Cancel']
         res=CW_FORM_2(box, /COLUMN, TAB_MODE=1, TITLE='Save as...', XSIZE=300, YSIZE=100, FOCUSNO=1, XOFFSET=xoffset+200, YOFFSET=yoffset+200)
 
-        IF ~res.Cancel THEN BEGIN
+        IF res.Save THEN BEGIN
           IF res.newname EQ '' THEN sv=DIALOG_MESSAGE('No name specified. Could not save.', DIALOG_PARENT=event.top) ELSE BEGIN
 
             tempname=STRUPCASE(IDL_VALIDNAME(res.newname, /CONVERT_ALL))
@@ -568,7 +735,7 @@ pro settings_event, event
               WIDGET_CONTROL, lstNM_s, GET_VALUE=strNM
               WIDGET_CONTROL, lstMR_s, GET_VALUE=strMR
               configS.(saveNmb).qtOutTemps=[strCT(WIDGET_INFO(lstCT_s, /DROPLIST_SELECT)),strX(WIDGET_INFO(lstX_s, /DROPLIST_SELECT)),strNM(WIDGET_INFO(lstNM_s, /DROPLIST_SELECT)),'DEFAULT','DEFAULT',strMR(WIDGET_INFO(lstMR_s, /DROPLIST_SELECT))]
-              SAVE, configS, quickTemp, quickTout, loadTemp, FILENAME=thisPath+'data\config.dat'
+              SAVE, configS, quickTemp, quickTout, loadTemp, renameTemp, FILENAME=thisPath+'data\config.dat'
               s_upd, saveNmb-1, 0
             ENDELSE
           ENDELSE
@@ -587,7 +754,7 @@ pro settings_event, event
           namesNM=TAG_NAMES(quickTout.(2))
           namesMR=TAG_NAMES(quickTout.(3))
           configS.(selSet+1).qtOutTemps=[namesCT(WIDGET_INFO(lstCT_s, /DROPLIST_SELECT)),namesX(WIDGET_INFO(lstX_s, /DROPLIST_SELECT)),namesNM(WIDGET_INFO(lstNM_s, /DROPLIST_SELECT)),'DEFAULT','DEFAULT',namesMR(WIDGET_INFO(lstMR_s, /DROPLIST_SELECT))]
-          SAVE, configS, quickTemp, quickTout, loadTemp, FILENAME=thisPath+'data\config.dat'
+          SAVE, configS, quickTemp, quickTout, loadTemp, renameTemp, FILENAME=thisPath+'data\config.dat'
 
           s_upd, selSet, 0
         ENDIF
@@ -602,7 +769,7 @@ pro settings_event, event
           '2, BUTTON, Cancel, QUIT, TAG=Cancel']
         res=CW_FORM_2(box, /COLUMN, TAB_MODE=1, TITLE='Name the duplicate', XSIZE=300, YSIZE=100, FOCUSNO=1, XOFFSET=xoffset+200, YOFFSET=yoffset+200)
 
-        IF ~res.Cancel THEN BEGIN
+        IF res.Save THEN BEGIN
           IF res.newname EQ '' THEN sv=DIALOG_MESSAGE('No name specified. Could not duplicate.', DIALOG_PARENT=event.top) ELSE BEGIN
 
             tempname=STRUPCASE(IDL_VALIDNAME(res.newname, /CONVERT_ALL))
@@ -614,7 +781,7 @@ pro settings_event, event
             ENDIF ELSE BEGIN
               toDupli=WIDGET_INFO(listSets_s, /LIST_SELECT)+1
               configS=CREATE_STRUCT(configS, tempname, configS.(toDupli))
-              SAVE, configS, quickTemp, quickTout, loadTemp, FILENAME=thisPath+'data\config.dat'
+              SAVE, configS, quickTemp, quickTout, loadTemp, renameTemp, FILENAME=thisPath+'data\config.dat'
               s_upd, N_TAGS(configS)-2, 0
             ENDELSE
 
@@ -632,7 +799,7 @@ pro settings_event, event
           '2, BUTTON, Cancel, QUIT, TAG=Cancel']
         res=CW_FORM_2(box, /COLUMN, TAB_MODE=1, TITLE='Rename', XSIZE=300, YSIZE=100, FOCUSNO=1, XOFFSET=xoffset+200, YOFFSET=yoffset+200)
 
-        IF ~res.Cancel THEN BEGIN
+        IF res.Save THEN BEGIN
           IF res.newname EQ '' THEN sv=DIALOG_MESSAGE('No name specified.', DIALOG_PARENT=event.top) ELSE BEGIN
 
             tempname=STRUPCASE(IDL_VALIDNAME(res.newname, /CONVERT_ALL))
@@ -657,7 +824,7 @@ pro settings_event, event
                 ENDIF
               ENDIF
 
-              SAVE, configS, quickTemp, quickTout, loadTemp, FILENAME=thisPath+'data\config.dat'
+              SAVE, configS, quickTemp, quickTout, loadTemp, renameTemp, FILENAME=thisPath+'data\config.dat'
               s_upd, toRename-1, 0
             ENDELSE
 
@@ -673,7 +840,7 @@ pro settings_event, event
           newOrder=oldOrder
           newOrder[currSel-1:currSel]=REVERSE(oldOrder[currSel-1:currSel])
           configS=reorderStructStruct(configS, newOrder)
-          SAVE, configS, quickTemp, quickTout, loadTemp, FILENAME=thisPath+'data\config.dat'
+          SAVE, configS, quickTemp, quickTout, loadTemp, renameTemp, FILENAME=thisPath+'data\config.dat'
           tempnames_s=TAG_NAMES(configS)
           WIDGET_CONTROL, listSets_s, SET_VALUE=tempnames_s[1:-1], SET_LIST_SELECT=currSel-2
           s_upd, currSel-2, 0
@@ -688,7 +855,7 @@ pro settings_event, event
           newOrder=oldOrder
           newOrder[currSel:currSel+1]=REVERSE(oldOrder[currSel:currSel+1])
           configS=reorderStructStruct(configS, newOrder)
-          SAVE, configS, quickTemp, quickTout, loadTemp, FILENAME=thisPath+'data\config.dat'
+          SAVE, configS, quickTemp, quickTout, loadTemp, renameTemp, FILENAME=thisPath+'data\config.dat'
           tempnames_s=TAG_NAMES(configS)
           WIDGET_CONTROL, listSets_s, SET_VALUE=tempnames_s[1:-1], SET_LIST_SELECT=currSel
           s_upd, currSel, 0
@@ -713,7 +880,7 @@ pro settings_event, event
             selConfig=configS.(0)
             setNames=TAG_NAMES(configS)
             IF selSet+1 EQ currInMain THEN refreshParam, configS.(selConfig), setNames(selConfig);the currently selected in main window is deleted, uptdat with default
-            SAVE, configS, quickTemp, quickTout, loadTemp, FILENAME=thisPath+'data\config.dat'
+            SAVE, configS, quickTemp, quickTout, loadTemp, renameTemp, FILENAME=thisPath+'data\config.dat'
             s_upd, selConfig-1, 0
           ENDIF
         ENDELSE
@@ -722,7 +889,7 @@ pro settings_event, event
       's_setDefault':BEGIN
         RESTORE, thisPath+'data\config.dat'
         configS.(0)=WIDGET_INFO(listSets_s, /LIST_SELECT)+1
-        SAVE, configS, quickTemp, quickTout, loadTemp, FILENAME=thisPath+'data\config.dat'
+        SAVE, configS, quickTemp, quickTout, loadTemp, renameTemp, FILENAME=thisPath+'data\config.dat'
         s_upd, WIDGET_INFO(listSets_s, /LIST_SELECT), 0
       END
 
@@ -758,7 +925,7 @@ pro settings_event, event
             '2, BUTTON, Cancel, QUIT, TAG=Cancel']
           res=CW_FORM_2(box, /COLUMN, TAB_MODE=1, TITLE='Name the duplicate', XSIZE=300, YSIZE=100, FOCUSNO=1, XOFFSET=xoffset+200, YOFFSET=yoffset+200)
 
-          IF ~res.Cancel THEN BEGIN
+          IF res.Save THEN BEGIN
             IF res.newname EQ '' THEN sv=DIALOG_MESSAGE('No name specified. Could not duplicate.', DIALOG_PARENT=event.top) ELSE BEGIN
 
               tempname=STRUPCASE(IDL_VALIDNAME(res.newname, /CONVERT_ALL))
@@ -773,7 +940,7 @@ pro settings_event, event
                 quickTempMod=CREATE_STRUCT(quickTemp.(modSel), tempname, quickTemp.(modSel).(currSel(0)))
                 quickTemp=replaceStructStruct(quickTemp, quickTempMod, modSel)
 
-                SAVE, configS, quickTemp, quickTout, loadTemp, FILENAME=thisPath+'data\config.dat'
+                SAVE, configS, quickTemp, quickTout, loadTemp, renameTemp, FILENAME=thisPath+'data\config.dat'
                 QTnames=TAG_NAMES(quickTemp.(modSel))
                 qt_upd, N_ELEMENTS(QTnames)-1
               ENDELSE
@@ -794,7 +961,7 @@ pro settings_event, event
             '2, BUTTON, Cancel, QUIT, TAG=Cancel']
           res=CW_FORM_2(box, /COLUMN, TAB_MODE=1, TITLE='Rename template', XSIZE=300, YSIZE=100, FOCUSNO=1, XOFFSET=xoffset+200, YOFFSET=yoffset+200)
 
-          IF ~res.Cancel AND res.newname NE '' THEN BEGIN
+          IF res.Rename AND res.newname NE '' THEN BEGIN
             tempname=STRUPCASE(IDL_VALIDNAME(res.newname, /CONVERT_ALL))
             IF QTnames.HasValue(tempname) THEN BEGIN
               sv=DIALOG_MESSAGE('Template name '+tempname+' already exist. Renaming not possible.', DIALOG_PARENT=event.Top)
@@ -815,7 +982,7 @@ pro settings_event, event
                 ENDFOR
               ENDIF
 
-              SAVE, configS, quickTemp, quickTout, loadTemp, FILENAME=thisPath+'data\config.dat'
+              SAVE, configS, quickTemp, quickTout, loadTemp, renameTemp, FILENAME=thisPath+'data\config.dat'
               qt_upd, currSel
             ENDELSE
           ENDIF
@@ -832,7 +999,7 @@ pro settings_event, event
           modSel=availModNmb(modNmb)
           quickTm=reorderStructStruct(quickTemp.(modSel), newOrder)
           quickTemp=replaceStructStruct(quickTemp, quickTm, modSel)
-          SAVE, configS, quickTemp, quickTout, loadTemp, FILENAME=thisPath+'data\config.dat'
+          SAVE, configS, quickTemp, quickTout, loadTemp, renameTemp, FILENAME=thisPath+'data\config.dat'
           QTnames=TAG_NAMES(quickTemp.(modSel))
           WIDGET_CONTROL, lstTempQT, SET_VALUE=QTnames, SET_LIST_SELECT=currSel-1
           qt_upd, currSel-1
@@ -849,7 +1016,7 @@ pro settings_event, event
           modSel=availModNmb(modNmb)
           quickTm=reorderStructStruct(quickTemp.(modSel), newOrder)
           quickTemp=replaceStructStruct(quickTemp, quickTm, modSel)
-          SAVE, configS, quickTemp, quickTout, loadTemp, FILENAME=thisPath+'data\config.dat'
+          SAVE, configS, quickTemp, quickTout, loadTemp, renameTemp, FILENAME=thisPath+'data\config.dat'
           QTnames=TAG_NAMES(quickTemp.(modSel))
           WIDGET_CONTROL, lstTempQT, SET_VALUE=QTnames, SET_LIST_SELECT=currSel+1
           qt_upd, currSel+1
@@ -901,7 +1068,7 @@ pro settings_event, event
             QTnames=TAG_NAMES(quickTemp.(modSel))
           ENDELSE
 
-          SAVE, configS, quickTemp, quickTout, loadTemp, FILENAME=thisPath+'data\config.dat'
+          SAVE, configS, quickTemp, quickTout, loadTemp, renameTemp, FILENAME=thisPath+'data\config.dat'
           qt_upd, 0
         ENDIF;none in this modality
 
@@ -932,7 +1099,7 @@ pro settings_event, event
           '2, BUTTON, Cancel, QUIT, TAG=Cancel']
         res=CW_FORM_2(box, /COLUMN, TAB_MODE=1, TITLE='Name the duplicate', XSIZE=300, YSIZE=100, FOCUSNO=1, XOFFSET=xoffset+200, YOFFSET=yoffset+200)
 
-        IF ~res.Cancel THEN BEGIN
+        IF res.Save THEN BEGIN
           IF res.newname EQ '' THEN sv=DIALOG_MESSAGE('No name specified. Could not duplicate.', DIALOG_PARENT=event.top) ELSE BEGIN
 
             tempname=STRUPCASE(IDL_VALIDNAME(res.newname, /CONVERT_ALL))
@@ -945,7 +1112,7 @@ pro settings_event, event
               quickToutMod=CREATE_STRUCT(quickTout.(qto_currMod), tempname, quickTout.(qto_currMod).(WIDGET_INFO(lstTemplates_qto, /LIST_SELECT)))
               quickTout=replaceStructStruct(quickTout, quickToutMod, qto_currMod)
 
-              SAVE, configS, quickTemp, quickTout, loadTemp, FILENAME=thisPath+'data\config.dat'
+              SAVE, configS, quickTemp, quickTout, loadTemp, renameTemp, FILENAME=thisPath+'data\config.dat'
               WIDGET_CONTROL, lstTemplates_qto, SET_VALUE=[currnames, tempname], SET_LIST_SELECT=N_ELEMENTS(currNames), SCR_YSIZE=150;added as last, set selected
               qto_currTemp=N_ELEMENTS(currNames)
               qto_updTemp
@@ -966,7 +1133,7 @@ pro settings_event, event
             '2, BUTTON, Cancel, QUIT, TAG=Cancel']
           res=CW_FORM_2(box, /COLUMN, TAB_MODE=1, TITLE='Rename', XSIZE=300, YSIZE=100, FOCUSNO=1, XOFFSET=xoffset+200, YOFFSET=yoffset+200)
 
-          IF ~res.Cancel THEN BEGIN
+          IF res.Save THEN BEGIN
             IF res.newname EQ '' THEN sv=DIALOG_MESSAGE('No name specified.', DIALOG_PARENT=event.top) ELSE BEGIN
 
               tempname=STRUPCASE(IDL_VALIDNAME(res.newname, /CONVERT_ALL))
@@ -992,7 +1159,7 @@ pro settings_event, event
                   ENDFOR
                 ENDIF
 
-                SAVE, configS, quickTemp, quickTout, loadTemp, FILENAME=thisPath+'data\config.dat'
+                SAVE, configS, quickTemp, quickTout, loadTemp, renameTemp, FILENAME=thisPath+'data\config.dat'
                 WIDGET_CONTROL, lstTemplates_qto, SET_VALUE=currNames, SET_LIST_SELECT=qto_currTemp, SCR_YSIZE=150
               ENDELSE
 
@@ -1022,7 +1189,7 @@ pro settings_event, event
                 IF id(0) NE -1 THEN configS.(id(0)).QTOUTTEMPS(qto_currMod)='DEFAULT'
               ENDFOR
             ENDIF
-            SAVE, configS, quickTemp, quickTout, loadTemp, FILENAME=thisPath+'data\config.dat'
+            SAVE, configS, quickTemp, quickTout, loadTemp, renameTemp, FILENAME=thisPath+'data\config.dat'
             WIDGET_CONTROL, lstTemplates_qto, SET_VALUE=currNames, SET_LIST_SELECT=qto_currTemp, SCR_YSIZE=150
             qto_updTemp
           ENDIF
@@ -1062,7 +1229,7 @@ pro settings_event, event
             quickToutMod=replaceStructStruct(quickTout.(qto_currMod), quickToutTemp, qto_currTemp)
             quickTout=replaceStructStruct(quickTout, quickToutMod, qto_currMod)
 
-            SAVE, configS, quickTemp, quickTout, loadTemp, FILENAME=thisPath+'data\config.dat'
+            SAVE, configS, quickTemp, quickTout, loadTemp, renameTemp, FILENAME=thisPath+'data\config.dat'
             WIDGET_CONTROL, lstTemplates_qto, SET_VALUE=TAG_NAMES(quickTout.(qto_currMod)), SET_LIST_SELECT=qto_currTemp, SCR_YSIZE=150
             qto_updTemp
 
@@ -1099,7 +1266,7 @@ pro settings_event, event
               quickToutMod=replaceStructStruct(quickTout.(qto_currMod), quickToutTemp, qto_currTemp)
               quickTout=replaceStructStruct(quickTout, quickToutMod, qto_currMod)
 
-              SAVE, configS, quickTemp, quickTout, loadTemp, FILENAME=thisPath+'data\config.dat'
+              SAVE, configS, quickTemp, quickTout, loadTemp, renameTemp, FILENAME=thisPath+'data\config.dat'
               qto_fillTable
             ENDIF
           ENDIF
@@ -1120,7 +1287,7 @@ pro settings_event, event
                 quickToutMod=replaceStructStruct(quickTout.(qto_currMod), quickToutTemp, qto_currTemp)
                 quickTout=replaceStructStruct(quickTout, quickToutMod, qto_currMod)
 
-                SAVE, configS, quickTemp, quickTout, loadTemp, FILENAME=thisPath+'data\config.dat'
+                SAVE, configS, quickTemp, quickTout, loadTemp, renameTemp, FILENAME=thisPath+'data\config.dat'
                 qto_updTemp
 
               ENDIF ELSE sv=DIALOG_MESSAGE('At least one output element for each test has to be kept.', DIALOG_PARENT=event.top)
@@ -1159,7 +1326,7 @@ pro settings_event, event
               thisMod=availModNmb(selMod)
               IF N_ELEMENTS(tempnames_a) EQ 1 THEN loadTm=-1 ELSE loadTm=removeIDstructstruct(loadTemp.(thisMod), currSel)
               loadTemp=replaceStructstruct(loadTemp, loadTm, thisMod)
-              SAVE, configS, quickTemp, quickTout, loadTemp, FILENAME=thisPath+'data\config.dat'
+              SAVE, configS, quickTemp, quickTout, loadTemp, renameTemp, FILENAME=thisPath+'data\config.dat'
               IF N_ELEMENTS(tempnames_a) EQ 1 THEN BEGIN
                 tempnames_a=''
                 WIDGET_CONTROL, listTemp_a, SET_VALUE=tempnames_a
@@ -1184,7 +1351,7 @@ pro settings_event, event
           thisMod=availModNmb(selMod)
           loadTm=reorderStructStruct(loadTemp.(thisMod), newOrder)
           loadTemp=replaceStructstruct(loadTemp, loadTm, thisMod)
-          SAVE, configS, quickTemp, quickTout, loadTemp, FILENAME=thisPath+'data\config.dat'
+          SAVE, configS, quickTemp, quickTout, loadTemp, renameTemp, FILENAME=thisPath+'data\config.dat'
           tempnames_a=TAG_NAMES(loadTemp.(thisMod))
           WIDGET_CONTROL, listTemp_a, SET_VALUE=tempnames_a, SET_LIST_SELECT=currSel-1
           auto_upd, currSel-1,0
@@ -1201,7 +1368,7 @@ pro settings_event, event
           thisMod=availModNmb(selMod)
           loadTm=reorderStructStruct(loadTemp.(thisMod), newOrder)
           loadTemp=replaceStructstruct(loadTemp, loadTm, thisMod)
-          SAVE, configS, quickTemp, quickTout, loadTemp, FILENAME=thisPath+'data\config.dat'
+          SAVE, configS, quickTemp, quickTout, loadTemp, renameTemp, FILENAME=thisPath+'data\config.dat'
           tempnames_a=TAG_NAMES(loadTemp.(thisMod))
           WIDGET_CONTROL, listTemp_a, SET_VALUE=tempnames_a, SET_LIST_SELECT=currSel+1
           auto_upd, currSel+1,0
@@ -1219,7 +1386,7 @@ pro settings_event, event
         RESTORE, thisPath+'data\config.dat'
         psets=TAG_NAMES(configS)
         FOR i=1, N_ELEMENTS(psets)-1 DO configS.(i).AUTOIMPORTPATH=adr(0)
-        SAVE, configS, quickTemp, quickTout, loadTemp, FILENAME=thisPath+'data\config.dat'
+        SAVE, configS, quickTemp, quickTout, loadTemp, renameTemp, FILENAME=thisPath+'data\config.dat'
       END
 
       'a_Browse':BEGIN
@@ -1286,7 +1453,7 @@ pro settings_event, event
           '0, BUTTON, Save, QUIT, TAG=Save',$
           '2, BUTTON, Cancel, QUIT, TAG=Cancel']
         res=CW_FORM_2(box, /COLUMN, TAB_MODE=1, TITLE='Name the new template', XSIZE=300, YSIZE=100, FOCUSNO=1, XOFFSET=xoffset+200, YOFFSET=yoffset+200)
-        IF ~res.Cancel THEN BEGIN
+        IF res.Save THEN BEGIN
           IF res.newname EQ '' THEN sv=DIALOG_MESSAGE('No name specified. Could not create new.', DIALOG_PARENT=event.top) ELSE BEGIN
             selMod=WIDGET_INFO(lstModality_a,/DROPLIST_SELECT)
             thisMod=availModNmb(selMod)
@@ -1296,21 +1463,9 @@ pro settings_event, event
               IF SIZE(loadTemp.(thisMod), /TNAME) EQ 'STRUCT' THEN alreadyNames=TAG_NAMES(loadTemp.(thisMod)) ELSE alreadyNames=''
             ENDIF ELSE alreadyNames=''
             IF alreadyNames.HasValue(newName) THEN sv=DIALOG_MESSAGE('Template name already exists. Select a new name or use Overwrite.',DIALOG_PARENT=event.top) ELSE BEGIN
-
-              ;WIDGET_CONTROL, txtBrowse_a, SET_VALUE=''
-              ;WIDGET_CONTROL, txtStatName_a, SET_VALUE=''
-              ;WIDGET_CONTROL, btnOnlyLastDate, SET_VALUE=0
-              ;WIDGET_CONTROL, btnInclSub, SET_VALUE=0
-              ;WIDGET_CONTROL, listSort, SET_VALUE=''
               sortElem=''
               ascElem=0
-              ;WIDGET_CONTROL, listQT_a, SET_DROPLIST_SELECT=0
-              ;WIDGET_CONTROL, txtBrowseApp, SET_VALUE=''
-              ;WIDGET_CONTROL, btnMoveFiles, SET_VALUE=0
-              ;WIDGET_CONTROL, btnDeleteFiles, SET_VALUE=0
-              ;WIDGET_CONTROL, btnDeleteFilesEnd, SET_VALUE=0
 
-              ;IF newPath NE '' THEN BEGIN
               loadTempSing=CREATE_STRUCT($
                 'path','',$
                 'statName','',$
@@ -1333,7 +1488,7 @@ pro settings_event, event
                   FOR m=0, N_TAGS(multiOpt)-1 DO loadTemp=CREATE_STRUCT(loadTemp,modnames(m),-1)
                   loadTemp=replaceStructStruct(loadTemp, loadTm, thisMod)
                 ENDELSE
-                SAVE, configS, quickTemp, quickTout, loadTemp, FILENAME=thisPath+'data\config.dat'
+                SAVE, configS, quickTemp, quickTout, loadTemp, renameTemp, FILENAME=thisPath+'data\config.dat'
                 tempnames_a=newName
                 WIDGET_CONTROL, listTemp_a, SET_VALUE=tempnames_a, SET_LIST_SELECT=0
                 auto_upd,0,0
@@ -1341,12 +1496,11 @@ pro settings_event, event
                 loadTm=loadTemp.(thisMod)
                 loadTm=CREATE_STRUCT(loadTm, newName, loadTempSing)
                 loadTemp=replaceStructStruct(loadTemp, loadTm, thisMod)
-                SAVE, configS, quickTemp, quickTout, loadTemp, FILENAME=thisPath+'data\config.dat'
+                SAVE, configS, quickTemp, quickTout, loadTemp, renameTemp, FILENAME=thisPath+'data\config.dat'
                 tempnames_a=[tempnames_a,newName]
                 WIDGET_CONTROL, listTemp_a, SET_VALUE=tempnames_a, SET_LIST_SELECT=N_ELEMENTS(tempnames_a)-1
                 auto_upd,N_ELEMENTS(tempnames_a)-1,0
               ENDELSE
-              ;ENDIF ELSE  sv=DIALOG_MESSAGE('Specify path.',DIALOG_PARENT=event.top)
             ENDELSE; name exist
           ENDELSE;name specified
         ENDIF;cancel specify name
@@ -1367,16 +1521,16 @@ pro settings_event, event
             '0, BUTTON, Save, QUIT, TAG=Save',$
             '2, BUTTON, Cancel, QUIT, TAG=Cancel']
           res=CW_FORM_2(box, /COLUMN, TAB_MODE=1, TITLE='Name the new template', XSIZE=300, YSIZE=100, FOCUSNO=1, XOFFSET=xoffset+200, YOFFSET=yoffset+200)
-          IF ~res.Cancel THEN BEGIN
+          IF res.Save THEN BEGIN
             IF res.newname EQ '' THEN sv=DIALOG_MESSAGE('No name specified. Could not create new.', DIALOG_PARENT=event.top) ELSE BEGIN
-
+              WIDGET_CONTROL, /HOURGLASS
               newname=STRUPCASE(IDL_VALIDNAME(res.newname, /CONVERT_ALL))
               alreadyNames=TAG_NAMES(loadTemp.(thisMod))
               IF alreadyNames.HasValue(newName) THEN sv=DIALOG_MESSAGE('Template name already exists. Select a new name or use Overwrite.',DIALOG_PARENT=event.top) ELSE BEGIN
                 loadTm=loadTemp.(thisMod)
                 loadTm=CREATE_STRUCT(loadTm, newName, loadTemp.(thisMod).(currSel))
                 loadTemp=replaceStructStruct(loadTemp, loadTm, thisMod)
-                SAVE, configS, quickTemp, quickTout, loadTemp, FILENAME=thisPath+'data\config.dat'
+                SAVE, configS, quickTemp, quickTout, loadTemp, renameTemp, FILENAME=thisPath+'data\config.dat'
                 tempnames_a=[tempnames_a,newName]
                 WIDGET_CONTROL, listTemp_a, SET_VALUE=tempnames_a, SET_LIST_SELECT=N_ELEMENTS(tempnames_a)-1
                 auto_upd,N_ELEMENTS(tempnames_a)-1,0
@@ -1392,6 +1546,7 @@ pro settings_event, event
           IF sv EQ 'Yes' THEN BEGIN
             WIDGET_CONTROL, txtBrowse_a, GET_VALUE=newPath
             IF newPath NE '' THEN BEGIN
+              WIDGET_CONTROL, /HOURGLASS
               WIDGET_CONTROL, txtBrowseApp, GET_VALUE=newPathApp
               WIDGET_CONTROL, txtStatName_a, GET_VALUE=newStatName
 
@@ -1415,7 +1570,7 @@ pro settings_event, event
               loadTm=loadTemp.(thisMod)
               loadTm=replaceStructStruct(loadTm, loadTempSing, selecTemp_a)
               loadTemp=replaceStructStruct(loadTemp, loadTm, thisMod)
-              SAVE, configS, quickTemp, quickTout, loadTemp, FILENAME=thisPath+'data\config.dat'
+              SAVE, configS, quickTemp, quickTout, loadTemp, renameTemp, FILENAME=thisPath+'data\config.dat'
               auto_upd, selecTemp_a(0),0
             ENDIF ELSE  sv=DIALOG_MESSAGE('Specify path.',DIALOG_PARENT=event.top)
           ENDIF
@@ -1433,7 +1588,7 @@ pro settings_event, event
             '2, BUTTON, Cancel, QUIT, TAG=Cancel']
           res=CW_FORM_2(box, /COLUMN, TAB_MODE=1, TITLE='Rename template', XSIZE=300, YSIZE=100, FOCUSNO=1, XOFFSET=xoffset+200, YOFFSET=yoffset+200)
 
-          IF ~res.Cancel THEN BEGIN
+          IF res.Save THEN BEGIN
             IF res.newname EQ '' THEN sv=DIALOG_MESSAGE('No name specified. Could not rename.', DIALOG_PARENT=event.top) ELSE BEGIN
 
               newname=STRUPCASE(IDL_VALIDNAME(res.newname, /CONVERT_ALL))
@@ -1450,7 +1605,7 @@ pro settings_event, event
                 loadTm=replaceStructStruct(loadTm, loadTempSing, selecTemp_a, NEW_TAG_NAME=newName)
                 loadTemp=replaceStructStruct(loadTemp, loadTm, thisMod)
 
-                SAVE, configS, quickTemp, quickTout, loadTemp, FILENAME=thisPath+'data\config.dat'
+                SAVE, configS, quickTemp, quickTout, loadTemp, renameTemp, FILENAME=thisPath+'data\config.dat'
                 tempnames_a=TAG_NAMES(loadTemp.(thisMod))
                 WIDGET_CONTROL, listTemp_a, SET_VALUE=tempnames_a, SET_LIST_SELECT=selecTemp_a
 
@@ -1502,7 +1657,10 @@ pro settings_event, event
       END
       'a_addElem':BEGIN
         newElem=tags_imgStruct(WIDGET_INFO(listElem,/DROPLIST_SELECT))
-        IF sortElem(0) EQ '' THEN sortElem=newElem ELSE BEGIN
+        IF sortElem(0) EQ '' THEN BEGIN
+          sortElem=newElem 
+          ascElem=0
+        ENDIF ELSE BEGIN
           IF N_ELEMENTS(sortElem) LT 9 THEN BEGIN
             sortElem=[sortElem,newElem]
             ascElem=[ascElem,0]
@@ -1577,6 +1735,322 @@ pro settings_event, event
       'btnMoveFiles': autoChanged=1
       'btnDeleteFiles': autoChanged=1
       'btnDeleteFilesEnd': autoChanged=1
+      
+      ;************** Rename DICOM setup *********
+
+      'rde_add':BEGIN
+     
+        box=[$
+          '1, BASE,, /ROW', $
+          '2,  TEXT, , LABEL_LEFT=Description:, WIDTH=16, TAG=newdesc,', $
+          '1, BASE,, /ROW', $
+          '0,  TEXT, 0000, LABEL_LEFT=Tag group/element:, WIDTH=4, TAG=group,', $
+          '2,  TEXT, 0000, LABEL_LEFT= , WIDTH=4, TAG=element,', $
+          '1, BASE,, /ROW', $
+          '2,  TEXT, a0, LABEL_LEFT=Format code:, WIDTH=7, TAG=formatcodestr,', $
+          '1, BASE,, /ROW', $
+          '0, BUTTON, Save, QUIT, TAG=Save',$
+          '2, BUTTON, Cancel, QUIT, TAG=Cancel']
+        res=CW_FORM_2(box, /COLUMN, TAB_MODE=1, TITLE='New tag setup', XSIZE=300, YSIZE=150, FOCUSNO=1, XOFFSET=xoffset+200, YOFFSET=yoffset+200)
+
+        IF res.Save THEN BEGIN
+          desc=STRUPCASE(IDL_VALIDNAME(res.newdesc, /CONVERT_ALL))
+          RESTORE, thisPath+'data\config.dat'
+          currNames=TAG_NAMES(renameTemp.tags)
+          
+          IF currNames.HasValue(desc) THEN BEGIN
+            sv=DIALOG_MESSAGE('This description ('+desc+') already exist.',/ERROR, DIALOG_PARENT=event.top)
+          ENDIF ELSE BEGIN
+            WIDGET_CONTROL,/HOURGLASS
+            renameTempRes=addTagRenameTemp(renameTemp, desc, [res.group,res.element], res.formatcodestr) ; in a0_functionsMini.pro
+         
+            IF N_ELEMENTS(renameTempRes.warnings) GT 1 THEN sv=DIALOG_MESSAGE(STRJOIN(renameTempRes.warnings,newline), DIALOG_PARENT=event.top)
+            renameTemp=renameTempRes.renameTemp
+            SAVE, configS, quickTemp, quickTout, loadTemp, renameTemp, FILENAME=thisPath+'data\config.dat'
+            updRDE, N_ELEMENTS(currNames)
+
+          ENDELSE
+        ENDIF
+        END
+      'rde_overwrite':BEGIN
+        sel=WIDGET_INFO(tbl_rde,/TABLE_SELECT);left,top,right,btm
+        sel=sel(1);top - first row selected
+        RESTORE, thisPath+'data\config.dat'
+        tagDesc=TAG_NAMES(renameTemp.tags)
+        thisTagGrEl=STRING(renameTemp.tags.(sel),FORMAT='(z04)')
+        thisTagFormat=STRMID(renameTemp.tagFormats.(sel),1,STRLEN(renameTemp.tagFormats.(sel))-2)
+        box=[$
+          '1, BASE,, /ROW', $
+          '2,  TEXT, '+tagDesc(sel)+' , LABEL_LEFT=Description:, WIDTH=16, TAG=newdesc,', $
+          '1, BASE,, /ROW', $
+          '0,  TEXT, '+thisTagGrEl(0)+', LABEL_LEFT=Tag group/element:, WIDTH=4, TAG=group,', $
+          '2,  TEXT, '+thisTagGrEl(1)+', LABEL_LEFT= , WIDTH=4, TAG=element,', $
+          '1, BASE,, /ROW', $
+          '2,  TEXT, '+thisTagFormat+', LABEL_LEFT=Format code:, WIDTH=7, TAG=formatcodestr,', $
+          '1, BASE,, /COLUMN', $
+          '2, BUTTON, all templates|selected template, EXCLUSIVE, LABEL_TOP=Apply new format code to..., COLUMN, SET_VALUE=1, TAG=allOrThis', $
+          '1, BASE,, /ROW', $
+          '0, BUTTON, Save, QUIT, TAG=Save',$
+          '2, BUTTON, Cancel, QUIT, TAG=Cancel']
+        res=CW_FORM_2(box, /COLUMN, TAB_MODE=1, TITLE='Edit tag setup', XSIZE=300, YSIZE=300, FOCUSNO=1, XOFFSET=xoffset+200, YOFFSET=yoffset+200)
+
+        IF res.Save THEN BEGIN
+          desc=STRUPCASE(IDL_VALIDNAME(res.newdesc, /CONVERT_ALL))
+
+          IF tagDesc.HasValue(desc) AND desc NE tagDesc(sel) THEN BEGIN
+            sv=DIALOG_MESSAGE('This description ('+desc+') already exist for another tag setup.',/ERROR, DIALOG_PARENT=event.top)
+          ENDIF ELSE BEGIN
+            WIDGET_CONTROL,/HOURGLASS
+            renameTempRes=changeTagRenameTemp(renameTemp, tagDesc(sel), desc, [res.group, res.element], thisTagFormat, res.formatcodestr, res.allOrThis, WIDGET_INFO(lstTemp_rdt, /LIST_SELECT))
+            
+            IF N_ELEMENTS(renameTempRes.warnings) GT 1 THEN sv=DIALOG_MESSAGE(STRJOIN(renameTempRes.warnings,newline), DIALOG_PARENT=event.top)
+            renameTemp=renameTempRes.renameTemp
+            SAVE, configS, quickTemp, quickTout, loadTemp, renameTemp, FILENAME=thisPath+'data\config.dat'
+            updRDT, WIDGET_INFO(lstTemp_rdt, /LIST_SELECT)
+
+          ENDELSE
+        ENDIF
+        END
+      'rde_duplicate':BEGIN
+        sel=WIDGET_INFO(tbl_rde,/TABLE_SELECT);left,top,right,btm
+        sel=sel(1);top - first row selected
+        RESTORE, thisPath+'data\config.dat'
+        tagDesc=TAG_NAMES(renameTemp.tags)
+        box=[$
+          '1, BASE,, /ROW', $
+          '2,  TEXT, '+tagDesc(sel)+' , LABEL_LEFT=New description:, WIDTH=16, TAG=newdesc,', $
+          '1, BASE,, /ROW', $
+          '0, BUTTON, Save, QUIT, TAG=Save',$
+          '2, BUTTON, Cancel, QUIT, TAG=Cancel']
+        res=CW_FORM_2(box, /COLUMN, TAB_MODE=1, TITLE='Duplicate tag setup', XSIZE=300, YSIZE=150, FOCUSNO=1, XOFFSET=xoffset+200, YOFFSET=yoffset+200)
+
+        IF res.Save THEN BEGIN
+          desc=STRUPCASE(IDL_VALIDNAME(res.newdesc, /CONVERT_ALL))
+          IF desc EQ tagDesc(sel) OR tagDesc.HasValue(desc) THEN BEGIN
+            sv=DIALOG_MESSAGE('This new description ('+desc+') already exist. Duplication not possible.',/ERROR, DIALOG_PARENT=event.top)
+          ENDIF ELSE BEGIN
+            WIDGET_CONTROL,/HOURGLASS       
+            f=renameTemp.tagFormats.(sel)
+            renameTempRes=addTagRenameTemp(renameTemp, desc, renameTemp.tags.(sel), STRMID(f,1,STRLEN(f)-2)) ; in a0_functionsMini.pro
+
+            IF N_ELEMENTS(renameTempRes.warnings) GT 1 THEN sv=DIALOG_MESSAGE(STRJOIN(renameTempRes.warnings,newline), DIALOG_PARENT=event.top)
+            renameTemp=renameTempRes.renameTemp
+            SAVE, configS, quickTemp, quickTout, loadTemp, renameTemp, FILENAME=thisPath+'data\config.dat'
+            updRDE, N_ELEMENTS(tagDesc)
+            
+          ENDELSE
+          ENDIF
+        END
+        'rde_upTemp':BEGIN
+        sel=WIDGET_INFO(tbl_rde,/TABLE_SELECT);left,top,right,btm
+        sel=sel(1);top - first row selected
+        IF sel GT 0 THEN BEGIN
+          RESTORE, thisPath+'data\config.dat'
+          tagDesc=TAG_NAMES(renameTemp.tags)
+          oldOrder=INDGEN(N_ELEMENTS(tagDesc))
+          newOrder=oldOrder
+          newOrder[sel-1:sel]=REVERSE(oldOrder[sel-1:sel])
+
+          newtags=reorderStructStruct(renameTemp.tags, newOrder)
+          renameTemp=replaceStructStruct(renameTemp,newtags,0)
+          newformats=reorderStructStruct(renameTemp.tagFormats, newOrder)
+          renameTemp=replaceStructStruct(renameTemp,newformats,1)
+
+          SAVE, configS, quickTemp, quickTout, loadTemp, renameTemp, FILENAME=thisPath+'data\config.dat'
+          updRDE, sel-1
+        ENDIF
+        END
+      'rde_downTemp':BEGIN
+        sel=WIDGET_INFO(tbl_rde,/TABLE_SELECT);left,top,right,btm
+        sel=sel(1);top - first row selected
+        RESTORE, thisPath+'data\config.dat'
+        tagDesc=TAG_NAMES(renameTemp.tags)
+        IF sel LT N_ELEMENTS(tagDesc)-1 THEN BEGIN        
+          oldOrder=INDGEN(N_ELEMENTS(tagDesc))
+          newOrder=oldOrder
+          newOrder[sel:sel+1]=REVERSE(oldOrder[sel:sel+1])
+
+          newtags=reorderStructStruct(renameTemp.tags, newOrder)
+          renameTemp=replaceStructStruct(renameTemp,newtags,0)
+          newformats=reorderStructStruct(renameTemp.tagFormats, newOrder)
+          renameTemp=replaceStructStruct(renameTemp,newformats,1)
+
+          SAVE, configS, quickTemp, quickTout, loadTemp, renameTemp, FILENAME=thisPath+'data\config.dat'
+          updRDE, sel+1
+        ENDIF
+        END
+      'rde_delTemp':BEGIN
+        sel=WIDGET_INFO(tbl_rde,/TABLE_SELECT);left,top,right,btm
+        sel=sel(1);top - first row selected
+        RESTORE, thisPath+'data\config.dat'
+        tagDesc=TAG_NAMES(renameTemp.tags)
+        IF sel GT -1 THEN BEGIN
+          thisDesc=tagDesc(sel)
+          IF N_ELEMENTS(tagDesc) GT 1 THEN BEGIN
+            ;check if in use
+            nTemp=N_TAGS(renameTemp.temp)
+            rentempnames=TAG_NAMES(renameTemp.temp)
+            inUse=''
+            FOR i=0, nTemp-1 DO BEGIN
+              matchcat=WHERE(STRUPCASE(renameTemp.temp.(i).cat) EQ thisDesc)
+              matchfile=WHERE(STRUPCASE(renameTemp.temp.(i).file) EQ thisDesc)
+              IF matchcat(0) NE -1 OR matchfile(0) NE -1 THEN BEGIN
+                inUse=[inUse,rentempnames(i)]
+              ENDIF
+            ENDFOR
+            
+            IF N_ELEMENTS(inUse) GT 1 THEN BEGIN
+              sv=DIALOG_MESSAGE('Tag in use for the following templates:'+STRJOIN(inUse,newline)+newline+'Can not delete.', DIALOG_PARENT=event.top)
+            ENDIF ELSE BEGIN
+              newtags=removeIDStructStruct(renameTemp.tags, sel)
+              newformats=removeIDStructStruct(renameTemp.tagFormats, sel)
+
+              nTemp=N_TAGS(renameTemp.temp)
+              newtemps=renameTemp.temp
+              FOR t=0, nTemp-1 DO BEGIN
+                newformats=removeIDStructStruct(renameTemp.temp.(t).formats, sel)
+                newtemp=replaceStructStruct(renameTemp.temp.(t),newformats,2)
+                newtemps=replaceStructStruct(newtemps,newtemp,t)
+              ENDFOR
+              ;renameTemp=replaceStructStruct(renameTemp,newtemps,2)
+             renameTemp=CREATE_STRUCT('tags', newtags, 'tagformats', newformats, 'temp', newtemps)
+    
+              SAVE, configS, quickTemp, quickTout, loadTemp, renameTemp, FILENAME=thisPath+'data\config.dat'
+              updRDE, 0
+            ENDELSE
+          ENDIF ELSE sv=DIALOG_MESSAGE('Can not delete last row.', DIALOG_PARENT=event.top)
+        ENDIF ELSE sv=DIALOG_MESSAGE('No row selected.', DIALOG_PARENT=event.top)
+        END
+
+      'rdt_listTemp': updRDT, WIDGET_INFO(lstTemp_rdt, /LIST_SELECT); update test (pro in this file)
+      'rdt_duplicate': BEGIN
+        currSel=WIDGET_INFO(lstTemp_rdt, /LIST_SELECT)
+        IF currSel(0) GE 0 THEN BEGIN
+          ;ask for new name
+          box=[$
+            '1, BASE,, /ROW', $
+            '2,  TEXT, , LABEL_LEFT=Name the new template:, WIDTH=12, TAG=newname,', $
+            '1, BASE,, /ROW', $
+            '0, BUTTON, Save, QUIT, TAG=Save',$
+            '2, BUTTON, Cancel, QUIT, TAG=Cancel']
+          res=CW_FORM_2(box, /COLUMN, TAB_MODE=1, TITLE='Name the duplicate', XSIZE=300, YSIZE=100, FOCUSNO=1, XOFFSET=xoffset+200, YOFFSET=yoffset+200)
+
+          IF res.Save THEN BEGIN
+            IF res.newname EQ '' THEN sv=DIALOG_MESSAGE('No name specified. Could not duplicate.', DIALOG_PARENT=event.top) ELSE BEGIN
+
+              tempname=STRUPCASE(IDL_VALIDNAME(res.newname, /CONVERT_ALL))
+              RESTORE, thisPath+'data\config.dat'
+
+              currNames=TAG_NAMES(renameTemp.temp)
+
+              IF currNames.HasValue(tempname) THEN BEGIN
+                sv=DIALOG_MESSAGE('Duplication failed. A template with this name already exist.',DIALOG_PARENT=event.top)
+              ENDIF ELSE BEGIN
+                new_temps=CREATE_STRUCT(renameTemp.temp, tempname, renameTemp.temp.(currSel(0)))
+                renameTemp=replaceStructStruct(renameTemp,new_temps,2)
+
+                SAVE, configS, quickTemp, quickTout, loadTemp, renameTemp, FILENAME=thisPath+'data\config.dat'
+                rdt_names=TAG_NAMES(renameTemp.temp)
+                updRDT, N_ELEMENTS(rdt_names)-1
+              ENDELSE
+
+            ENDELSE
+          ENDIF
+        ENDIF; any selected
+      END
+      'rdt_rename':BEGIN
+       currSel=WIDGET_INFO(lstTemp_rdt, /LIST_SELECT)
+        IF currSel(0) GE 0 THEN BEGIN
+          rdt_nameThis=rdt_names(currSel)
+          box=[$
+            '1, BASE,, /ROW', $
+            '2,  TEXT, '+rdt_nameThis+', LABEL_LEFT=New name:, WIDTH=12, TAG=newname,', $
+            '1, BASE,, /ROW', $
+            '0, BUTTON, Save, QUIT, TAG=Save',$
+            '2, BUTTON, Cancel, QUIT, TAG=Cancel']
+          res=CW_FORM_2(box, /COLUMN, TAB_MODE=1, TITLE='Rename template', XSIZE=300, YSIZE=100, FOCUSNO=1, XOFFSET=xoffset+200, YOFFSET=yoffset+200)
+
+          IF res.Save AND res.newname NE '' THEN BEGIN
+            tempname=STRUPCASE(IDL_VALIDNAME(res.newname, /CONVERT_ALL))
+            IF rdt_names.HasValue(tempname) THEN BEGIN
+              sv=DIALOG_MESSAGE('Template name '+tempname+' already exist. Renaming not possible.', DIALOG_PARENT=event.Top)
+            ENDIF ELSE BEGIN
+              RESTORE, thisPath+'data\config.dat'
+              ;replace temp
+              new_temps=replaceStructStruct(renameTemp.temp,renameTemp.temp.(currSel), currSel, NEW_TAG_NAME=tempname)
+              renameTemp=replaceStructStruct(renameTemp,new_temps,2)
+              
+              SAVE, configS, quickTemp, quickTout, loadTemp, renameTemp, FILENAME=thisPath+'data\config.dat'
+              rdt_names=TAG_NAMES(renameTemp.temp)
+              updRDT, currSel
+            ENDELSE
+          ENDIF
+        ENDIF; any selected
+      END
+      'rdt_upTemp':BEGIN
+        currSel=WIDGET_INFO(lstTemp_rdt, /LIST_SELECT)
+        IF currSel GT 0 THEN BEGIN
+          oldOrder=INDGEN(N_ELEMENTS(rdt_names))
+          newOrder=oldOrder
+          newOrder[currSel-1:currSel]=REVERSE(oldOrder[currSel-1:currSel])
+          RESTORE, thisPath+'data\config.dat'
+
+          new_temps=reorderStructStruct(renameTemp.temp, newOrder)
+              renameTemp=replaceStructStruct(renameTemp,new_temps,2)
+              
+              SAVE, configS, quickTemp, quickTout, loadTemp, renameTemp, FILENAME=thisPath+'data\config.dat'
+              rdt_names=TAG_NAMES(renameTemp.temp)
+              updRDT, currSel-1
+        ENDIF
+      END
+      'rdt_downTemp':BEGIN
+        currSel=WIDGET_INFO(lstTemp_rdt, /LIST_SELECT)
+        IF currSel LT N_ELEMENTS(rdt_names)-1 THEN BEGIN
+          oldOrder=INDGEN(N_ELEMENTS(rdt_names))
+          newOrder=oldOrder
+          newOrder[currSel:currSel+1]=REVERSE(oldOrder[currSel:currSel+1])
+          RESTORE, thisPath+'data\config.dat'
+          new_temps=reorderStructStruct(renameTemp.temp, newOrder)
+              renameTemp=replaceStructStruct(renameTemp,new_temps,2)
+              
+              SAVE, configS, quickTemp, quickTout, loadTemp, renameTemp, FILENAME=thisPath+'data\config.dat'
+              rdt_names=TAG_NAMES(renameTemp.temp)
+              updRDT, currSel+1
+        ENDIF
+      END
+      'rdt_delete':BEGIN
+        sel=WIDGET_INFO(lstTemp_rdt, /LIST_SELECT)
+        IF sel(0) GT -1 THEN BEGIN
+          RESTORE, thisPath+'data\config.dat'
+          IF N_ELEMENTS(rdt_names) EQ 1 THEN BEGIN
+            sv=DIALOG_MESSAGE('At least one template needed. Can not delete this template.', DIALOG_PARENT=event.Top)
+          ENDIF ELSE BEGIN
+            new_temps=removeIDStructStruct(renameTemp.temp, sel)
+            renameTemp=replaceStructStruct(renameTemp,new_temps,2)
+
+            SAVE, configS, quickTemp, quickTout, loadTemp, renameTemp, FILENAME=thisPath+'data\config.dat'
+            rdt_names=TAG_NAMES(renameTemp.temp)
+            updRDT, 0
+          ENDELSE
+       ENDIF
+      END
+      'formatTestUpdate':BEGIN
+        WIDGET_CONTROL, txtInputTest, GET_VALUE=txtInput
+        WIDGET_CONTROL, txtFormatTest,GET_VALUE=txtFormat
+        
+        Catch, Error_status
+        IF Error_status NE 0 THEN BEGIN
+          outputTxt='Code not valid'
+          txtFormat='a0'
+          CATCH, /CANCEL
+        ENDIF
+        b=string(txtInput(0),FORMAT='('+txtFormat(0)+')');cause error?
+        
+        IF Error_status EQ 0 THEN outputTxt=b
+        
+        WIDGET_CONTROL, txtOutputTest, SET_VALUE=outputTxt
+        END
+      
       ELSE:
     ENDCASE
 
@@ -2017,8 +2491,13 @@ pro auto_upd, selT, first
     WIDGET_CONTROL, btnDeleteFilesEnd, SET_BUTTON=loadTemp.(thisMod).(selT).deleteFilesEnd
     sortElem=loadTemp.(thisMod).(selT).sortBy
     ascElem=loadTemp.(thisMod).(selT).sortAsc
+    IF N_ELEMENTS(sortElem) GT N_ELEMENTS(ascElem) THEN BEGIN
+      ascTemp=INTARR(N_ELEMENTS(sortElem))
+      ascTemp[0:N_ELEMENTS(ascElem)-1]=ascElem
+      ascElem=ascTemp
+    ENDIF
     IF sortElem(0) NE '' THEN WIDGET_CONTROL, listSort, SET_VALUE=ascDesc01(ascElem)+sortElem ELSE WIDGET_CONTROL, listSort, SET_VALUE=''
-
+    ;print, 'sortElem', sortElem
     ;paramSet - exists still?
     paramSetName=STRUPCASE(loadTemp.(thisMod).(selT).paramSet)
     IF paramSetNames.HasValue(paramSetName) THEN BEGIN
@@ -2108,7 +2587,58 @@ pro upd_QuickTestTemplates
     ENDIF
   ENDFOR
 
-  SAVE, configS, quickTemp, quickTout, loadTemp, FILENAME=thisPath+'data\config.dat'
-
+  SAVE, configS, quickTemp, quickTout, loadTemp, renameTemp, FILENAME=thisPath+'data\config.dat'
 
 end
+
+pro updRDE, sel ;update rename dicom elements table
+  COMMON SETT
+  COMMON VARI
+  COMPILE_OPT hidden
+  
+  WIDGET_CONTROL, /HOURGLASS
+  RESTORE, thisPath+'data\config.dat'
+  
+  tagList=renameTemp.tags
+  formatList=renameTemp.tagFormats
+  selT=WIDGET_INFO(lstTemp_rdt,/LIST_SELECT)
+  
+  formatThis=renameTemp.temp.(selT).formats
+  nn=N_TAGS(tagList)
+  
+  tblContent=STRARR(5,nn)
+  tblContent[0,*]=TRANSPOSE(TAG_NAMES(tagList))
+  FOR i=0, nn-1 DO BEGIN
+    uint_=UINT(tagList.(i))
+    tblContent[1,i]=STRING(uint_(0), FORMAT='(z04)')
+    tblContent[2,i]=STRING(uint_(1), FORMAT='(z04)')
+    tblContent[3,i]=STRMID(formatList.(i),1,STRLEN(formatList.(i))-2)
+    tblContent[4,i]=STRMID(formatThis.(i),1,STRLEN(formatThis.(i))-2)
+  ENDFOR
+  IF sel GT 12 THEN viewSel=sel-11 ELSE viewSel=0
+  alignArr=INTARR(5,nn)
+  alignArr[1:4,*]=1
+  WIDGET_CONTROL, tbl_rde, TABLE_YSIZE=nn, SET_VALUE=tblContent, ALIGNMENT=alignArr, SET_TABLE_SELECT=[0,sel,0,sel], SET_TABLE_VIEW=[0,viewSel]
+end
+
+pro updRDT, sel ;update rename dicom template list and details for selected
+  COMMON SETT
+  COMMON VARI
+  COMPILE_OPT hidden
+  ;fill cat/file template based on list selection
+  WIDGET_CONTROL, /HOURGLASS
+  RESTORE, thisPath+'data\config.dat'
+  
+  rdt_names=TAG_NAMES(renameTemp.temp)
+  WIDGET_CONTROL, lstTemp_rdt, SET_VALUE=rdt_names, SET_LIST_SELECT=sel
+  
+  ;update details for selected
+  WIDGET_CONTROL, txtCat_rdt, SET_VALUE=STRUPCASE(STRJOIN(renameTemp.temp.(sel).cat,'  |  '))
+  WIDGET_CONTROL, txtFile_rdt, SET_VALUE=STRUPCASE(STRJOIN(renameTemp.temp.(sel).file,'  |  '))
+  
+  selTag=WIDGET_INFO(tbl_rde,/TABLE_SELECT);left,top,right,btm
+  selTag=selTag(1);top - first row selected
+  updRDE, selTag;update file formats for this template
+  
+end
+

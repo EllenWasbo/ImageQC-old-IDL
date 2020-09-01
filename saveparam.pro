@@ -138,7 +138,7 @@ pro saveParam, overWriteNo, newName
     
     configS=replaceStructStruct(configS, config, overWriteNo)
     configS.(overWriteNo).AUTOIMPORTPATH=configS.(1).AUTOIMPORTPATH;all same
-    SAVE, configS, quickTemp, quickTout, loadTemp, FILENAME=thisPath+'data\config.dat'
+    SAVE, configS, quickTemp, quickTout, loadTemp, renameTemp, FILENAME=thisPath+'data\config.dat'
     selConfig=overWriteNo
     ;current parameterset is active - just change name of parameter set label
     WIDGET_CONTROL, lblSettings, SET_VALUE=paramSetNames(overWriteNo)
@@ -151,12 +151,12 @@ pro saveParam, overWriteNo, newName
         IF sv EQ 'Yes' THEN BEGIN
           alreadyID=WHERE(paramSetNames EQ tempname)
           configS=replaceStructStruct(configS, config, alreadyID)
-          SAVE, configS, quickTemp, quickTout, loadTemp, FILENAME=thisPath+'data\config.dat'
+          SAVE, configS, quickTemp, quickTout, loadTemp, renameTemp, FILENAME=thisPath+'data\config.dat'
           selConfig=alreadyID
         ENDIF
       ENDIF ELSE BEGIN
         configS=CREATE_STRUCT(configS, tempname, config)
-        SAVE, configS, quickTemp, quickTout, loadTemp, FILENAME=thisPath+'data\config.dat'
+        SAVE, configS, quickTemp, quickTout, loadTemp, renameTemp, FILENAME=thisPath+'data\config.dat'
         selConfig=N_ELEMENTS(paramSetNames)
       ENDELSE
       IF selConfig NE oldSelConfig THEN BEGIN

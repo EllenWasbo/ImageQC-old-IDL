@@ -103,6 +103,20 @@ pro ImageQC_event, ev
         ENDIF
       END
 
+      'openTxt':BEGIN
+        adrFilesToOpen='--'
+
+        IF adrFilesToOpen(0) EQ '--' THEN BEGIN
+          adrFilesToOpen=DIALOG_PICKFILE(TITLE='Select .txt files with tabulated imagedata (txt export from ImageJ).', /READ, FILTER='*.txt', /FIX_FILTER, PATH=defPath, GET_PATH=defPath, DIALOG_PARENT=evTop)
+          WIDGET_CONTROL, lblProgress, SET_VALUE='Preparing to load new files...'
+          WIDGET_CONTROL, /HOURGLASS
+          openFiles, adrFilesToOpen;(SORT(adrFilesToOpen))
+          redrawImg,0,1
+          updateInfo
+          WIDGET_CONTROL, lblProgress, SET_VALUE=''
+        ENDIF
+        END
+
       'openMulti':BEGIN
 
         sel=WIDGET_INFO(listSelMultiTemp, /DROPLIST_SELECT)
@@ -146,6 +160,24 @@ pro ImageQC_event, ev
         clearAll
         autoMTFNPS, sParams
       END
+      'runRenameDICOM': BEGIN
+        proceed=1
+        IF saveOK EQ 0 THEN BEGIN
+          sv=DIALOG_MESSAGE('Warning: Saving changes to config file is blocked by another user session. Go to settings and remove blocking if this is due to a previous program crash. Continue to RenameDICOM with template changes blocked?',/Question, DIALOG_PARENT=evTop)
+          IF sv EQ 'No' THEN proceed=0
+        ENDIF
+        IF proceed THEN BEGIN
+          alreadyOpenAdr=''
+          IF tags(0) NE 'EMPTY' THEN alreadyOpenAdr=getListOpenFiles(structImgs,1,-1,-1) 
+          RenameDICOM, GROUP_LEADER=ev.Top, xoffset+200, yoffset+200, alreadyOpenAdr
+          IF alreadyOpenAdr(0) NE '' THEN BEGIN
+            fileList=getListOpenFiles(structImgs,0,marked,markedMulti)
+            sel=WIDGET_INFO(listFiles, /LIST_SELECT)
+            oldTop=WIDGET_INFO(listFiles, /LIST_TOP)
+            WIDGET_CONTROL, listFiles, SET_VALUE=fileList, SET_LIST_SELECT=sel, SET_LIST_TOP=oldTop
+          ENDIF
+        ENDIF
+        END
       'saveDat': BEGIN
         IF tags(0) NE 'EMPTY' THEN BEGIN
           sel=WIDGET_INFO(listFiles, /LIST_SELECT)
@@ -394,6 +426,16 @@ pro ImageQC_event, ev
 
         ENDIF;tags not empty
       END
+      
+      'selectAll':BEGIN
+        IF tags(0) NE 'EMPTY' THEN BEGIN
+          ;TODO
+          nImg=N_TAGS(structImgs)
+          oldTop=WIDGET_INFO(listFiles, /LIST_TOP)
+          WIDGET_CONTROL, listFiles, SET_LIST_SELECT=INDGEN(nImg), SET_LIST_TOP=0
+          redrawImg,0,1 & updateInfo
+        ENDIF
+        END
 
       ;-----button prev/next image------------------------------------------------------------------------------------------------------------------
       'next'  : BEGIN
@@ -563,13 +605,13 @@ pro ImageQC_event, ev
 
         box=[$
           '1, BASE,, /COLUMN', $
-          '0, LABEL, Treshold (HU) for object to center', $
+          '0, LABEL, Threshold (HU) for object to center', $
           '0, LABEL, ',$
           '2, INTEGER, 200, LABEL_LEFT=Pixel value, TAG=lim', $
           '1, BASE,, /ROW', $
           '0, BUTTON, OK, QUIT, TAG=OK',$
           '2, BUTTON, Cancel, QUIT']
-        res=CW_FORM_2(box, /COLUMN, TAB_MODE=1, TITLE='Set treshold for object to center', XSIZE=200, YSIZE=150, FOCUSNO=3, XOFFSET=xoffset+200, YOFFSET=yoffset+200)
+        res=CW_FORM_2(box, /COLUMN, TAB_MODE=1, TITLE='Set threshold for object to center', XSIZE=200, YSIZE=150, FOCUSNO=3, XOFFSET=xoffset+200, YOFFSET=yoffset+200)
 
         IF res.OK THEN BEGIN
 
@@ -694,7 +736,7 @@ pro ImageQC_event, ev
             IF saveChange THEN BEGIN
               If N_ELEMENTS(newQTmod) EQ 0 THEN newQTmod=-1
               quickTemp=replaceStructStruct(quickTemp, newQTmod, modality)
-              SAVE, configS, quickTemp, quickTout, loadTemp, FILENAME=thisPath+'data\config.dat'
+              SAVE, configS, quickTemp, quickTout, loadTemp, renameTemp, FILENAME=thisPath+'data\config.dat'
 
               WIDGET_CONTROL, listSelMultiTemp, GET_VALUE=multiList
               multiList=[multiList, tempname]
@@ -712,12 +754,13 @@ pro ImageQC_event, ev
             IF sel NE 0 THEN BEGIN
               testOpt=WHERE(multiOpt.(modality) GT 0, nTests)
               szMM=SIZE(markedMulti, /DIMENSIONS)
+        
               IF szMM(0) EQ nTests THEN BEGIN; no new tests available since last save
                 markedMultiTemp=markedMulti[0:nTests-1,*]
               ENDIF ELSE BEGIN
                 nImg=N_TAGS(structImgs)
                 markedMultiTemp=INTARR(nTests, nImg)
-                IF N_ELEMENTS(szMM) EQ 1 THEN markedMultiTemp[0:szMM(0)-1]=markedMulti ELSE markedMultiTemp[0:szMM(0)-1,0:szMM(1)-1]=markedMulti
+                IF N_ELEMENTS(szMM) EQ 1 THEN markedMultiTemp[0:szMM(0)-1]=markedMulti ELSE markedMultiTemp[0:nTests-1,0:szMM(1)-1]=markedMulti[0:nTests-1,0:szMM(1)-1]
               ENDELSE
 
               RESTORE, thisPath+'data\config.dat'
@@ -735,7 +778,7 @@ pro ImageQC_event, ev
                 ENDIF
               ENDIF
 
-              IF saveChange THEN SAVE, configS, quickTemp, quickTout, loadTemp, FILENAME=thisPath+'data\config.dat'
+              IF saveChange THEN SAVE, configS, quickTemp, quickTout, loadTemp, renameTemp, FILENAME=thisPath+'data\config.dat'
             ENDIF ELSE sv=DIALOG_MESSAGE('Now selected template to overwrite. Use the + button to add a new template.',DIALOG_PARENT=evTop)
           ENDIF ELSE sv=DIALOG_MESSAGE('Save blocked by another user session. Go to settings and remove blocking if this is due to a previous program crash.', DIALOG_PARENT=evTop)
         ENDIF ELSE sv=DIALOG_MESSAGE('No multiMark to save.', DIALOG_PARENT=evTop)
@@ -963,6 +1006,15 @@ pro ImageQC_event, ev
       'dcmMR':BEGIN
         IF tags(0) NE 'EMPTY' THEN BEGIN
           getDCM_MR; tests_forQuickTest.pro
+          updateTable
+          updatePlot,1,1,0
+          WIDGET_CONTROL, wtabResult, SET_TAB_CURRENT=0
+        ENDIF
+      END
+      
+      'posMR':BEGIN
+        IF tags(0) NE 'EMPTY' THEN BEGIN
+          getPos_MR; tests_forQuickTest.pro
           updateTable
           updatePlot,1,1,0
           WIDGET_CONTROL, wtabResult, SET_TAB_CURRENT=0
@@ -2980,6 +3032,10 @@ pro ImageQC_event, ev
       END
       wtabAnalysisPET: BEGIN
         analyse=analyseStringsAll.PET[selTab]
+        IF loadedImg THEN redrawImg, 0,0
+      END
+      wtabAnalysisMR: BEGIN
+        analyse=analyseStringsAll.MR[selTab]
         IF loadedImg THEN redrawImg, 0,0
       END
       wtabResult:BEGIN

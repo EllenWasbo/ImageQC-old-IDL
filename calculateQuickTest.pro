@@ -149,6 +149,7 @@ pro calculateQuickTest
               analyse=analyseStrings(test-1)
               CASE test OF
                 1: getDCM_MR
+                2: getPos_MR
                 ELSE:
               ENDCASE
             END
@@ -196,10 +197,19 @@ pro calculateQuickTest
 
                   IF currQTout.(testPos).(iii).PER_SERIES AND calc GT 0 AND res3d EQ 0 THEN BEGIN
                     serUniq=!Null
-                    serNmbs=!Null
+                    acqserNmbs=!Null
+                    gect=0
+                    IF structImgs.(0).modality EQ 'CT' AND STRMID(structImgs.(0).manufacturer,0,2) EQ 'GE' THEN gect=1
                     FOR im=0, nImg-1 DO BEGIN
-                      serUniq=[serUniq,STRING(structImgs.(im).seriesUID,FORMAT='(a0)')]
-                      serNmbs=[serNmbs,STRING(structImgs.(im).seriesNmb,FORMAT='(i0)')]
+                      IF gect THEN BEGIN
+                      serUniq=[serUniq,STRING(structImgs.(im).acqNmb,FORMAT='(i0)')+'_'+STRING(structImgs.(im).seriesNmb,FORMAT='(i0)')+'_'+STRING(structImgs.(im).seriesUID,FORMAT='(a0)')]
+                      acqserNmbs=[acqserNmbs,STRING(structImgs.(im).acqNmb,FORMAT='(i0)')+'_'+STRING(structImgs.(im).seriesNmb,FORMAT='(i0)')]
+                      strAcqSer='_Acq/Series'
+                      ENDIF ELSE BEGIN
+                        serUniq=[serUniq,STRING(structImgs.(im).seriesUID,FORMAT='(a0)')]
+                        acqserNmbs=[acqserNmbs,STRING(structImgs.(im).seriesNmb,FORMAT='(i0)')]
+                        strAcqSer='_Series_'
+                      ENDELSE
                     ENDFOR
                     ;serUniq=[serUniq,STRING(structImgs.(im).acqDate,FORMAT='(i0)')+' '+STRING(structImgs.(im).seriesNmb,FORMAT='(i0)')+' '+STRING(structImgs.(im).seriesTime,FORMAT='(i06)')]
 
@@ -212,9 +222,11 @@ pro calculateQuickTest
                       imInSeries=WHERE(serUniq EQ serUniq(uniqSerNo(se)), nIm)
                       mmThis=markedMulti[tt,*]
                       IF TOTAL(mmThis(imInSeries)) GT 0 THEN BEGIN
-                        actTable=FLTARR(N_ELEMENTS(cols),nIm)
-                        FOR im=0, nIm-1 DO actTable[*,im]=resUse[*,imInSeries(im)]
-                        imgTxt='_Series'+STRING(serNmbs(uniqSerNo(se)), FORMAT='(i0)')
+                        ;nActInSer=TOTAL(mmThis(imInSeries)) 
+                        idAct=WHERE(mmThis(imInSeries) EQ 1,nActInSer)
+                        actTable=FLTARR(N_ELEMENTS(cols),nActInSer)
+                        FOR im=0, nActInSer-1 DO actTable[*,im]=resUse[*,imInSeries(idAct(im))]
+                        imgTxt=strAcqSer+acqserNmbs(uniqSerNo(se))
                         imgHead=outpNames(iii)
                         imgVal=getValString(actTable, calc)
                         multiExpTable=[[multiExpTable],[imgHead+imgTxt,imgVal]]

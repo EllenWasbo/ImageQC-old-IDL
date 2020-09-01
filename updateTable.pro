@@ -204,25 +204,28 @@ pro updateTable
           END
 
           'MTF':BEGIN
-            ;table results 0.5-2.5 lp/mm + frq @ MTF 0.5
-            nCols=6
-            headers=tableHeaders.XRAY.MTF.Alt1;['MTF @ 0.5/mm','MTF @ 1.0/mm','MTF @ 1.5/mm','MTF @ 2.0/mm','MTF @ 2.5/mm','Freq @ MTF 0.5']
-            resArrString=STRARR(nCols,nRows)
-            multipRes=WHERE(TAG_NAMES(MTFres) EQ 'M0')
-            WIDGET_CONTROL, cw_tableMTFX, GET_VALUE= tableWhich
-            IF multipRes(0) NE -1 THEN BEGIN
-              IF tableWhich EQ 0 THEN BEGIN
-                FOR i =0, nRows-1 DO IF N_TAGS(MTFres.(markedTemp(i))) NE 1 THEN resArrString[*,i]=STRING(MTFres.(markedTemp(i)).lpmm, FORMAT='(F0.3)')
+            szMTF=SIZE(MTFres, /TNAME)
+            IF szMTF EQ 'STRUCT' THEN BEGIN
+              ;table results 0.5-2.5 lp/mm + frq @ MTF 0.5
+              nCols=6
+              headers=tableHeaders.XRAY.MTF.Alt1;['MTF @ 0.5/mm','MTF @ 1.0/mm','MTF @ 1.5/mm','MTF @ 2.0/mm','MTF @ 2.5/mm','Freq @ MTF 0.5']
+              resArrString=STRARR(nCols,nRows)
+              multipRes=WHERE(TAG_NAMES(MTFres) EQ 'M0')
+              WIDGET_CONTROL, cw_tableMTFX, GET_VALUE= tableWhich
+              IF multipRes(0) NE -1 THEN BEGIN
+                IF tableWhich EQ 0 THEN BEGIN
+                  FOR i =0, nRows-1 DO IF N_TAGS(MTFres.(markedTemp(i))) NE 1 THEN resArrString[*,i]=STRING(MTFres.(markedTemp(i)).lpmm, FORMAT='(F0.3)')
+                ENDIF ELSE BEGIN
+                  FOR i =0, nRows-1 DO IF N_TAGS(MTFres.(markedTemp(i))) NE 1 THEN resArrString[*,i]=STRING(MTFres.(markedTemp(i)).lpmm_discrete, FORMAT='(F0.3)')
+                ENDELSE
               ENDIF ELSE BEGIN
-                FOR i =0, nRows-1 DO IF N_TAGS(MTFres.(markedTemp(i))) NE 1 THEN resArrString[*,i]=STRING(MTFres.(markedTemp(i)).lpmm_discrete, FORMAT='(F0.3)')
+                IF tableWhich EQ 0 THEN BEGIN
+                  resArrString[*,0]=STRING(MTFres.lpmm, FORMAT='(F0.3)')
+                ENDIF ELSE BEGIN
+                  resArrString[*,0]=STRING(MTFres.lpmm_discrete, FORMAT='(F0.3)')
+                ENDELSE
               ENDELSE
-            ENDIF ELSE BEGIN
-              IF tableWhich EQ 0 THEN BEGIN
-                resArrString[*,0]=STRING(MTFres.lpmm, FORMAT='(F0.3)')
-              ENDIF ELSE BEGIN
-                resArrString[*,0]=STRING(MTFres.lpmm_discrete, FORMAT='(F0.3)')
-              ENDELSE
-            ENDELSE
+            ENDIF ELSE resArrString=STRARR(6,nRows)
           END
           'NPS':
           ELSE:
@@ -489,15 +492,22 @@ pro updateTable
     END; PET
     ;******************************** MR *************************************************
     5:BEGIN
-      curTab=WIDGET_INFO(wtabAnalysisPET, /TAB_CURRENT)
+      curTab=WIDGET_INFO(wtabAnalysisMR, /TAB_CURRENT)
       IF results(curTab) EQ 1 THEN BEGIN
 
         CASE analyse OF
           'DCM':BEGIN
-            nCols=1
+            nCols=3
             headers=tableHeaders.MR.DCM.Alt1
             resArrString=STRARR(nCols,nRows)
             FOR i=0, nRows-1 DO resArrString[*,i]=expRes[*,markedTemp(i)]
+            END
+            
+          'POS':BEGIN
+            nCols=2
+            headers=tableHeaders.MR.POS.Alt1
+            resArrString=STRARR(nCols,nRows)
+            FOR i=0, nRows-1 DO resArrString[*,i]=MRposRes[*,markedTemp(i)]
             END
         ELSE:
         ENDCASE
@@ -526,9 +536,14 @@ pro updateTable
           ; select row in result-table according to file
           oldSel=WIDGET_INFO(resTab,/TABLE_SELECT)
           colNo=oldSel(0);keep column number
-          If colNo NE -1 THEN tabSelect=[colNo,rowNo,colNo,rowNo] ELSE tabSelect=[0,rowNo,nCols-1,rowNo]
+          If colNo NE -1 THEN tabSelect=[colNo,rowNo,colNo,rowNo] ELSE tabSelect=[0,rowNo,nCols-1,rowNo]  
         ENDIF
       ENDIF
+      oldView=WIDGET_INFO(resTab,/TABLE_VIEW)
+      tabView(0)=oldView(0)
+      IF N_ELEMENTS(rowNo) GT 0 THEN BEGIN
+        IF rowNo GT oldView(1)+10 OR rowNO LT oldView(1) THEN tabView(1)=rowNo ELSE tabView(1)=oldView(1)
+      ENDIF ELSE tabView(1)=oldView(1)
     ENDIF
 
     IF nCols GT 0 THEN BEGIN
@@ -544,6 +559,7 @@ pro updateTable
         ENDFOR
       ENDIF
     ENDIF ELSE WIDGET_CONTROL, resTab, TABLE_XSIZE=4, TABLE_YSIZE=2, COLUMN_LABELS=['0','1','2','3'], COLUMN_WIDTHS=[100,100,100,100], SET_VALUE=STRARR(4,5), SET_TABLE_SELECT=tabSelect, FOREGROUND_COLOR=[0,0,0]
+    
     WIDGET_CONTROL, resTab, SET_TABLE_VIEW=tabView
 
   ENDELSE

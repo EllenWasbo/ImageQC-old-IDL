@@ -64,11 +64,12 @@ pro updateMulti, AUTOACTIVE=autoactive, NIMGTEMP=nImgTemp
             ENDELSE
             szMNew=SIZE(markedMultiNew, /DIMENSIONS)
             IF N_ELEMENTS(szMNew) EQ 1 THEN szMNew=[szMNew, 1]
-            IF szMNew(0) NE nTests OR szMNew(1) GT nImg THEN BEGIN
+            IF szMNew(0) NE nTests OR szMNew(1) NE nImg THEN BEGIN
               IF autoActive THEN BEGIN
-                sv=DIALOG_MESSAGE('Warning: Template created with '+STRING(szMNew(0), FORMAT='(i0)')+' tests and '+STRING(szMNew(1), FORMAT='(i0)')+' images. Numbers do not match. Continue?', /QUESTION, DIALOG_PARENT=evTop)
-                IF sv EQ 'Yes' THEN autoStopFlag=0 ELSE autoStopFlag=1
-
+                IF szMNew(1) GT nImg THEN BEGIN
+                  sv=DIALOG_MESSAGE('Warning: Template created with '+STRING(szMNew(0), FORMAT='(i0)')+' tests and '+STRING(szMNew(1), FORMAT='(i0)')+' images. Numbers do not match. Continue?', /QUESTION, DIALOG_PARENT=evTop)
+                  IF sv EQ 'Yes' THEN autoStopFlag=0 ELSE autoStopFlag=1
+                ENDIF    
               ENDIF ELSE BEGIN
                 sv=DIALOG_MESSAGE('Warning: Template created with '+STRING(szMNew(0), FORMAT='(i0)')+' tests and '+STRING(szMNew(1), FORMAT='(i0)')+' images. Numbers do not match. Please validate template.', DIALOG_PARENT=evTop)
                 autoStopFlag=0

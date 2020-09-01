@@ -133,19 +133,21 @@ pro sortImgs_event, event
               FOR i=firstLastSel(0), firstLastSel(1) DO list2sort=[list2sort,structImgs.(i).(tagno(0))(0)]
               reformatNo=WHERE(STRUPCASE(imgStructInfo[0,*]) EQ STRUPCASE(sortNames(ss)))
               IF reformatNo(0) NE -1 THEN newFormat=imgStructInfo[1,reformatNo(0)] ELSE newFormat='STRING'
+              IF newFormat EQ 'FLOAT' THEN newFormat='DOUBLE'
               CASE newFormat OF
-                'FLOAT':list2sort=STRING(FLOAT(list2sort)-MIN(FLOAT(list2sort)), FORMAT='(f015.5)')
-                'DOUBLE':list2sort=STRING(DOUBLE(list2sort)-MIN(DOUBLE(list2sort)), FORMAT='(f025.5)')
-                'LONG':list2sort=STRING(LONG(list2sort)-MIN(LONG(list2sort)), FORMAT='(i016)')
+                'FLOAT':list2sort=STRING(FLOAT(list2sort)-MIN(FLOAT(list2sort)), FORMAT='(f08.5)');f015.5;
+                'DOUBLE':list2sort=STRING(DOUBLE(list2sort)-MIN(DOUBLE(list2sort)), FORMAT='(f010.5)');f025.5;
+                'LONG':list2sort=STRING(LONG(list2sort)-MIN(LONG(list2sort)), FORMAT='(i010)');f016;
                 ELSE:
               ENDCASE
-              IF ascElem(ss) THEN list2sort=REVERSE(list2sort)
+              ;IF ascElem(ss) THEN list2sort=REVERSE(list2sort)
               keyArr[*,ss]=list2sort
             ENDIF
           ENDFOR
           WIDGET_CONTROL, lblProgress, SET_VALUE=''
 
-          newSubOrder=MULTISORT(keyArr[*,0],keyArr[*,1],keyArr[*,2],keyArr[*,3],keyArr[*,4],keyArr[*,5],keyArr[*,6],keyArr[*,7],keyArr[*,8])
+          ;newSubOrder=MULTISORT(keyArr[*,0],keyArr[*,1],keyArr[*,2],keyArr[*,3],keyArr[*,4],keyArr[*,5],keyArr[*,6],keyArr[*,7],keyArr[*,8])
+          newSubOrder=multiBsort(keyArr,ascElem);multiBsort function in a2_bsort.pro
           newOrder[firstLastSel(0):firstLastSel(1)]=newSubOrder+firstLastSel(0)
           ;IF ARRAY_EQUAL(newOrder,INDGEN(nImg)) EQ 0 THEN structImgs=reorderStructStruct(structImgs, newOrder)
         ENDIF ELSE sv=DIALOG_MESSAGE('No sort pattern was selected. Use the >> button to push the elements to the pattern.', /INFORMATION, DIALOG_PARENT=event.Top)

@@ -81,6 +81,7 @@ pro closeImgs, imgIds
               'BAR': barRes=barRes[*,remain]
               'CROSSCALIB': clearRes, 'CROSSCALIB'
               'RC': clearRes, 'RC';probably less could be done, but - just in case some trouble
+              'POS': clearRes, 'POS'
             ENDCASE
           ENDIF
         ENDFOR

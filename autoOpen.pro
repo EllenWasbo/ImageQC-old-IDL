@@ -37,7 +37,7 @@ pro autoOpen, GROUP_LEADER = mainbase, xoff, yoff
   btnSettings=WIDGET_BUTTON(bAutoToolbar, VALUE=thisPath+'images\document.bmp',/BITMAP, UVALUE='au_openRes', TOOLTIP='Open the results file for the selected template.')
 
   lblMLProgress=WIDGET_LABEL(bAutoToolbar, VALUE=' ', XSIZE=20, FONT=font1)
-  lblAutoProgress=WIDGET_LABEL(bAutoToolbar, VALUE=' ', XSIZE=280, FONT=font1)
+  lblAutoProgress=WIDGET_LABEL(bAutoToolbar, VALUE=' ', XSIZE=280, FONT=font1, /DYNAMIC_RESIZE)
   btnPutAllInOne=WIDGET_BUTTON(bAutoToolbar, VALUE=thisPath+'images\undo.bmp',/BITMAP,UVALUE='putAllinOne',TOOLTIP='Move files out of the Archive to re-run the analysis', FONT=font1)
 
 
@@ -59,7 +59,7 @@ pro autoOpen, GROUP_LEADER = mainbase, xoff, yoff
   mlRowButt=WIDGET_LABEL(bRgtButt, VALUE='', XSIZE=200)
   btnRunSelected=WIDGET_BUTTON(bRgtButt, VALUE='Run selected',UVALUE='autoRunSel',TOOLTIP='Run selected templates', FONT=font1)
   btnRunAll=WIDGET_BUTTON(bRgtButt, VALUE='Run All',UVALUE='autoRunAll', TOOLTIP='Run all templates',FONT=font1)
-  btnRunPickFiles=WIDGET_BUTTON(bRgtButt, VALUE='Run for selected files', UVALUE='autoRunPicked',TOOLTIP='Run selected template on specified files',  FONT=font1)
+  btnRunPickFiles=WIDGET_BUTTON(bRgtButt, VALUE='Run for selected files...', UVALUE='autoRunPicked',TOOLTIP='Run selected template on specified files',  FONT=font1)
 
   bBtmButt=WIDGET_BASE(autobox, /ROW)
   mlRowButt=WIDGET_LABEL(bBtmButt, VALUE='', XSIZE=350)
@@ -127,8 +127,10 @@ pro autoOpen_event, event
               WIDGET_CONTROL, /HOURGLASS
               countNoTemp=0
               errF=0
+              nAlr=0
               renames=''
               nNoImg=0
+              statNameFound=!Null
               FOR n=0, nn-1 DO BEGIN
                 IF FILE_BASENAME(adrTempTemp(n)) EQ 'DICOMDIR' THEN dcm(n)=0 ELSE dcm(n)=QUERY_DICOM(adrTempTemp(n))
                 IF dcm(n) NE 0 THEN BEGIN
@@ -138,7 +140,7 @@ pro autoOpen_event, event
 
                   test=o->GetReference('0008'x,'0060'x)
                   test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
-                  modalityStr=*(test_peker[0])
+                  IF test(0) NE -1 THEN modalityStr=*(test_peker[0]) ELSE modalityStr='?'
 
                   test=o->GetReference('0008'x,'0023'x)
                   test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
@@ -196,7 +198,10 @@ pro autoOpen_event, event
                     IF N_ELEMENTS(statNames) GT 0 THEN tempID=WHERE(stationName EQ statNames) ELSE tempID=-1
 
                     IF tempID(0) NE -1 THEN BEGIN
-                      IF loadAdr(tempID(0)) NE '' THEN newAdr=loadAdr(tempID(0)) ELSE BEGIN
+                      IF loadAdr(tempID(0)) NE '' THEN BEGIN
+                        newAdr=loadAdr(tempID(0))
+                        statNameFound=[statNameFound, stationName]
+                      ENDIF ELSE BEGIN
                         newAdr=adr(0)
                         countNoTemp=countNoTemp+1
                       ENDELSE
@@ -225,7 +230,10 @@ pro autoOpen_event, event
                       ENDIF ELSE basenameN=basename
                       IF  adrTempTemp(n) NE newAdr(0)+basenameN+'.dcm' THEN BEGIN
                         fiexist=FILE_TEST(newAdr(0)+basenameN+'.dcm')
-                        IF fiexist THEN print, 'File exist: '+newAdr(0)+basenameN+'.dcm' ELSE BEGIN
+                        IF fiexist THEN BEGIN
+                          IF basenameN NE basename THEN file_move, adrTempTemp(n), adr(0)+basenameN+'.dcm'
+                          nAlr=nAlr+1
+                        ENDIF ELSE BEGIN
                           file_move, adrTempTemp(n), newAdr(0)+basenameN+'.dcm'
                           renames=[renames,newAdr(0)+basename]
                         ENDELSE
@@ -250,11 +258,8 @@ pro autoOpen_event, event
                     FOR i=0, N_ELEMENTS(dirNames)-1 DO strLenArr=[strLenArr, STRLEN(dirNames(i))]
                     sortOrder=REVERSE(SORT(strLenArr))
                     dirNames=dirNames(sortOrder)
-                    print, dirNames
                     FOR i=0, N_ELEMENTS(dirNames)-1 DO BEGIN
                       fi=FILE_INFO(dirNames(i))
-                      ;Spawn, 'dir '  + '"'++'"' + '*'+ '/b /s /a-D', res; files only
-                      print, fi.size
                       IF fi.size EQ 0 THEN BEGIN
                         WIDGET_CONTROL, lblAutoProgress, SET_VALUE='Deleting empty subfolder '+STRING(i+1,FORMAT='(i0)')
                         FILE_DELETE, dirNames(i), /QUIET
@@ -262,11 +267,25 @@ pro autoOpen_event, event
                     ENDFOR
                   ENDIF
                 ENDIF
+                
+                IF N_ELEMENTS(statNameFound) GT 0 THEN BEGIN
+                  allNames=statNameFound(UNIQ(statNameFound))
+                  txtRes='Found and moved these images:'+newline
+                  FOR n=0, N_ELEMENTS(allNames)-1 DO BEGIN
+                    ss=WHERE(allNames(n) EQ statNameFound, nn)
+                    txtRes=txtRes+'   '+allNames(n)+' ('+STRING(nn, FORMAT='(i0)')+')'+newline         
+                  ENDFOR
+                  sv=DIALOG_MESSAGE(txtRes, DIALOG_PARENT=event.Top)
+                ENDIF
   
                 IF errF THEN  sv = DIALOG_MESSAGE(STRING(errF, FORMAT='(i0)')+ ' file(s) not moved as the path defined in template for the specified station name could not be reached.', DIALOG_PARENT=event.Top)
   
                 IF countNoTemp GT 0 THEN BEGIN
                   sv = DIALOG_MESSAGE(STRING(countNoTemp, FORMAT='(i0)')+ ' file(s) not moved, just renamed and placed directly in the selected folder. No corresponding automation template for the staion name or target path not defined.', DIALOG_PARENT=event.Top)
+                ENDIF
+                
+                IF nAlr GT 0 THEN BEGIN
+                  sv = DIALOG_MESSAGE(STRING(nAlr, FORMAT='(i0)')+ ' file(s) not moved, just renamed and placed directly in the selected folder. File with same filename already exist in target folder.', DIALOG_PARENT=event.Top)
                 ENDIF
   
                 IF nNoImg GT 0 THEN BEGIN
@@ -309,7 +328,7 @@ pro autoOpen_event, event
           FOR t = 0, N_ELEMENTS(selTemp)-1 DO BEGIN
 
             adr=loadTemp.(modArr(selTemp(t))).(tempIDarr(selTemp(t))).path
-            adrArc=adr+'\Archive\'
+            adrArc=adr+'Archive\'
             sv=DIALOG_MESSAGE('Move files in '+adrArc+' to parent folder?', /QUESTION, DIALOG_PARENT=evTop)
             IF sv EQ 'Yes' THEN BEGIN
               WIDGET_CONTROL, /HOURGLASS

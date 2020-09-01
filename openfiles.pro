@@ -53,6 +53,7 @@ pro openFiles, adrFilesToOpen, SILENT=silent
       
       structNew=readImgInfo(adrFilesToOpen(i), evTop, silent)
       
+      
       IF SIZE(structNew, /TNAME) EQ 'STRUCT' THEN BEGIN
         tagn=TAG_NAMES(structNew)
         multiFrame=1
@@ -152,6 +153,7 @@ pro openFiles, adrFilesToOpen, SILENT=silent
             'CT': newModa=0
             'DX': newModa=1
             'CR': newModa=1
+            'DR': newModa=1
             'RG': newModa=1
             'XA': newModa=1
             'MG': newModa=1

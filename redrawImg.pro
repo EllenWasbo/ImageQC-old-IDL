@@ -304,8 +304,18 @@ pro redrawImg, viewpl, newActive
         speedLine=OBJ_NEW('IDLgrPolyline', [[posX-val,first],[posX-val,last],[posX+val,last],[posX+val,first],[posX-val,first]], COLOR = 255*([1,0,0]), /DOUBLE, LINESTYLE=0)
         oModel->Add, speedLine
       ENDIF
-
+      
       halfSz=sizeAct/2
+      IF analyse EQ 'POS' THEN BEGIN;phantom pos MR      
+        IF N_ELEMENTS(MRposRes) GT 0 THEN BEGIN
+          szPos=SIZE(MRposRes,/DIMENSIONS)
+          IF N_ELEMENTS(szPos) EQ 1 THEN posRes=MRposRes ELSE posRes=MRposRes[*,sel]
+          posLineX=OBJ_NEW('IDLgrPolyline', [[0,halfSz(1)+posRes(1)],[sizeAct(0),halfSz(1)+posRes(1)]], COLOR = 255*([0,1,0]), /DOUBLE, LINESTYLE=0)
+          posLineY=OBJ_NEW('IDLgrPolyline', [[halfSz(0)+posRes(0),0],[halfSz(0)+posRes(0),sizeAct(1)]], COLOR = 255*([0,1,0]), /DOUBLE, LINESTYLE=0)
+          oModel->Add, posLineX & oModel->Add, posLineY
+        ENDIF
+      ENDIF
+   
       IF dxya(3) EQ 1 THEN BEGIN
         tana=TAN(dxya(2)*!DtoR)
         dy1=tana*(halfSz(0)+dxya(0))
@@ -480,6 +490,9 @@ pro redrawImg, viewpl, newActive
       IF OBJ_VALID(fwhmBackLine) THEN OBJ_DESTROY, fwhmBackLine
       IF OBJ_VALID(speedLine) THEN OBJ_DESTROY, speedLine
       IF OBJ_VALID(roiLine) THEN OBJ_DESTROY, roiLine
+      IF OBJ_VALID(posLineX) THEN BEGIN
+        OBJ_DESTROY, posLineX & OBJ_DESTROY, posLineY
+      ENDIF
     ENDIF;annot
     OBJ_DESTROY, oView & OBJ_DESTROY, oModel & OBJ_DESTROY, oImageCT
   ENDIF ELSE iDrawLarge.erase

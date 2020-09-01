@@ -129,7 +129,7 @@ pro getDCM_MR; get DICOM info for MR images
 
   WIDGET_CONTROL, /HOURGLASS
   nImg=N_TAGS(structImgs)
-  resArr=STRARR(1,nImg)
+  resArr=STRARR(3,nImg)
 
   testNmb=getResNmb(modality,'DCM',analyseStringsAll)
   markedArr=INTARR(nImg)
@@ -141,6 +141,8 @@ pro getDCM_MR; get DICOM info for MR images
     FOR i=0, nI-1 DO BEGIN
       IF markedArr(i) THEN BEGIN
         resArr[0,i]=STRING(structImgs.(i).imgFreq, FORMAT=formatCode(structImgs.(i).imgFreq))
+        resArr[1,i]=structImgs.(i).recCoilName
+        resArr[2,i]=structImgs.(i).traCoilName
       ENDIF
     ENDFOR
     WIDGET_CONTROL, lblProgress, SET_VALUE=''
@@ -1134,30 +1136,42 @@ pro getAcqNM
   ENDIF
 end
 
-pro getDcmMR
+pro getPos_MR; get phantom position for MR images (geometric mass)
   COMPILE_OPT hidden
   COMMON VARI
 
   WIDGET_CONTROL, /HOURGLASS
   nImg=N_TAGS(structImgs)
-  resArr=FLTARR(2,nImg)-1; frame duration and total counts
+  resArr=STRARR(2,nImg)
 
-  testNmb=getResNmb(modality,'DCM',analyseStringsAll)
+  testNmb=getResNmb(modality,'POS',analyseStringsAll)
   markedArr=INTARR(nImg)
   IF marked(0) EQ -1 THEN BEGIN
     IF markedMulti(0) EQ -1 THEN markedArr=markedArr+1 ELSE markedArr=markedMulti[testNmb,*]
   ENDIF ELSE markedArr(marked)=1
   IF TOTAL(markedArr) GT 0 THEN BEGIN
     nI=MIN([nImg,N_ELEMENTS(markedArr)])
+    errs=INTARR(nI)
     FOR i=0, nI-1 DO BEGIN
       IF markedArr(i) THEN BEGIN
         tempImg=readImg(structImgs.(i).filename, structImgs.(i).frameNo)
-        resArr[0,i]=TOTAL(tempImg)
-        resArr[1,i]=structImgs.(i).acqFrameDuration
+        threshold=MIN(tempImg)+0.25*(MAX(tempImg)-MIN(tempImg));25% above minimum value relative to max value in image
+        above=WHERE(tempImg GT threshold)
+        tempImg=0.*tempImg
+        tempImg(above)=threshold
+        centerThis=centroid(tempImg, .5*threshold)
+        imsz=SIZE(tempImg, /DIMENSION)
+
+          IF MIN(centerThis) EQ -1 THEN BEGIN
+            errs(i)=1
+            centerThis=0.*centerThis
+          ENDIF 
+
+        resArr[*,i]=centerThis-0.5*imsz
       ENDIF
     ENDFOR
     WIDGET_CONTROL, lblProgress, SET_VALUE=''
-    acqRes=resArr
+    MRposRes=resArr
     results(testNmb)=1
   ENDIF
 end

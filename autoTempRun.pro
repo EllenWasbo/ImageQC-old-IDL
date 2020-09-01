@@ -156,6 +156,8 @@ pro autoTempRun, thisTemp, thisModality, LOOP=loop, PICKFILES=pickfiles, TEMPNAM
 
               tnames=TAG_NAMES(structImgs.(0))
               sortNames=thisTemp.sortBy
+              descArr=thisTemp.sortAsc
+              IF N_ELEMENTS(descArr) GT N_ELEMENTS(sortNames) THEN sortNames=sortNames[0:N_ELEMENTS(descArr)-1];from error in between version 1.74,1.75
 
               keyArr=STRARR(nIMG,9);max 9 sorting levels
 
@@ -167,10 +169,11 @@ pro autoTempRun, thisTemp, thisModality, LOOP=loop, PICKFILES=pickfiles, TEMPNAM
                   FOR i=0, nImg-1 DO list2sort=[list2sort,structImgs.(i).(tagno(0))(0)]
                   reformatNo=WHERE(STRUPCASE(imgStructInfo[0,*]) EQ STRUPCASE(thisTemp.sortBy(ss)))
                   IF reformatNo(0) NE -1 THEN newFormat=imgStructInfo[1,reformatNo(0)] ELSE newFormat='STRING'
+                  IF newFormat EQ 'FLOAT' THEN newFormat='DOUBLE'
                   CASE newFormat OF
-                    'FLOAT':list2sort=STRING(FLOAT(list2sort)-MIN(FLOAT(list2sort)), FORMAT='(f015.5)')
-                    'DOUBLE':list2sort=STRING(DOUBLE(list2sort)-MIN(DOUBLE(list2sort)), FORMAT='(f025.5)')
-                    'LONG':list2sort=STRING(LONG(list2sort)-MIN(LONG(list2sort)), FORMAT='(i016)')
+                    'FLOAT':list2sort=STRING(FLOAT(list2sort)-MIN(FLOAT(list2sort)), FORMAT='(f06.5)')
+                    'DOUBLE':list2sort=STRING(DOUBLE(list2sort)-MIN(DOUBLE(list2sort)), FORMAT='(f010.5)')
+                    'LONG':list2sort=STRING(LONG(list2sort)-MIN(LONG(list2sort)), FORMAT='(i010)')
                     ELSE:
                   ENDCASE
                   keyArr[*,ss]=list2sort
@@ -178,7 +181,8 @@ pro autoTempRun, thisTemp, thisModality, LOOP=loop, PICKFILES=pickfiles, TEMPNAM
               ENDFOR
               WIDGET_CONTROL, lblProgress, SET_VALUE=''
 
-              newOrder=MULTISORT(keyArr[*,0],keyArr[*,1],keyArr[*,2],keyArr[*,3],keyArr[*,4],keyArr[*,5],keyArr[*,6],keyArr[*,7],keyArr[*,8])
+              ;newOrder=MULTISORT(keyArr[*,0],keyArr[*,1],keyArr[*,2],keyArr[*,3],keyArr[*,4],keyArr[*,5],keyArr[*,6],keyArr[*,7],keyArr[*,8])
+              newOrder=multiBsort(keyArr,descArr)
 
               IF ARRAY_EQUAL(newOrder,INDGEN(nImg)) EQ 0 THEN structImgs=reorderStructStruct(structImgs, newOrder)
             ENDIF;sortby

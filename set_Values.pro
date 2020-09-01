@@ -26,7 +26,8 @@ pro set_imgStructInfo, iSi
     ['angle','FLOAT','2/3/4'],$
     ['acqFrameDuration','DOUBLE','2/3/4'],['acqTerminationCond','STRING','2/3/4'],['radiopharmaca','STRING','2/3/4'],['admDose','FLOAT','2/3/4'],['admDoseTime','STRING','2/3/4'],$
     ['attCorrMethod','STRING','2/3/4'],['scaCorrMethod','STRING','2/3/4'],['scatterFrac','FLOAT','2/3/4'],$
-    ['imgFreq','FLOAT','5'],['MRacqType','STRING','5'],['MRscanSeq','STRING','5'],['MRseqVariant','STRING','5'],['TR','LONG','5'],['TE','LONG','5'],['NSA','LONG','5'],['flipAng','LONG','5'],['spaceSlice','FLOAT','5']]
+    ['imgFreq','FLOAT','5'],['MRacqType','STRING','5'],['MRscanSeq','STRING','5'],['MRseqVariant','STRING','5'],$
+    ['TR','LONG','5'],['TE','LONG','5'],['NSA','LONG','5'],['flipAng','LONG','5'],['spaceSlice','FLOAT','5'],['recCoilName','STRING','5'],['traCoilName','STRING','5']]
 
   RETURN
 end

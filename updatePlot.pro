@@ -1420,7 +1420,6 @@ IF SIZE(MTFres, /TNAME) EQ 'STRUCT' THEN BEGIN
 
       ENDCASE; modes
 
-
       IF setRangeMinMaxX THEN BEGIN
         WIDGET_CONTROL, txtMinRangeX, SET_VALUE=STRING(rangeX(0),FORMAT=formatCode(rangeX(0)))
         WIDGET_CONTROL, txtMaxRangeX, SET_VALUE=STRING(rangeX(1),FORMAT=formatCode(rangeX(1)))

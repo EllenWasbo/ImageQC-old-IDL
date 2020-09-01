@@ -53,10 +53,11 @@ pro ImageQC,  GROUP_LEADER=bMain
     acqRes, barRes, barROI, txtBarROIsize,txtBar1,txtBar2,txtBar3,txtBar4,$
     crossRes, crossROI, txtCrossROIsz, txtCrossMeasAct,txtCrossMeasActT, txtCrossMeasRest, txtCrossMeasRT, txtCrossScanAct, txtCrossScanStart,$
     txtCrossVol, txtCrossConc, txtCrossFactorPrev, txtCrossFactor,$
-    rcRes, rcROIs, btnRCrev, cwRCexclude, cw_rcType
+    rcRes, rcROIs, btnRCrev, cwRCexclude, cw_rcType,$
+    MRposRes
 
   !EXCEPT=0;2 to see all errors
-  currVersion='1.74'
+  currVersion='1.80'
   thisPath=FILE_DIRNAME(ROUTINE_FILEPATH('ImageQC'))+'\'
   xoffset=100
   yoffset=50
@@ -67,11 +68,11 @@ pro ImageQC,  GROUP_LEADER=bMain
   analyseStringsNM=['UNIF','SNI','ACQ','BAR', 'ENERGYSPEC','SCANSPEED','MTF']
   analyseStringsSPECT=['MTF','RADIAL','CONTRAST']
   analyseStringsPET=['CROSSCALIB','HOMOG','RC']
-  analyseStringsMR=['DCM']
+  analyseStringsMR=['DCM','POS']
   analyseStringsAll=CREATE_STRUCT('CT',analyseStringsCT,'Xray',analyseStringsXray,'NM',analyseStringsNM,'SPECT',analyseStringsSPECT,'PET',analyseStringsPET,'MR',analyseStringsMR)
 
   ;options regarding QuickTest
-  multiOpt=CREATE_STRUCT('CT',[1,2,3,4,5,6,7,0,0,0],'Xray',[1,2,3,4,5,0,0],'NM',[1,1,1,1,0,0,0],'SPECT', INTARR(3),'PET',INTARR(3),'MR',[1]); structure of arrays corresponding to analyseStrings that have the option of being a numbered test for multimark/quicktest, number or 0 if not an option
+  multiOpt=CREATE_STRUCT('CT',[1,2,3,4,5,6,7,0,0,0],'Xray',[1,2,3,4,5,0,0],'NM',[1,1,1,1,0,0,0],'SPECT', INTARR(3),'PET',INTARR(3),'MR',[1,1]); structure of arrays corresponding to analyseStrings that have the option of being a numbered test for multimark/quicktest, number or 0 if not an option
 
   blockAdr=thisPath+'data\blockSaveStamp.txt'
   resBlock = FILE_TEST(blockAdr)
@@ -93,18 +94,21 @@ pro ImageQC,  GROUP_LEADER=bMain
     CLOSE, blockfile & FREE_LUN, blockfile
     ;refresh structure of config file
     IF FILE_TEST(thisPath+'data\config.dat') THEN BEGIN
-      configS=updateConfigS(thisPath+'data\config.dat');functionsMini.pro
-      quickTemp=updateQuickT(thisPath+'data\config.dat', multiOpt);functionsMini.pro
+      ;update functions in a0_functionsMini.pro
+      configS=updateConfigS(thisPath+'data\config.dat')
+      quickTemp=updateQuickT(thisPath+'data\config.dat', multiOpt)
       IF N_ELEMENTS(quickTemp) EQ 0 THEN quickTemp=0
-      loadTemp=updateLoadT(thisPath+'data\config.dat', multiOpt);functionsMini.pro
-      quickTout=updateQuickTout(thisPath+'data\config.dat',analyseStringsAll);functionsMini.pro
+      loadTemp=updateLoadT(thisPath+'data\config.dat', multiOpt)
+      quickTout=updateQuickTout(thisPath+'data\config.dat',analyseStringsAll)
+      renameTemp=updateRenameTemp(thisPath+'data\config.dat') 
     ENDIF ELSE BEGIN
       configS=updateConfigS('')
       quickTemp=updateQuickT('')
       loadTemp=updateLoadT('')
       quickTout=updateQuickTout('')
+      renameTemp=updateRenameTemp('')
     ENDELSE
-    SAVE, configS, quickTemp, quickTout, loadTemp, FILENAME=thisPath+'data\config.dat'
+    SAVE, configS, quickTemp, quickTout, loadTemp, renameTemp, FILENAME=thisPath+'data\config.dat'
     saveOK=1
   ENDELSE
 
@@ -119,7 +123,7 @@ pro ImageQC,  GROUP_LEADER=bMain
     'CT',['1. Homogeneity','2. Noise','3. Slice thickness','4. MTF','5. CT Number', '6. HU water','7. Header info'],$
     'Xray',['1. STP','2. Homogeneity','3. Noise','4. Header info','5. MTF'],$
     'NM',['1. Uniformity','2. SNI','3. Header info','4. BarPhantom'],$
-    'MR',['1. Header info'])
+    'MR',['1. Header info','2. Phantom position'])
   CT_headers=CREATE_STRUCT($
     'HOMOG',CREATE_STRUCT('Alt1',['12oClock','15oClock','18oClock','21oClock','Center HU','Diff C 12','Diff C 15','Diff C 18','Diff C 21']),$
     'NOISE',CREATE_STRUCT('Alt1',['CT number (HU)','Noise=Stdev (HU)','Diff avg noise(%)', 'Avg noise (HU)']),$
@@ -146,7 +150,8 @@ pro ImageQC,  GROUP_LEADER=bMain
     'ACQ',CREATE_STRUCT('Alt1',['Total Count','Frame Duration (ms)']),$
     'BAR',CREATE_STRUCT('Alt1',['MTF @ F1','MTF @ F2','MTF @ F3','MTF @ F4','FWHM1','FWHM2','FWHM3','FWHM4']))
   MR_headers=CREATE_STRUCT($
-    'DCM', CREATE_STRUCT('Alt1',['Imaging frequency']))
+    'DCM', CREATE_STRUCT('Alt1',['Imaging frequency','Receive coil','Transmit coil']),$
+    'POS', CREATE_STRUCT('Alt1',['PosX','PosY']))
 
   tableHeaders=CREATE_STRUCT('CT',CT_headers,'Xray',Xray_headers,'NM',NM_headers,'MR', MR_headers)
   currentHeaderAlt=INTARR(9); Alt1=0, Alt2=1... set in updateTable pr test
@@ -212,8 +217,11 @@ pro ImageQC,  GROUP_LEADER=bMain
   btnOpen=WIDGET_BUTTON(file_menu, VALUE='Open DICOM file(s)', UVALUE='open', ACCELERATOR='Ctrl+O')
   btnOpenMultiple=WIDGET_BUTTON(file_menu, VALUE='Open DICOM file(s) with advanced options', UVALUE='openMulti')
   btnOpenAuto=WIDGET_BUTTON(file_menu, VALUE='Open files using automation template', UVALUE='openAuto')
-  btnOpenMTFNPS=WIDGET_BUTTON(file_menu, VALUE='Run MTF/NPS auto-analyse program', UVALUE='runAutoMTFNPS')
+  btnOpenTxt=WIDGET_BUTTON(file_menu, VALUE='Read image (and header) from txt file..', UVALUE='openTxt', /SEPARATOR)
   btnSaveStruct=WIDGET_BUTTON(file_menu, VALUE='Save selected image as IDL structure (.dat-file)', UVALUE='saveDat')
+  btnSelAll=WIDGET_BUTTON(file_menu, VALUE='Select all images in list', UVALUE='selectAll', ACCELERATOR='Ctrl+A', /SEPARATOR)
+  btnOpenMTFNPS=WIDGET_BUTTON(file_menu, VALUE='Run MTF/NPS auto-analyse program', UVALUE='runAutoMTFNPS')
+  btnRenameDICOM=WIDGET_BUTTON(file_menu, VALUE='Run RenameDICOM', UVALUE='runRenameDICOM')
   btnClose=WIDGET_BUTTON(file_menu, VALUE='Close all images', UVALUE='close', /SEPARATOR)
   btnExit=WIDGET_BUTTON(file_menu, VALUe='Exit', UVALUE='exit', ACCELERATOR='Ctrl+X')
   ;sett_menu
@@ -1054,6 +1062,14 @@ pro ImageQC,  GROUP_LEADER=bMain
 
   lbldcmMR_ml1=WIDGET_LABEL(bDcmMR, VALUE='', SCR_YSIZE=20)
   btnDcmMR=WIDGET_BUTTON(bDcmMR, VALUE='Get values', UVALUE='dcmMR',FONT=font1)
+  
+  bPosMR=WIDGET_BASE(wtabAnalysisMR, Title='2. Phantom position', /COLUMN)
+
+  lblposMR_ml0=WIDGET_LABEL(bPosMR, VALUE='', SCR_YSIZE=20)
+  lblposMR=WIDGET_LABEL(bPosMR, VALUE='Seach for phantom position - center of mass. Results will show number of pixels from center of image.',FONT=font1)
+
+  lblposMR_ml1=WIDGET_LABEL(bPosMR, VALUE='', SCR_YSIZE=20)
+  btnPosMR=WIDGET_BUTTON(bPosMR, VALUE='Get values', UVALUE='posMR',FONT=font1)
 
   ;******************************************************************************************
   ;********************* Result panel *********************************************************

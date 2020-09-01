@@ -157,7 +157,8 @@ pro updateInfo
           'SeriesName:'+tab+ tempStruct.seriesName, $
           'Acq type:'+tab+ tab+tempStruct.MRacqType, $
           'Scan sequence:'+tab+ tempStruct.MRscanSeq, $
-          'Seq variant:'+tab+ tempStruct.MRseqVariant]
+          'Seq variant:'+tab+ tempStruct.MRseqVariant,$
+          'Receive/transmit coil name:'+tab+tempStruct.recCoilName+' / '+tempStruct.traCoilName]
 
         infoString2=$
           ['SliceThick:'+tab+ (tempStruct.SliceThick NE -1 ? string(tempStruct.SliceThick, format='(f0.2)') : '-'), $
