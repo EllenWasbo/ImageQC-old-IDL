@@ -44,6 +44,7 @@ pro verifyStructures
   ENDIF ELSE print,'All configS tags included in set_configSinfo'
 
 end
+
 pro compareConfigFiles
 
 adr0=DIALOG_PICKFILE(TITLE='Select first config file.', /READ, FILTER='*.dat',/FIX_FILTER)
