@@ -57,7 +57,7 @@ pro ImageQC,  GROUP_LEADER=bMain
     MRposRes
 
   !EXCEPT=0;2 to see all errors
-  currVersion='1.80'
+  currVersion='1.81'
   thisPath=FILE_DIRNAME(ROUTINE_FILEPATH('ImageQC'))+'\'
   xoffset=100
   yoffset=50

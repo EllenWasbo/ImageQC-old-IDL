@@ -646,24 +646,28 @@ pro settings_event, event
           
            RESTORE, thisPath+'data\config.dat'
            configSarr=struct2xml(configS)
-           quickTempArr=struct2xml(quickTemp)
+           IF SIZE(quickTemp, /TNAME) EQ 'STRUCT' THEN  quickTempArr=struct2xml(quickTemp)
            quickToutArr=struct2xml(quickTout)
-           loadTempArr=struct2xml(loadTemp)
+           IF SIZE(loadTemp, /TNAME) EQ 'STRUCT' THEN loadTempArr=struct2xml(loadTemp)
            renameTempArr=struct2xml(renameTemp)
            
            if (!D.NAME eq 'WIN') then newline = string([13B, 10B]) else newline = string(10B)
            OPENW, xmlfile, adr+'\configS.xml',/GET_LUN
            PRINTF, xmlfile, STRJOIN(configSarr,newline)
            CLOSE, xmlfile & FREE_LUN, xmlfile
-           OPENW, xmlfile, adr+'\quickTemp.xml',/GET_LUN
-           PRINTF, xmlfile, STRJOIN(quickTempArr,newline)
-           CLOSE, xmlfile & FREE_LUN, xmlfile
+           IF N_ELEMENTS(quickTempArr) NE 0 THEN BEGIN
+             OPENW, xmlfile, adr+'\quickTemp.xml',/GET_LUN
+             PRINTF, xmlfile, STRJOIN(quickTempArr,newline)
+             CLOSE, xmlfile & FREE_LUN, xmlfile
+           ENDIF
            OPENW, xmlfile, adr+'\quickTout.xml',/GET_LUN
            PRINTF, xmlfile, STRJOIN(quickToutArr,newline)
            CLOSE, xmlfile & FREE_LUN, xmlfile
-           OPENW, xmlfile, adr+'\loadTemp.xml',/GET_LUN
-           PRINTF, xmlfile, STRJOIN(loadTempArr,newline)
-           CLOSE, xmlfile & FREE_LUN, xmlfile
+           IF N_ELEMENTS(loadTempArr) NE 0 THEN BEGIN
+             OPENW, xmlfile, adr+'\loadTemp.xml',/GET_LUN
+             PRINTF, xmlfile, STRJOIN(loadTempArr,newline)
+             CLOSE, xmlfile & FREE_LUN, xmlfile
+           ENDIF
            OPENW, xmlfile, adr+'\renameTemp.xml',/GET_LUN
            PRINTF, xmlfile, STRJOIN(renameTempArr,newline)
            CLOSE, xmlfile & FREE_LUN, xmlfile
@@ -686,6 +690,7 @@ pro settings_event, event
               quickTemp=updateQuickT(adr(0), multiOpt)
               loadTemp=updateLoadT(adr(0),multiOpt)
               quickTout=updateQuickTout(adr(0))
+              renameTemp=updateRenameTemp(adr(0))
               SAVE, configS, quickTemp, quickTout, loadTemp, renameTemp, FILENAME=thisPath+'data\config.dat'
               ;update values on default parameterset
               selConfig=configS.(0)
@@ -2452,6 +2457,7 @@ pro auto_upd, selT, first
       paramSetNames=STRUPCASE(TAG_NAMES(configS))
       paramSetNames=paramSetNames[1:-1]
       WIDGET_CONTROL, listSets_a, SET_VALUE=paramSetNames, SET_LIST_SELECT=0
+      WIDGET_CONTROL, txtAutoImpPath, SET_VALUE=configS.(1).AUTOIMPORTPATH
     ENDIF
 
     tempnames_a=''
