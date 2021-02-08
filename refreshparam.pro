@@ -81,11 +81,19 @@ pro refreshParam, paramSet, paramSetName
   WIDGET_CONTROL, btnTranspose, SET_BUTTON=paramSet.TRANSPOSETABLE
   WIDGET_CONTROL, btnIncFilename, SET_BUTTON=paramSet.INCLUDEFILENAME
   WIDGET_CONTROL, btnAppend, SET_BUTTON=paramSet.APPEND
-  ;offxy both CT and Xray
-  strOff=STRING(paramSet.OFFXY(0), FORMAT='(i0)')+','+STRING(paramSet.OFFXY(1), FORMAT='(i0)')
+  ;extra offset xy
+  offxyMTF=paramSet.offxyMTF
+  offxyMTF_X=paramSet.offxyMTF_X
+  offxyROI=paramSet.offxyROI
+  WIDGET_CONTROL, unitDeltaO_MTF_CT, SET_VALUE=paramSet.OFFXYMTF_UNIT
+  WIDGET_CONTROL, unitDeltaO_MTF_X, SET_VALUE=paramSet.OFFXYMTF_X_UNIT
+  WIDGET_CONTROL, unitDeltaO_ROI_CT, SET_VALUE=paramSet.OFFXYROI_UNIT
+  strOff=STRING(paramSet.OFFXYMTF(0), FORMAT='(i0)')+','+STRING(paramSet.OFFXYMTF(1), FORMAT='(i0)')
   WIDGET_CONTROL, lblDeltaO, SET_VALUE=strOff
+  strOff=STRING(paramSet.OFFXYMTF_X(0), FORMAT='(i0)')+','+STRING(paramSet.OFFXYMTF_X(1), FORMAT='(i0)')
   WIDGET_CONTROL, lblDeltaOX, SET_VALUE=strOff
-  offxy=paramSet.offxy
+  strOff=STRING(paramSet.OFFXYROI(0), FORMAT='(i0)')+','+STRING(paramSet.OFFXYROI(1), FORMAT='(i0)')
+
   ;CT tests
   WIDGET_CONTROL, cw_typeMTF, SET_VALUE=paramSet.MTFTYPE
   WIDGET_CONTROL, cw_plotMTF, SET_VALUE=paramSet.PLOTMTF
@@ -95,6 +103,7 @@ pro refreshParam, paramSet, paramSetName
   WIDGET_CONTROL, btnCutLSF, SET_BUTTON=paramSet.CUTLSF
   WIDGET_CONTROL, txtCutLSFW, SET_VALUE=STRING(paramSet.CUTLSF1, FORMAT='(f0.1)')
   WIDGET_CONTROL, txtCutLSFW2, SET_VALUE=STRING(paramSet.CUTLSF2, FORMAT='(f0.1)')
+  
   WIDGET_CONTROL, btnSearchMaxMTF, SET_BUTTON=paramSet.SEARCHMAXMTF_ROI
   WIDGET_CONTROL, txtLinROIrad, SET_VALUE=STRING(paramSet.LINROIRAD, FORMAT='(f0.1)')
   WIDGET_CONTROL, txtLinROIradS, SET_VALUE=STRING(paramSet.LINROIRADS, FORMAT='(f0.1)')
@@ -117,6 +126,12 @@ pro refreshParam, paramSet, paramSetName
   WIDGET_CONTROL, txtHomogROIdist, SET_VALUE=STRING(paramSet.HOMOGROIDIST, FORMAT='(f0.1)')
   WIDGET_CONTROL, txtNoiseROIsz, SET_VALUE=STRING(paramSet.NOISEROISZ, FORMAT='(f0.1)')
   WIDGET_CONTROL, txtHUwaterROIsz, SET_VALUE=STRING(paramSet.HUWATERROISZ, FORMAT='(f0.1)')
+  WIDGET_CONTROL, typeROI, SET_VALUE=paramSet.TYPEROI
+  WIDGET_CONTROL, txtROIrad, SET_VALUE=STRING(paramSet.ROIRAD, FORMAT='(f0.1)')
+  WIDGET_CONTROL, txtROIx, SET_VALUE=STRING(paramSet.ROIX, FORMAT='(f0.1)')
+  WIDGET_CONTROL, txtROIy, SET_VALUE=STRING(paramSet.ROIY, FORMAT='(f0.1)')
+  WIDGET_CONTROL, txtROIa, SET_VALUE=STRING(paramSet.ROIA, FORMAT='(f0.1)')
+
   WIDGET_CONTROL, txtNPSroiSz, SET_VALUE=STRING(paramSet.NPSROISZ, FORMAT='(i0)')
   WIDGET_CONTROL, txtNPSroiDist, SET_VALUE=STRING(paramSet.NPSROIDIST, FORMAT='(f0.1)')
   WIDGET_CONTROL, txtNPSsubNN, SET_VALUE=STRING(paramSet.NPSSUBNN, FORMAT='(i0)')

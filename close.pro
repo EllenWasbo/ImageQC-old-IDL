@@ -67,6 +67,7 @@ pro closeImgs, imgIds
               'VARI': varImgRes=removeIDstructstruct(varImgRes,sel)
               'CTLIN': CTlinres=CTlinres[*,remain]
               'HUWATER': HUwaterRes=HUwaterRes[*,remain]
+              'ROI': ROIres=ROIres[*,remain]
               'SLICETHICK': BEGIN
                 sliceThickRes=removeIDstructstruct(sliceThickRes,sel)
                 sliceThickResTab=sliceThickResTab[*,remain]

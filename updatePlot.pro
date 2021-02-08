@@ -499,6 +499,21 @@ pro updatePlot, setRangeMinMaxX, setRangeMinMaxY, optionSet
                 ENDIF
               END
 
+              'ROI': BEGIN
+                WIDGET_CONTROL, resTab, GET_VALUE=resArr
+                zPosMarked=getZposMarked(structImgs, markedTemp)
+                yValues = FLOAT(resArr[0,*])
+                IF setRangeMinMaxX THEN rangeX=[min(zPosMarked),max(zPosMarked)]
+                IF setRangeMinMaxY THEN rangeY=[FLOOR(min(yValues)),CEIL(max(yValues))]
+                IF optionSet NE 3 THEN BEGIN
+                  resPlot=plot(zPosMarked, FLOAT(resArr[0,*]), XTITLE='zPos (mm)', YTITLE='CT number (HU)' , NAME='Mean HU', TITLE='Mean HU all (marked) images', $
+                    XRANGE=rangeX, YRANGE=rangeY, XSTYLE=1, YSTYLE=1, MARGIN=resPlotMargin, FONT_NAME=foName, FONT_SIZE=foSize, CURRENT=currWin)
+                  resPlotStd=PLOT(zPosMarked, FLOAT(resArr[1,*]), NAME='Stdev HU', /OVERPLOT)
+                  resLeg=LEGEND(TARGET=resPlotStd, FONT_NAME=foName, FONT_SIZE=foSize, POSITION=legPos)
+                  valuesPlot=CREATE_STRUCT('zPos', zPosMarked, 'HU', yValues)
+                ENDIF
+              END
+
               ELSE:iDrawPlot.erase
             ENDCASE
 
@@ -572,7 +587,7 @@ pro updatePlot, setRangeMinMaxX, setRangeMinMaxY, optionSet
               END
 
               'MTF': BEGIN
-IF SIZE(MTFres, /TNAME) EQ 'STRUCT' THEN BEGIN
+                IF SIZE(MTFres, /TNAME) EQ 'STRUCT' THEN BEGIN
                 IF N_TAGS(MTFres.(sel)) GT 1 THEN BEGIN
                   WIDGET_CONTROL, cw_plotMTFX, GET_VALUE= plotWhich
                   WIDGET_CONTROL, cw_formLSFX, GET_VALUE=formLSF

@@ -95,6 +95,48 @@ pro updateROI, Ana=ana, SEL=presel
         ROIsz=ROUND(FLOAT(ROIsz(0))/pix(0)) ; assume x,y pix equal ! = normal
         HUwaterROI=getROIcircle(szImg, center, ROIsz)
         END
+      
+      'ROI': BEGIN
+        WIDGET_CONTROL, unitDeltaO_ROI_CT, GET_VALUE=offxyROI_unit
+        IF offxyROI_unit THEN centerOff=center+offxyROI/pix ELSE centerOff=center+offxyROI
+        WIDGET_CONTROL, typeROI, GET_VALUE= ROItype
+        CASE ROItype OF
+          0:BEGIN;circular
+            WIDGET_CONTROL, txtROIrad, GET_VALUE=ROIrad
+            ROIsz=ROUND(FLOAT(ROIrad(0))/pix(0)) ; assume x,y pix equal ! = normal
+            ROIroi=getROIcircle(szImg, centerOff, ROIsz)
+          END
+          1:BEGIN
+            WIDGET_CONTROL, txtROIx, GET_VALUE=ROIx
+            WIDGET_CONTROL, txtROIy, GET_VALUE=ROIy
+            ddx=FLOOR(0.5*FLOAT(ROIx(0))/pix(0))
+            ddy=FLOOR(0.5*FLOAT(ROIy(0))/pix(1))
+            ROIroi=INTARR(szImg)
+            x1=MAX([0, centerOff(0)-ddx])
+            x2=MIN([centerOff(0)+ddx, szImg(0)-1])
+            y1=MAX([0, centerOff(1)-ddy])
+            y2=MIN([centerOff(1)+ddy, szImg(1)-1])
+            ROIroi[x1:x2,y1:y2]=1
+          END
+          2:BEGIN
+            WIDGET_CONTROL, txtROIx, GET_VALUE=ROIx
+            WIDGET_CONTROL, txtROIy, GET_VALUE=ROIy
+            WIDGET_CONTROL, txtROIa, GET_VALUE=ROIa
+            ddx=FLOOR(0.5*FLOAT(ROIx(0))/pix(0))
+            ddy=FLOOR(0.5*FLOAT(ROIy(0))/pix(1))
+            miniROI=INTARR(ddx*4+1,ddy*4+1)
+            miniROI[ddx:ddx*3,ddy:ddy*3]=1
+            miniROI=ROUND(ROT(miniROI, FLOAT(ROIa(0))))
+            ROIroi=INTARR(szImg)
+            x1=MAX([0, centerOff(0)-2*ddx]) & mx1=x1-(centerOff(0)-2*ddx)
+            x2=MIN([centerOff(0)+2*ddx, szImg(0)-1]) & mx2=ddx*4-(centerOff(0)+2*ddx-x2)
+            y1=MAX([0, centerOff(1)-2*ddy]) & my1=y1-(centerOff(1)-2*ddy)
+            y2=MIN([centerOff(1)+2*ddy, szImg(1)-1]) & my2=ddy*4-(centerOff(1)+2*ddy-y2)
+            ROIroi[x1:x2,y1:y2]=miniROI[mx1:mx2,my1:my2]
+            
+          END
+        ENDCASE
+        END
 
       'MTF': BEGIN
         dxya(3)=1 ; center option has to be used

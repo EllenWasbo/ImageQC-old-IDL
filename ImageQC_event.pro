@@ -36,13 +36,10 @@ pro ImageQC_event, ev
 
       'exit': BEGIN
         IF saveOK EQ 1 THEN BEGIN
-          blockAdr=thisPath+'data\blockSaveStamp.txt'
-          result = FILE_TEST(blockAdr)
-          IF result EQ 1 THEN FILE_DELETE, blockAdr     
+          IF FILE_TEST(configPath, /READ) THEN RESTORE, configPath ELSE sv=DIALOG_MESSAGE('Lost connection to config file '+configPath, /ERROR)
+          configS.(0).saveBlocked=0
+          SAVEIF, saveOK, configS, quickTemp, quickTout, loadTemp, renameTemp, FILENAME=configPath
         ENDIF
-        dumpAdr=thisPath+'data\dumpTemp.txt'
-        result = FILE_TEST(dumpAdr)
-        IF result EQ 1 THEN FILE_DELETE, dumpAdr
         WIDGET_CONTROL, ev.top, /DESTROY
       END
       'info': BEGIN
@@ -77,15 +74,61 @@ pro ImageQC_event, ev
 
       'manageSettings': BEGIN
         oldSelConfig=selConfig
+        prevMarkedMulti=markedMulti
+        prevMarked=marked
         settings, GROUP_LEADER=ev.TOP, xoffset+100, yoffset+100, 'PARAM'
         ;IF N_ELEMENTS(quickTemp) NE 0 THEN fillQuickTempList, quickTemp.(modality);pro in refreshParam.pro
+        IF N_ELEMENTS(prevMarkedMulti) GT 1 THEN BEGIN
+          sv=DIALOG_MESSAGE('Restore the marking of images you had before going to Settings?',/QUESTION,DIALOG_PARENT=evTop)
+          IF sv EQ 'Yes' THEN BEGIN
+            marked=prevMarked
+            markedMulti=prevMarkedMulti
+            WIDGET_CONTROL, btnUseMulti, SET_BUTTON=1
+            fileList=getListOpenFiles(structImgs,0,marked,markedMulti)
+            sel=WIDGET_INFO(listFiles, /LIST_SELECT)
+            oldTop=WIDGET_INFO(listFiles, /LIST_TOP)
+            WIDGET_CONTROL, listFiles, SET_VALUE=fileList, SET_LIST_SELECT=sel(N_ELEMENTS(sel)-1), SET_LIST_TOP=oldTop
+          ENDIF
+        ENDIF
         IF selConfig NE oldSelConfig THEN BEGIN
           clearRes
           redrawImg, 0,0
         ENDIF
       END
-      'manageLoadTemp': settings, GROUP_LEADER=ev.Top, xoffset+100, yoffset+100, 'AUTOSETUP'
-      'manageQTexp': settings, GROUP_LEADER = ev.Top, xoffset+100, yoffset+100, 'QTOUT'
+      'manageLoadTemp': BEGIN
+        prevMarkedMulti=markedMulti
+        prevMarked=marked
+        settings, GROUP_LEADER=ev.Top, xoffset+100, yoffset+100, 'AUTOSETUP'
+        IF N_ELEMENTS(prevMarkedMulti) GT 1 THEN BEGIN
+          sv=DIALOG_MESSAGE('Restore the marking of images you had before going to Settings?',/QUESTION,DIALOG_PARENT=evTop)
+          IF sv EQ 'Yes' THEN BEGIN
+            marked=prevMarked
+            markedMulti=prevMarkedMulti
+            WIDGET_CONTROL, btnUseMulti, SET_BUTTON=1
+            fileList=getListOpenFiles(structImgs,0,marked,markedMulti)
+            sel=WIDGET_INFO(listFiles, /LIST_SELECT)
+            oldTop=WIDGET_INFO(listFiles, /LIST_TOP)
+            WIDGET_CONTROL, listFiles, SET_VALUE=fileList, SET_LIST_SELECT=sel(N_ELEMENTS(sel)-1), SET_LIST_TOP=oldTop
+          ENDIF
+        ENDIF
+        END
+      'manageQTexp': BEGIN
+        prevMarkedMulti=markedMulti
+        prevMarked=marked
+        settings, GROUP_LEADER = ev.Top, xoffset+100, yoffset+100, 'QTOUT'
+        IF N_ELEMENTS(prevMarkedMulti) GT 1 THEN BEGIN
+          sv=DIALOG_MESSAGE('Restore the marking of images you had before going to Settings?',/QUESTION,DIALOG_PARENT=evTop)
+          IF sv EQ 'Yes' THEN BEGIN
+            marked=prevMarked
+            markedMulti=prevMarkedMulti
+            WIDGET_CONTROL, btnUseMulti, SET_BUTTON=1
+            fileList=getListOpenFiles(structImgs,0,marked,markedMulti)
+            sel=WIDGET_INFO(listFiles, /LIST_SELECT)
+            oldTop=WIDGET_INFO(listFiles, /LIST_TOP)
+            WIDGET_CONTROL, listFiles, SET_VALUE=fileList, SET_LIST_SELECT=sel(N_ELEMENTS(sel)-1), SET_LIST_TOP=oldTop
+          ENDIF
+        ENDIF
+        END
 
       ;-----button open files------------generate list of adresses to open---------------------------------------------
 
@@ -115,12 +158,12 @@ pro ImageQC_event, ev
           updateInfo
           WIDGET_CONTROL, lblProgress, SET_VALUE=''
         ENDIF
-        END
+      END
 
       'openMulti':BEGIN
 
         sel=WIDGET_INFO(listSelMultiTemp, /DROPLIST_SELECT)
-        RESTORE, thisPath+'data\config.dat'; getting the quickTemp-structure
+        IF FILE_TEST(configPath, /READ) THEN RESTORE, configPath ELSE sv=DIALOG_MESSAGE('Lost connection to config file '+configPath, /ERROR); getting the quickTemp-structure
         IF sel EQ 0 OR SIZE(quickTemp.(modality), /TNAME) EQ 'INT' THEN BEGIN
           QTtempArr=-1
           QTname='<none selected>'
@@ -168,7 +211,7 @@ pro ImageQC_event, ev
         ENDIF
         IF proceed THEN BEGIN
           alreadyOpenAdr=''
-          IF tags(0) NE 'EMPTY' THEN alreadyOpenAdr=getListOpenFiles(structImgs,1,-1,-1) 
+          IF tags(0) NE 'EMPTY' THEN alreadyOpenAdr=getListOpenFiles(structImgs,1,-1,-1)
           RenameDICOM, GROUP_LEADER=ev.Top, xoffset+200, yoffset+200, alreadyOpenAdr
           IF alreadyOpenAdr(0) NE '' THEN BEGIN
             fileList=getListOpenFiles(structImgs,0,marked,markedMulti)
@@ -177,7 +220,7 @@ pro ImageQC_event, ev
             WIDGET_CONTROL, listFiles, SET_VALUE=fileList, SET_LIST_SELECT=sel, SET_LIST_TOP=oldTop
           ENDIF
         ENDIF
-        END
+      END
       'saveDat': BEGIN
         IF tags(0) NE 'EMPTY' THEN BEGIN
           sel=WIDGET_INFO(listFiles, /LIST_SELECT)
@@ -187,11 +230,15 @@ pro ImageQC_event, ev
 
             imageQCmatrix=CREATE_STRUCT(structImgs.(sel),'matrix', readImg(structImgs.(sel).filename, structImgs.(sel).frameNo))
 
-            adr=DIALOG_PICKFILE(PATH=defPath, GET_PATH=defPath, TITLE='Save active file as IDL structure (.dat-file)',/WRITE, FILTER='*.dat', /FIX_FILTER, DIALOG_PARENT=evTop)
+            adr=DIALOG_PICKFILE(PATH=defPath, GET_PATH=defPath, TITLE='Save active file as IDL structure (.dat-file)',/WRITE, FILTER='*.dat', /FIX_FILTER, DEFAULT_EXTENSION='.dat', DIALOG_PARENT=evTop)
 
             IF adr NE '' THEN BEGIN
-              imageQCmatrix.filename=adr; changed when opened so that renaming/moving file is possible
-              SAVE, imageQCmatrix, FILENAME=adr
+              ;check folder for write permissions
+              fi=FILE_INFO(FILE_DIRNAME(adr))
+              IF fi.write THEN BEGIN
+                imageQCmatrix.filename=adr; changed when opened so that renaming/moving file is possible
+                SAVE, imageQCmatrix, FILENAME=adr
+              ENDIF ELSE sv=DIALOG_MESSAGE('You do not have writing permissions for the selected folder.',/ERROR)
             ENDIF
           ENDELSE
         ENDIF
@@ -204,8 +251,26 @@ pro ImageQC_event, ev
           obj = OBJ_NEW( 'IDLffDICOM' )
           var = obj->Read(structImgs.(sel).filename)
           tit=structImgs.(sel).filename
-          obj->DumpElements, thisPath+'data\dumpTemp.txt'
-          XDISPLAYFILE, thisPath+'data\dumpTemp.txt', TITLE=tit
+          pa=thisPath+'data\dumpTemp.txt'
+          fi=FILE_INFO(thisPath+'data\')
+          IF fi.write EQ 0 THEN BEGIN
+            fi=FILE_INFO('C:\temp\')
+            IF fi.write THEN pa='C:\temp\dumpTemp.txt' ELSE BEGIN
+              pa=DIALOG_PICKFILE(TITLE='Select a txt-file to dump the DICOM header into.',/WRITE, FILTER='*.txt', /FIX_FILTER, DEFAULT_EXTENSION='.txt', DIALOG_PARENT=evTop)
+              IF pa NE '' THEN BEGIN
+                fi=FILE_INFO(FILE_DIRNAME(pa))
+                IF fi.write EQ 0 THEN BEGIN
+                  sv=DIALOG_MESSAGE('You do not have write permissions for the selected folder.',/ERROR)
+                  pa=''
+                ENDIF
+              ENDIF
+            ENDELSE
+          ENDIF
+          IF pa NE '' THEN BEGIN
+            obj->DumpElements, pa
+            sv=DIALOG_MESSAGE('DICOM dump saved in file '+pa+newline+'Make sure no sensitive data is left there.')
+            XDISPLAYFILE, pa, TITLE=tit
+          ENDIF
         ENDIF
       END
 
@@ -426,7 +491,7 @@ pro ImageQC_event, ev
 
         ENDIF;tags not empty
       END
-      
+
       'selectAll':BEGIN
         IF tags(0) NE 'EMPTY' THEN BEGIN
           ;TODO
@@ -435,7 +500,7 @@ pro ImageQC_event, ev
           WIDGET_CONTROL, listFiles, SET_LIST_SELECT=INDGEN(nImg), SET_LIST_TOP=0
           redrawImg,0,1 & updateInfo
         ENDIF
-        END
+      END
 
       ;-----button prev/next image------------------------------------------------------------------------------------------------------------------
       'next'  : BEGIN
@@ -643,19 +708,96 @@ pro ImageQC_event, ev
         updateROI
         redrawImg, 0,0
       END
-      'setOffset':BEGIN;set to last position clicked in image to offset for MTF CT
-        tempImg=activeImg
-        imsz=SIZE(tempImg, /DIMENSIONS)
-        IF lastXYreleased(0) EQ -1 THEN centerTemp = imsz/2 ELSE centerTemp=lastXYreleased*max(imsz)/drawXY
-        offxy=centerTemp-imsz/2-dxya[0:1]
-        strOff=STRING(offxy(0), FORMAT='(i0)')+','+STRING(offxy(1), FORMAT='(i0)')
-        WIDGET_CONTROL, lblDeltaO, SET_VALUE=strOff
-        WIDGET_CONTROL, lblDeltaOX, SET_VALUE=strOff
-        curTab=WIDGET_INFO(wtabAnalysisCT, /TAB_CURRENT)
-        IF results(curTab) GT 0 THEN clearRes, 'MTF'
-        updateROI
-        redrawImg, 0,0
+      'setOffset':BEGIN;set to last position clicked in image to offset
+        sel=WIDGET_INFO(listFiles, /LIST_SELECT)  & sel=sel(0)
+        IF sel NE -1 THEN BEGIN
+          tempImg=activeImg
+          imsz=SIZE(tempImg, /DIMENSIONS)
+          IF lastXYreleased(0) EQ -1 THEN centerTemp = imsz/2 ELSE centerTemp=lastXYreleased*max(imsz)/drawXY
+          thisOff=centerTemp-imsz/2-dxya[0:1]
+          thisOff_mm=thisOff*structImgs.(sel).pix
+          CASE modality OF
+            0:BEGIN;CT
+              CASE analyse of
+                'MTF': BEGIN
+                  WIDGET_CONTROL, unitDeltaO_MTF_CT, GET_VALUE=mm
+                  IF mm THEN offxyMTF=thisOff_mm ELSE offxyMTF=thisOff
+                  strOff=STRING(offxyMTF(0), FORMAT='(i0)')+','+STRING(offxyMTF(1), FORMAT='(i0)')               
+                  WIDGET_CONTROL, lblDeltaO, SET_VALUE=strOff
+                  END
+                'ROI': BEGIN
+                  WIDGET_CONTROL, unitDeltaO_ROI_CT, GET_VALUE=mm
+                  IF mm THEN offxyROI=thisOff_mm ELSE offxyROI=thisOff
+                  strOff=STRING(offxyROI(0), FORMAT='(i0)')+','+STRING(offxyROI(1), FORMAT='(i0)')
+                  WIDGET_CONTROL, lblDeltaO_ROI, SET_VALUE=strOff
+                  END
+                ELSE: 
+              ENDCASE
+              END
+            1:BEGIN;Xray
+               CASE analyse OF
+                'MTF': BEGIN
+                  WIDGET_CONTROL, unitDeltaO_MTF_X, GET_VALUE=mm
+                  IF mm THEN offxyMTF_X=thisOff_mm ELSE offxyMTF_X=thisOff
+                  strOff=STRING(offxyMTF_X(0), FORMAT='(i0)')+','+STRING(offxyMTF_X(1), FORMAT='(i0)')
+                  WIDGET_CONTROL, lblDeltaOX, SET_VALUE=strOff
+                  END
+                ELSE:
+               ENDCASE
+              END
+            ELSE:
+          ENDCASE
+
+          testNmb=getResNmb(modality,analyse,analyseStringsAll)
+          IF results(testNmb) GT 0 THEN clearRes, analyse
+          updateROI
+          redrawImg, 0,0
+        ENDIF
       END
+      'setOffset_unit':BEGIN; recalculate text of label to mm
+        IF ev.SELECT THEN BEGIN
+          sel=WIDGET_INFO(listFiles, /LIST_SELECT)  & sel=sel(0)
+          IF sel NE -1 THEN BEGIN
+            
+            CASE modality OF
+              0:BEGIN;CT
+                CASE analyse of
+                  'MTF': BEGIN
+                    WIDGET_CONTROL, unitDeltaO_MTF_CT, GET_VALUE=unit
+                    IF unit THEN offxyMTF=offxyMTF*structImgs.(sel).pix ELSE offxyMTF=offxyMTF/structImgs.(sel).pix
+                    strOff=STRING(offxyMTF(0), FORMAT='(i0)')+','+STRING(offxyMTF(1), FORMAT='(i0)')
+                    WIDGET_CONTROL, lblDeltaO, SET_VALUE=strOff
+                  END
+                  'ROI': BEGIN
+                    WIDGET_CONTROL, unitDeltaO_ROI_CT, GET_VALUE=unit
+                    IF unit THEN offxyROI=offxyROI*structImgs.(sel).pix ELSE offxyROI=offxyROI/structImgs.(sel).pix
+                    strOff=STRING(offxyROI(0), FORMAT='(i0)')+','+STRING(offxyROI(1), FORMAT='(i0)')
+                    WIDGET_CONTROL, lblDeltaO_ROI, SET_VALUE=strOff
+                  END
+                  ELSE:
+                ENDCASE
+              END
+              1:BEGIN;Xray
+                CASE analyse OF
+                  'MTF': BEGIN
+                    WIDGET_CONTROL, unitDeltaO_MTF_X, GET_VALUE=unit
+                    IF unit THEN offxyMTF_X=offxyMTF_X*structImgs.(sel).pix ELSE offxyMTF_X=offxyMTF_X/structImgs.(sel).pix
+                    strOff=STRING(offxyMTF_X(0), FORMAT='(i0)')+','+STRING(offxyMTF_X(1), FORMAT='(i0)')
+                    WIDGET_CONTROL, lblDeltaOX, SET_VALUE=strOff
+                  END
+                  ELSE:
+                ENDCASE
+              END
+              ELSE:
+            ENDCASE        
+            
+            testNmb=getResNmb(modality,analyse,analyseStringsAll)
+            IF results(testNmb) GT 0 THEN clearRes, analyse
+            updateROI
+            redrawImg, 0,0
+          ENDIF;sel ne -1
+        ENDIF; select
+        END
       'minusDx': BEGIN
         dxya(0)=dxya(0)-1
         WIDGET_CONTROL, txtDeltaX, SET_VALUE=STRING(dxya(0), FORMAT='(i0)')
@@ -694,11 +836,11 @@ pro ImageQC_event, ev
       'addMultiTemp':BEGIN
         IF markedMulti(0) NE -1 THEN BEGIN
 
-          IF saveOK THEN BEGIN
+          IF saveOK EQ 1 THEN BEGIN
             saveChange=0
             testOpt=WHERE(multiOpt.(modality) GT 0, nTests)
 
-            RESTORE, thisPath+'data\config.dat'
+            IF FILE_TEST(configPath, /READ) THEN RESTORE, configPath ELSE sv=DIALOG_MESSAGE('Lost connection to config file '+configPath, /ERROR)
             exTempNames=''
             IF SIZE(quickTemp, /TNAME) EQ 'STRUCT' THEN BEGIN
               IF SIZE(quickTemp.(modality), /TNAME) EQ 'STRUCT' THEN exTempNames=TAG_NAMES(quickTemp.(modality))
@@ -736,7 +878,7 @@ pro ImageQC_event, ev
             IF saveChange THEN BEGIN
               If N_ELEMENTS(newQTmod) EQ 0 THEN newQTmod=-1
               quickTemp=replaceStructStruct(quickTemp, newQTmod, modality)
-              SAVE, configS, quickTemp, quickTout, loadTemp, renameTemp, FILENAME=thisPath+'data\config.dat'
+              SAVEIF, saveOK, configS, quickTemp, quickTout, loadTemp, renameTemp, FILENAME=configPath
 
               WIDGET_CONTROL, listSelMultiTemp, GET_VALUE=multiList
               multiList=[multiList, tempname]
@@ -748,13 +890,13 @@ pro ImageQC_event, ev
       END
       'saveMultiTemp':BEGIN
         IF markedMulti(0) NE -1 THEN BEGIN
-          IF saveOK THEN BEGIN
+          IF saveOK EQ 1 THEN BEGIN
             saveChange=0
             sel=WIDGET_INFO(listSelMultiTemp, /DROPLIST_SELECT)
             IF sel NE 0 THEN BEGIN
               testOpt=WHERE(multiOpt.(modality) GT 0, nTests)
               szMM=SIZE(markedMulti, /DIMENSIONS)
-        
+
               IF szMM(0) EQ nTests THEN BEGIN; no new tests available since last save
                 markedMultiTemp=markedMulti[0:nTests-1,*]
               ENDIF ELSE BEGIN
@@ -763,7 +905,7 @@ pro ImageQC_event, ev
                 IF N_ELEMENTS(szMM) EQ 1 THEN markedMultiTemp[0:szMM(0)-1]=markedMulti ELSE markedMultiTemp[0:nTests-1,0:szMM(1)-1]=markedMulti[0:nTests-1,0:szMM(1)-1]
               ENDELSE
 
-              RESTORE, thisPath+'data\config.dat'
+              IF FILE_TEST(configPath, /READ) THEN RESTORE, configPath ELSE sv=DIALOG_MESSAGE('Lost connection to config file '+configPath, /ERROR)
               szQT=SIZE(quickTemp.(modality), /TNAME)
               IF szQT EQ 'STRUCT' THEN exTempNames=TAG_NAMES(quickTemp.(modality)) ELSE exTempNames=''
               IF sel(0) GT 0 THEN BEGIN; overwrite
@@ -778,13 +920,29 @@ pro ImageQC_event, ev
                 ENDIF
               ENDIF
 
-              IF saveChange THEN SAVE, configS, quickTemp, quickTout, loadTemp, renameTemp, FILENAME=thisPath+'data\config.dat'
+              IF saveChange THEN SAVEIF, saveOK, configS, quickTemp, quickTout, loadTemp, renameTemp, FILENAME=configPath
             ENDIF ELSE sv=DIALOG_MESSAGE('Now selected template to overwrite. Use the + button to add a new template.',DIALOG_PARENT=evTop)
           ENDIF ELSE sv=DIALOG_MESSAGE('Save blocked by another user session. Go to settings and remove blocking if this is due to a previous program crash.', DIALOG_PARENT=evTop)
         ENDIF ELSE sv=DIALOG_MESSAGE('No multiMark to save.', DIALOG_PARENT=evTop)
       END
 
-      'manageQT': settings, GROUP_LEADER=ev.TOP, xoffset+200, yoffset+200, 'QTSETUP'
+      'manageQT': BEGIN
+        prevMarkedMulti=markedMulti
+        prevMarked=marked
+        settings, GROUP_LEADER=ev.TOP, xoffset+200, yoffset+200, 'QTSETUP'
+        IF N_ELEMENTS(prevMarkedMulti) GT 1 THEN BEGIN
+          sv=DIALOG_MESSAGE('Restore the marking of images you had before going to Settings?',/QUESTION,DIALOG_PARENT=evTop)
+          IF sv EQ 'Yes' THEN BEGIN
+            marked=prevMarked
+            markedMulti=prevMarkedMulti
+            WIDGET_CONTROL, btnUseMulti, SET_BUTTON=1
+            fileList=getListOpenFiles(structImgs,0,marked,markedMulti)
+            sel=WIDGET_INFO(listFiles, /LIST_SELECT)
+            oldTop=WIDGET_INFO(listFiles, /LIST_TOP)
+            WIDGET_CONTROL, listFiles, SET_VALUE=fileList, SET_LIST_SELECT=sel(N_ELEMENTS(sel)-1), SET_LIST_TOP=oldTop
+          ENDIF
+        ENDIF
+        END
 
       ;***************************************************************************************************************
       ;******************************** TESTS *******************************************************************************
@@ -984,6 +1142,22 @@ pro ImageQC_event, ev
         ENDIF
       END
 
+      ;----analyse tab ROI--------------------------------------------------------------------------------------------------
+      'ROI_CT': BEGIN
+        IF tags(0) NE 'EMPTY' THEN BEGIN
+          ROI; tests_forQuickTest.pro
+          updateTable
+          updatePlot, 1,1,0
+          WIDGET_CONTROL, wtabResult, SET_TAB_CURRENT=0
+        ENDIF
+      END
+
+      'typeROI':  BEGIN
+        IF ev.SELECT EQ 1 AND tags(0) NE 'EMPTY' THEN BEGIN
+          redrawImg, 0,0
+        ENDIF
+      END
+
       ;-----analyse-tab header info
       'headerInfoCT':BEGIN
         IF tags(0) NE 'EMPTY' THEN BEGIN
@@ -1011,7 +1185,7 @@ pro ImageQC_event, ev
           WIDGET_CONTROL, wtabResult, SET_TAB_CURRENT=0
         ENDIF
       END
-      
+
       'posMR':BEGIN
         IF tags(0) NE 'EMPTY' THEN BEGIN
           getPos_MR; tests_forQuickTest.pro
@@ -1063,19 +1237,6 @@ pro ImageQC_event, ev
           updatePlot,1,1,0
           WIDGET_CONTROL, wtabResult, SET_TAB_CURRENT=1
         ENDIF; empty
-      END
-
-      'cw_plotMTFX':  BEGIN
-        IF ev.SELECT EQ 1 AND results(getResNmb(modality,analyse,analyseStringsAll)) EQ 1 THEN BEGIN
-          updatePlot, 1,1,0;IF WIDGET_INFO(wTabResult, /TAB_CURRENT) EQ 1 THEN updatePlot, 1,1,0
-          IF WIDGET_INFO(wTabResult, /TAB_CURRENT) EQ 3 THEN updateTableSup
-        ENDIF
-      END
-
-      'cw_tableMTFX':  BEGIN
-        IF ev.SELECT EQ 1 AND results(getResNmb(modality,analyse,analyseStringsAll)) EQ 1 THEN BEGIN
-          IF WIDGET_INFO(wTabResult, /TAB_CURRENT) EQ 0 THEN updateTable
-        ENDIF
       END
 
       'MTF3dSPECT': BEGIN
@@ -1304,20 +1465,6 @@ pro ImageQC_event, ev
             ELSE: sv=DIALOG_MESSAGE('Not implementet selected MTF type yet',/INFORMATION, DIALOG_PARENT=evTop)
           ENDCASE
         ENDIF; empty
-      END
-
-      'cw_plotMTFNM':  BEGIN
-        IF ev.SELECT EQ 1 AND results(getResNmb(modality,analyse,analyseStringsAll)) EQ 1 THEN BEGIN
-          updatePlot, 1,1,0;IF WIDGET_INFO(wTabResult, /TAB_CURRENT) EQ 1 THEN updatePlot, 1,1,0
-          IF WIDGET_INFO(wTabResult, /TAB_CURRENT) EQ 3 THEN updateTableSup
-        ENDIF
-      END
-
-      'cw_plotMTFSPECT':  BEGIN
-        IF ev.SELECT EQ 1 AND results(getResNmb(modality,analyse,analyseStringsAll)) EQ 1 THEN BEGIN
-          updatePlot, 1,1,0;IF WIDGET_INFO(wTabResult, /TAB_CURRENT) EQ 1 THEN updatePlot, 1,1,0
-          IF WIDGET_INFO(wTabResult, /TAB_CURRENT) EQ 3 THEN updateTableSup
-        ENDIF
       END
 
       ;-----analyse-tab NPS --------------------------------------------------------------------------------------------------------------------
@@ -1778,7 +1925,120 @@ pro ImageQC_event, ev
         ENDIF
       END
 
+      'saveGeomMeanMatrix':BEGIN
+        IF tags(0) NE 'EMPTY' THEN BEGIN
+          sel=WIDGET_INFO(listFiles, /LIST_SELECT)  & sel=sel(0)
+          sel2=sel
+          IF structImgs.(sel).nFrames GE 2 THEN BEGIN
+            WIDGET_CONTROL, /HOURGLASS
+            ;assume first half of images is AP and secound half is PA
+            nImg=N_TAGS(structImgs)
+            
+            ;TODO
+            ;detectorVector=!Null
+            ;nDetec=1
+            ;FOR i=0, nImg-1 DO detectorVector=[detectorVector,structImgs.(i).detectorVector
+            ;IF N_ELEMENTS(detectorVector) EQ nImg THEN BEGIN
+            ; idfirst=WHERE(detectorVector EQ detectorVector(0), nEqual)
+            ;IF nEqual EQ nImg/2 THEN BEGIN
+            ; nDetec=2
+            ;idLast=
+            ;ENDIF
+            ;ENDIF
 
+            sv=DIALOG_MESSAGE('All frames (Yes) or just this frame-set (No)?',/QUESTION, DIALOG_PARENT=evTop)
+            IF sv EQ 'No' THEN BEGIN
+              img1=readImg(structImgs.(sel).filename, structImgs.(sel).frameNo)
+              ; IF nDetec EQ 1 THEN BEGIN; detectorVector not known assume first half is first detector
+              IF sel LT nImg/2 THEN sel2=nImg/2+sel ELSE sel2=sel-nImg/2
+              ;ENDIF ELSE BEGIN
+              ;
+              ;ENDELSE
+              img2=readImg(structImgs.(sel2).filename, structImgs.(sel2).frameNo)
+              img2=ROTATE(img2,5);flip left/right
+
+              geomMeanImg=SQRT(img1*img2)
+              imageQCmatrix=CREATE_STRUCT(structImgs.(sel),'matrix', geomMeanImg)
+              imageQCmatrix.SERIESNAME=imageQCmatrix.SERIESNAME+'_GEOMMEAN_by_imageQC'
+              adr=DIALOG_PICKFILE(PATH=defPath, GET_PATH=defPath, TITLE='Save geometric mean image as IDL structure (.dat-file)',/WRITE, FILTER='*.dat', /FIX_FILTER, DEFAULT_EXTENSION='.dat', DIALOG_PARENT=evTop)
+              IF adr NE '' THEN BEGIN
+                ;check folder for write permissions
+                fi=FILE_INFO(FILE_DIRNAME(adr))
+                IF fi.write THEN BEGIN
+                  imageQCmatrix.filename=adr; changed when opened so that renaming/moving file is possible
+                  SAVE, imageQCmatrix, FILENAME=adr
+                ENDIF ELSE sv=DIALOG_MESSAGE('You do not have writing permissions for the selected folder.',/ERROR, DIALOG_PARENT=evTop)
+              ENDIF
+            ENDIF ELSE BEGIN
+              adr=DIALOG_PICKFILE(PATH=defPath, GET_PATH=defPath, TITLE='Save geometric mean image as IDL structure (.dat-files) - each frame will get suffix frameXXX',/WRITE, FILTER='*.dat', /FIX_FILTER, DEFAULT_EXTENSION='.dat', DIALOG_PARENT=evTop)
+              IF adr NE '' THEN BEGIN
+                ;check folder for write permissions
+                fi=FILE_INFO(FILE_DIRNAME(adr))
+                IF fi.write THEN BEGIN
+                  sv=DIALOG_MESSAGE('Orientation as detector 1 (Yes) or 2 (No)?',/QUESTION, DIALOG_PARENT=evTop)
+                  IF sv EQ 'Yes' THEN BEGIN
+                    i1=0
+                    i2=nImg/2
+                  ENDIF ELSE BEGIN
+                    i1=nImg/2
+                    i2=0
+                  ENDELSE
+
+                  FOR i=0, nImg/2-1 DO BEGIN
+                    img1=readImg(structImgs.(i+i1).filename, structImgs.(i+i1).frameNo)
+                    nImg=N_TAGS(structImgs)
+                    img2=readImg(structImgs.(i+i2).filename, structImgs.(i+i2).frameNo)
+                    img2=ROTATE(img2,5);flip left/right
+
+                    geomMeanImg=SQRT(img1*img2)
+                    imageQCmatrix=CREATE_STRUCT(structImgs.(sel),'matrix', geomMeanImg)
+                    imageQCmatrix.SERIESNAME=imageQCmatrix.SERIESNAME+'_GEOMMEAN_by_imageQC'
+                    adrThis=adr.Insert('_frame'+STRING(i+1,FORMAT='(i03)'), -4)
+                    imageQCmatrix.filename=adrThis; changed when opened so that renaming/moving file is possible
+                    imageQCmatrix.frameNo=i+1
+                    SAVE, imageQCmatrix, FILENAME=adrThis
+                  ENDFOR
+                ENDIF ELSE sv=DIALOG_MESSAGE('You do not have writing permissions for the selected folder.',/ERROR, DIALOG_PARENT=evTop)
+              ENDIF
+
+            ENDELSE
+
+
+          ENDIF ELSE sv=DIALOG_MESSAGE('Geometric mean expect corresponding frames. Number of frames has to be at least two (per se - ',/ERROR, DIALOG_PARENT=evTop)
+        ENDIF
+      END
+
+;      'defROITimeAct':BEGIN
+;        IF tags(0) NE 'EMPTY' THEN BEGIN
+;          sel=WIDGET_INFO(listFiles, /LIST_SELECT)  & sel=sel(0)
+;          tempStruct=structImgs.(sel)
+;          
+;          WIDGET_CONTROL, txtMinWL, GET_VALUE=lower
+;          WIDGET_CONTROL, txtMaxWL, GET_VALUE=upper
+;          rangeWL=LONG([lower,upper])
+;          tvRes=readImg(tempStruct.filename, tempStruct.frameNo)
+;          sv=DIALOG_MESSAGE('Draw on or more ROIs with the tool. Close the popup (for each ROI) and close the ROI tool. Then continue in ImageQC with the defined ROI.'+newline+'The ROI can also be saved and reopened with the same tool later on.', DIALOG_PARENT=evTop)
+;          XROI, adjustWindowLevel(tvRes, rangeWL), /MODAL, GROUP=evTop, TITLE='Define ROI', REGIONS_OUT=definedROIs
+;          timeActROI=0
+;          IF ISA(definedROIs) THEN BEGIN
+;            szImg=SIZE(tvRes, /DIMENSIONS)
+;            nROIs=N_ELEMENTS(definedROIs)
+;            timeActROI=INTARR(tvRes(0), tvRes(1), nROIs)
+;            FOR i=0, nROIs-1 DO timeActROI[*,*,i]=definedROIs(0) -> ComputeMask(Dimensions=Size(tvRes, /Dimensions), Mask_Rule=2)
+;          ENDIF
+;        ENDIF
+;      END
+;      'timeActCurve':BEGIN
+;        IF N_ELEMENTS(timeActROI) GT 1 THEN BEGIN
+;          sel=WIDGET_INFO(listFiles, /LIST_SELECT)  & sel=sel(0)
+;          ;img same size as roi?
+;          ;all frames same detector (detectorVector) ?
+;          ;read img ( + oppsing image, flip and geom mean)
+;          ;read timepoint
+;          ;timeActResult 
+;          
+;        ENDIF ELSE sv=DIALOG_MESSAGE('ROI not defined.', DIALOG_PARENT=evTop)
+;      END
 
       ;-----analyse tab contrast-----------------------------------------------------------------------------------------
       'contrastSPECT': BEGIN; exctract results
@@ -1950,10 +2210,12 @@ pro ImageQC_event, ev
         redrawImg, 0,0
       END
       'rcBackExclude':BEGIN
-        clearRes, 'RC'
-        redrawImg, 0,0
+        IF ev.SELECT THEN BEGIN
+          clearRes, 'RC'
+          redrawImg, 0,0
+        ENDIF
       END
-      'cw_rcType': updateTable
+      'cw_rcType': IF ev.SELECT THEN updateTable
       'recovCoeff': BEGIN
         IF tags(0) NE 'EMPTY' THEN BEGIN
 
@@ -2056,7 +2318,18 @@ pro ImageQC_event, ev
               infoTable[j,i+1]=STRJOIN(STRING(structImgs.(i).(idsInclude(j))),' | ')
             ENDFOR
           ENDFOR
-          CLIPBOARD.set, STRJOIN(infoTable, STRING(9B))
+          sv=DIALOG_MESSAGE('Save to file?', /QUESTION, DIALOG_PARENT=evTop)
+          IF sv EQ 'Yes' THEN BEGIN
+            adr=DIALOG_PICKFILE(TITLE='Save as...',/WRITE, FILTER='*.txt', /FIX_FILTER, DEFAULT_EXTENSION='.txt', DIALOG_PARENT=evTop)
+            IF adr(0) NE '' THEN BEGIN
+              a=STRJOIN(infoTable, STRING(9B))
+              OPENW, expfile, adr,/GET_LUN
+              FOR i=0, N_ELEMENTS(a)-1 DO PRINTF, expfile, a(i)
+              CLOSE, expfile & FREE_LUN, expfile
+            ENDIF
+          ENDIF ELSE BEGIN
+            CLIPBOARD.set, STRJOIN(infoTable, STRING(9B))
+          ENDELSE
         ENDIF
       END
 
@@ -2518,6 +2791,31 @@ pro ImageQC_event, ev
           val=ABS(FLOAT(comma2pointFloat(val(0))))
           WIDGET_CONTROL, txtHUwaterROIsz, SET_VALUE=STRING(val, FORMAT='(f0.1)')
           clearRes, 'HUWATER' & redrawImg,0,0
+        END
+
+        txtROIrad:BEGIN
+          WIDGET_CONTROL, txtROIrad, GET_VALUE=val
+          val=ABS(FLOAT(comma2pointFloat(val(0))))
+          WIDGET_CONTROL, txtROIrad, SET_VALUE=STRING(val, FORMAT='(f0.1)')
+          clearRes, 'ROI' & redrawImg,0,0
+        END
+        txtROIx:BEGIN
+          WIDGET_CONTROL, txtROIx, GET_VALUE=val
+          val=ABS(FLOAT(comma2pointFloat(val(0))))
+          WIDGET_CONTROL, txtROIx, SET_VALUE=STRING(val, FORMAT='(f0.1)')
+          clearRes, 'ROI' & redrawImg,0,0
+        END
+        txtROIy:BEGIN
+          WIDGET_CONTROL, txtROIy, GET_VALUE=val
+          val=ABS(FLOAT(comma2pointFloat(val(0))))
+          WIDGET_CONTROL, txtROIy, SET_VALUE=STRING(val, FORMAT='(f0.1)')
+          clearRes, 'ROI' & redrawImg,0,0
+        END
+        txtROIa:BEGIN
+          WIDGET_CONTROL, txtROIa, GET_VALUE=val
+          val=ABS(FLOAT(comma2pointFloat(val(0))))
+          WIDGET_CONTROL, txtROIa, SET_VALUE=STRING(val, FORMAT='(f0.1)')
+          clearRes, 'ROI' & redrawImg,0,0
         END
 
         txtNPSroiSz: BEGIN
@@ -3025,6 +3323,10 @@ pro ImageQC_event, ev
       wtabAnalysisNM: BEGIN
         analyse=analyseStringsAll.NM[selTab]
         IF loadedImg THEN redrawImg, 0,0
+        IF analyse EQ 'GEOMMEAN' THEN BEGIN
+          results(getResNmb(modality,'GEOMMEAN',analyseStringsAll))=1
+          WIDGET_CONTROL, wtabResult, SET_TAB_CURRENT=2
+        ENDIF
       END
       wtabAnalysisSPECT: BEGIN
         analyse=analyseStringsAll.SPECT[selTab]
@@ -3177,13 +3479,10 @@ pro ImageQC_event, ev
   ;******************* Exit program ***********************
   IF TAG_NAMES(ev, /STRUCTURE_NAME) EQ 'WIDGET_KILL_REQUEST' THEN BEGIN
     IF saveOK EQ 1 THEN BEGIN
-      blockAdr=thisPath+'data\blockSaveStamp.txt'
-      result = FILE_TEST(blockAdr)
-      IF result EQ 1 THEN FILE_DELETE, blockAdr
+      IF FILE_TEST(configPath, /READ) THEN RESTORE, configPath ELSE sv=DIALOG_MESSAGE('Lost connection to config file '+configPath, /ERROR)
+      configS.(0).saveBlocked=0
+      SAVEIF, saveOK, configS, quickTemp, quickTout, loadTemp, renameTemp, FILENAME=configPath
     ENDIF
-    dumpAdr=thisPath+'data\dumpTemp.txt'
-    result = FILE_TEST(dumpAdr)
-    IF result EQ 1 THEN FILE_DELETE, dumpAdr
     WIDGET_CONTROL, ev.top, /DESTROY
   ENDIF
 

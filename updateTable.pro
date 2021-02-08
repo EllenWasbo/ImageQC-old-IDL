@@ -26,7 +26,7 @@ pro updateTable
     nImg=N_TAGS(structImgs)
     pix=structImgs.(sel).pix(0)
     markedTemp=INDGEN(nImg); all default
-    IF marked(0) EQ -1 THEN BEGIN      
+    IF marked(0) EQ -1 THEN BEGIN
       IF N_ELEMENTS(szM) EQ 2 THEN nI=MIN([nImg,szM(1)]) ELSE nI=nImg
       nRows=nI
     ENDIF ELSE BEGIN
@@ -57,7 +57,8 @@ pro updateTable
               currentHeaderAlt(curTab)=0
               headers=tableHeaders.CT.MTF.BEAD_XY;['MTFx 50%','MTFx 10%','MTFx 2%','MTFy 50%','MTFy 10%','MTFy 2%']
               resArrString=STRARR(nCols,nRows)
-              FOR i =0, nRows-1 DO BEGIN
+              nTags=N_TAGS(MTFres)
+              FOR i =0, MIN([nRows,nTags])-1 DO BEGIN
                 tagn=TAG_NAMES(MTFres.(markedTemp(i)))
                 IF tableWhich EQ 0 THEN BEGIN
                   IF tagn.HasValue('F50_10_2') THEN resArrString[*,i]=STRING(cyclFactor*MTFres.(markedTemp(i)).F50_10_2, FORMAT='(F0.3)')
@@ -76,7 +77,7 @@ pro updateTable
                 IF tagn.HasValue('F50_10_2') THEN resArrString=STRING(cyclFactor*MTFres.F50_10_2[0:2], FORMAT='(F0.3)')
               ENDIF ELSE BEGIN
                 IF tagn.HasValue('F50_10_2DISCRETE') THEN resArrString=STRING(cyclFactor*MTFres.F50_10_2DISCRETE[0:2], FORMAT='(F0.3)')
-               ENDELSE 
+              ENDELSE
               cellSelHighLight=0
             ENDELSE
           END
@@ -137,12 +138,19 @@ pro updateTable
             FOR i=0, nRows-1 DO resArrString[*,i]=STRING(noiseRes[*,markedTemp(i)],FORMAT=formatCode(noiseRes[*,markedTemp(i)]))
             ;IF nRows GT 1 THEN resArrString[3,1:nRows-1]=''
           END
-          
+
           'HUWATER': BEGIN
             nCols=2
             headers=tableHeaders.CT.HUWATER.Alt1;['CT number (HU)','Noise=Stdev (HU)']
             resArrString=STRARR(nCols,nRows)
             FOR i=0, nRows-1 DO resArrString[*,i]=STRING(HUwaterRes[*,markedTemp(i)],FORMAT=formatCode(HUwaterRes[*,markedTemp(i)]))
+          END
+
+          'ROI': BEGIN
+            nCols=2
+            headers=tableHeaders.CT.ROI.Alt1;['CT number (HU)','Stdev (HU)']
+            resArrString=STRARR(nCols,nRows)
+            FOR i=0, nRows-1 DO resArrString[*,i]=STRING(ROIres[*,markedTemp(i)],FORMAT=formatCode(ROIres[*,markedTemp(i)]))
           END
 
           'FWHM': BEGIN
@@ -252,20 +260,20 @@ pro updateTable
             resArrString=STRARR(nCols,nRows)
             FOR i=0, nRows-1 DO IF N_TAGS(SNIres.(markedTemp(i))) NE 1 THEN resArrString[*,i]=STRING(SNIres.(markedTemp(i)).SNIvalues, FORMAT='(F0.2)')
           END
-          
+
           'ACQ':BEGIN
             nCols=2
             headers=tableHeaders.NM.ACQ.Alt1;['Total Count','Frame Duration (ms)']
             resArrString=STRARR(nCols,nRows)
             FOR i=0, nRows-1 DO resArrString[*,i]=STRING(acqRes[*,markedTemp(i)], FORMAT='(i0)')
           END
-          
+
           'BAR': BEGIN
             nCols=8
             headers=tableHeaders.NM.BAR.Alt1;['MTF_1','MTF_2','MTF_3','MTF_4','FWHM1','FWHM2','FWHM3','FWHM4']
             resArrString=STRARR(nCols, nRows)
             FOR i=0, nRows-1 DO resArrString[*,i]=STRING(barRes[*,i], FORMAT='(F0.3)')
-            END
+          END
 
           'ENERGYSPEC': BEGIN
             nCols=7
@@ -303,44 +311,44 @@ pro updateTable
 
           'MTF': BEGIN
             IF SIZE(MTFres, /TNAME) EQ 'STRUCT' THEN BEGIN
-            tagMTFres=tag_names(MTFres)
+              tagMTFres=tag_names(MTFres)
 
-            WIDGET_CONTROL, cw_typeMTFNM, GET_VALUE=typeMTF
-            IF typeMTF EQ 0 THEN nCols=4 ELSE nCols=2
-            IF typeMTF EQ 0 THEN headers=['FWHM x (mm)','FWTM x (mm)','FWHM y (mm)','FWTM y (mm)'] ELSE headers=['FWHM (mm)','FWTM (mm)']
-            multipRes=WHERE(tagMTFres EQ 'M0')
-            IF multipRes(0) NE -1 THEN BEGIN
-              resArrString=STRARR(4,nRows)
-              FOR i =0, nRows-1 DO BEGIN
-                tagMTFresThis=tag_names(MTFres.(markedTemp(i)))
-                IF tagMTFresThis.HasValue('FITLSFX') THEN BEGIN
-                  xprof=MTFres.(markedTemp(i)).fitLSFx
-                  maxval=max(xprof)
-                  minval=min(xprof)
-                  resFWHM=getWidthAtThreshold(xprof,(maxval+minval)/2.)
-                  resFWTM=getWidthAtThreshold(xprof,(maxval-minval)/10.+minval)
+              WIDGET_CONTROL, cw_typeMTFNM, GET_VALUE=typeMTF
+              IF typeMTF EQ 0 THEN nCols=4 ELSE nCols=2
+              IF typeMTF EQ 0 THEN headers=['FWHM x (mm)','FWTM x (mm)','FWHM y (mm)','FWTM y (mm)'] ELSE headers=['FWHM (mm)','FWTM (mm)']
+              multipRes=WHERE(tagMTFres EQ 'M0')
+              IF multipRes(0) NE -1 THEN BEGIN
+                resArrString=STRARR(4,nRows)
+                FOR i =0, nRows-1 DO BEGIN
+                  tagMTFresThis=tag_names(MTFres.(markedTemp(i)))
+                  IF tagMTFresThis.HasValue('FITLSFX') THEN BEGIN
+                    xprof=MTFres.(markedTemp(i)).fitLSFx
+                    maxval=max(xprof)
+                    minval=min(xprof)
+                    resFWHM=getWidthAtThreshold(xprof,(maxval+minval)/2.)
+                    resFWTM=getWidthAtThreshold(xprof,(maxval-minval)/10.+minval)
 
-                  IF typeMTF EQ 0 THEN pixFac=1. ELSE pixFac=0.1
-                  resArrString[0:1,i]=[STRING(resFWHM(0)*pixFac*pix,FORMAT='(f0.3)'),STRING(resFWTM(0)*pixFac*pix,FORMAT='(f0.3)')]
-                  IF typeMTF EQ 0 THEN BEGIN
-                    yprof=MTFres.(markedTemp(i)).fitLSFy
-                    maxval=max(yprof)
-                    minval=min(yprof)
-                    resFWHM=getWidthAtThreshold(yprof,(maxval+minval)/2.)
-                    resFWTM=getWidthAtThreshold(yprof,(maxval-minval)/10.+minval)
-                    resArrString[2:3,i]=[STRING(resFWHM(0)*pixFac*pix,FORMAT='(f0.3)'),STRING(resFWTM(0)*pixFac*pix,FORMAT='(f0.3)')]
+                    IF typeMTF EQ 0 THEN pixFac=1. ELSE pixFac=0.1
+                    resArrString[0:1,i]=[STRING(resFWHM(0)*pixFac*pix,FORMAT='(f0.3)'),STRING(resFWTM(0)*pixFac*pix,FORMAT='(f0.3)')]
+                    IF typeMTF EQ 0 THEN BEGIN
+                      yprof=MTFres.(markedTemp(i)).fitLSFy
+                      maxval=max(yprof)
+                      minval=min(yprof)
+                      resFWHM=getWidthAtThreshold(yprof,(maxval+minval)/2.)
+                      resFWTM=getWidthAtThreshold(yprof,(maxval-minval)/10.+minval)
+                      resArrString[2:3,i]=[STRING(resFWHM(0)*pixFac*pix,FORMAT='(f0.3)'),STRING(resFWTM(0)*pixFac*pix,FORMAT='(f0.3)')]
+                    ENDIF
+                    IF tagMTFresThis.HasValue('FWHMG') THEN BEGIN
+                      resArrString[2:3,i]=[STRING(MTFres.(markedTemp(i)).FWHMG,FORMAT='(f0.3)'),STRING(MTFres.(markedTemp(i)).FWTMG,FORMAT='(f0.3)')]
+                    ENDIF
                   ENDIF
-                  IF tagMTFresThis.HasValue('FWHMG') THEN BEGIN
-                    resArrString[2:3,i]=[STRING(MTFres.(markedTemp(i)).FWHMG,FORMAT='(f0.3)'),STRING(MTFres.(markedTemp(i)).FWTMG,FORMAT='(f0.3)')]
-                  ENDIF
+                ENDFOR
+                IF nRows EQ 1 THEN noFWHMg=WHERE(resArrString[2:3] NE '') ELSE noFWHMg=WHERE(resArrString[2,*] NE '')
+                IF noFWHMg(0) NE -1 THEN BEGIN
+                  nCols=4
+                  headers=['FWHM LSF smoothed (mm)','FWTM LSF smoothed (mm)','FWHM (mm)','FWTM (mm)']
                 ENDIF
-              ENDFOR
-              IF nRows EQ 1 THEN noFWHMg=WHERE(resArrString[2:3] NE '') ELSE noFWHMg=WHERE(resArrString[2,*] NE '')
-              IF noFWHMg(0) NE -1 THEN BEGIN
-                nCols=4
-                headers=['FWHM LSF smoothed (mm)','FWTM LSF smoothed (mm)','FWHM (mm)','FWTM (mm)']
               ENDIF
-            ENDIF
             ENDIF
 
           END
@@ -501,18 +509,18 @@ pro updateTable
             headers=tableHeaders.MR.DCM.Alt1
             resArrString=STRARR(nCols,nRows)
             FOR i=0, nRows-1 DO resArrString[*,i]=expRes[*,markedTemp(i)]
-            END
-            
+          END
+
           'POS':BEGIN
             nCols=2
             headers=tableHeaders.MR.POS.Alt1
             resArrString=STRARR(nCols,nRows)
             FOR i=0, nRows-1 DO resArrString[*,i]=MRposRes[*,markedTemp(i)]
-            END
-        ELSE:
+          END
+          ELSE:
         ENDCASE
-       ENDIF
-       END;MR
+      ENDIF
+    END;MR
 
   ENDCASE
 
@@ -528,7 +536,7 @@ pro updateTable
       tabView=[0,0]
       IF N_ELEMENTS(szM) EQ 2 THEN nI=MIN([nImg,szM(1)]) ELSE nI=nImg
       IF marked(0) NE -1 THEN markedArr(marked)=1 ELSE markedArr[0:nI-1]=1
-      
+
       IF sel LT nI THEN BEGIN
         IF markedArr(sel) EQ 1 THEN BEGIN
           nMarked=TOTAL(markedArr)
@@ -536,7 +544,7 @@ pro updateTable
           ; select row in result-table according to file
           oldSel=WIDGET_INFO(resTab,/TABLE_SELECT)
           colNo=oldSel(0);keep column number
-          If colNo NE -1 THEN tabSelect=[colNo,rowNo,colNo,rowNo] ELSE tabSelect=[0,rowNo,nCols-1,rowNo]  
+          If colNo NE -1 THEN tabSelect=[colNo,rowNo,colNo,rowNo] ELSE tabSelect=[0,rowNo,nCols-1,rowNo]
         ENDIF
       ENDIF
       oldView=WIDGET_INFO(resTab,/TABLE_VIEW)
@@ -555,11 +563,11 @@ pro updateTable
         markedArrTemp=markedMulti[testNmb,*]
         nI=MIN([nImg,N_ELEMENTS(markedArrTemp)])
         FOR ii=0, nI-1 DO BEGIN
-            IF markedArrTemp(ii) EQ 0 THEN WIDGET_CONTROL, resTab, USE_TABLE_SELECT=[0,ii,nCols-1,ii], FOREGROUND_COLOR=[200,200,200]
+          IF markedArrTemp(ii) EQ 0 THEN WIDGET_CONTROL, resTab, USE_TABLE_SELECT=[0,ii,nCols-1,ii], FOREGROUND_COLOR=[200,200,200]
         ENDFOR
       ENDIF
     ENDIF ELSE WIDGET_CONTROL, resTab, TABLE_XSIZE=4, TABLE_YSIZE=2, COLUMN_LABELS=['0','1','2','3'], COLUMN_WIDTHS=[100,100,100,100], SET_VALUE=STRARR(4,5), SET_TABLE_SELECT=tabSelect, FOREGROUND_COLOR=[0,0,0]
-    
+
     WIDGET_CONTROL, resTab, SET_TABLE_VIEW=tabView
 
   ENDELSE

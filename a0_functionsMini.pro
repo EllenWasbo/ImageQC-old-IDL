@@ -142,12 +142,13 @@ function updateConfigS, file
     'MTFtype',2,'MTFtypeX',1,'MTFtypeNM',1,'MTFtypeSPECT',1, $
     'plotMTF',3,'plotMTFX', 3, 'plotMTFNM',4,'plotMTFSPECT',4, 'tableMTF',0,'cyclMTF',0,'tableMTFX', 0, $
     'MTFroiSz',11.0,'MTFroiSzX',[20.,50.],'MTFroiSzNM',[20.,20.],'MTFroiSzSPECT',30.,'MTF3dSPECT',1, $
-    'cutLSF',1,'cutLSF1',3,'cutLSF2',1, 'cutLSFX', 1, 'cutLSFX1', 3, 'offxy', [0,0], $
+    'cutLSF',1,'cutLSF1',3,'cutLSF2',1, 'cutLSFX', 1, 'cutLSFX1', 3, 'offxyMTF', [0,0],'offxyMTF_X', [0,0],'offxyMTF_unit', 0, 'offxyMTF_X_unit', 0,$
     'searchMaxMTF_ROI',0,$
     'LinROIrad',3.,'LinROIradS',11., 'LinTab',lintab, $
     'RampDist',38.,'RampLen',60.,'RampBackG',5.,'RampSearch',5,'RampAvg',1,'RampType',0,'RampDens',0,$
     'HomogROIsz',10., 'HomogROIszX',10., 'HomogROIszPET', 10.,'HomogROIdist',55.,'HomogROIdistPET',55.,$
     'NoiseROIsz',55., 'HUwaterROIsz', 55.,$
+    'typeROI',0,'ROIrad',5.,'ROIx',10.,'ROIy',10.,'ROIa',0.,'offxyROI', [0,0], 'offxyROI_unit', 0,$
     'NPSroiSz', 50, 'NPSroiDist', 50., 'NPSsubNN', 20, 'NPSroiSzX', 256, 'NPSsubSzX', 5, 'NPSavg', 1, $
     'STProiSz', 11.3, $
     'unifAreaRatio', 0.95,'SNIAreaRatio', 0.9,'unifCorr',0,'SNIcorr',0,'distCorr',385.0,'attCoeff',2.2,'detThick',9.5,$
@@ -155,7 +156,9 @@ function updateConfigS, file
     'ScanSpeedAvg', 25, 'ScanSpeedHeight', 100., 'ScanSpeedFiltW', 15, $
     'ContrastRad1', 20., 'ContrastRad2', 58.,$
     'CrossROIsz', 60., 'CrossVol', 0.0)
-  configSdefault=CREATE_STRUCT('defConfigNo',1,'configDefault',configDefault)
+  userinfo=get_login_info()
+  commonConfig=CREATE_STRUCT('defConfigNo',1,'saveBlocked',1,'saveStamp',systime(/SECONDS),'username',userinfo.user_name,'autoUnBlock',8);NB if changed check on remBlock in settings.pro
+  configSdefault=CREATE_STRUCT('commonConfig',commonConfig,'configDefault',configDefault)
 
   newConfigS=-1
 
@@ -163,13 +166,32 @@ function updateConfigS, file
     ;find existing values and paste into new configS structure
     RESTORE, file
     errCounter=0
-    IF N_ELEMENTS(config) NE 0 THEN oldConfigS=CREATE_STRUCT('defConfigNo',1,'configDefault',config) ELSE errCounter=1
+    IF N_ELEMENTS(config) NE 0 THEN oldConfigS=CREATE_STRUCT('commonConfig',commonConfig,'configDefault',config) ELSE errCounter=1; very old config file (before configS)
     IF N_ELEMENTS(configS) NE 0 THEN oldConfigS=configS ELSE errCounter=errCounter+1
     IF errCounter NE 2 THEN BEGIN
       ;copy values into newest version config structure
+
+      ;commonConfig (configS.(0)
+      currCommonTags=TAG_NAMES(commonConfig)
+      oldCommon=commonConfig
+      IF SIZE(oldConfigS.(0),/TNAME) NE 'STRUCT' THEN BEGIN
+        oldCommon.(0)=oldConfigS.(0);defConfigNo from older versions
+        oldCommonTags=currCommonTags
+      ENDIF ELSE BEGIN
+        oldCommonTags=TAG_NAMES(oldConfigS.(0))
+
+        FOR i=0, N_ELEMENTS(currCommonTags)-1 DO BEGIN
+          IF oldCommonTags.HasValue(currCommonTags(i)) THEN BEGIN
+            iOld=WHERE(oldCommonTags EQ currCommonTags(i))
+            IF iOld NE -1 THEN oldCommon.(i)=oldConfigS.(0).(iOld)
+          ENDIF
+        ENDFOR
+      ENDELSE
+      newConfigS=CREATE_STRUCT('commonConfig',oldCommon)
+
+      ;the rest configS.(1+)
       defaultTags=TAG_NAMES(configDefault)
       restoreTagsS=TAG_NAMES(oldConfigS)
-      newConfigS=CREATE_STRUCT('defConfigNo',oldConfigS.(0))
       FOR i=1, N_ELEMENTS(restoreTagsS)-1 DO BEGIN;for each parameterset
         oldTags=TAG_NAMES(oldConfigS.(i))
         configTemp=!Null;CREATE_STRUCT('DECIMARK',oldConfigS.(i).DECIMARK)
@@ -180,7 +202,7 @@ function updateConfigS, file
             IF defaultTags(j) EQ 'QTOUTTEMPS' THEN BEGIN
               nModOld=N_ELEMENTS(oldConfigS.(i).(ff))
               nModNew=N_ELEMENTS(configDefault.(j))
-              IF nModOld LT nModNew THEN BEGIN  
+              IF nModOld LT nModNew THEN BEGIN
                 modQtOutTemps=configDefault.(j)
                 modQtOutTemps[0:nModOld-1]=oldConfigS.(i).(ff)
                 configTemp=CREATE_STRUCT(configTemp, defaultTags(j), modQtOutTemps)
@@ -191,8 +213,16 @@ function updateConfigS, file
             configTemp=CREATE_STRUCT(configTemp, defaultTags(j),configDefault.(j))
           ENDELSE
         ENDFOR
+        
+        ;convert old tags to new tags
+        IF oldTags.HasValue('OFFXY') THEN BEGIN; offxy for MTF split to CT and Xray and more added hence naming different
+          ff=WHERE(oldTags EQ 'OFFXY')
+          configTemp.OFFXYMTF=oldConfigS.(i).(ff)
+          configTemp.OFFXYMTF_X=oldConfigS.(i).(ff)
+        ENDIF
+        
         newConfigS=CREATE_STRUCT(newConfigS,restoreTagsS(i),configTemp)
-      ENDFOR
+      ENDFOR   
 
     ENDIF ELSE sv=DIALOG_MESSAGE('Found no valid config structure.', DIALOG_PARENT=0)
 
@@ -251,7 +281,17 @@ function updateQuickT, file, mOpt
             sv=DIALOG_MESSAGE('Not all QuickTest templates were selected in this process. Those templates will be lost. Create a backup file to perform this process once again?', /QUESTION)
             IF sv EQ 'Yes' THEN BEGIN
               adr=DIALOG_PICKFILE(TITLE='Backup old config file', /WRITE, FILTER='*.dat', /FIX_FILTER, /OVERWRITE_PROMPT, DEFAULT_EXTENSION='.dat', PATH='C:\')
-              IF adr(0) NE '' THEN FILE_COPY, file, adr
+              IF adr(0) NE '' THEN BEGIN
+                fi=FILE_INFO(FILE_DIRNAME(adr))
+                IF fi.write THEN FILE_COPY, file, adr ELSE BEGIN
+                  adr='C:\temp\'+FILE_BASENAME(adr)+'.dat'
+                  fi=FILE_INFO('C:\temp\')
+                  IF fi.write THEN BEGIN
+                    FILE_COPY, file, adr
+                    sv=DIALOG_MESSAGE('Failed to save backup in selected folder. Backup can be found in C:\temp instead.')
+                  ENDIF ELSE sv=DIALOG_MESSAGE('Failed to save backup. No write permission on selected folder.',/ERROR)
+                ENDELSE
+              ENDIF
             ENDIF
           ENDIF
         ENDIF
@@ -268,7 +308,7 @@ function updateQuickT, file, mOpt
             FOR i=0, N_TAGS(quickT.(m))-1 DO BEGIN
               sz=SIZE(quickT.(m).(i), /DIMENSIONS)
               IF sz(0) NE nTests THEN BEGIN
-                IF N_ELEMENTS(sz) EQ 1 THEN sz=[sz,1]              
+                IF N_ELEMENTS(sz) EQ 1 THEN sz=[sz,1]
                 newArr=INTARR(nTests,sz(1))
                 IF sz(0) LT nTests THEN newArr[0:sz(0)-1,*]=quickT.(m).(i) ELSE BEGIN
                   oldArr=quickT.(m).(i)
@@ -287,7 +327,7 @@ function updateQuickT, file, mOpt
       ENDIF
     ENDIF
   ENDELSE
-  
+
   return, quickT
 end
 
@@ -310,7 +350,7 @@ function updateQuickTout, file, analyseStrAll
     'Avg_xy_MTF10',CREATE_STRUCT('ALT',0,'COLUMNS',[1,4],'CALC',3,'PER_SERIES',0),$
     'MTF50',CREATE_STRUCT('ALT',1,'COLUMNS',[0],'CALC',0,'PER_SERIES',1),$
     'MTF10',CREATE_STRUCT('ALT',1,'COLUMNS',[1],'CALC',0,'PER_SERIES',1)),$
-    'CTLIN',-1,'HUWATER',-1,'EXP',-1)
+    'CTLIN',-1,'HUWATER',-1,'EXP',-1,'ROI',-1)
   defXray=CREATE_STRUCT($
     'STP', CREATE_STRUCT('Pixel_mean',CREATE_STRUCT('ALT',0,'COLUMNS',2,'CALC',0,'PER_SERIES',0)),$
     'HOMOG',-1,'NOISE',-1,'EXP',-1,'MTF',-1)
@@ -329,6 +369,8 @@ function updateQuickTout, file, analyseStrAll
       ;copy values into newest versions structure
       quickToutThisVersion=CREATE_STRUCT('ALT',0,'COLUMNS',0,'CALC',0,'PER_SERIES',0)
       tagNewest=TAG_NAMES(quickToutThisVersion)
+      quickToutThisDCM=CREATE_STRUCT('ALT',-1,'TAGS',-1,'TAGFORMATS',-1);alt -1 means additional dicom tags to include for tests EXP,DCM,ACQ
+      tagNewestDCM=TAG_NAMES(quickToutThisDCM)
 
       modesCurr=TAG_NAMES(quickToutDefault)
       modesOld=TAG_NAMES(oldQuickTout)
@@ -355,7 +397,7 @@ function updateQuickTout, file, analyseStrAll
 
               thisTemp=CREATE_STRUCT('popit',0)
 
-              nTests=N_TAGS(oldQuickTout.(ii).(j))
+              ;nTests=N_TAGS(oldQuickTout.(ii).(j))
               FOR k=0, N_ELEMENTS(allTestsOld)-1 DO BEGIN; for each defined test
 
                 IF SIZE(oldQuickTout.(ii).(j).(k), /TNAME) EQ 'STRUCT' THEN BEGIN
@@ -366,19 +408,34 @@ function updateQuickTout, file, analyseStrAll
                     oldTags=TAG_NAMES(oldQuickTout.(ii).(j).(k).(l))
 
                     paramsThis=CREATE_STRUCT('popit',0)
+                    
+                    IF oldQuickTout.(ii).(j).(k).(l).(0) EQ -1 THEN BEGIN ; alt=-1
+                      IF ~ARRAY_EQUAL(oldTags, tagNewestDCM) THEN BEGIN
+                        FOR m=0, N_ELEMENTS(tagNewestDCM)-1 DO BEGIN
+                          IF oldTags.HasValue(tagNewestDCM(m)) THEN BEGIN
+                            ;copy tag content
+                            ff=WHERE(oldTags EQ tagNewestDCM(m))
+                            paramsThis=CREATE_STRUCT(paramsThis, tagNewestDCM(m), oldQuickTout.(ii).(j).(k).(l).(ff))
+                          ENDIF ELSE paramsThis=CREATE_STRUCT(paramsThis, tagNewestDCM(j),quickToutThisDCM.(m))
+                        ENDFOR
 
-                    IF ~ARRAY_EQUAL(oldTags, tagNewest) THEN BEGIN
-                      FOR m=0, N_ELEMENTS(tagNewest)-1 DO BEGIN
-                        IF oldTags.HasValue(tagNewest(m)) THEN BEGIN
-                          ;copy tag content
-                          ff=WHERE(oldTags EQ tagNewest(m))
-                          paramsThis=CREATE_STRUCT(paramsThis, tagNewest(m), oldQuickTout.(ii).(j).(k).(l).(ff))
-                        ENDIF ELSE paramsThis=CREATE_STRUCT(paramsThis, tagNewest(j),quickToutThisVersion.(m))
-                      ENDFOR
+                        paramsThis=removeIDstructstruct(paramsThis, 0);pop off first dummy element
 
-                      paramsThis=removeIDstructstruct(paramsThis, 0);pop off first dummy element
-
-                    ENDIF ELSE paramsThis=oldQuickTout.(ii).(j).(k).(l)
+                      ENDIF ELSE paramsThis=oldQuickTout.(ii).(j).(k).(l)
+                    ENDIF ELSE BEGIN
+                      IF ~ARRAY_EQUAL(oldTags, tagNewest) THEN BEGIN
+                        FOR m=0, N_ELEMENTS(tagNewest)-1 DO BEGIN
+                          IF oldTags.HasValue(tagNewest(m)) THEN BEGIN
+                            ;copy tag content
+                            ff=WHERE(oldTags EQ tagNewest(m))
+                            paramsThis=CREATE_STRUCT(paramsThis, tagNewest(m), oldQuickTout.(ii).(j).(k).(l).(ff))
+                          ENDIF ELSE paramsThis=CREATE_STRUCT(paramsThis, tagNewest(j),quickToutThisVersion.(m))
+                        ENDFOR
+  
+                        paramsThis=removeIDstructstruct(paramsThis, 0);pop off first dummy element
+  
+                      ENDIF ELSE paramsThis=oldQuickTout.(ii).(j).(k).(l)
+                    ENDELSE
                     outputsThisTest=CREATE_STRUCT(outputsThisTest,outPutNames(l), paramsThis)
 
                   ENDFOR
@@ -464,7 +521,17 @@ function updateLoadT, file, mOpt
               sv=DIALOG_MESSAGE('Not all automation templates were selected in this process. Those templates will be lost. Create a backup file to perform this process once again?', /QUESTION)
               IF sv EQ 'Yes' THEN BEGIN
                 adr=DIALOG_PICKFILE(TITLE='Backup old config file', /WRITE, FILTER='*.dat', /FIX_FILTER, /OVERWRITE_PROMPT, DEFAULT_EXTENSION='.dat', PATH='C:\')
-                IF adr(0) NE '' THEN FILE_COPY, file, adr
+                IF adr(0) NE '' THEN BEGIN
+                  fi=FILE_INFO(FILE_DIRNAME(adr))
+                  IF fi.write THEN FILE_COPY, file, adr ELSE BEGIN
+                    adr='C:\temp\'+FILE_BASENAME(adr)+'.dat'
+                    fi=FILE_INFO('C:\temp\')
+                    IF fi.write THEN BEGIN
+                      FILE_COPY, file, adr
+                      sv=DIALOG_MESSAGE('Failed to save backup in selected folder. Backup can be found in C:\temp instead.')
+                    ENDIF ELSE sv=DIALOG_MESSAGE('Failed to save backup. No write permission on selected folder.',/ERROR)
+                  ENDELSE
+                ENDIF
               ENDIF
             ENDIF
           ENDIF
@@ -473,16 +540,21 @@ function updateLoadT, file, mOpt
 
       ;securing older versions tags
       IF N_ELEMENTS(loadT) GT 0 THEN BEGIN
-        ;path - folder close to where the images should be found
-        ;loadBy - choise - 0 = load all images in specified path
+        ;path - folder where the images should be found
+        ;statName - station name as defined in DICOM (or empty) - to automatically recognize and sort images into their corresponding folders
+        ;loadBy - 0 = load all images in specified path, 1 = load last date only (for startup/testing issues)
         ;sortBy - STRARR with structure tags in image structure to sort images by
         ;sortAsc - 0/1 ARR where sort order defined 0=ascending, 1=descending , one element=0 (from old template versions) means all ascending
         ;paramSet - name of paramSet to link to or '' if default
         ;quickTemp - name of quickTemp to link to or '' to default (all selected)
         ;pathApp- path to append results if successfully calculated
+        ;archive = 0 if no archiving, 1=archive images in folder Archive after analysis
+        ;deleteFiles = 1 if files with no image data should be deleted
+        ;deleteFilesEnd = 1 if files exceeding the number of images defined in the corresponding quickTemp should be deleted before archiving (keep those necessary for rerunning the analysis)
         loadTthisVersion=CREATE_STRUCT($
           'path','',$
           'statName','',$
+          'dcmCrit',['0000','0000',''],$
           'loadBy',0,$
           'includeSub',0,$
           'sortBy', '', $
@@ -516,15 +588,15 @@ function updateLoadT, file, mOpt
               IF i EQ 0 THEN loadTm=CREATE_STRUCT(tempsExist(i),loadNew) ELSE loadTm=CREATE_STRUCT(loadTm, tempsExist(i),loadNew)
             ENDFOR
             loadT=replaceStructStruct(loadT, loadTm, m)
-           ENDIF
-          ENDFOR
-        ENDIF ELSE loadT=!Null
-
+          ENDIF
+        ENDFOR
       ENDIF ELSE loadT=!Null
-    ENDELSE
-    return, loadT
-  end
-  
+
+    ENDIF ELSE loadT=!Null
+  ENDELSE
+  return, loadT
+end
+
 function updateRenameTemp, file
 
   ;default values if missing:
@@ -578,16 +650,16 @@ end
 ;formatStr ex 'a0' format string without () unverified
 function addTagRenameTemp, oldRenameTemp, tagdescr, groupElem, formatStr
   warnings=''
-  
+
   IF SIZE(groupElem, /TNAME) EQ 'STRING' THEN BEGIN
     GrEl=[UINT(0),UINT(0)]
     READS, groupElem, GrEl, FORMAT='(z)'
     ;el=UINT(0)
     ;READS, groupElem(1), el, FORMAT='(z)'
   ENDIF ELSE GrEl=groupElem
-  
+
   newtags=CREATE_STRUCT(oldRenameTemp.tags,tagdescr,GrEl)
-  
+
   ;verify formatStr or set to a0
   a='0'
   Catch, Error_status
@@ -598,9 +670,9 @@ function addTagRenameTemp, oldRenameTemp, tagdescr, groupElem, formatStr
   ENDIF
   b=string(a,FORMAT='('+formatStr+')');cause error?
   formatStr='('+formatStr+')'
-  
+
   newtagformats=CREATE_STRUCT(oldRenameTemp.tagformats,tagdescr,formatStr)
-  
+
   ;update all templates with new tag in temp.(i).formats
   updTemps=oldRenameTemp.temp
   nTemp=N_TAGS(oldRenameTemp.temp)
@@ -609,7 +681,7 @@ function addTagRenameTemp, oldRenameTemp, tagdescr, groupElem, formatStr
     newtemp=replaceStructStruct(oldRenameTemp.temp.(t),newformats,2)
     updTemps=replaceStructStruct(updTemps,newtemp,t)
   ENDFOR
-  
+
   newRenameTemp=CREATE_STRUCT('tags', newtags, 'tagformats', newtagformats, 'temp', updTemps)
 
   return, CREATE_STRUCT('renameTemp',newRenameTemp,'warnings',warnings)
@@ -617,39 +689,39 @@ end
 
 function changeTagRenameTemp, oldRenameTemp, oldtagdescr, newtagdescr, groupElem, oldFormatStr, formatStr, changeThisOnly,thisNumb
   warnings=''
-  
+
   oldtagdescr=STRUPCASE(oldtagdescr)
   newtagdescr=STRUPCASE(newtagdescr)
-  
+
   tagNames=TAG_NAMES(oldRenameTemp.tags)
   id2change=WHERE(tagNames EQ oldtagdescr)
-  
+
   IF id2change(0) NE -1 THEN BEGIN
     nTemp=N_TAGS(oldRenameTemp.temp)
-    
+
     IF SIZE(groupElem, /TNAME) EQ 'STRING' THEN BEGIN
       GrEl=[UINT(0),UINT(0)]
       READS, groupElem, GrEl, FORMAT='(z)'
     ENDIF ELSE GrEl=groupElem
-    
+
     oldGrEl=oldRenameTemp.tags.(id2change)
     IF ~ARRAY_EQUAL(GrEl,oldGrEl) THEN BEGIN
       ;tag in Use?
       rentempnames=TAG_NAMES(oldRenameTemp.temp)
       inUse=''
       FOR t=0, nTemp-1 DO BEGIN
-            matchcat=WHERE(STRUPCASE(oldRenameTemp.temp.(t).cat) EQ oldtagdescr)
-            matchfile=WHERE(STRUPCASE(oldRenameTemp.temp.(t).file) EQ oldtagdescr)
-            IF matchcat(0) NE -1 OR matchfile(0) NE -1 THEN BEGIN
-              inUse=[inUse,rentempnames(t)]
-            ENDIF
+        matchcat=WHERE(STRUPCASE(oldRenameTemp.temp.(t).cat) EQ oldtagdescr)
+        matchfile=WHERE(STRUPCASE(oldRenameTemp.temp.(t).file) EQ oldtagdescr)
+        IF matchcat(0) NE -1 OR matchfile(0) NE -1 THEN BEGIN
+          inUse=[inUse,rentempnames(t)]
+        ENDIF
       ENDFOR
-      
+
       IF N_ELEMENTS(inUse) GT 1 THEN BEGIN
         if (!D.NAME eq 'WIN') then newline = string([13B, 10B]) else newline = string(10B)
         warnings=[warnings,'Tag in use for the following templates:'+STRJOIN(inUse,newline)+newline+'Changing tag number will affect all these templates.']
       ENDIF
-      
+
     ENDIF
 
     newtags=replaceStructStruct(oldRenameTemp.tags,GrEl,id2change(0),NEW_TAG_NAME=newtagdescr)
@@ -663,14 +735,14 @@ function changeTagRenameTemp, oldRenameTemp, oldtagdescr, newtagdescr, groupElem
       CATCH, /CANCEL
     ENDIF
     b=string(a,FORMAT='('+formatStr+')');cause error?
-    
+
     formatStr='('+formatStr+')'
 
 
     ;update default formatstring if change to all, else just change tagname (
     IF changeThisOnly THEN formatStrDef=oldRenameTemp.tagformats.(id2change(0)) ELSE formatStrDef=formatStr
     newtagformats=replaceStructStruct(oldRenameTemp.tagformats,formatStrDef,id2change(0),NEW_TAG_NAME=newtagdescr)
-    
+
     updTemps=oldRenameTemp.temp
     FOR t=0, nTemp-1 DO BEGIN
       ;change format and tag on format
@@ -680,7 +752,7 @@ function changeTagRenameTemp, oldRenameTemp, oldtagdescr, newtagdescr, groupElem
       ENDELSE
       newformats=replaceStructStruct(oldRenameTemp.temp.(t).formats,formatCodeT,id2change,NEW_TAG_NAME=newtagdescr)
       newtemp=replaceStructStruct(oldRenameTemp.temp.(t),newformats,2)
-      
+
       ;update tagname in templatestringarrays if name changed
       IF oldtagdescr NE newtagdescr THEN BEGIN
         catTags=STRUPCASE(oldRenameTemp.temp.(t).cat)
@@ -694,9 +766,9 @@ function changeTagRenameTemp, oldRenameTemp, oldtagdescr, newtagdescr, groupElem
           newtemp.file(strId(0))=newtagdescr
         ENDIF
       ENDIF
-      
+
       updTemps=replaceStructStruct(updTemps,newtemp,t)
-      
+
     ENDFOR
 
     IF thisNumb(0) EQ -1 AND changeThisOnly THEN warnings=[warnings,'No template selected. Format code did not change.']
@@ -710,8 +782,103 @@ function changeTagRenameTemp, oldRenameTemp, oldtagdescr, newtagdescr, groupElem
   return, CREATE_STRUCT('renameTemp',newRenameTemp,'warnings',warnings)
 end
 
-  ;previously saved .dat-file might miss some newly introduced parameters. Update to avoid crashes and to update current Path (.filename) if replaced since created
-  ;called by struc='',pathNow ='' gives default, empty structure to be able to find list of available tags
+;with .ALT = -1 similar structure to renametemp with .tags and .tagformats
+;groupElem = ['xxxx','xxxx'] stringarray 4 digit group and element of DICOM tag or finished as UINT
+;formatStr ex 'a0' format string without () unverified
+function addTagOutputTempMinOne, oldMinOneTemp, tagdescr, groupElem, formatStr
+  warnings=''
+
+  IF SIZE(groupElem, /TNAME) EQ 'STRING' THEN BEGIN
+    GrEl=[UINT(0),UINT(0)]
+    READS, groupElem, GrEl, FORMAT='(z)'
+  ENDIF ELSE GrEl=groupElem
+
+  IF SIZE(oldMinOneTemp, /TNAME) EQ 'STRUCT' THEN newtags=CREATE_STRUCT(oldMinOneTemp.tags,tagdescr,GrEl) ELSE newtags=CREATE_STRUCT(tagdescr,GrEl)
+
+  ;verify formatStr or set to a0
+  a='0'
+  Catch, Error_status
+  IF Error_status NE 0 THEN BEGIN
+    warnings=[warnings,'Format code not valid. Set to a0.']
+    formatStr='a0'
+    CATCH, /CANCEL
+  ENDIF
+  b=string(a,FORMAT='('+formatStr+')');cause error?
+  formatStr='('+formatStr+')'
+
+  IF SIZE(oldMinOneTemp, /TNAME) EQ 'STRUCT' THEN newtagformats=CREATE_STRUCT(oldMinOneTemp.tagformats,tagdescr,formatStr) ELSE newtagformats=CREATE_STRUCT(tagdescr,formatStr) 
+
+  newTemp=CREATE_STRUCT('ALT', -1, 'tags', newtags, 'tagformats', newtagformats)
+
+  return, CREATE_STRUCT('newTemp',newTemp,'warnings',warnings)
+end
+
+;with .ALT = -1 similar structure to renametemp with .tags and .tagformats
+;groupElem = ['xxxx','xxxx'] stringarray 4 digit group and element of DICOM tag or finished as UINT
+function changeTagOutputTempMinOne, oldMinOneTemp, tagdescr, groupElem, formatStr, nmbChange
+  warnings=''
+
+  IF SIZE(groupElem, /TNAME) EQ 'STRING' THEN BEGIN
+    GrEl=[UINT(0),UINT(0)]
+    READS, groupElem, GrEl, FORMAT='(z)'
+  ENDIF ELSE GrEl=groupElem
+  
+  oldStruct=oldMinOneTemp.tags.(nmbChange)
+  names=TAG_NAMES(oldMinOneTemp.tags)
+  oldDesc=names(nmbChange)
+  
+  IF tagdescr NE oldDesc THEN BEGIN
+   idEq=WHERE(names EQ tagdescr)
+   IF idEq(0) NE -1 THEN BEGIN
+    tagdescr=oldDesc
+    warnings=[warnings,'Tagname already exist. Could not change name.']
+   ENDIF
+  ENDIF
+  
+  newtags=replaceStructStruct(oldMinOneTemp.tags, GrEl, nmbChange, NEW_TAG_NAME=tagdescr)
+
+  ;verify formatStr or set to a0
+  a='0'
+  Catch, Error_status
+  IF Error_status NE 0 THEN BEGIN
+    warnings=[warnings,'Format code not valid. Set to a0.']
+    formatStr='a0'
+    CATCH, /CANCEL
+  ENDIF
+  b=string(a,FORMAT='('+formatStr+')');cause error?
+  formatStr='('+formatStr+')'
+
+  newtagformats=replaceStructStruct(oldMinOneTemp.tagformats,formatStr,nmbChange, NEW_TAG_NAME=tagdescr)
+
+  newTemp=CREATE_STRUCT('ALT', -1, 'tags', newtags, 'tagformats', newtagformats)
+
+  return, CREATE_STRUCT('newTemp',newTemp,'warnings',warnings)
+end
+
+;for settings.pro when setting extra DICOM output with Alt=-1
+function getOutNumbMinOne, tempStructIn, testname
+  outputNmbMin1=-1
+  expTestNo=-1
+  IF SIZE(tempStructIn, /TNAME) EQ 'STRUCT' THEN BEGIN 
+    availTests=TAG_NAMES(tempStructIn)
+    expTestNo=WHERE(availTests EQ testname); find test number where DICOM output is
+    IF expTestNo(0) NE -1 THEN BEGIN
+      IF SIZE(tempStructIn.(expTestNo(0)), /TNAME) EQ 'STRUCT' THEN BEGIN ; test could have -1 only if none defined
+        outputNames=TAG_NAMES(tempStructIn.(expTestNo(0)))
+        FOR i=0, N_ELEMENTS(outputNames)-1 DO BEGIN
+          IF tempStructIn.(expTestNo(0)).(i).ALT EQ -1 THEN BEGIN
+            outputNmbMin1=i
+            BREAK
+          ENDIF
+        ENDFOR
+      ENDIF
+    ENDIF
+  ENDIF
+  RETURN, [expTestNo(0),outputNmbMin1]
+end
+
+;previously saved .dat-file might miss some newly introduced parameters. Update to avoid crashes and to update current Path (.filename) if replaced since created
+;called by struc='',pathNow ='' gives default, empty structure to be able to find list of available tags
 function imgStructUpdate, struc, pathNow
   updatedStruct=-1
   szStru=SIZE(struc, /TNAME)
@@ -720,9 +887,9 @@ function imgStructUpdate, struc, pathNow
     currStruct=CREATE_STRUCT('filename',pathNow,'studydatetime','','acqDate', '', 'imgDate', '', 'institution','','manufacturer','','modality', '', 'modelName','','stationName','','SWversion','','detectorID','',$
       'patientName','', 'patientID', '', 'patientWeight', '-', 'imageType','','presType','','studyDescr','','seriesName','', 'protocolname', '',$
       'seriesNmb',-1,'seriesTime','','seriesUID','','acqNmb',-1, 'acqtime','','sliceThick',-1., 'pix', [-1.,-1.],'imageSize',[-1,-1],'kVp',-1.,'FOV',-1.,'rekonFOV',-1.,'mA',-1.,'mAs',-1.,'ExpTime',-1.,'coll',[-1.,-1.],'pitch',-1.,$
-      'ExModType','','CTDIvol',-1.,'DAP',-1.,'EI',-1.,'sensitivity',-1.,'sdd',-1.,'filterAddOn','-','kernel','-',$
+      'ExModType','','CTDIvol',-1.,'spotSize',-1.,'DAP',-1.,'EI',-1.,'sensitivity',-1.,'sdd',-1.,'filterAddOn','-','kernel','-',$
       'zpos', -999., 'imgNo',-1,'nFrames',0,'wCenter',-1,'wWidth',-1,$
-      'collType','-','nEWindows',-1,'EWindowName','-','zoomFactor','-','radius1',-1.,'radius2',-1.,'angle',-999.,'acqFrameDuration',-1.,'acqTerminationCond','-',$
+      'collType','-','nEWindows',-1,'EWindowName','-','zoomFactor','-','radius1',-1.,'radius2',-1.,'detectorVector','-','angle',-999.,'acqFrameDuration',-1.,'acqTerminationCond','-',$
       'units','-','radiopharmaca','-','admDose','-','admDoseTime','-','reconMethod','-','attCorrMethod','-','scaCorrMethod','-', 'scatterFrac','-',$
       'imgFreq',-1.,'MRacqType','-','MRscanSeq','-','MRseqVariant','-','TR',-1.,'TE',-1.,'NSA',-1.,'flipAng',-1.,'spaceSlice',-1.,'recCoilName','-','traCoilName','-',$
       'frameNo', -1)
@@ -752,10 +919,10 @@ function imgStructDescTags
     'seriesNmb','Series Number','seriesTime','Series Time','seriesUID','Series UID','acqNmb','Acquisition Number', 'acqtime','Acquisition Time',$
     'sliceThick','Slice Thickness', 'pix', 'Pixel size','imageSize','Image Size','kVp','kVp','FOV','FOV','rekonFOV','Reconstruction FOV','mA','mA','mAs','mAs',$
     'ExpTime','Exposure Time','coll','Collimation','pitch','Pitch',$
-    'ExModType','Exposure Modulation Type','CTDIvol','CTDI vol','DAP','DAP','EI','Exposure Index','sensitivity','Sensitivity','sdd','Source Detector Distance',$
+    'ExModType','Exposure Modulation Type','CTDIvol','CTDI vol','spotSize','Focal Spot size (mm)','DAP','DAP','EI','Exposure Index','sensitivity','Sensitivity','sdd','Source Detector Distance',$
     'filterAddOn','Filter AddOn','kernel','Reconstruction kernel',$
     'zpos', 'Z position', 'imgNo','Image Number','nFrames','Number Of Frames','wCenter','Window Center','wWidth','Window Width',$
-    'collType','Collimator Type','nEWindows','Number of Energy Windows','EWindowName','Energy Window Name','zoomFactor','Zoom Factor','radius1','Radius Detector 1','radius2','Radius Detector 2',$
+    'collType','Collimator Type','nEWindows','Number of Energy Windows','EWindowName','Energy Window Name','zoomFactor','Zoom Factor','radius1','Radius Detector 1','radius2','Radius Detector 2','detectorVector','Detector Number',$
     'angle','Image Angle','acqFrameDuration','Acquisition Frame Duration','acqTerminationCond','Acquisition Termination Condition',$
     'units','Units For Pixel Values','radiopharmaca','Radiopharmaca','admDose','Administered Activity (MBq)','admDoseTime','Administered Activity Time',$
     'reconMethod','Reconstruction Method','attCorrMethod','Attenuation Correction Method','scaCorrMethod','Scatter Correction Method', 'scatterFrac','Scatter Fraction',$
@@ -842,7 +1009,7 @@ end
 ;**************** formating output and GUI stuff ***********************************
 
 function ascDesc01, arr
-  str=['(ASC) ','(DES) '] 
+  str=['(ASC) ','(DES) ']
   newArr=STRARR(N_ELEMENTS(arr))+str(0)
   desc=WHERE(arr EQ 1)
   IF desc(0) NE -1 THEN newArr(desc)=str(1)
@@ -1020,6 +1187,49 @@ function actualTags, arr_tagn, arr_isinfo, moda
   return, actArr
 end
 
+;imgPath - path for image to be read
+;tagStruct .alt = -1, .tags = structure with uint [group, elem], .tagformats = structure with formatcodes corresponding to defined .tags
+function getFormatedDICOMtags, imgPath, tagStruct
+  strTags='_'
+  proceed=1
+  IF SIZE(tagStruct, /TNAME) EQ 'STRUCT' THEN BEGIN
+    IF ~ARRAY_EQUAL(TAG_NAMES(tagStruct),['ALT','TAGS','TAGFORMATS']) THEN proceed=0
+  ENDIF
+  proceed=QUERY_DICOM(imgPath);readable DICOM?
+  
+  IF proceed THEN BEGIN
+    o=obj_new('idlffdicom')
+    t=o->read(imgpath)
+    ntags=N_TAGS(tagStruct.TAGS)
+    strTags=STRARR(ntags)
+    FOR i=0, ntags-1 DO BEGIN
+      thisTag=tagStruct.TAGS.(i)
+      test=o->GetReference(thisTag(0),thisTag(1))
+      IF test(0) NE -1 THEN BEGIN
+        test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
+  
+        stest=size(test_peker, /TNAME)
+        IF stest EQ 'POINTER' THEN BEGIN
+          strPart=*(test_peker[0])
+  
+          strParts=STRSPLIT(strPart(0),'\',/EXTRACT)
+          formats=STRSPLIT(STRMID(tagStruct.TAGFORMATS.(i), 1, strlen(tagStruct.TAGFORMATS.(i))-2),'\',/EXTRACT)
+          nP=N_ELEMENTS(strParts)
+          IF nP EQ N_ELEMENTS(formats) AND nP GT 1 THEN BEGIN
+            strPartArr=!Null
+            FOR p=0, nP-1 DO BEGIN
+              IF formats(p) NE '_' THEN strPartArr=[strPartArr,STRING(strParts(p), FORMAT='('+formats(p)+')')]
+            ENDFOR
+            strPart=STRJOIN(strPartArr,'_')
+          ENDIF ELSE strPart=STRING(strParts(0),FORMAT=tagStruct.TAGFORMATS.(i))
+          IF strPart EQ '' THEN strPart='_'
+          strTags(i)=strPart
+        ENDIF
+      ENDIF
+    ENDFOR
+  ENDIF;proceed
+  return, strTags
+end
 ;********** finding center and widths **********************
 
 ;centroid function not accurate enough, use centroid first and optimize center with this after
@@ -1083,7 +1293,7 @@ function Centroid, array, treshold, allowInvert
     outerVal=MEAN(array2[*,0])
     IF abs(outerVal- min(array2)) GT abs(outerVal- max(array2)) THEN array2= max(array2)-array2 ;invert array
   ENDIF
-  
+
   lower=WHERE(array2 LT treshold)
   array2=array2-MIN(array2);starting at zero
   arrTemp=array2

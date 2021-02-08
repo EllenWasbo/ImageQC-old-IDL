@@ -22,8 +22,12 @@ imageQCmatrix.matrix=newMatrix
 
 adr=DIALOG_PICKFILE(TITLE='Save as new .dat-file',/WRITE, FILTER='*.dat', /FIX_FILTER)
 IF adr NE '' THEN BEGIN
-  imageQCmatrix.filename=adr; changed when opened so that renaming/moving file is possible
-  SAVE, imageQCmatrix, FILENAME=adr
+  ;check folder for write permissions
+  fi=FILE_INFO(FILE_DIRNAME(adr))
+  IF fi.write THEN BEGIN
+    imageQCmatrix.filename=adr; changed when opened so that renaming/moving file is possible
+    SAVE, imageQCmatrix, FILENAME=adr
+  ENDIF ELSE sv=DIALOG_MESSAGE('You do not have writing permissions for the selected folder.',/ERROR)
 ENDIF
 
 end

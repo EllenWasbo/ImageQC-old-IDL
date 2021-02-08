@@ -17,22 +17,23 @@
 
 pro autoOpen, GROUP_LEADER = mainbase, xoff, yoff
 
-  COMMON AUTOVAR, listAuto, modArr,tempnames,tempIDarr,statnames,loadAdr,lblAutoProgress
+  COMMON AUTOVAR, listAuto, modArr,tempnames,tempIDarr,statnames,loadAdr,dcmCritarr, lblAutoProgress
   COMMON VARI
   COMPILE_OPT hidden
 
-  tempnames=!Null
-  modArr=!Null
-  tempIDarr=!Null
-  statNames=!Null
-  loadAdr=!Null
+  tempnames=!Null; array of available template names
+  modArr=!Null; array of modality for the available template names
+  tempIDarr=!Null; id for the available templates within its respective modality
+  statNames=!Null; station names defined for the available templates
+  loadAdr=!Null; path for the available templates
+  dcmCritarr=!Null; array with dcmCrit for the available templates (one row for each template group,elem,content)
 
   autobox = WIDGET_BASE(TITLE='Open files with automation template',  $
     /COLUMN, XSIZE=430, YSIZE=460, XOFFSET=xoff, YOFFSET=yoff,GROUP_LEADER=mainbase, /TLB_KILL_REQUEST_EVENTS, /MODAL)
 
   bAutoToolbar=WIDGET_BASE(autobox,/ROW,/TOOLBAR)
   btnRefresh=WIDGET_BUTTON(bAutoToolbar, VALUE=thisPath+'images\refresh.bmp',/BITMAP, UVALUE='au_refresh', TOOLTIP='Refresh to count new files')
-  btnImport=WIDGET_BUTTON(bAutoToolbar, VALUE=thisPath+'images\importf.bmp',/BITMAP, UVALUE='au_import', TOOLTIP='Sort images from select folder to paths defined in templates based on station-name from DICOM header. The files will be renamed to better describe the content.')
+  btnImport=WIDGET_BUTTON(bAutoToolbar, VALUE=thisPath+'images\importd.bmp',/BITMAP, UVALUE='au_import', TOOLTIP='Sort images from select folder to paths defined in templates based on station-name from DICOM header. The files will be renamed to better describe the content.')
   btnSettings=WIDGET_BUTTON(bAutoToolbar, VALUE=thisPath+'images\gears.bmp',/BITMAP, UVALUE='au_settings', TOOLTIP='Go to settings to edit the automation templates.')
   btnSettings=WIDGET_BUTTON(bAutoToolbar, VALUE=thisPath+'images\document.bmp',/BITMAP, UVALUE='au_openRes', TOOLTIP='Open the results file for the selected template.')
 
@@ -98,7 +99,7 @@ pro autoOpen_event, event
       END
       'au_refresh': upd_AutoList,1
       'au_import': BEGIN
-        RESTORE, thisPath+'data\config.dat'
+        RESTORE, configPath
 
         IF N_ELEMENTS(loadTemp) NE 0 AND N_ELEMENTS(statnames) EQ 0 THEN BEGIN
           modnames=TAG_NAMES(multiOpt)
@@ -108,6 +109,7 @@ pro autoOpen_event, event
               FOR i=0, N_ELEMENTS(namesThis)-1 DO BEGIN
                 statNames=[statNames, loadTemp.(m).(i).statName]
                 loadAdr=[loadAdr, loadTemp.(m).(i).path]
+                dcmCritarr=[[dcmCritarr],[loadTemp.(m).(i).dcmCrit]]
               ENDFOR
             ENDIF
           ENDFOR
@@ -126,6 +128,8 @@ pro autoOpen_event, event
             IF sv EQ 'Yes' THEN BEGIN
               WIDGET_CONTROL, /HOURGLASS
               countNoTemp=0
+              countNoMatch=0
+              countTooManyMatch=0
               errF=0
               nAlr=0
               renames=''
@@ -196,14 +200,46 @@ pro autoOpen_event, event
                     basename=IDL_VALIDNAME(basename.compress(),/CONVERT_ALL)
 
                     IF N_ELEMENTS(statNames) GT 0 THEN tempID=WHERE(stationName EQ statNames) ELSE tempID=-1
-
+                    
                     IF tempID(0) NE -1 THEN BEGIN
-                      IF loadAdr(tempID(0)) NE '' THEN BEGIN
-                        newAdr=loadAdr(tempID(0))
-                        statNameFound=[statNameFound, stationName]
-                      ENDIF ELSE BEGIN
-                        newAdr=adr(0)
-                        countNoTemp=countNoTemp+1
+                      
+                      dcmCritMatch=!Null
+                      FOR crit=0, N_ELEMENTS(tempID)-1 DO BEGIN
+                        dcmCrit=dcmCritarr[*,tempID(crit)]                
+                        IF dcmCrit(2) NE '' THEN BEGIN
+                          groupElem=[dcmCrit(0),dcmCrit(1)]
+                          GrEl=[UINT(0),UINT(0)]
+                          READS, groupElem, GrEl, FORMAT='(z)'
+                          test=o->GetReference(GrEl(0),GrEl(1));
+                          test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
+                          IF test(0) NE -1 THEN BEGIN
+                            IF *(test_peker[0]) EQ dcmCrit(2) THEN dcmCritMatch=[dcmCritMatch,crit] ELSE dcmCritMatch=[dcmCritMatch,-1]
+                          ENDIF
+                        ENDIF
+                      ENDFOR
+                      
+                      IF N_ELEMENTS(dcmCritMatch) GT 0 THEN BEGIN
+                        matchID=WHERE(dcmCritMatch NE -1)
+                        IF matchID(0) EQ -1 THEN BEGIN;no criterion match, all -1 do not import
+                          newAdr=adr(0)
+                          countNoMatch=countNoMatch+1
+                        ENDIF ELSE BEGIN
+                          IF N_ELEMENTS(matchID) GT 1 THEN BEGIN;more than one template have a match - do not import
+                            newAdr=adr(0)
+                            countTooManyMatch=countTooManyMatch+1
+                          ENDIF ELSE BEGIN; one match - import
+                            newAdr=loadAdr(tempID(dcmCritMatch(matchID)))
+                            statNameFound=[statNameFound, stationName]
+                          ENDELSE
+                        ENDELSE
+                      ENDIF ELSE BEGIN; no criteria to test          
+                        IF loadAdr(tempID(0)) NE '' THEN BEGIN
+                          newAdr=loadAdr(tempID(0))
+                          statNameFound=[statNameFound, stationName]
+                        ENDIF ELSE BEGIN
+                          newAdr=adr(0)
+                          countNoTemp=countNoTemp+1
+                        ENDELSE
                       ENDELSE
                     ENDIF ELSE BEGIN
                       newAdr=adr(0)
@@ -260,7 +296,7 @@ pro autoOpen_event, event
                     dirNames=dirNames(sortOrder)
                     FOR i=0, N_ELEMENTS(dirNames)-1 DO BEGIN
                       fi=FILE_INFO(dirNames(i))
-                      IF fi.size EQ 0 THEN BEGIN
+                      IF fi.size EQ 0 AND fi.write THEN BEGIN
                         WIDGET_CONTROL, lblAutoProgress, SET_VALUE='Deleting empty subfolder '+STRING(i+1,FORMAT='(i0)')
                         FILE_DELETE, dirNames(i), /QUIET
                       ENDIF
@@ -269,28 +305,40 @@ pro autoOpen_event, event
                 ENDIF
                 
                 IF N_ELEMENTS(statNameFound) GT 0 THEN BEGIN
-                  allNames=statNameFound(UNIQ(statNameFound))
+                  allNames=statNameFound(SORT(statNameFound))
+                  allNames=allNames(UNIQ(allNames))
                   txtRes='Found and moved these images:'+newline
                   FOR n=0, N_ELEMENTS(allNames)-1 DO BEGIN
                     ss=WHERE(allNames(n) EQ statNameFound, nn)
                     txtRes=txtRes+'   '+allNames(n)+' ('+STRING(nn, FORMAT='(i0)')+')'+newline         
                   ENDFOR
-                  sv=DIALOG_MESSAGE(txtRes, DIALOG_PARENT=event.Top)
+                  
                 ENDIF
   
-                IF errF THEN  sv = DIALOG_MESSAGE(STRING(errF, FORMAT='(i0)')+ ' file(s) not moved as the path defined in template for the specified station name could not be reached.', DIALOG_PARENT=event.Top)
+                IF errF THEN  txtRes=[txtRes,'',STRING(errF, FORMAT='(i0)')+ ' file(s) not moved as the path defined in template could not be reached.']
   
-                IF countNoTemp GT 0 THEN BEGIN
-                  sv = DIALOG_MESSAGE(STRING(countNoTemp, FORMAT='(i0)')+ ' file(s) not moved, just renamed and placed directly in the selected folder. No corresponding automation template for the staion name or target path not defined.', DIALOG_PARENT=event.Top)
-                ENDIF
-                
-                IF nAlr GT 0 THEN BEGIN
-                  sv = DIALOG_MESSAGE(STRING(nAlr, FORMAT='(i0)')+ ' file(s) not moved, just renamed and placed directly in the selected folder. File with same filename already exist in target folder.', DIALOG_PARENT=event.Top)
+                IF countNoTemp + countTooManyMatch + countNoMatch + nAlr GT 0 THEN BEGIN
+                  txtRes=[txtRes,'',STRING(countNoTemp + countTooManyMatch + countNoMatch + nAlr , FORMAT='(i0)')+ ' file(s) not moved, just renamed and placed directly in the selected import folder']
+
+                  IF countNoTemp GT 0 THEN txtRes=[txtRes,STRING(countNoTemp, FORMAT='(i0)')+ ' file(s) left due to no corresponding automation template for the station name or target path not defined.']
+                  
+                  IF countNoMatch  GT 0 THEN txtRes=[txtRes, STRING(countNoMatch, FORMAT='(i0)')+ ' file(s) left as they did not meet the additional dicom criterion.']
+                  
+                  IF countTooManyMatch GT 0 THEN txtRes=[txtRes, STRING(countTooManyMatch, FORMAT='(i0)')+ ' file(s) left as the station name + additional DICOM criterion is not specific (match on more than one template).']
+                                
+                  IF nAlr GT 0 THEN txtRes=[txtRes,STRING(nAlr, FORMAT='(i0)')+ ' file(s) left as the filename (and content) already exist in target folder.']
+                  
                 ENDIF
   
                 IF nNoImg GT 0 THEN BEGIN
-                  sv = DIALOG_MESSAGE(STRING(nNoImg, FORMAT='(i0)')+ ' file(s) had modality SR or no acquisition date/time. These are not regarded as image files and are left in selected folder with name (station-name_PatientID_seriesDescription).', DIALOG_PARENT=event.Top)
+                   txtRes=[txtRes,'',STRING(nNoImg, FORMAT='(i0)')+ ' file(s) had modality SR or no acquisition date/time.']
+                   txtRes=[txtRes, 'These are not regarded as image files and are left in selected folder with name (station-name_PatientID_seriesDescription).']
                 ENDIF
+                
+                ids=WHERE(dcm EQ 0, nNoDCM)
+                IF nNoDCM GT 0 THEN txtRes=[txtRes,'',STRING(nNoDCM, FORMAT='(i0)')+ ' file(s) not recognized as DICOM files. These are left unchanged.']
+                
+                sv=DIALOG_MESSAGE(txtRes, DIALOG_PARENT=event.Top)
               ENDELSE
             ENDIF; Yes - continue
             WIDGET_CONTROL, lblAutoProgress, SET_VALUE=''
@@ -303,7 +351,7 @@ pro autoOpen_event, event
         settings, GROUP_LEADER=evTop, xoffset+100, yoffset+100, 'AUTOSETUP'
       END
       'au_openRes':BEGIN
-        RESTORE, thisPath+'data\config.dat'
+        RESTORE, configPath
         IF N_ELEMENTS(loadTemp) GT 0 THEN BEGIN
           selTemp=WIDGET_INFO(listAuto, /LIST_SELECT)
           IF N_ELEMENTS(selTemp) GT 1 THEN sv=DIALOG_MESSAGE('Select only one template.', /INFORMATION, DIALOG_PARENT=event.Top) ELSE BEGIN
@@ -321,7 +369,7 @@ pro autoOpen_event, event
       END
       'putAllinOne':BEGIN
         IF N_ELEMENTS(tempNames) GT 0 THEN BEGIN
-          RESTORE, thisPath+'data\config.dat'
+          RESTORE, configPath
           selTemp=WIDGET_INFO(listAuto, /LIST_SELECT)
           notMoved=0
           moved=0
@@ -374,7 +422,7 @@ pro autoOpen_event, event
                   IF N_ELEMENTS(dirNames) NE 0 THEN BEGIN
                     FOR i=0, N_ELEMENTS(dirNames)-1 DO BEGIN
                       fi=FILE_INFO(dirNames(i))
-                      IF fi.size EQ 0 THEN BEGIN
+                      IF fi.size EQ 0 AND fi.write THEN BEGIN
                         WIDGET_CONTROL, lblAutoProgress, SET_VALUE='Deleting empty subfolder '+STRING(i+1,FORMAT='(i0)')+strNfolders
                         FILE_DELETE, dirNames(i)
                       ENDIF
@@ -401,7 +449,7 @@ pro autoOpen_event, event
     selTemp=WIDGET_INFO(listAuto, /LIST_SELECT)
     WIDGET_CONTROL, event.top, /DESTROY
     WIDGET_CONTROL, /HOURGLASS
-    RESTORE, thisPath+'data\config.dat'
+    RESTORE, configPath
     ;tempIDnotFoundImg=!Null
     testLog=''
     CASE proceed of
@@ -438,15 +486,28 @@ pro autoOpen_event, event
     ENDCASE
     
     IF testLog NE '' THEN BEGIN
-      OPENW, logfile, thisPath+'data\autoLog.txt', /GET_LUN
-      PRINTF, logfile, testLog
-      CLOSE, logfile & FREE_LUN, logfile
-      XDISPLAYFILE, thisPath+'data\autoLog.txt', TITLE='Analyse log', /MODAL, DONE_BUTTON='Close', WIDTH=100, GROUP=evtop
+      
+      fi=FILE_INFO(thisPath+'data\')
+      pa=''
+      IF fi.write THEN pa=thisPath+'data\autoLog.txt' ELSE BEGIN
+        fi=FILE_INFO('C:\temp\')
+        IF fi.write THEN pa='C:\temp\autoLog.txt'
+      ENDELSE
+      IF pa NE '' THEN BEGIN
+        OPENW, logfile, pa, /GET_LUN
+        PRINTF, logfile, testLog
+        CLOSE, logfile & FREE_LUN, logfile
+        XDISPLAYFILE, pa, TITLE='Analyse log', /MODAL, DONE_BUTTON='Close', WIDTH=100, GROUP=evtop
+      ENDIF ELSE BEGIN
+        CLIPBOARD.set, testLog
+        sv=DIALOG_MESSAGE('Log in clipboard. Paste somewhere to see the log.', DIALOG_PARENT=evtop)
+      ENDELSE
     ENDIF
   ENDIF
 
 end
 
+;countFiles GT 0 - search to find how many files is ready for analysis in the defined path
 pro upd_AutoList, countFiles
 
   COMMON AUTOVAR
@@ -454,12 +515,13 @@ pro upd_AutoList, countFiles
   COMPILE_OPT hidden
 
   WIDGET_CONTROL, /HOURGLASS
-  RESTORE, thisPath+'data\config.dat'
+  RESTORE, configPath
 
   tempnames=!Null
   modArr=!Null
   tempIDarr=!Null
   statNames=!Null
+  dcmCritarr=!Null
   loadAdr=!Null
 
   IF N_ELEMENTS(loadTemp) NE 0 THEN BEGIN
@@ -476,6 +538,7 @@ pro upd_AutoList, countFiles
             statNames=[statNames, loadTemp.(m).(i).statName]
             adr=loadTemp.(m).(i).path
             loadAdr=[loadAdr, adr]
+            dcmCritarr=[[dcmCritarr],[loadTemp.(m).(i).dcmCrit]]
             adrTempTemp=''
             ;ensure path ending with separator
             IF adr(0) NE '' THEN BEGIN
@@ -485,7 +548,7 @@ pro upd_AutoList, countFiles
                 Spawn, 'dir '  + '"'+adr(0)+'"' + '*'+ '/b /a-D', adrTempTemp
                 IF adrTempTemp(0) NE '' THEN namesThis(i)=namesThis(i)+' ('+STRING(N_ELEMENTS(adrTempTemp),FORMAT='(i0)')+')'
               ENDIF ELSE BEGIN
-                IF errLogg EQ '' THEN sv=DIALOG_MESSAGE('Path not found '+adr+newline+newline+'Continue searching for files on other templates?', /QUESTION, DIALOG_PARENT=event.Top)
+                IF errLogg EQ '' THEN sv=DIALOG_MESSAGE('Path not found '+adr+newline+newline+'Continue searching for files on other templates?', /QUESTION, DIALOG_PARENT=evTop)
                 errLogg=errLogg+'Path not found '+adr+newline
                 IF sv EQ 'No' THEN BEGIN
                   breakFlag=1
@@ -502,7 +565,7 @@ pro upd_AutoList, countFiles
         tempIDarr=[tempIDarr,INDGEN(N_ELEMENTS(namesThis))]
       ENDIF
     ENDFOR
-    IF errLogg NE '' THEN sv=DIALOG_MESSAGE(errLogg, DIALOG_PARENT=event.Top)
+    IF errLogg NE '' THEN sv=DIALOG_MESSAGE(errLogg, DIALOG_PARENT=evTop)
   ENDIF
   WIDGET_CONTROL, lblAutoProgress, SET_VALUE=''
   WIDGET_CONTROL, listAuto, SET_VALUE=tempnames, SET_LIST_SELECT=0

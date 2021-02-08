@@ -40,7 +40,7 @@ pro sortImgs, GROUP_LEADER = mainbase, xoff, yoff, firstLast
   tempMod=WHERE(availMod EQ allMod(modality))
   IF tempMod EQ -1 THEN sens=0 ELSE sens=1
 
-  RESTORE, thisPath+'data\config.dat'
+  RESTORE, configPath
 
   mlTop=WIDGET_BASE(sortbox,YSIZE=10)
   
@@ -77,7 +77,16 @@ pro sortImgs, GROUP_LEADER = mainbase, xoff, yoff, firstLast
   lblLoadTemp2=WIDGET_LABEL(sortbox, VALUE='(Only templates for current modality selection is available)', FONT=font1, /ALIGN_LEFT)
   mlTop=WIDGET_BASE(sortbox,YSIZE=10)
   bLoadTemp=WIDGET_BASE(sortbox, XSIZE=355, /ROW, FRAME=1)
-  IF tempMod NE -1 THEN listVals=TAG_NAMES(loadTemp.(modality)) ELSE listVals=''
+  listVals=''
+  IF tempMod NE -1 THEN BEGIN
+    IF N_ELEMENTS(loadTemp) GT 0 THEN BEGIN
+      IF SIZE(loadTemp, /TNAME) EQ 'STRUCT' THEN BEGIN
+        IF N_TAGS(loadTemp) GT modality THEN BEGIN
+          IF SIZE(loadTemp.(modality),/TNAME) EQ 'STRUCT' THEN listVals=TAG_NAMES(loadTemp.(modality))
+        ENDIF
+      ENDIF
+    ENDIF
+  ENDIF
   listTemp=WIDGET_DROPLIST(bLoadTemp, VALUE=listVals, XSIZE=150, FONT=font1, SENSITIV=sens)
   mlRowButt=WIDGET_LABEL(bLoadTemp, VALUE='', XSIZE=20)
   btnLoadTemp=WIDGET_BUTTON(bLoadTemp, VALUE='Load pattern', FONT=font1, UVALUE='loadPattern', SENSITIV=sens)
@@ -115,7 +124,7 @@ pro sortImgs_event, event
       'sortOK':BEGIN
         currSortElem=sortElem
         currAscElem=ascElem
-        WIDGET_CONTROL, Event.top, /DESTROY
+        
         WIDGET_CONTROL, /HOURGLASS
         ;sort by
         IF sortElem(0) NE '' THEN BEGIN
@@ -135,9 +144,9 @@ pro sortImgs_event, event
               IF reformatNo(0) NE -1 THEN newFormat=imgStructInfo[1,reformatNo(0)] ELSE newFormat='STRING'
               IF newFormat EQ 'FLOAT' THEN newFormat='DOUBLE'
               CASE newFormat OF
-                'FLOAT':list2sort=STRING(FLOAT(list2sort)-MIN(FLOAT(list2sort)), FORMAT='(f08.5)');f015.5;
-                'DOUBLE':list2sort=STRING(DOUBLE(list2sort)-MIN(DOUBLE(list2sort)), FORMAT='(f010.5)');f025.5;
-                'LONG':list2sort=STRING(LONG(list2sort)-MIN(LONG(list2sort)), FORMAT='(i010)');f016;
+                'FLOAT':list2sort=STRING(FLOAT(list2sort)-MIN(FLOAT(list2sort)), FORMAT='(f06.5)')
+                'DOUBLE':list2sort=STRING(DOUBLE(list2sort)-MIN(DOUBLE(list2sort)), FORMAT='(f010.5)')
+                'LONG':list2sort=STRING(LONG(list2sort)-MIN(LONG(list2sort)), FORMAT='(i010)')
                 ELSE:
               ENDCASE
               ;IF ascElem(ss) THEN list2sort=REVERSE(list2sort)
@@ -150,10 +159,11 @@ pro sortImgs_event, event
           newSubOrder=multiBsort(keyArr,ascElem);multiBsort function in a2_bsort.pro
           newOrder[firstLastSel(0):firstLastSel(1)]=newSubOrder+firstLastSel(0)
           ;IF ARRAY_EQUAL(newOrder,INDGEN(nImg)) EQ 0 THEN structImgs=reorderStructStruct(structImgs, newOrder)
+          WIDGET_CONTROL, Event.top, /DESTROY
         ENDIF ELSE sv=DIALOG_MESSAGE('No sort pattern was selected. Use the >> button to push the elements to the pattern.', /INFORMATION, DIALOG_PARENT=event.Top)
       END
       'loadPattern':BEGIN
-        RESTORE, thisPath+'data\config.dat'
+        RESTORE, configPath
         currSel=WIDGET_INFO(listTemp, /DROPLIST_SELECT)
         IF currSel NE -1 THEN BEGIN
           sortElem=loadTemp.(tempMod).(currSel).sortBy
@@ -165,7 +175,7 @@ pro sortImgs_event, event
       'savePattern':BEGIN
         sv=DIALOG_MESSAGE('Overwrite selected template with new sort order?',/QUESTION,DIALOG_PARENT=event.top)
         IF sv EQ 'Yes' THEN BEGIN
-          RESTORE, thisPath+'data\config.dat'
+          RESTORE, configPath
           currSel=WIDGET_INFO(listTemp, /DROPLIST_SELECT)
           IF currSel NE -1 THEN BEGIN
 
@@ -185,7 +195,7 @@ pro sortImgs_event, event
             loadTm=loadTemp.(tempMod)
             loadTm=replaceStructStruct(loadTm, loadTempSing, currSel)
             loadTemp=replaceStructStruct(loadTemp, loadTm, tempMod)
-            SAVE, configS, quickTemp, quickTout, loadTemp, FILENAME=thisPath+'data\config.dat'
+            SAVE, configS, quickTemp, quickTout, loadTemp, FILENAME=configPath
           ENDIF
         ENDIF
 

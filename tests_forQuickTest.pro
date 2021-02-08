@@ -473,6 +473,48 @@ pro slicethick
   ENDIF
 end;slicethick
 
+pro ROI
+  COMPILE_OPT hidden
+  COMMON VARI
+  WIDGET_CONTROL, /HOURGLASS
+
+  nImg=N_TAGS(structImgs)
+
+  resArr=FLTARR(2,nImg)-1; mean, stdev
+  testNmb=getResNmb(modality,'ROI',analyseStringsAll)
+  markedArr=INTARR(nImg)
+  IF marked(0) EQ -1 THEN BEGIN
+    IF markedMulti(0) EQ -1 THEN markedArr=markedArr+1 ELSE markedArr=markedMulti[testNmb,*]
+  ENDIF ELSE markedArr(marked)=1
+
+  IF TOTAL(markedArr) GT 0 THEN BEGIN
+    anaImg=WHERE(markedArr EQ 1)
+    first=anaImg(0)
+    activeImg=readImg(structImgs.(first).filename, structImgs.(first).frameNo)
+    updateROI, ANA='ROI', SEL=first
+    szROI=SIZE(ROIroi, /DIMENSIONS)
+
+    nI=MIN([nImg,N_ELEMENTS(markedArr)])
+    FOR i=0, nI-1 DO BEGIN
+      IF markedArr(i) THEN BEGIN
+        activeImg=readImg(structImgs.(i).filename, structImgs.(i).frameNo)
+        updateROI, ANA='ROI', SEL=i
+
+        maske=ROIroi
+        IMAGE_STATISTICS, activeImg, COUNT=nPix, MEAN=meanVal, STDDEV=stddevVal, MASK=maske
+        resArr(0,i)=meanVal
+        resArr(1,i)=stddevVal
+      ENDIF
+      WIDGET_CONTROL, lblProgress, SET_VALUE='ROI progress: '+STRING(i*100./nI, FORMAT='(i0)')+' %'
+    ENDFOR
+    WIDGET_CONTROL, lblProgress, SET_VALUE=''
+    ROIres=resArr
+
+    results(testNmb)=1
+    redrawImg,0,1;active back to original selected
+  ENDIF
+end; ROI
+
 ;CT
 pro mtf
   COMPILE_OPT hidden
@@ -495,6 +537,7 @@ pro mtf
     WIDGET_CONTROL, txtCutLSFW, GET_VALUE=cutLSFW
     WIDGET_CONTROL, txtCutLSFW2, GET_VALUE=cutLSFWf
     WIDGET_CONTROL, txtfreqMTF, GET_VALUE=sampFreq
+    WIDGET_CONTROL, unitDeltaO_MTF_CT, GET_VALUE=unitOffset
 
     tempImg=readImg(structImgs.(first).filename, structImgs.(first).frameNo)
     pixFirst=structImgs.(first).pix(0)
@@ -502,7 +545,7 @@ pro mtf
 
     szFirst=SIZE(tempImg, /DIMENSIONS)
 
-    dxyaO=dxya[0:1]+offxy
+    IF unitOffset THEN dxyaO=dxya[0:1]+offxyMTF/pixFirst ELSE dxyaO=dxya[0:1]+offxyMTF
 
     CASE typeMTF OF
 
@@ -533,7 +576,7 @@ pro mtf
               IF ARRAY_EQUAL(szImg[0:1], szFirst[0:1]) AND curPix EQ pixFirst THEN BEGIN
                 IF WIDGET_INFO(btnSearchMaxMTF, /BUTTON_SET) THEN BEGIN
                   ;search for max in image
-                  halfmax=0.5*(MAX(tempImg)+MIN(tempImg))
+                  halfmax=0.5*(MAX(ABS(tempImg)));+MIN(tempImg))
                   centerPos=ROUND(centroid(tempImg, halfmax,0))
                   x1=centerPos(0)-ROIsz(0) & x2=centerPos(0)+ROIsz(0)
                   y1=centerPos(1)-ROIsz(0) & y2=centerPos(1)+ROIsz(0)
@@ -711,6 +754,7 @@ pro mtfx
   WIDGET_CONTROL, txtMTFroiSzY, GET_VALUE=ROIszY
   WIDGET_CONTROL, cw_formLSFX, GET_VALUE=formLSF
   WIDGET_CONTROL, txtCutLSFWX, GET_VALUE=cutLSFW
+  WIDGET_CONTROL, unitDeltaO_MTF_X, GET_VALUE=unitOffset
 
   nImg=N_TAGS(structImgs)
   testNmb=getResNmb(modality,'MTF',analyseStringsAll)
@@ -727,7 +771,7 @@ pro mtfx
     curPix=structImgs.(first).pix(0)
 
     szFirst=SIZE(tempImg, /DIMENSIONS)
-    dxyaO=dxya[0:1]+offxy
+    IF unitOffset THEN dxyaO=dxya[0:1]+offxyMTF_X/curPix ELSE dxyaO=dxya[0:1]+offxyMTF_X
     ROIszMM=FLOAT([ROIszX(0),ROIszY])/2.
     ROIsz=ROIszMM/curPix
     halfSz=szFirst/2
@@ -910,29 +954,30 @@ pro uniformityNM
 
           ;save corrected image as dat and upload as last image
           IF WIDGET_INFO(btnSaveUnifCorr, /BUTTON_SET) THEN BEGIN
-
-            IF  structImgs.(i).nFrames GT 1 THEN ftxt='_frame'+STRING(structImgs.(i).frameNo,FORMAT='(i0)') ELSE ftxt=''
-            adr=STRMID(structImgs.(i).filename, 0, STRLEN(structImgs.(i).filename)-4)+ ftxt +'_corrected.dat';assuming three letters as suffix eg .dcm or .dat
-            fi=FILE_INFO(adr)
-            IF fi.exists THEN BEGIN
-              c=0
-              WHILE fi.exists AND c LT 10 DO BEGIN
-                adr=STRMID(structImgs.(i).filename, 0, STRLEN(structImgs.(i).filename)-4)+'_corrected'+STRING(c, FORMAT='(i0)')+'.dat'
-                fi=FILE_INFO(adr)
-                c=c+1
-                IF c EQ 10 THEN BEGIN
-                  errLogg=errLogg+'Failed to save more than 10 corrected files with same filepath. Restricted to avoid endless loop.'+newline
-                  adr=''
-                ENDIF
-              ENDWHILE
-            ENDIF
-            IF STRLEN(adr) NE 0 THEN BEGIN
-              adrToSave=[adrToSave,adr]
-              imageQCmatrix=CREATE_STRUCT(structImgs.(i),'matrix', tempImg)
-              imageQCmatrix.filename=adr; changed when opened so that renaming/moving file is possible
-              SAVE, imageQCmatrix, FILENAME=adr
-            ENDIF
-
+            fi=FILE_INFO(FILE_DIRNAME(adr))
+            IF fi.write THEN BEGIN
+              IF  structImgs.(i).nFrames GT 1 THEN ftxt='_frame'+STRING(structImgs.(i).frameNo,FORMAT='(i0)') ELSE ftxt=''
+              adr=STRMID(structImgs.(i).filename, 0, STRLEN(structImgs.(i).filename)-4)+ ftxt +'_corrected.dat';assuming three letters as suffix eg .dcm or .dat
+              fi=FILE_INFO(adr)
+              IF fi.exists THEN BEGIN
+                c=0
+                WHILE fi.exists AND c LT 10 DO BEGIN
+                  adr=STRMID(structImgs.(i).filename, 0, STRLEN(structImgs.(i).filename)-4)+'_corrected'+STRING(c, FORMAT='(i0)')+'.dat'
+                  fi=FILE_INFO(adr)
+                  c=c+1
+                  IF c EQ 10 THEN BEGIN
+                    errLogg=errLogg+'Failed to save more than 10 corrected files with same filepath. Restricted to avoid endless loop.'+newline
+                    adr=''
+                  ENDIF
+                ENDWHILE
+              ENDIF
+              IF STRLEN(adr) NE 0 THEN BEGIN
+                adrToSave=[adrToSave,adr]
+                imageQCmatrix=CREATE_STRUCT(structImgs.(i),'matrix', tempImg)
+                imageQCmatrix.filename=adr; changed when opened so that renaming/moving file is possible
+                SAVE, imageQCmatrix, FILENAME=adr
+              ENDIF
+            ENDIF ELSE errLogg=errLogg+'Saving corrected image failed due to missing write permissions on path'+FILE_DIRNAME(adr)+newline
           ENDIF   ;save?
         ENDIF; correct?
         uR=calcUniformityNM(tempImg, unifROI, curPix)

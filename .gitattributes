@@ -1,0 +1,3 @@
+*.pro linguist-language=IDL
+*.sav linguist-language=IDL
+*.dat linguist-language=IDL

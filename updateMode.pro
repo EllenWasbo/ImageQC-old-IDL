@@ -33,10 +33,10 @@ pro updateMode
   analyseStrings=analyseStringsAll.(selTab)
   analyse=analyseStrings(selTest)
 
-  RESTORE, thisPath+'data\config.dat'; getting the quickTemp-structure
+  RESTORE, configPath; getting the quickTemp-structure
   IF N_ELEMENTS(quickTemp) NE 0 THEN BEGIN
     IF SIZE(quickTemp, /TNAME) EQ 'STRUCT' THEN BEGIN
-      IF SIZE(quickTemp.(modality), /TNAME) EQ 'STRUCT' THEN fillQuickTempList, quickTemp.(modality) ELSE fillQuickTempList, -1
+      IF SIZE(quickTemp.(modality), /TNAME) EQ 'STRUCT' THEN fillQuickTempList, quickTemp.(modality) ELSE fillQuickTempList, -1; fillQuickTempList in refreshparam.pro
     ENDIF ELSE fillQuickTempList, -1
   ENDIF ELSE fillQuickTempList, -1
 

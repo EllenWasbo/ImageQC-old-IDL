@@ -22,12 +22,12 @@ pro RenameDICOM, GROUP_LEADER = mainbase, xoff, yoff, inputAdr
   COMMON VARI
   COMPILE_OPT hidden
 
-  origPaths=inputAdr
+  origPaths=inputAdr(uniq(inputAdr))
   inputAdrRD=inputAdr
   newPaths=''
   IF origPaths(0) NE '' THEN pathType=2 ELSE pathType=0; 1=subdirectories, 2=DICOM-files
 
-  RESTORE, thisPath+'data\config.dat'
+  RESTORE, configPath
   tagDesc=TAG_NAMES(renameTemp.tags)
   nT=N_TAGS(renameTemp.tags)
   formatDefault=STRARR(nT)
@@ -107,7 +107,10 @@ pro RenameDICOM, GROUP_LEADER = mainbase, xoff, yoff, inputAdr
   mlmTbl=WIDGET_LABEL(bTable, VALUE='', XSIZE=20)
   rownames=['Original name', 'Suggested name']
   displayStrArr=STRARR(2,200)
-  IF origPaths(0) NE '' THEN displayStrArr[0,0:MIN([200,N_ELEMENTS(origPaths)])-1]=origPaths
+  IF origPaths(0) NE '' THEN BEGIN
+    origPathsUniq=origPaths(UNIQ(origPaths))
+    displayStrArr[0,0:MIN([200,N_ELEMENTS(origPathsUniq)])-1]=origPathsUniq
+  ENDIF
   tblAdr = WIDGET_TABLE(bTable, VALUE=displayStrArr, SCR_XSIZE=700, XSIZE=2, YSIZE=200, SCR_YSIZE=400, /NO_ROW_HEADERS, column_widths=[350,350], column_labels=rownames, ALIGNMENT=1)
   lblMl3=WIDGET_LABEL(bTable, VALUE='', XSIZE=20)
   bSide=WIDGET_BASE(bTable, /COLUMN)
@@ -163,14 +166,15 @@ pro RenameDICOM_event, event
             '1, BASE,, /ROW', $
             '0, BUTTON, Overwrite, QUIT, TAG=Overwrite',$
             '2, BUTTON, New, QUIT, TAG=New']
-          res=CW_FORM_2(box, /COLUMN, TAB_MODE=1, TITLE='Owerwrite or new?', XSIZE=260, YSIZE=100, FOCUSNO=1)
+          res=CW_FORM_2(box, /COLUMN, TAB_MODE=1, TITLE='Owerwrite or new?', XSIZE=260, YSIZE=100, FOCUSNO=1, XOFFSET=xoffset+200, YOFFSET=yoffset+200)
 
           IF res.Overwrite THEN BEGIN
             newTemp=0
-            updTemp=CREATE_STRUCT('cat',catTemp,'file',fileTemp,'formats',formatCurr)
-            temps=replaceStructStruct(renameTemp.temp,updTemp,selNo)
+            RESTORE, configPath
+            temptemp=CREATE_STRUCT('cat',catTemp,'file',fileTemp,'formats',formatCurr)
+            temps=replaceStructStruct(renameTemp.temp,temptemp,selNo)
             renameTemp=replaceStructStruct(renameTemp,temps,2)
-            SAVE, configS, quickTemp, quickTout, loadTemp, renameTemp, FILENAME=thisPath+'data\config.dat'
+            SAVEIF, saveOK, configS, quickTemp, quickTout, loadTemp, renameTemp, FILENAME=configPath
           ENDIF
 
           IF newTemp THEN BEGIN
@@ -180,10 +184,10 @@ pro RenameDICOM_event, event
               '1, BASE,, /ROW', $
               '0, BUTTON, Cancel, QUIT, TAG=Cancel',$
               '2, BUTTON, Save, QUIT, TAG=Save']
-            res=CW_FORM_2(box, /COLUMN, TAB_MODE=1, TITLE='Owerwrite or new?', XSIZE=200, YSIZE=100, FOCUSNO=1)
+            res=CW_FORM_2(box, /COLUMN, TAB_MODE=1, TITLE='Owerwrite or new?', XSIZE=200, YSIZE=100, FOCUSNO=1, XOFFSET=xoffset+200, YOFFSET=yoffset+200)
             IF res.Save THEN BEGIN
               IF res.tempname NE '' THEN BEGIN
-                RESTORE, thisPath+'data\config.dat'
+                RESTORE, configPath
                 tempname=STRUPCASE(IDL_VALIDNAME(res.tempname, /CONVERT_ALL))
                 alrNames=TAG_NAMES(renameTemp.temp)
                 IF alrNames.HasValue(tempname) THEN BEGIN
@@ -192,8 +196,8 @@ pro RenameDICOM_event, event
                   newT=CREATE_STRUCT('cat',catTemp,'file',fileTemp,'formats',formatCurr)
                   temps=CREATE_STRUCT(renameTemp.temp,tempname,newT)
                   renameTemp=replaceStructStruct(renameTemp,temps,2)
-                  SAVE, configS, quickTemp, quickTout, loadTemp, renameTemp, FILENAME=thisPath+'data\config.dat'
-                  updTemp, selTemp+1, 1
+                  SAVEIF, saveOK, configS, quickTemp, quickTout, loadTemp, renameTemp, FILENAME=configPath
+                  updTemp, N_ELEMENTS(alrNames), 1
                 ENDELSE
               ENDIF ELSE sv=DIALOG_MESSAGE('No new name entered. Could not save template.', DIALOG_PARENT=event.top)
             ENDIF
@@ -202,12 +206,12 @@ pro RenameDICOM_event, event
       END
       'delTemp': BEGIN
         IF saveOK THEN BEGIN
-          RESTORE, thisPath+'data\config.dat'
+          RESTORE, configPath
           nT=N_TAGS(renameTemp.temp)
           IF nT GT 1 THEN BEGIN
             temps=removeIdStructStruct(renameTemp.temp,selTemp)
             renameTemp=replaceStructStruct(renameTemp,temps,2)
-            SAVE, configS, quickTemp, quickTout, loadTemp, renameTemp, FILENAME=thisPath+'data\config.dat'
+            SAVEIF, saveOK, configS, quickTemp, quickTout, loadTemp, renameTemp, FILENAME=configPath
             updTemp, 0, 1
           ENDIF ELSE sv=DIALOG_MESSAGE('At least one template is required to be kept.', DIALOG_PARENT=event.top)
         ENDIF ELSE sv=DIALOG_MESSAGE('Save blocked by another user session. Go to settings and remove blocking if this is due to a previous program crash.', DIALOG_PARENT=event.Top)
@@ -278,6 +282,7 @@ pro RenameDICOM_event, event
           ENDIF
         ENDELSE
         IF origPaths(0) NE '' AND proceed THEN BEGIN
+          origPaths=origPaths(uniq(origPaths))
           nnn=N_ELEMENTS(origPaths)
           ;find all dicom files
           FOR i =0,nnn-1 DO BEGIN
@@ -314,7 +319,15 @@ pro RenameDICOM_event, event
               WIDGET_CONTROL, lblStatus, SET_VALUE='Moving file '+STRING(i,FORMAT='(i0)')+'/'+  STRING(nFiles,FORMAT='(i0)')
               file_move, origPaths(i), newPaths(i) 
               askEmptyDir=[askEmptyDir, FILE_DIRNAME(origPaths(i))]
-              IF inputAdrRD(0) NE '' AND adr(0) EQ '' THEN structImgs.(i).filename=newPaths(i)
+              IF inputAdrRD(0) NE '' AND adr(0) EQ '' THEN BEGIN
+                filenoInput=where(inputAdrRD EQ origPaths(i))
+                IF filenoInput(0) NE -1 THEN BEGIN
+                  FOR inputi=0, N_ELEMENTS(filenoInput)-1 DO BEGIN
+                    inputAdrRD(filenoInput(inputi))=newPaths(i)
+                    structImgs.(filenoInput(inputi)).filename=newPaths(i)
+                  ENDFOR
+                ENDIF
+              ENDIF
             ENDIF
           endfor
 
@@ -336,7 +349,7 @@ pro RenameDICOM_event, event
               askEmptyDir=askEmptyDir(UNIQ(askEmptyDir))
               FOR i=0, N_ELEMENTS(askEmptyDir)-1 DO BEGIN
                 fi=FILE_INFO(askEmptyDir(i))
-                IF fi.size EQ 0 THEN BEGIN
+                IF fi.size EQ 0 AND fi.write THEN BEGIN
                   WIDGET_CONTROL, lblStatus, SET_VALUE='Deleting empty subfolder '+STRING(i+1,FORMAT='(i0)')
                   FILE_DELETE, askEmptyDir(i), /QUIET
                 ENDIF
@@ -346,7 +359,6 @@ pro RenameDICOM_event, event
           WIDGET_CONTROL, lblStatus, SET_VALUE=''
           IF inputAdrRD(0) NE '' AND adr(0) EQ '' THEN BEGIN
             origPaths=newPaths
-            inputAdrRD=newPaths
             displayStrArr=STRARR(2,200)
             pathType=2
             IF origPaths(0) NE '' THEN displayStrArr[0,0:MIN([200,N_ELEMENTS(origPaths)])-1]=origPaths
@@ -375,6 +387,7 @@ pro RenameDICOM_event, event
           ENDIF
         ENDELSE
         IF origPaths(0) NE '' AND proceed THEN BEGIN
+          origPaths=origPaths(uniq(origPaths))
           nnn=N_ELEMENTS(origPaths)
           ;find all dicom files
           FOR i =0,nnn-1 DO BEGIN
@@ -411,7 +424,15 @@ pro RenameDICOM_event, event
           for i=0, nFiles-1 do BEGIN
             IF origPaths(i) NE '' AND origPaths(i) NE newPaths(i) THEN BEGIN
               file_move, origPaths(i), newPaths(i)
-              IF inputAdrRD(0) NE '' AND adr(0) EQ '' THEN structImgs.(i).filename=newPaths(i)
+              IF inputAdrRD(0) NE '' AND adr(0) EQ '' THEN BEGIN
+                filenoInput=where(inputAdrRD EQ origPaths(i))
+                IF filenoInput(0) NE -1 THEN BEGIN
+                  FOR inputi=0, N_ELEMENTS(filenoInput)-1 DO BEGIN
+                    inputAdrRD(filenoInput(inputi))=newPaths(i)
+                    structImgs.(filenoInput(inputi)).filename=newPaths(i)
+                  ENDFOR
+                ENDIF
+              ENDIF
             ENDIF
           endfor
 
@@ -419,7 +440,6 @@ pro RenameDICOM_event, event
           displayArr=STRARR(2,200)
           IF inputAdrRD(0) NE '' AND adr(0) EQ '' THEN BEGIN
             origPaths=newPaths
-            inputAdrRD=newPaths
             IF origPaths(0) NE '' THEN displayArr[0,0:MIN([200,N_ELEMENTS(origPaths)])-1]=origPaths
           ENDIF
           WIDGET_CONTROL, tblAdr, SET_VALUE=displayArr
@@ -443,7 +463,7 @@ pro RenameDICOM_event, event
           b=string(a,FORMAT='('+newFormat(0)+')');cause error?
 
           formatCurr.(sel)='('+newFormat(0)+')'
-          WIDGET_CONTROL, txtFormat, GET_VALUE=newFormat(0)
+          WIDGET_CONTROL, txtFormat, SET_VALUE=newFormat(0)
         ENDIF
       END
 
@@ -461,7 +481,7 @@ pro RenameDICOM_event, event
     IF update GE 1 THEN BEGIN; find dicom files within path in txtCat field if defined else use inputAdr
       WIDGET_CONTROL, /HOURGLASS
       WIDGET_CONTROL, txtCat, GET_VALUE=adr
-      RESTORE, thisPath+'data\config.dat'
+      RESTORE, configPath
       res=''
       IF adr(0) NE '' THEN BEGIN; find dicom files within path in txtCat field
         Spawn, 'dir '  + '"'+adr(0)+'"' + '*'+ '/b /ad', res; directories only
@@ -557,7 +577,15 @@ pro RenameDICOM_event, event
         for i=0, nP-1 do begin
           IF newPaths(i) NE '' AND newPaths(i) NE origPaths(i) THEN BEGIN
             file_move, origPaths(i), newPaths(i)
-            IF inputAdrRD(0) NE '' AND adr(0) EQ '' THEN structImgs.(i).filename=newPaths(i)
+            IF inputAdrRD(0) NE '' AND adr(0) EQ '' THEN BEGIN
+              filenoInput=where(inputAdrRD EQ origPaths(i))
+              IF filenoInput(0) NE -1 THEN BEGIN
+                FOR inputi=0, N_ELEMENTS(filenoInput)-1 DO BEGIN
+                  inputAdrRD(filenoInput(inputi))=newPaths(i)
+                  structImgs.(filenoInput(inputi)).filename=newPaths(i)
+                ENDFOR
+              ENDIF
+            ENDIF
             antEndret=antEndret+1
           ENDIF
           WIDGET_CONTROL, lblStatus, SET_VALUE='Renaming... '+STRING(i,FORMAT='(i0)')+' / '+STRING(nP, FORMAT='(i0)')
@@ -581,7 +609,7 @@ pro RenameDICOM_event, event
                 nFiles=N_ELEMENTS(origPaths)
                 WIDGET_CONTROL, lblStatus, SET_VALUE='Renaming '+STRING(nFiles,FORMAT='(i0)')+' files in directory '+STRING(i+1, FORMAT='(i0)')+'/'+STRING(nDirs, FORMAT='(i0)')
                 newPaths=origPaths & newPaths[*]=''
-                RESTORE, thisPath+'data\config.dat'
+                RESTORE, configPath
                 for j=0, nFiles-1 do newPaths(j)=newFileName(origPaths(j), 0, fileTemp, renameTemp.tags, formatCurr)
                 modPaths=getUniqPaths(origPaths,newPaths,pathType)
                 origPaths=modPaths.origPaths & newPaths=modPaths.newPaths
@@ -633,7 +661,7 @@ pro updTemp, sel, refreshTempList
   COMPILE_OPT hidden
 
   IF selTemp NE sel OR refreshTempList THEN BEGIN;new selection
-    RESTORE, thisPath+'data\config.dat'
+    RESTORE, configPath
     formatCurr=renameTemp.temp.(sel).formats
     catTemp=renameTemp.temp.(sel).cat
     fileTemp=renameTemp.temp.(sel).file
@@ -687,7 +715,7 @@ pro clearRD
   COMPILE_OPT hidden
   WIDGET_CONTROL, lblStatus, SET_VALUE=''
   WIDGET_CONTROL, txtCat, SET_VALUE=''
-  origPaths=inputAdrRD
+  origPaths=inputAdrRD(uniq(inputAdrRD))
   displayStrArr=STRARR(2,200)
   pathType=2
   IF origPaths(0) NE '' THEN displayStrArr[0,0:MIN([200,N_ELEMENTS(origPaths)])-1]=origPaths

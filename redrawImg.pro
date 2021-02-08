@@ -81,12 +81,13 @@ pro redrawImg, viewpl, newActive
 ;        oModel->Add, thisROI
 ;      ENDIF
 
-      analyseArr=['HOMOG', 'NOISE','HUWATER','STP','UNIF','SNI','BAR','CONTRAST','CROSSCALIB','RC']
+      analyseArr=['HOMOG', 'NOISE','HUWATER','ROI','STP','UNIF','SNI','BAR','CONTRAST','CROSSCALIB','RC']
       IF analyseArr.HasValue(analyse) THEN BEGIN
         CASE analyse OF
           'HOMOG': ROIs=homogROIs
           'NOISE': ROIs=noiseROI
           'HUWATER': ROIs=HUwaterROI
+          'ROI': ROIs=ROIroi
           'CROSSCALIB': ROIs=crossROI
           'STP': ROIs=stpROI
           'UNIF': ROIs=unifROI
@@ -112,7 +113,7 @@ pro redrawImg, viewpl, newActive
             colors[*,7]= [255,255,255]
             colors[*,8]= [125,125,255]
           ENDIF ELSE colors[0,*]=255
-          IF analyse NE 'SNI' THEN BEGIN
+          IF analyse NE 'SNI' OR analyse EQ 'ROI' THEN BEGIN
             contour0=OBJ_NEW('IDLgrContour',ROIs[*,*,0],COLOR=colors[*,0], C_VALUE=0.5, N_LEVELS=1)
             oModel->Add, Contour0
           ENDIF
@@ -325,10 +326,12 @@ pro redrawImg, viewpl, newActive
         lineX->SetProperty, DATA=[[0,halfSz(1)+dxya(1)+dy1],[sizeAct(0),halfSz(1)+dxya(1)-dy2]]
         lineY->SetProperty, DATA=[[halfSz(0)+dxya(0)-dx1,0],[halfSz(0)+dxya(0)+dx2,sizeAct(1)]]
         IF analyse EQ 'MTF' THEN BEGIN; dxya(2) = 0 & dxya(3)=1
-          dxyaO=dxya[0:1]+offxy
+          
           CASE curMode OF
 
             0: BEGIN;CT
+              WIDGET_CONTROL, unitDeltaO_MTF_CT, GET_VALUE=unitOffset
+              IF unitOffset THEN dxyaO=dxya[0:1]+offxyMTF/tempStruct.pix ELSE dxyaO=dxya[0:1]+offxyMTF
               WIDGET_CONTROL, txtMTFroiSz, GET_VALUE=ROIsz
               ROIsz=ROUND(ROIsz(0)/tempStruct.pix)
               WIDGET_CONTROL, cw_typeMTF, GET_VALUE=typeMTF
@@ -336,7 +339,7 @@ pro redrawImg, viewpl, newActive
                 ;search for max in image
                 CASE typeMTF OF
                   0: BEGIN;bead
-                    halfmax=0.5*(MAX(activeImg)+MIN(activeImg))
+                    halfmax=0.5*(MAX(ABS(activeImg)));+MIN(activeImg))
                     centerPos=ROUND(centroid(activeImg, halfmax, 0))
                     END
                   1:BEGIN;wire
@@ -353,9 +356,11 @@ pro redrawImg, viewpl, newActive
                     ;IF yy1 LT 0 THEN yy1=0 & IF yy2 GT sizeAct(1)-1 THEN yy2=sizeAct(1)-1
                     x1=ROUND(halfSz(0)+dxyaO(0)-ROIsz(0)) & x2=ROUNd(halfSz(0)+dxyaO(0)+ROIsz(0))
                     y1=ROUND(halfSz(1)+dxyaO(1)-ROIsz(0)) & y2=ROUND(halfSz(1)+dxyaO(1)+ROIsz(0))
-                    subma=activeImg[x1:x2,y1:y2]
-                    centerPosSubma=ROUND(centroid(subma, MIN(subma)))
-                    centerPos=[x1,y1]+centerPosSubma
+                    IF x1 GE 0 AND y1 GE 0 AND x2 LT sizeAct(0) AND y2 LT sizeAct(1) THEN BEGIN
+                      subma=activeImg[x1:x2,y1:y2]
+                      centerPosSubma=ROUND(centroid(subma, MIN(subma)))
+                      centerPos=[x1,y1]+centerPosSubma
+                    ENDIF ELSE centerPos=[-1,-1]
                   END
                   ELSE:
                 ENDCASE         
@@ -377,6 +382,8 @@ pro redrawImg, viewpl, newActive
               ENDIF
             END
             1: BEGIN;xray
+              WIDGET_CONTROL, unitDeltaO_MTF_X, GET_VALUE=unitOffset
+              IF unitOffset THEN dxyaO=dxya[0:1]+offxyMTF_X/tempStruct.pix ELSE dxyaO=dxya[0:1]+offxyMTF_X
               WIDGET_CONTROL, txtMTFroiSzX, GET_VALUE=ROIszX
               WIDGET_CONTROL, txtMTFroiSzY, GET_VALUE=ROIszY
               ROIsz=ROUND([ROIszX(0),ROIszY(0)]/(2.*tempStruct.pix))

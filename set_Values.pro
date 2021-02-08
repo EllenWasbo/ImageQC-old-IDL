@@ -1,36 +1,38 @@
-;tags in imgStruct that is not string or are specific to one modality [tag, typestring, modalitynumbers separated by / or empty for all
+;tags in imgStruct that is not string or are specific to one modality [tag, typestring, modalitynumbers separated by / or empty for all, DICOM tag xxxx xxxx (or empty if too complicated or prevent showing
 pro set_imgStructInfo, iSi
-  iSi=[['seriesNmb','LONG',''],$
-    ['acqNmb','LONG',''],$
-    ['imgNo','LONG',''],$
-    ['detectorID','STRING','1'],$
-    ['nFrames','LONG',''],['frameNo','LONG',''],$
-    ['wCenter','FLOAT',''],['wWidth','FLOAT',''],$
-    ['zoomFactor','FLOAT',''],$
-    ['sliceThick','FLOAT','0/3/4/5'], $
-    ['pix', 'FLOAT',''],['imageSize','LONG',''],$
-    ['FOV','FLOAT',''],['rekonFOV','FLOAT','0/3/4/5'],$
-    ['zpos', 'FLOAT','0/3/4/5'], $
-    ['reconMethod','STRING','2/3/4'],$
-    ['kernel','STRING','0/3/4'],$
-    ['kVp','FLOAT','0/1'],['mA','FLOAT','0/1'],['mAs','FLOAT','0/1'],['ExpTime','FLOAT','0/1'],$
-    ['filterAddOn','STRING','0/1'],$
-    ['coll','FLOAT','0'],['pitch','FLOAT','0'],$
-    ['ExModType','STRING','0'],$
-    ['CTDIvol','FLOAT','0'],['DAP','FLOAT','1'],$
-    ['EI','FLOAT','1'],['sensitivity','FLOAT','1'],$
-    ['sdd','FLOAT','1'],$
-    ['collType','STRING','2/3/4'],$
-    ['nEWindows','LONG','2/3/4'],['EWindowName','STRING','2/3/4'],$
-    ['radius1','FLOAT','2/3'],['radius2','FLOAT','2/3'],$
-    ['angle','FLOAT','2/3/4'],$
-    ['acqFrameDuration','DOUBLE','2/3/4'],['acqTerminationCond','STRING','2/3/4'],['radiopharmaca','STRING','2/3/4'],['admDose','FLOAT','2/3/4'],['admDoseTime','STRING','2/3/4'],$
-    ['attCorrMethod','STRING','2/3/4'],['scaCorrMethod','STRING','2/3/4'],['scatterFrac','FLOAT','2/3/4'],$
-    ['imgFreq','FLOAT','5'],['MRacqType','STRING','5'],['MRscanSeq','STRING','5'],['MRseqVariant','STRING','5'],$
-    ['TR','LONG','5'],['TE','LONG','5'],['NSA','LONG','5'],['flipAng','LONG','5'],['spaceSlice','FLOAT','5'],['recCoilName','STRING','5'],['traCoilName','STRING','5']]
+  iSi=[['modality','STRING','','0008 0060'],['detectorID','STRING','1/2','0018 700A'],$
+    ['patientName','STRING','','0010 0010'],['patientID','STRING','','0010 0020'],['imageType','STRING','','0008 0008'],['presType','STRING','','0008 0068'],$
+    ['studyDescr','STRING','','0008 1030'],['seriesName','STRING','','0008 103E'],['protocolName','STRING','','0018 1030'],['seriesNmb','LONG','','0020 0011'],['acqNmb','LONG','','0020 0012'],$
+    ['imgNo','LONG','','0020 0013'],$
+    ['detectorID','STRING','1','0018 700A'],$
+    ['nFrames','LONG','','0028 0008'],['frameNo','LONG','',''],$
+    ['wCenter','FLOAT','','0028 1050'],['wWidth','FLOAT','','0028 1051'],$
+    ['zoomFactor','FLOAT','','0028 0031'],$
+    ['sliceThick','FLOAT','0/3/4/5','0018 0050'], $
+    ['pix', 'FLOAT','','0028 0030'],['imageSize','LONG','','0028 0011'],$
+    ['FOV','FLOAT','','0018 0090'],['rekonFOV','FLOAT','0/3/4/5','0018 1100'],$
+    ['zpos', 'FLOAT','0/3/4/5','0020 1041'], $
+    ['reconMethod','STRING','2/3/4','0054 1103'],$
+    ['kernel','STRING','0/3/4','0018 1210'],$
+    ['kVp','FLOAT','0/1','0018 0060'],['mA','FLOAT','0/1','0018 8151'],['mAs','FLOAT','0/1','0018 1153'],['ExpTime','FLOAT','0/1','0018 1150'],$
+    ['filterAddOn','STRING','0/1','0018 1160'],$
+    ['coll','FLOAT','0','0018 9307'],['pitch','FLOAT','0','0018 9311'],$
+    ['ExModType','STRING','0','0018 9323'],['ExModType','STRING','1','0018 7062'],$
+    ['CTDIvol','FLOAT','0','0018 9345'],['spotSize','FLOAT','0/1','0018 1190'],['DAP','FLOAT','1','0018 115E'],$
+    ['EI','FLOAT','1','0018 1411'],['sensitivity','FLOAT','1','0018 6000'],$
+    ['sdd','FLOAT','1','0018 1110'],$
+    ['collType','STRING','2/3/4','0018 1181'],$
+    ['nEWindows','LONG','2/3/4','0054 0011'],['EWindowName','STRING','2/3/4',''],$
+    ['radius1','FLOAT','2/3',''],['radius2','FLOAT','2/3',''],['detectorVector','STRING','2/3',''],['angle','FLOAT','2/3',''],$
+    ['acqFrameDuration','DOUBLE','2/3/4','0018 1242'],['acqTerminationCond','STRING','2/3/4','0018 0017'],['radiopharmaca','STRING','2/3/4','0018 0031'],['admDose','FLOAT','2/3/4',''],['admDoseTime','STRING','2/3/4',''],$
+    ['attCorrMethod','STRING','2/3/4','0054 1101'],['scaCorrMethod','STRING','2/3/4','0054 1105'],['scatterFrac','FLOAT','2/3/4','0054 1323'],$
+    ['imgFreq','FLOAT','5','0018 0084'],['MRacqType','STRING','5','0018 0023'],['MRscanSeq','STRING','5','0018 0020'],['MRseqVariant','STRING','5','0018 0021'],$
+    ['TR','LONG','5','0018 0080'],['TE','LONG','5','0018 0081'],['NSA','LONG','5','0018 0083'],['flipAng','LONG','5','0018 1314'],$
+    ['spaceSlice','FLOAT','5','0018 0088'],['recCoilName','STRING','5','0018 1250'],['traCoilName','STRING','5','0018 1251']]
 
   RETURN
 end
+
 
 ;tags in configS with explanations for settings.pro [tagname, description, modality (0-4) or output '-1' other '-2', not list in settings like others'-10'' analysestring or '','BOOL/INT/FLOAT/STRING']
 pro set_configSinfo, cSi
@@ -62,7 +64,10 @@ pro set_configSinfo, cSi
     ['cutLSF2','Fade out cut within #FWHM','0','MTF','FLOAT'],$
     ['cutLSFX', 'Cut LSF tails','1','MTF','BOOL'],$
     ['cutLSFX1', 'Cut LSF from halfmax #FWHM','1','MTF','FLOAT'],$
-    ['offxy', 'Extra offset MTF ROI dx,dy','0/1','MTF','INT'], $
+    ['offxyMTF', 'Extra offset MTF ROI dx,dy','0','MTF','INT'], $
+    ['offxyMTF_X', 'Extra offset MTF ROI dx,dy','1','MTF','INT'], $
+    ['offxyMTF_unit', 'Extra offset MTF pix(0) or mm(1)','0','MTF','INT'], $
+    ['offxyMTF_X_unit', 'Extra offset MTF pix(0) or mm(1)','1','MTF','INT'], $
     ['searchMaxMTF_ROI','Center ROI by max in image','0','MTF','BOOL'],$
     ['LinROIradS','Search ROI radius','0','CTLIN','FLOAT'],$
     ['LinROIrad','ROI radius','0','CTLIN','FLOAT'],$
@@ -81,6 +86,13 @@ pro set_configSinfo, cSi
     ['HomogROIdistPET','ROI distance from center','4','HOMOG','FLOAT'],$
     ['NoiseROIsz','ROI radius','0','NOISE','FLOAT'],$
     ['HUwaterROIsz','ROI radius','0','HUWATER','FLOAT'],$
+    ['typeROI','ROI shape (0..2)','0','ROI','INT'],$
+    ['ROIrad','ROI radius','0','ROI','FLOAT'],$
+    ['ROIx','ROI size x','0','ROI','FLOAT'],$
+    ['ROIy','ROI size y','0','ROI','FLOAT'],$
+    ['ROIa','ROI rotation','0','ROI','FLOAT'],$
+    ['offxyROI', 'Extra offset ROI dx,dy','0','ROI','INT'], $
+    ['offxyROI_unit', 'Extra offset ROI pix(0) or mm(1)','0','ROI','INT'], $
     ['NPSroiSz', 'ROI size','0','NPS','INT'],$
     ['NPSroiDist','ROI distance from center','0','NPS','FLOAT'],$
     ['NPSsubNN', 'Number of ROIs', '0','NPS','INT'],$

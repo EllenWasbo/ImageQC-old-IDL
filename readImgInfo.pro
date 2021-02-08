@@ -76,6 +76,7 @@ end
 ;  .pitch
 ;  .ExModType (exposure modulation type)
 ;  .CTDIvol
+;  .spotSize
 ;  .DAP
 ;  .EI
 ;  .sensitivity
@@ -92,6 +93,7 @@ end
 ;  .zoomFactor
 ;  .radius1 (gamma camera radius 1st detektor)
 ;  .radius2 (gamma camera radius 2nd detektor)
+;  .detectorVector (gamma camera - detector pr frame)
 ;  .acqFrameDuration
 ;  .acqTerminationCond
 ;  .units (of pixel values ex: HU, BQML ...)
@@ -390,6 +392,13 @@ function readImgInfo, adr, dialog_par, silentValue
         ENDIF ELSE BEGIN
           radPos1=-1. &  radPos2=-1.
         ENDELSE
+              
+        test=o->GetReference('0054'x,'0020'x)
+        IF test(0) NE -1 THEN BEGIN
+          test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
+          detString=*(test_peker[0])
+          detectorVector=STRSPLIT(detString,'\',/EXTRACT)
+        ENDIF ELSE detectorVector='-'
 
         test=o->GetReference('0018'x,'9345'x)
         test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
@@ -401,6 +410,10 @@ function readImgInfo, adr, dialog_par, silentValue
           ENDIF
         ENDIF ELSE CTDIvol=-1.
 
+        test=o->GetReference('0018'x,'1190'x)
+        test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
+        IF test(0) NE -1 THEN spotSize=*(test_peker[0]) ELSE spotSize=-1.
+
         test=o->GetReference('0018'x,'115E'x)
         test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
         IF test(0) NE -1 THEN DAP=*(test_peker[0]) ELSE BEGIN
@@ -408,6 +421,10 @@ function readImgInfo, adr, dialog_par, silentValue
           test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
           IF test(0) NE -1 THEN DAP=*(test_peker[0]) ELSE DAP=-1.
         ENDELSE
+        IF N_ELEMENTS(DAP) EQ 4 THEN BEGIN
+          DAP=FIX(DAP, 0, 1, type=4)
+          DAP=DAP(0)
+        ENDIF
 
         test=o->GetReference('0018'x,'1411'x)
         test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
@@ -628,19 +645,20 @@ function readImgInfo, adr, dialog_par, silentValue
         imgStruct=CREATE_STRUCT('filename',adr,'studydatetime', studyDate+studyTime, 'acqDate', acqDate, 'imgDate', imgDate, 'institution',institution,'manufacturer',manufacturer,'modality', modality, 'modelName',modelName,'stationName',stationName,'SWversion',SWversion,'detectorID',detectorID,$
           'patientName',patientName, 'patientID', patientID, 'patientWeight', patientWeight, 'imageType',imageType,'presType',presType,'studyDescr',studyDescr,'seriesName',seriesName, 'protocolname', protocolname,$
           'seriesNmb',seriesNmb,'seriesTime', seriesTime,'seriesUID',seriesUID,'acqNmb',acqNmb, 'acqtime',acqtime,'sliceThick',sliceThick, 'pix', pix,'imageSize',imageSize,'kVp',kVp,'FOV',dFOV,'rekonFOV',rekonFOV,'mA',mA,'mAs',mAs,'ExpTime',time,'coll',coll,'pitch',pitch,$
-          'ExModType',ExModType,'CTDIvol',CTDIvol,'DAP',DAP,'EI',EI,'sensitivity',sensitivity,'sdd',sdd,'filterAddOn',filterAddOn,'kernel',kernel,$
+          'ExModType',ExModType,'CTDIvol',CTDIvol,'spotSize',spotSize,'DAP',DAP,'EI',EI,'sensitivity',sensitivity,'sdd',sdd,'filterAddOn',filterAddOn,'kernel',kernel,$
           'zpos', zpos, 'imgNo',imgNo,'nFrames',nFrames,'wCenter',wCenter,'wWidth',wWidth,$
-          'collType',collType,'nEWindows',nEWindows,'EWindowName',EWindowName,'zoomFactor',zoomFactor,'radius1',radPos1,'radius2',radPos2,'angle',angle,'acqFrameDuration',acqFrameDuration,'acqTerminationCond',acqTerminationCond,$
+          'collType',collType,'nEWindows',nEWindows,'EWindowName',EWindowName,'zoomFactor',zoomFactor,'radius1',radPos1,'radius2',radPos2,'detectorVector',detectorVector,'angle',angle,'acqFrameDuration',acqFrameDuration,'acqTerminationCond',acqTerminationCond,$
           'units',units,'radiopharmaca',radiopharmaca,'admDose',admDose,'admDoseTime',admDoseTime,'reconMethod',reconMethod,'attCorrMethod',attCorrMethod,'scaCorrMethod',scaCorrMethod, 'scatterFrac',scatterFrac,$
           'imgFreq',imgFreq,'MRacqType',MRacqType,'MRscanSeq',MRscanSeq,'MRseqVariant',MRseqVariant,'TR',TR,'TE',TE,'NSA',NSA,'flipAng',flipAng,'spaceSlice',spaceSlice,'recCoilName',recCoilName,'traCoilName',traCoilName,$
           'frameNo', frameNo)
 
         IF imgStruct.nFrames GT 1 THEN BEGIN; split structure into separate image-structures
-          firstStruct=structArr2elem(imgStruct, ['ZPOS','RADIUS1','RADIUS2','ANGLE'], 0)
+          tagsToSplit= ['ZPOS','RADIUS1','RADIUS2','ANGLE','DETECTORVECTOR']
+          firstStruct=structArr2elem(imgStruct,tagsToSplit, 0)
           firstStruct.frameNo=1
           imgStructMulti=CREATE_STRUCT('M0',firstStruct)
           FOR ism=1,  imgStruct.nFrames -1 DO BEGIN
-            imgStructMulti=CREATE_STRUCT(imgStructMulti,'M'+STRING(ism,FORMAT='(i0)'),structArr2elem(imgStruct, ['ZPOS','RADIUS1','RADIUS2','ANGLE'], ism))
+            imgStructMulti=CREATE_STRUCT(imgStructMulti,'M'+STRING(ism,FORMAT='(i0)'),structArr2elem(imgStruct, tagsToSplit, ism))
             imgStructMulti.(ism).frameNo=ism+1
           ENDFOR
           imgStruct=imgStructMulti
@@ -756,7 +774,10 @@ function readImgInfo, adr, dialog_par, silentValue
           radPosString=findTxtHeader(tagStr,valStr,'0018,1142','', IDno=1)
           radPos2=FLOAT(STRSPLIT(radposString,'\',/EXTRACT))
         ENDIF ELSE radPos2=-1.
+        detNmbString=findTxtHeader(tagStr,valStr,'0054,0020','')
+        IF detNmbString NE '' THEN detectorVector=STRSPLIT(detNmbStrin,'\',/EXTRACT) ELSE detectorVector='-'
         CTDIvol=findTxtHeader(tagStr,valStr,'0018,9345',-1.)
+        spotSize=findTxtHeader(tagStr,valStr,'0018,1190',-1.)
         DAP=findTxtHeader(tagStr,valStr,'0018,115E',-1.)
         IF DAP EQ -1. THEN DAP=findTxtHeader(tagStr,valStr,'0018,9473',-1.)
         EI=findTxtHeader(tagStr,valStr,'0018,1411',-1.)
@@ -811,6 +832,7 @@ function readImgInfo, adr, dialog_par, silentValue
         strOri=STRTRIM(STRING(findTxtHeader(tagStr,valStr,'0018,1053',''),2))
         IF strOri EQ 'FFS' THEN ori=1
         ;TODO: multiframe?
+        IF nFrames GT 1 THEN sv=DIALOG_MESSAGE('DICOM from text not yet implented for multiframe DICOM. Strange behaviour or crashes might occur. Contact the supplier of the software to make a wish.', DIALOG_PARENT=evTop)
 
       ENDIF
     ENDIF
@@ -821,9 +843,9 @@ function readImgInfo, adr, dialog_par, silentValue
       imgStruct=CREATE_STRUCT('filename',adr,'studydatetime', '', 'acqDate', '', 'imgDate', '', 'institution','','manufacturer','','modality', '', 'modelName','','stationName','','SWversion','','detectorID','',$
         'patientName','', 'patientID', '', 'patientWeight', '-', 'imageType','','presType','','studyDescr','','seriesName','', 'protocolname', '',$
         'seriesNmb',-1,'seriesTime', '','seriesUID','','acqNmb',-1, 'acqtime','','sliceThick',-1., 'pix', [-1.,-1.],'imageSize',[-1,-1],'kVp',-1.,'FOV',-1.,'rekonFOV',-1.,'mA',-1.,'mAs',-1.,'ExpTime',-1.,'coll',[-1.,-1.],'pitch',-1.,$
-        'ExModType','-','CTDIvol',-1.,'DAP',-1.,'EI',-1.,'sensitivity',-1.,'sdd',-1.,'filterAddOn','','kernel','-',$
+        'ExModType','-','CTDIvol',-1.,'spotSize',-1.,'DAP',-1.,'EI',-1.,'sensitivity',-1.,'sdd',-1.,'filterAddOn','','kernel','-',$
         'zpos', -999., 'imgNo',-1,'nFrames',0,'wCenter',-1,'wWidth',-1,$
-        'collType','-','nEWindows',-1,'EWindowName','-','zoomFactor','-','radius1',-1.,'radius2',-1.,'angle',-999.,'acqFrameDuration',-1.,'acqTerminationCond','-',$
+        'collType','-','nEWindows',-1,'EWindowName','-','zoomFactor','-','radius1',-1.,'radius2',-1.,'detectorVector',detectorVector,'angle',-999.,'acqFrameDuration',-1.,'acqTerminationCond','-',$
         'units','-','radiopharmaca','-','admDose','-','admDoseTime','-','reconMethod','-','attCorrMethod','-','scaCorrMethod','-', 'scatterFrac','-',$
         'imgFreq',-1.,'MRacqType','-','MRscanSeq','-','MRseqVariant','-','TR',-1.,'TE',-1.,'NSA',-1.,'flipAng',-1.,'spaceSlice',-1.,'recCoilName','-','traCoilName','-',$
         'frameNo', frameNo)
@@ -833,44 +855,47 @@ function readImgInfo, adr, dialog_par, silentValue
       imgStruct=CREATE_STRUCT('filename',adr,'studydatetime', studyDate+studyTime, 'acqDate', acqDate, 'imgDate', imgDate, 'institution',institution,'manufacturer',manufacturer,'modality', modality, 'modelName',modelName,'stationName',stationName,'SWversion',SWversion,'detectorID',detectorID,$
         'patientName',patientName, 'patientID', patientID, 'patientWeight', patientWeight, 'imageType',imageType,'presType',presType,'studyDescr',studyDescr,'seriesName',seriesName, 'protocolname', protocolname,$
         'seriesNmb',seriesNmb,'seriesTime', seriesTime,'seriesUID',seriesUID,'acqNmb',acqNmb, 'acqtime',acqtime,'sliceThick',sliceThick, 'pix', pix,'imageSize',imageSize,'kVp',kVp,'FOV',dFOV,'rekonFOV',rekonFOV,'mA',mA,'mAs',mAs,'ExpTime',time,'coll',coll,'pitch',pitch,$
-        'ExModType',ExModType,'CTDIvol',CTDIvol,'DAP',DAP,'EI',EI,'sensitivity',sensitivity,'sdd',sdd,'filterAddOn',filterAddOn,'kernel',kernel,$
+        'ExModType',ExModType,'CTDIvol',CTDIvol,'spotSize',spotSize,'DAP',DAP,'EI',EI,'sensitivity',sensitivity,'sdd',sdd,'filterAddOn',filterAddOn,'kernel',kernel,$
         'zpos', zpos, 'imgNo',imgNo,'nFrames',nFrames,'wCenter',wCenter,'wWidth',wWidth,$
-        'collType',collType,'nEWindows',nEWindows,'EWindowName',EWindowName,'zoomFactor',zoomFactor,'radius1',radPos1,'radius2',radPos2,'angle',angle,'acqFrameDuration',acqFrameDuration,'acqTerminationCond',acqTerminationCond,$
+        'collType',collType,'nEWindows',nEWindows,'EWindowName',EWindowName,'zoomFactor',zoomFactor,'radius1',radPos1,'radius2',radPos2,'detectorVector',detectorVector,'angle',angle,'acqFrameDuration',acqFrameDuration,'acqTerminationCond',acqTerminationCond,$
         'units',units,'radiopharmaca',radiopharmaca,'admDose',admDose,'admDoseTime',admDoseTime,'reconMethod',reconMethod,'attCorrMethod',attCorrMethod,'scaCorrMethod',scaCorrMethod, 'scatterFrac',scatterFrac,$
         'imgFreq',imgFreq,'MRacqType',MRacqType,'MRscanSeq',MRscanSeq,'MRseqVariant',MRseqVariant,'TR',TR,'TE',TE,'NSA',NSA,'flipAng',flipAng,'spaceSlice',spaceSlice,'recCoilName',recCoilName,'traCoilName',traCoilName,$
         'frameNo', frameNo)
 
       ;********save as .dat*********
       adrDat=DIALOG_PICKFILE(PATH=FILE_DIRNAME(adr)+FILE_BASENAME(adr)+'.dat', TITLE='Save file as IDL structure (.dat-file) to continue',/WRITE, FILTER='*.dat', /FIX_FILTER, DIALOG_PARENT=evTop)
-
+      
       IF adrDat NE '' THEN BEGIN
-        IF STRMID(adrDat,3,/REVERSE_OFFSET) NE '.dat' THEN adrDat=adrDat+'.dat'
-        OPENR, filenhet, adr, /GET_LUN
-        elem=''
-        rows=!Null
-        IF imageSize(0) NE -1 THEN BEGIN
-          rows=FLTARR(imageSize(0),imageSize(1))
-          FOR r=0, imageSize(1)-1 DO BEGIN
-            READF, filenhet, elem
-            rows[*,r]=STRSPLIT(elem,/EXTRACT)
-          ENDFOR
-        ENDIF ELSE BEGIN
-          WHILE ~ EOF(filenhet) DO BEGIN
-            READF, filenhet, elem
-            rows=[[rows],[STRSPLIT(elem,/EXTRACT)]]
-          ENDWHILE
-        ENDELSE
-        CLOSE, filenhet
-        FREE_LUN, filenhet
-
-        rows=REVERSE(rows,2)*slope + intercept
-        IF ori EQ 1 THEN rows=REVERSE(rows)
-
-        imageQCmatrix=CREATE_STRUCT(imgStruct,'matrix',rows)
-        imageQCmatrix.filename=adrDat; changed when opened so that renaming/moving file is possible
-        imgStruct.filename=adrDat
-        IF imageQCmatrix.imageSize(0) EQ -1 THEN imageQCmatrix.imageSize=SIZE(rows,/DIMENSIONS)
-        SAVE, imageQCmatrix, FILENAME=adrDat
+        fi=FILE_INFO(FILE_DIRNAME(adrDat))
+        IF fi.write THEN BEGIN
+          IF STRMID(adrDat,3,/REVERSE_OFFSET) NE '.dat' THEN adrDat=adrDat+'.dat'
+          OPENR, filenhet, adr, /GET_LUN
+          elem=''
+          rows=!Null
+          IF imageSize(0) NE -1 THEN BEGIN
+            rows=FLTARR(imageSize(0),imageSize(1))
+            FOR r=0, imageSize(1)-1 DO BEGIN
+              READF, filenhet, elem
+              rows[*,r]=STRSPLIT(elem,/EXTRACT)
+            ENDFOR
+          ENDIF ELSE BEGIN
+            WHILE ~ EOF(filenhet) DO BEGIN
+              READF, filenhet, elem
+              rows=[[rows],[STRSPLIT(elem,/EXTRACT)]]
+            ENDWHILE
+          ENDELSE
+          CLOSE, filenhet
+          FREE_LUN, filenhet
+  
+          rows=REVERSE(rows,2)*slope + intercept
+          IF ori EQ 1 THEN rows=REVERSE(rows)
+  
+          imageQCmatrix=CREATE_STRUCT(imgStruct,'matrix',rows)
+          imageQCmatrix.filename=adrDat; changed when opened so that renaming/moving file is possible
+          imgStruct.filename=adrDat
+          IF imageQCmatrix.imageSize(0) EQ -1 THEN imageQCmatrix.imageSize=SIZE(rows,/DIMENSIONS)
+          SAVE, imageQCmatrix, FILENAME=adrDat
+        ENDIF ELSE sv=DIALOG_MESSAGE('Failed to save file. Missing writing permission for selected folder.',/ERROR, DIALOG_PARENT=evTop)
       ENDIF
 
     ENDELSE

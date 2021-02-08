@@ -1,9 +1,14 @@
 ;FUNCTIONS for Rename DICOM
 
+;path = file or folder address
+;foler = 1 if path is a folder or 0 if path is a file, -1 if file and output is strarray, not filename
+;elemArr = string array with elements to pick from tagStruct
+;tagStruct = structure with dicom elements [group, element]
+;formatsArr = string array with format strings without () e.g. ['a0','f0.3']
 function newFileName, path, folder, elemArr, tagStruct, formatsArr
   newpath=''
   
-  IF folder THEN BEGIN
+  IF folder EQ 1 THEN BEGIN
     Spawn, 'dir '  + '"'+path+'"' + '*'+ '/b /a-d', res; files only
 
     IF res(0) NE '' THEN BEGIN;find first dcm file and extract info from this header
@@ -16,7 +21,7 @@ function newFileName, path, folder, elemArr, tagStruct, formatsArr
         IF dcm EQ 1 THEN path=res(n)
         IF dcm EQ 1 THEN BREAK ELSE counter=counter+1
       ENDFOR
-    ENDIF;no files found
+    ENDIF ELSE dcm=-1;no files found
   ENDIF ELSE dcm=QUERY_DICOM(path)
   
   IF dcm EQ 1 THEN BEGIN
@@ -32,6 +37,7 @@ function newFileName, path, folder, elemArr, tagStruct, formatsArr
       ide=ide(0)
       thisTag=tagStruct.(ide)
       test=o->GetReference(thisTag(0),thisTag(1))
+      notFound=1
       IF test(0) NE -1 THEN BEGIN
         test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
 
@@ -51,26 +57,33 @@ function newFileName, path, folder, elemArr, tagStruct, formatsArr
           ENDIF ELSE namePart=STRING(nameParts(0),FORMAT=formatsArr.(ide))
           
           nameArr=[nameArr,namePart]
+          notFound=0
         ENDIF
 
       ENDIF
+      IF notFound and folder EQ -1 THEN nameArr=[nameArr,'- not found -']
     ENDFOR
 
     obj_destroy,o
     
     IF N_ELEMENTS(nameArr) GT 0 THEN BEGIN
-      IF folder THEN nameArr=IDL_VALIDNAME(nameArr,/CONVERT_ALL)
-      nameStr=STRJOIN(nameArr,'_')
-      IF folder THEN nameStr=STRJOIN(STRSPLIT(nameStr,'_',/EXTRACT),'_') ;remove all multiple and first _
-
-      arr=STRSPLIT(path,'\',/EXTRACT)
-      last=n_elements(arr)-1
-      IF folder THEN newpath=STRJOIN(arr[0:last-2],'\')+'\'+nameStr+'\' ELSE BEGIN
-        nameStr=STRJOIN(STRSPLIT(nameStr,'*',/EXTRACT,/PRESERVE_NULL),'X');change * to X (format code not ideal)
-        nameStr=STRJOIN(STRSPLIT(nameStr,' ',/EXTRACT),'_');change space to underscore
-        nameStr=STRJOIN(STRSPLIT(nameStr,'[-/\?#%&{}`<>$!:@+|=]',/EXTRACT, /REGEX),'_')
-        
-        newpath=STRJOIN(arr[0:last-1],'\')+'\'+nameStr+'.dcm'
+      IF folder EQ 1 THEN nameArr=IDL_VALIDNAME(nameArr,/CONVERT_ALL)
+      IF folder EQ -1 THEN BEGIN;array of file elements out if folder =-1
+        newpath=nameArr
+        FOREACH elem, newpath, idx DO newpath(idx)=elem.replace('*','X')
+      ENDIF ELSE BEGIN
+        nameStr=STRJOIN(nameArr,'_')
+        IF folder EQ 1 THEN nameStr=STRJOIN(STRSPLIT(nameStr,'_',/EXTRACT),'_') ;remove all multiple and first _
+  
+        arr=STRSPLIT(path,'\',/EXTRACT)
+        last=n_elements(arr)-1
+        IF folder EQ 1 THEN newpath=STRJOIN(arr[0:last-2],'\')+'\'+nameStr+'\' ELSE BEGIN
+          nameStr=nameStr.replace('*','X');change * to X (format code not ideal return *)
+          nameStr=nameStr.replace(' ','_')
+          nameStr=STRJOIN(STRSPLIT(nameStr,'[-/\?#%&{}`<>$!:@+|=]',/EXTRACT, /REGEX),'_')
+          
+          newpath=STRJOIN(arr[0:last-1],'\')+'\'+nameStr+'.dcm'
+        ENDELSE
       ENDELSE
     ENDIF
     

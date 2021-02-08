@@ -105,6 +105,7 @@ pro calculateQuickTest
                 5:ctlin
                 6:HUwater
                 7:getHeaderInfo
+                8:ROI
                 ELSE:
               ENDCASE
             END
@@ -173,6 +174,25 @@ pro calculateQuickTest
               FOR iii=0, nOutp-1 DO BEGIN
 
                 alt=currQTout.(testPos).(iii).ALT
+                IF alt EQ -1 THEN BEGIN; additional dicom output ALT=-1
+                  nCols=N_TAGS(currQTout.(testPos).(iii).TAGS) 
+                  tagNames=TAG_NAMES(currQTout.(testPos).(iii).TAGS)        
+
+                  FOR im=0, nI-1 DO BEGIN
+                    IF markedMulti(tt,im) THEN BEGIN
+                      addTable=STRARR(2,nCols)
+                      addTable[*,*]='_'
+                      addTable[0,*]=TRANSPOSE(tagnames+'_Img'+STRING(im+1, FORMAT='(i0)'))
+                      arrayDICOMtags=getFormatedDICOMtags(structImgs.(im).filename, currQTout.(testPos).(iii))
+                      IF arrayDICOMtags(0) NE '_' AND N_ELEMENTS(arrayDICOMtags) EQ nCols THEN BEGIN
+                        addTable[1,*]=arrayDICOMtags
+                      ENDIF
+                      multiExpTable=[[multiExpTable],[addTable]]
+                    ENDIF
+                  ENDFOR
+
+                ENDIF ELSE BEGIN
+                
                 IF currentHeaderAlt(test-1) EQ alt THEN BEGIN
                   cols=currQTout.(testPos).(iii).COLUMNS                 
                   calc=currQTout.(testPos).(iii).CALC
@@ -269,6 +289,7 @@ pro calculateQuickTest
 
                   ENDELSE; PER_image
                 ENDIF;No specified output for current test alternative
+                ENDELSE; ALT NE -1
               ENDFOR;nOutp
 
             ENDIF ELSE BEGIN; outp=-1

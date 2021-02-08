@@ -18,6 +18,11 @@
 pro getParam, configTemp
   COMMON VARI
   COMPILE_OPT hidden
+  
+  ;extra offset xy
+  WIDGET_CONTROL, unitDeltaO_MTF_CT, GET_VALUE=offxyMTF_unit
+  WIDGET_CONTROL, unitDeltaO_MTF_X, GET_VALUE=offxyMTF_X_unit
+  WIDGET_CONTROL, unitDeltaO_ROI_CT, GET_VALUE=offxyROI_unit
 
   ;CT tests
   WIDGET_CONTROL, cw_typeMTF, GET_VALUE=typeMTF
@@ -45,6 +50,11 @@ pro getParam, configTemp
   WIDGET_CONTROL, txtNPSroiSz, GET_VALUE=NPSroiSz
   WIDGET_CONTROL, txtNPSroiDist, GET_VALUE=NPSroiDist
   WIDGET_CONTROL, txtNPSsubNN, GET_VALUE=NPSsubNN
+  WIDGET_CONTROL, typeROI, GET_VALUE=ROItype
+  WIDGET_CONTROL, txtROIrad, GET_VALUE=ROIrad
+  WIDGET_CONTROL, txtROIx, GET_VALUE=ROIx
+  WIDGET_CONTROL, txtROIy, GET_VALUE=ROIy
+  WIDGET_CONTROL, txtROIa, GET_VALUE=ROIa
   ;Xray tests
   WIDGET_CONTROL, txtStpROIsz, GET_VALUE=STProiSz
   WIDGET_CONTROL, cw_formLSFX, GET_VALUE=typeMTFX
@@ -91,12 +101,13 @@ pro getParam, configTemp
     'MTFtype',typeMTF,'MTFtypeX', typeMTFX, 'MTFtypeNM', typeMTFNM,'MTFtypeSPECT', typeMTFSPECT, 'plotMTF',plotWhich,'plotMTFX',plotWhichX,'plotMTFNM', plotWhichNM,'plotMTFSPECT', plotWhichSPECT,$
     'tableMTF',tableWhich,'cyclMTF',MTFcyclWhich,'tableMTFX', tableWhichX, $
     'MTFroiSz',FLOAT(MTFroiSz(0)),'MTFroiSzX',[FLOAT(MTFroiSzX(0)),FLOAT(MTFroiSzY(0))],'MTFroiSzNM',[FLOAT(MTFroiSzXNM(0)),FLOAT(MTFroiSzYNM(0))],'MTFroiSzSPECT',FLOAT(MTFroiSzSPECT(0)),'MTF3dSPECT',WIDGET_INFO(MTF3dSPECT, /BUTTON_SET),$
-    'cutLSF',WIDGET_INFO(btnCutLSF,/BUTTON_SET),'cutLSF1',LONG(LSFcut1),'cutLSF2',LONG(LSFcut2),'cutLSFX',WIDGET_INFO(btnCutLSFX,/BUTTON_SET),'cutLSFX1',LONG(LSFcutX1),'offxy',offxy,$
+    'cutLSF',WIDGET_INFO(btnCutLSF,/BUTTON_SET),'cutLSF1',LONG(LSFcut1),'cutLSF2',LONG(LSFcut2),'cutLSFX',WIDGET_INFO(btnCutLSFX,/BUTTON_SET),'cutLSFX1',LONG(LSFcutX1), 'offxyMTF', offxyMTF,'offxyMTF_X', offxyMTF_X,'offxyMTF_unit', offxyMTF_unit, 'offxyMTF_X_unit', offxyMTF_X_unit,$
     'searchMaxMTF_ROI',WIDGET_INFO(btnSearchMaxMTF,/BUTTON_SET),$
     'LinROIrad',FLOAT(rad1(0)),'LinROIradS',FLOAT(radS(0)), 'LinTab', lintab, $
     'RampDist',FLOAT(rampDist(0)),'RampLen',FLOAT(rampLen(0)),'RampBackG',FLOAT(rampBackG(0)),'RampSearch',LONG(RampSearch(0)),'RampAvg',LONG(rampAvg(0)),'RampType',ramptype,'RampDens',rampdens,$
     'HomogROIsz',FLOAT(homogROIsz(0)), 'HomogROIszPET',FLOAT(homogROIszPET(0)), 'HomogROIszX',FLOAT(homogROIszX(0)),'HomogROIdist',FLOAT(homogROIdist(0)), 'HomogROIdistPET',FLOAT(homogROIdistPET(0)),$
     'NoiseROIsz',FLOAT(noiseROIsz(0)), 'HUwaterROIsz', FLOAT(HUwaterROIsz(0)),$
+    'typeROI',ROItype,'ROIrad',FLOAT(ROIrad(0)),'ROIx',FLOAT(ROIx(0)),'ROIy',FLOAT(ROIy(0)),'ROIa',FLOAT(ROIa(0)),'offxyROI', offxyROI,'offxyROI_unit',offxyROI_unit,$
     'NPSroiSz', LONG(NPSroiSz(0)), 'NPSroiDist', FLOAT(NPSroiDist(0)),'NPSsubNN', LONG(NPSsubNN(0)), 'NPSroiSzX', LONG(NPSroiSzX(0)), 'NPSsubSzX', LONG(NPSsubSzX(0)), 'NPSavg',WIDGET_INFO(btnNPSavg, /BUTTON_SET),$
     'STProiSz', FLOAT(STProiSz(0)), $
     'unifAreaRatio', FLOAT(unifAreaRatio(0)),'SNIAreaRatio', FLOAT(SNIAreaRatio(0)),'unifCorr',WIDGET_INFO(btnUnifCorr,/BUTTON_SET),'SNIcorr',WIDGET_INFO(btnSNICorr,/BUTTON_SET),'distCorr',FLOAT(distCorr(0)),'attCoeff',FLOAT(attCorr(0)),'detThick',FLOAT(thickCorr(0)), $
@@ -117,7 +128,7 @@ pro saveParam, overWriteNo, newName
   COMMON VARI
   COMPILE_OPT hidden
 
-  RESTORE, thisPath+'data\config.dat'
+  IF FILE_TEST(configPath, /READ) THEN RESTORE, configPath ELSE sv=DIALOG_MESSAGE('Lost connection to config file '+configPath, /ERROR)
 
   configTags=TAG_NAMES(configS.(selConfig))
   oldConfig=configS.(selConfig)
@@ -138,7 +149,7 @@ pro saveParam, overWriteNo, newName
     
     configS=replaceStructStruct(configS, config, overWriteNo)
     configS.(overWriteNo).AUTOIMPORTPATH=configS.(1).AUTOIMPORTPATH;all same
-    SAVE, configS, quickTemp, quickTout, loadTemp, renameTemp, FILENAME=thisPath+'data\config.dat'
+    SAVEIF, saveOK, configS, quickTemp, quickTout, loadTemp, renameTemp, FILENAME=configPath
     selConfig=overWriteNo
     ;current parameterset is active - just change name of parameter set label
     WIDGET_CONTROL, lblSettings, SET_VALUE=paramSetNames(overWriteNo)
@@ -151,12 +162,12 @@ pro saveParam, overWriteNo, newName
         IF sv EQ 'Yes' THEN BEGIN
           alreadyID=WHERE(paramSetNames EQ tempname)
           configS=replaceStructStruct(configS, config, alreadyID)
-          SAVE, configS, quickTemp, quickTout, loadTemp, renameTemp, FILENAME=thisPath+'data\config.dat'
+          SAVEIF, saveOK, configS, quickTemp, quickTout, loadTemp, renameTemp, FILENAME=configPath
           selConfig=alreadyID
         ENDIF
       ENDIF ELSE BEGIN
         configS=CREATE_STRUCT(configS, tempname, config)
-        SAVE, configS, quickTemp, quickTout, loadTemp, renameTemp, FILENAME=thisPath+'data\config.dat'
+        SAVEIF, saveOK, configS, quickTemp, quickTout, loadTemp, renameTemp, FILENAME=configPath
         selConfig=N_ELEMENTS(paramSetNames)
       ENDELSE
       IF selConfig NE oldSelConfig THEN BEGIN

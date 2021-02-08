@@ -153,6 +153,26 @@ pro updateImageRes
                 TVSCL,congrid(adjustWindowLevel(tvRes, [0,100*max(SNIres.(sel).NPS_filt.(ss))]), szX, szY, /INTERP)
                 XYOUTS, 0.05,0.05, 'NPS filtered '+ssnames(ss)+maxstr, CHARSIZE=1.5, COLOR=255
               END
+              'GEOMMEAN':BEGIN
+                IF structImgs.(sel).nFrames GE 2 THEN BEGIN
+                  img1=readImg(structImgs.(sel).filename, structImgs.(sel).frameNo)
+                  IF sel LT nImg/2 THEN sel2=nImg/2+sel ELSE sel2=sel-nImg/2
+                  img2=readImg(structImgs.(sel2).filename, structImgs.(sel2).frameNo)
+                  img2=ROTATE(img2,5);flip left/right
+  
+                  activeResImg=SQRT(img1*img2)
+  
+                  tvRes=activeResImg
+                  szGeomMean=SIZE(activeResImg, /DIMENSIONS)
+                  szX=450
+                  szY=ROUND(szX*(szGeomMean(1)*1./szGeomMean(0)))
+                  WIDGET_CONTROL, txtMinWL, GET_VALUE=lower
+                  WIDGET_CONTROL, txtMaxWL, GET_VALUE=upper
+                  rangeWL=LONG([lower,upper])
+                  TVSCL,congrid(adjustWindowLevel(tvRes, rangeWL), szX, szY, /INTERP)
+                  XYOUTS, 0.05,0.05, 'Geometric mean for selected frame', CHARSIZE=1.5, COLOR=255
+                ENDIF
+                END
 
               ELSE:
             ENDCASE; tests

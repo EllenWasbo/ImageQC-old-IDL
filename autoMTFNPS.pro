@@ -977,6 +977,13 @@ pro autoMTFNPS_event, event
         adr=''
         IF N_ELEMENTS(MTFres) GT 0 OR N_ELEMENTS(NPSres) GT 0 THEN BEGIN
           adr=DIALOG_PICKFILE(TITLE='Select folder for saving resultfiles', PATH=pathMTFNPS, DIALOG_PARENT=evTop, /DIRECTORY)
+          IF adr NE '' THEN BEGIN;test writing rights
+            fi=FILE_INFO(adr)
+            IF fi.WRITE EQ 0 THEN BEGIN
+              sv=DIALOG_MESSAGE('You do not have writing permissions for the selected folder. Export stopped.', DIALOG_PARENT=evTop)
+              adr=''
+            ENDIF
+          ENDIF
         ENDIF
 
         IF adr NE '' THEN BEGIN
@@ -1016,14 +1023,6 @@ pro autoMTFNPS_event, event
 
               tagsAll=TAG_NAMES(structThis.(0).(0))
               nSer=N_TAGS(structThis)
-
-              ;infoTable=STRARR(N_ELEMENTS(includeTagsShort),nSer)
-              ;FOR s=0, nSer-1 DO BEGIN
-                ;FOR j=0, N_ELEMENTS(includeTagsShort)-1 DO BEGIN
-                 ; id=WHERE(tagsAll EQ includeTagsShort(j))
-                ;  IF id(0) NE -1 THEN infoTable[j,s+1]=STRING(structThis.(s).(0).(id))
-               ; ENDFOR
-              ;ENDFOR
               
               arrShort=[STRJOIN(includeTagsShort, STRING(9B)),STRJOIN(infoTable, STRING(9B))]
 
@@ -1076,8 +1075,10 @@ pro autoMTFNPS_event, event
                   headersPlot=!Null
                   FOR s=0, nSer-1 DO BEGIN
                     FOR m=0, nMat-1 DO BEGIN
-                      valuesPlot=CREATE_STRUCT(valuesPlot, 'C'+STRING(s*nMat+m,FORMAT='(i0)'),INTERPOL(MTFres.(s).(m).MTFx,MTFres.(s).(m).fx,freq))
-                      headersPlot=CREATE_STRUCT(headersPlot, 'C'+STRING(s*nMat+m,FORMAT='(i0)'),[structImgsMTF.(s).(0).seriesName, structImgsMTF.(s).(0).kernel,structImgsMTF.(s).(0).mAs, imgQCstruc.materialTable(0,m),'MTF'])
+                      IF SIZE(MTFres.(s).(m), /TNAME) EQ 'STRUCT' THEN BEGIN
+                        valuesPlot=CREATE_STRUCT(valuesPlot, 'C'+STRING(s*nMat+m,FORMAT='(i0)'),INTERPOL(MTFres.(s).(m).MTFx,MTFres.(s).(m).fx,freq))
+                        headersPlot=CREATE_STRUCT(headersPlot, 'C'+STRING(s*nMat+m,FORMAT='(i0)'),[structImgsMTF.(s).(0).seriesName, structImgsMTF.(s).(0).kernel,structImgsMTF.(s).(0).mAs, imgQCstruc.materialTable(0,m),'MTF'])
+                      ENDIF
                     ENDFOR
                   ENDFOR
                 ENDIF
@@ -1111,10 +1112,12 @@ pro autoMTFNPS_event, event
                   headersPlot=!Null
                   FOR s=0, nSer-1 DO BEGIN
                     FOR m=0, nMat-1 DO BEGIN
-                      tagMTFres=tag_names(MTFres.(s).(m))
-                      IF tagMTFres.hasValue('GFX') THEN valuesPlot=CREATE_STRUCT(valuesPlot,'C'+STRING(s*nMat+m,FORMAT='(i0)'), INTERPOL(MTFres.(s).(m).gMTFx,MTFres.(s).(m).gfx,freq)) $
-                      ELSE valuesPlot=CREATE_STRUCT(valuesPlot,'C'+STRING(s*nMat+m,FORMAT='(i0)'),0)
-                      headersPlot=CREATE_STRUCT(headersPlot, 'C'+STRING(s*nMat+m,FORMAT='(i0)'),[structImgsMTF.(s).(0).seriesName, structImgsMTF.(s).(0).kernel,structImgsMTF.(s).(0).mAs, imgQCstruc.materialTable(0,m),'MTF'])
+                      IF SIZE(MTFres.(s).(m), /TNAME) EQ 'STRUCT' THEN BEGIN
+                        tagMTFres=tag_names(MTFres.(s).(m))
+                        IF tagMTFres.hasValue('GFX') THEN valuesPlot=CREATE_STRUCT(valuesPlot,'C'+STRING(s*nMat+m,FORMAT='(i0)'), INTERPOL(MTFres.(s).(m).gMTFx,MTFres.(s).(m).gfx,freq)) $
+                        ELSE valuesPlot=CREATE_STRUCT(valuesPlot,'C'+STRING(s*nMat+m,FORMAT='(i0)'),0)
+                        headersPlot=CREATE_STRUCT(headersPlot, 'C'+STRING(s*nMat+m,FORMAT='(i0)'),[structImgsMTF.(s).(0).seriesName, structImgsMTF.(s).(0).kernel,structImgsMTF.(s).(0).mAs, imgQCstruc.materialTable(0,m),'MTF'])
+                      ENDIF
                     ENDFOR
                   ENDFOR
                 ENDIF

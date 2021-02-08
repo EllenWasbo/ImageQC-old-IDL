@@ -1,6 +1,6 @@
 pro MakeExeImageQC
   thisPath=FILE_DIRNAME(ROUTINE_FILEPATH('ImageQC'))+'\' 
-  exePath='I:\Felles\Straalevern\Kvalitetskontroll\IDL_programmer\Exe\'
+  exePath='I:\Felles\Medisinsk service\FysikkDiagnostikk\Utstyr_Software\Software\IDL_programmer\Exe\'
   MAKE_RT, 'ImageQC', exePath, /OVERWRITE, SAVEFILE=thisPath+'imageqc.sav', /VM, /WIN32
 end
 

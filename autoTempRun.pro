@@ -20,8 +20,8 @@ pro autoTempRun, thisTemp, thisModality, LOOP=loop, PICKFILES=pickfiles, TEMPNAM
   COMPILE_OPT hidden
   COMMON VARI
   
-  testLog=testLog+newline+tempname+':'
-  RESTORE, thisPath+'data\config.dat'
+  IF N_ELEMENTS(testLog) EQ 0 THEN testlog=tempname+':' ELSE testLog=testLog+newline+tempname+':'
+  RESTORE, configPath
 
   IF N_ELEMENTS(pickfiles) EQ 0 THEN pickfiles=0
   IF N_ELEMENTS(loop) EQ 0 THEN loop2=0 ELSE loop2=loop; loop=1 sent form autoOpen to indicate that this is not the last template to run, loop=-1 = last run (no loop defined = no looping)
@@ -211,7 +211,9 @@ pro autoTempRun, thisTemp, thisModality, LOOP=loop, PICKFILES=pickfiles, TEMPNAM
 
             modality=thisModality
             IF qtName EQ '' THEN BEGIN
-              IF loop2 AND loop NE -1 THEN BEGIN
+              
+              IF N_ELEMENTS(loop) EQ 0 THEN looptemp=-1 ELSE looptemp=loop
+              IF loop2 AND looptemp NE -1 THEN BEGIN
                 sv=DIALOG_MESSAGE('Missing QuickTest template in '+tempname+'. Skip to next template?',/QUESTION,DIALOG_PARENT=evTop)
                 IF sv EQ 'No' THEN BEGIN
                   loop2=0
@@ -331,8 +333,8 @@ pro autoTempRun, thisTemp, thisModality, LOOP=loop, PICKFILES=pickfiles, TEMPNAM
 
                         IF writtenToFile EQ 0 THEN BEGIN
                           sv='Yes'
-                          IF errFile EQ 1 THEN sv=DIALOG_MESSAGE('Could not find file '+thisTemp.pathApp+newline+'Press Yes to continue after current results (in clipboard) are pasted to a result file. Press No to stop.', /QUESTION,DIALOG_PARENT=evTop)
-                          IF thisTemp.pathApp EQ '' THEN sv=DIALOG_MESSAGE('No path for results specified. Press Yes to continue after current results (in clipboard) are pasted to a result file. Press No to stop.', /QUESTION,DIALOG_PARENT=evTop)
+                          IF errFile EQ 1 THEN sv=DIALOG_MESSAGE('Could not find file '+thisTemp.pathApp+newline+'. Current results can be found in clipboard. Paste these manually to a result file and then press Yes to continue or No to stop.', /QUESTION,DIALOG_PARENT=evTop)
+                          IF thisTemp.pathApp EQ '' THEN sv=DIALOG_MESSAGE('No path for results specified. Current results can be found in clipboard. Paste these manually to a result file and then press Yes to continue or No to stop.', /QUESTION,DIALOG_PARENT=evTop)
                           IF sv EQ 'No' THEN BEGIN
                             loop2=0
                             autoStopFlag=1
@@ -354,7 +356,7 @@ pro autoTempRun, thisTemp, thisModality, LOOP=loop, PICKFILES=pickfiles, TEMPNAM
                               FILE_DELETE, delAdr, /QUIET, /RECYCLE
                               closeImgs, selList
                               ;infoLogg2=infoLogg2+newline+STRING(N_ELEMENTS(delAdr),FORMAT='(i0)')+' files exceeding last image analysed moved to recycle bin'
-                              testLog=testLog+newline+ tab+tab+STRING(N_ELEMENTS(delAdr),FORMAT='(i0)')+' files exceeding last image analysed moved to recycle bin.'
+                              testLog=testLog+newline+ tab+tab+STRING(N_ELEMENTS(delAdr),FORMAT='(i0)')+' files exceeding last image deleted.'
                             ENDIF
                           ENDIF
                         ENDIF;deleteFilesEnd

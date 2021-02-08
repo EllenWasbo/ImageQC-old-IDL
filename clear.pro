@@ -59,7 +59,7 @@ pro clearRes, analyseStr
       MTFres=!Null
       NPSres=!Null
       varImgRes=!Null
-      ;ROIres=!Null
+      ROIres=!Null
       CTlinRes=!Null
       HUwaterRes=!Null
       sliceThickRes=!Null
@@ -87,7 +87,7 @@ pro clearRes, analyseStr
         'MTF': MTFres=!Null
         'NPS': NPSres=!Null
         'VARI': varImgRes=!Null
-        ;'ROI': ROIres=!Null
+        'ROI': ROIres=!Null
         'CTLIN':CTlinres=!Null
         'HUWATER': HUwaterRes=!Null
         'SLICETHICK': BEGIN
