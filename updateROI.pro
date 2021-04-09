@@ -19,7 +19,7 @@
 pro updateROI, Ana=ana, SEL=presel
 
   COMMON VARI
-  
+
   IF N_ELEMENTS(ana) EQ 0 THEN ana=analyse
 
   WIDGET_CONTROL, /HOURGLASS
@@ -29,9 +29,9 @@ pro updateROI, Ana=ana, SEL=presel
 
     IF N_ELEMENTS(presel) EQ 0 THEN BEGIN
       sel=WIDGET_INFO(listFiles, /LIST_SELECT)
-      sel=sel(0) 
+      sel=sel(0)
     ENDIF ELSE sel=presel
-    
+
     tempImg=activeImg
     szImg=SIZE(tempImg,/DIMENSIONS)
     pix=structImgs.(sel).pix;IF nFrames EQ 0 THEN pix=structImgs.(sel).pix ELSE pix=structImgs.(0).pix
@@ -85,30 +85,54 @@ pro updateROI, Ana=ana, SEL=presel
           END
           1:BEGIN
             noiseROI=INTARR(szImg)
-            noiseROI[0.05*szImg(0):0.95*szImg(0),0.05*szImg(1):0.95*szImg(1)]=1
+            WIDGET_CONTROL, txtNoiseX, GET_VALUE=ROIperc
+            p1=0.5*(1.-0.01*LONG(ROIperc(0)))
+            p2=1.-p1
+            noiseROI[p1*szImg(0):p2*(szImg(0)-1),p1*szImg(1):p2*(szImg(1)-1)]=1
           END
         ENDCASE
       END
-      
+
       'HUWATER': BEGIN
         WIDGET_CONTROL, txtHUwaterROIsz, GET_VALUE=ROIsz
         ROIsz=ROUND(FLOAT(ROIsz(0))/pix(0)) ; assume x,y pix equal ! = normal
         HUwaterROI=getROIcircle(szImg, center, ROIsz)
-        END
-      
+      END
+
       'ROI': BEGIN
-        WIDGET_CONTROL, unitDeltaO_ROI_CT, GET_VALUE=offxyROI_unit
-        IF offxyROI_unit THEN centerOff=center+offxyROI/pix ELSE centerOff=center+offxyROI
-        WIDGET_CONTROL, typeROI, GET_VALUE= ROItype
+        CASE modality OF
+          0: BEGIN
+            WIDGET_CONTROL, unitDeltaO_ROI_CT, GET_VALUE=offxyROI_unit
+            IF offxyROI_unit THEN centerOff=center+offxyROI/pix ELSE centerOff=center+offxyROI
+            WIDGET_CONTROL, typeROI, GET_VALUE= ROItype
+          END
+          1: BEGIN
+            WIDGET_CONTROL, unitDeltaO_ROI_X, GET_VALUE=offxyROIX_unit
+            IF offxyROIX_unit THEN centerOff=center+offxyROI/pix ELSE centerOff=center+offxyROI
+            WIDGET_CONTROL, typeROIX, GET_VALUE= ROItype
+          END
+          ELSE:
+        ENDCASE
         CASE ROItype OF
           0:BEGIN;circular
-            WIDGET_CONTROL, txtROIrad, GET_VALUE=ROIrad
+            CASE modality OF
+              0: WIDGET_CONTROL, txtROIrad, GET_VALUE=ROIrad
+              1: WIDGET_CONTROL, txtROIXrad, GET_VALUE=ROIrad
+            ENDCASE
             ROIsz=ROUND(FLOAT(ROIrad(0))/pix(0)) ; assume x,y pix equal ! = normal
             ROIroi=getROIcircle(szImg, centerOff, ROIsz)
           END
           1:BEGIN
-            WIDGET_CONTROL, txtROIx, GET_VALUE=ROIx
-            WIDGET_CONTROL, txtROIy, GET_VALUE=ROIy
+            CASE modality OF
+              0: BEGIN
+                WIDGET_CONTROL, txtROIx, GET_VALUE=ROIx
+                WIDGET_CONTROL, txtROIy, GET_VALUE=ROIy
+              END
+              1: BEGIN
+                WIDGET_CONTROL, txtROIXx, GET_VALUE=ROIx
+                WIDGET_CONTROL, txtROIXy, GET_VALUE=ROIy
+              END
+            ENDCASE
             ddx=FLOOR(0.5*FLOAT(ROIx(0))/pix(0))
             ddy=FLOOR(0.5*FLOAT(ROIy(0))/pix(1))
             ROIroi=INTARR(szImg)
@@ -119,9 +143,19 @@ pro updateROI, Ana=ana, SEL=presel
             ROIroi[x1:x2,y1:y2]=1
           END
           2:BEGIN
-            WIDGET_CONTROL, txtROIx, GET_VALUE=ROIx
-            WIDGET_CONTROL, txtROIy, GET_VALUE=ROIy
-            WIDGET_CONTROL, txtROIa, GET_VALUE=ROIa
+            CASE modality OF
+              0: BEGIN
+                WIDGET_CONTROL, txtROIx, GET_VALUE=ROIx
+                WIDGET_CONTROL, txtROIy, GET_VALUE=ROIy
+                WIDGET_CONTROL, txtROIa, GET_VALUE=ROIa
+              END
+              1: BEGIN
+                WIDGET_CONTROL, txtROIXx, GET_VALUE=ROIx
+                WIDGET_CONTROL, txtROIXy, GET_VALUE=ROIy
+                WIDGET_CONTROL, txtROIXa, GET_VALUE=ROIa
+              END
+            ENDCASE
+
             ddx=FLOOR(0.5*FLOAT(ROIx(0))/pix(0))
             ddy=FLOOR(0.5*FLOAT(ROIy(0))/pix(1))
             miniROI=INTARR(ddx*4+1,ddy*4+1)
@@ -133,10 +167,10 @@ pro updateROI, Ana=ana, SEL=presel
             y1=MAX([0, centerOff(1)-2*ddy]) & my1=y1-(centerOff(1)-2*ddy)
             y2=MIN([centerOff(1)+2*ddy, szImg(1)-1]) & my2=ddy*4-(centerOff(1)+2*ddy-y2)
             ROIroi[x1:x2,y1:y2]=miniROI[mx1:mx2,my1:my2]
-            
+
           END
         ENDCASE
-        END
+      END
 
       'MTF': BEGIN
         dxya(3)=1 ; center option has to be used
@@ -183,22 +217,22 @@ pro updateROI, Ana=ana, SEL=presel
         CTlinROIs=getSampleRois(szImg, imgCenterOffset, radS, posTab)
         ;IF max(CTlinROIs) EQ 1 THEN ana='CTLIN' ELSE ana='NONE'
       END
-      
-      'SNI': BEGIN 
+
+      'SNI': BEGIN
         WIDGET_CONTROL, txtSNIAreaRatio, GET_VALUE=rat
         SNIroi=getSNIroi(tempImg, FLOAT(rat))
       END
-      
+
       'UNIF': BEGIN
         WIDGET_CONTROL, txtUnifAreaRatio, GET_VALUE=rat
         unifROI=getUnifRoi(tempImg, FLOAT(rat))
       END
-      
+
       'BAR': BEGIN
         WIDGET_CONTROL, txtBarROIsize, GET_VALUE=barROIsizeMM
         barROI=getBarROIs(tempImg, imgCenterOffset, FLOAT(barROIsizeMM(0))/pix(0)); assume x,y pix equal ! = normal
       END
-      
+
       'CONTRAST': BEGIN
         WIDGET_CONTROL, txtConR1SPECT, GET_VALUE=rad1
         WIDGET_CONTROL, txtConR2SPECT, GET_VALUE=rad2
@@ -211,7 +245,7 @@ pro updateROI, Ana=ana, SEL=presel
         ROIsz=ROUND(FLOAT(ROIsz(0))/pix(0)) ; assume x,y pix equal ! = normal
         crossROI=getROIcircle(szImg, center, ROIsz)
       END
-      
+
       'RC': BEGIN
         rad1=37.0
         rad2=57.2
@@ -228,13 +262,13 @@ pro updateROI, Ana=ana, SEL=presel
         WIDGET_CONTROL,cwRCexclude, GET_VALUE=back
         exBack=ABS(back-1)
         FOR i=0, 11 DO rcROIback[*,*,i]=rcROIback[*,*,i]*exBack(i)
-        rcROIs[*,*,6:17]=rcROIback 
+        rcROIs[*,*,6:17]=rcROIback
       END
       ELSE:
     ENDCASE; ana
 
   ENDIF ELSE BEGIN;no images loaded
-      CTlinROIs=0 & CTlinROIpos=0 & homogROIs=0 & noiseROI=0 & HUwaterROI=0 & NPSrois=0 & conROIs=0 & crossROI=0 & rcROIs=0 & barROI=0 & unifROI=0 & SNIroi=0
+    CTlinROIs=0 & CTlinROIpos=0 & homogROIs=0 & noiseROI=0 & HUwaterROI=0 & NPSrois=0 & conROIs=0 & crossROI=0 & rcROIs=0 & barROI=0 & unifROI=0 & SNIroi=0
   ENDELSE
 
 end

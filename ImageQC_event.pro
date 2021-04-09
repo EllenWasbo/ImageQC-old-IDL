@@ -164,7 +164,11 @@ pro ImageQC_event, ev
 
         sel=WIDGET_INFO(listSelMultiTemp, /DROPLIST_SELECT)
         IF FILE_TEST(configPath, /READ) THEN RESTORE, configPath ELSE sv=DIALOG_MESSAGE('Lost connection to config file '+configPath, /ERROR); getting the quickTemp-structure
-        IF sel EQ 0 OR SIZE(quickTemp.(modality), /TNAME) EQ 'INT' THEN BEGIN
+        qTexist=1
+        IF SIZE(quickTemp, /TNAME) EQ 'INT' THEN qTexist=0 ELSE BEGIN
+          IF SIZE(quickTemp.(modality), /TNAME) EQ 'INT'THEN qTexist=0
+        ENDELSE
+        IF sel EQ 0 OR qTexist EQ 0 THEN BEGIN
           QTtempArr=-1
           QTname='<none selected>'
         ENDIF ELSE BEGIN
@@ -201,7 +205,7 @@ pro ImageQC_event, ev
         sParams=CREATE_STRUCT('SampFreq',FLOAT(sampFreq(0)),'cutLSF',WIDGET_INFO(btnCutLSF,/BUTTON_SET),'cutLSFw', FLOAT(cutLSFw(0)),'cutLSFw2',FLOAT(cutLSFw2(0)),'MTFroisSz',FLOAT(MTFroiSz(0)),$
           'materialTable',matTab,'NPSroiSzInt',LONG(NPSroiSzInt(0)),'NPSdist', FLOAT(NPSdist(0)), 'NPSsubNN', LONG(NPSsubNN(0)),'NPSsmooth',FLOAT(NPSsmooth(0)),'rangeWL',LONG([lower,upper]),'decimark',decimark)
         clearAll
-        autoMTFNPS, sParams
+        autoMTFNPS, sParams, xoffset+100, yoffset+100
       END
       'runRenameDICOM': BEGIN
         proceed=1
@@ -254,8 +258,8 @@ pro ImageQC_event, ev
           pa=thisPath+'data\dumpTemp.txt'
           fi=FILE_INFO(thisPath+'data\')
           IF fi.write EQ 0 THEN BEGIN
-            fi=FILE_INFO('C:\temp\')
-            IF fi.write THEN pa='C:\temp\dumpTemp.txt' ELSE BEGIN
+            fi=FILE_INFO(tempPath)
+            IF fi.write THEN pa=tempPath+'dumpTemp.txt' ELSE BEGIN
               pa=DIALOG_PICKFILE(TITLE='Select a txt-file to dump the DICOM header into.',/WRITE, FILTER='*.txt', /FIX_FILTER, DEFAULT_EXTENSION='.txt', DIALOG_PARENT=evTop)
               IF pa NE '' THEN BEGIN
                 fi=FILE_INFO(FILE_DIRNAME(pa))
@@ -313,7 +317,7 @@ pro ImageQC_event, ev
             0: BEGIN;Mark selected
               proceed=1
               IF TOTAL(results) GT 0 THEN BEGIN;
-                sv=DIALOG_MESSAGE('Continue and loose results?',/QUESTION, DIALOG_PARENT=evTop)
+                sv=DIALOG_MESSAGE('Continue and lose results?',/QUESTION, DIALOG_PARENT=evTop)
                 IF sv EQ 'No' THEN proceed=0
               ENDIF
               IF proceed THEN BEGIN
@@ -343,7 +347,7 @@ pro ImageQC_event, ev
             1: BEGIN;Remove all marks
               proceed=1
               IF TOTAL(results) GT 0 THEN BEGIN;
-                sv=DIALOG_MESSAGE('Continue and loose results?',/QUESTION, DIALOG_PARENT=evTop)
+                sv=DIALOG_MESSAGE('Continue and lose results?',/QUESTION, DIALOG_PARENT=evTop)
                 IF sv EQ 'No' THEN proceed=0
               ENDIF
               IF proceed THEN BEGIN
@@ -368,13 +372,13 @@ pro ImageQC_event, ev
 
               proceed=1
               IF markedMulti(0) NE -1 AND TOTAL(results) GT 0 THEN BEGIN
-                sv=DIALOG_MESSAGE('Continue and loose results?',/QUESTION, DIALOG_PARENT=evTop)
+                sv=DIALOG_MESSAGE('Continue and lose results?',/QUESTION, DIALOG_PARENT=evTop)
                 IF sv EQ 'No' THEN proceed=0 ELSE clearRes
               ENDIF
 
               IF markedMulti(0) EQ -1 THEN BEGIN
                 IF MTFv3d OR N_ELEMENTS(noiseRes) GT 1 OR N_ELEMENTS(stpRes) GT 0 OR N_ELEMENTS(crossRes) GT 0 OR N_ELEMENTS(rcRes) GT 0 THEN BEGIN
-                  sv=DIALOG_MESSAGE('Continue and loose results?',/QUESTION, DIALOG_PARENT=evTop)
+                  sv=DIALOG_MESSAGE('Continue and lose results?',/QUESTION, DIALOG_PARENT=evTop)
                   IF sv EQ 'No' THEN proceed=0 ELSE BEGIN
                     ;clear all results where total result depend on single-images
                     IF MTFv3d THEN clearRes, 'MTF'
@@ -1122,13 +1126,18 @@ pro ImageQC_event, ev
         ENDIF
       END
 
+      'cw_HomogAltX': BEGIN
+        IF ev.SELECT EQ 1 AND results(getResNmb(modality,analyse,analyseStringsAll)) EQ 1 THEN BEGIN
+          IF WIDGET_INFO(wTabResult, /TAB_CURRENT) EQ 0 THEN updateTable
+        ENDIF
+        END
       ;----analyse tab Noise--------------------------------------------------------------------------------------------------
       'noise': BEGIN
         IF tags(0) NE 'EMPTY' THEN BEGIN
           noise; tests_forQuickTest.pro
           updateTable
           updatePlot, 1,1,0
-          WIDGET_CONTROL, wtabResult, SET_TAB_CURRENT=1
+          IF modality EQ 0 THEN WIDGET_CONTROL, wtabResult, SET_TAB_CURRENT=1 ELSE WIDGET_CONTROL, wtabResult, SET_TAB_CURRENT=0 
         ENDIF
       END
 
@@ -1153,6 +1162,21 @@ pro ImageQC_event, ev
       END
 
       'typeROI':  BEGIN
+        IF ev.SELECT EQ 1 AND tags(0) NE 'EMPTY' THEN BEGIN
+          redrawImg, 0,0
+        ENDIF
+      END
+
+      'ROI_X': BEGIN
+        IF tags(0) NE 'EMPTY' THEN BEGIN
+          ROI; tests_forQuickTest.pro
+          updateTable
+          updatePlot, 1,1,0
+          WIDGET_CONTROL, wtabResult, SET_TAB_CURRENT=0
+        ENDIF
+      END
+
+      'typeROIX':  BEGIN
         IF ev.SELECT EQ 1 AND tags(0) NE 'EMPTY' THEN BEGIN
           redrawImg, 0,0
         ENDIF
@@ -1882,7 +1906,7 @@ pro ImageQC_event, ev
 
           ;rebin to equally spaced resolution pix/10
           radius=MIN([centerPos(0),szM(0)-centerPos(0),centerPos(1), szM(1)-centerPos(1)])-1; maximim radius with full dataset
-          newdists=FINDGEN(radius*10)*0.1*pix(0); regular x axis, cuts data at position where start to loose info due to less data in perpendicular directions
+          newdists=FINDGEN(radius*10)*0.1*pix(0); regular x axis, cuts data at position where start to lose info due to less data in perpendicular directions
           pixNew=.1*pix(0)
           ;smooth by ~the new pix size if possible
           test=WHERE(dists*pix(0) LT max(newdists))
@@ -2318,7 +2342,7 @@ pro ImageQC_event, ev
               infoTable[j,i+1]=STRJOIN(STRING(structImgs.(i).(idsInclude(j))),' | ')
             ENDFOR
           ENDFOR
-          sv=DIALOG_MESSAGE('Save to file?', /QUESTION, DIALOG_PARENT=evTop)
+          sv=DIALOG_MESSAGE('Save to file? (No = copy to clipboard)', /QUESTION, DIALOG_PARENT=evTop)
           IF sv EQ 'Yes' THEN BEGIN
             adr=DIALOG_PICKFILE(TITLE='Save as...',/WRITE, FILTER='*.txt', /FIX_FILTER, DEFAULT_EXTENSION='.txt', DIALOG_PARENT=evTop)
             IF adr(0) NE '' THEN BEGIN
@@ -2503,6 +2527,7 @@ pro ImageQC_event, ev
 
   ;********************************************* Radiobutton changed ***********************************************************
   IF ev.ID EQ cw_typeMTF OR ev.ID EQ cw_formLSFX OR ev.ID EQ cw_typeMTFNM OR ev.ID EQ cw_typeMTFSPECT THEN clearRes, 'MTF'
+  IF ev.ID EQ cw_typeMTF OR ev.ID EQ cw_typeMTFNM OR ev.ID EQ cw_typeMTFSPECT THEN redrawImg, 0,0
   IF ev.ID EQ cw_rampType THEN BEGIN
     clearRes, 'SLICETHICK'
     redrawImg, 0,0
@@ -2786,6 +2811,14 @@ pro ImageQC_event, ev
           WIDGET_CONTROL, txtNoiseROIsz, SET_VALUE=STRING(val, FORMAT='(f0.1)')
           clearRes, 'NOISE' & redrawImg,0,0
         END
+        txtNoiseX:BEGIN
+          WIDGET_CONTROL, txtNoiseX, GET_VALUE=val
+          val=ABS(LONG(comma2pointFloat(val(0))))
+          IF val GT 100 THEN val = 100
+          IF val LT 2 THEN val =2
+          WIDGET_CONTROL, txtNoiseX, SET_VALUE=STRING(val, FORMAT='(i0)')
+          clearRes, 'NOISE' & redrawImg,0,0
+        END
         txtHUwaterROIsz:BEGIN
           WIDGET_CONTROL, txtHUwaterROIsz, GET_VALUE=val
           val=ABS(FLOAT(comma2pointFloat(val(0))))
@@ -2815,6 +2848,31 @@ pro ImageQC_event, ev
           WIDGET_CONTROL, txtROIa, GET_VALUE=val
           val=ABS(FLOAT(comma2pointFloat(val(0))))
           WIDGET_CONTROL, txtROIa, SET_VALUE=STRING(val, FORMAT='(f0.1)')
+          clearRes, 'ROI' & redrawImg,0,0
+        END
+
+        txtROIXrad:BEGIN
+          WIDGET_CONTROL, txtROIXrad, GET_VALUE=val
+          val=ABS(FLOAT(comma2pointFloat(val(0))))
+          WIDGET_CONTROL, txtROIXrad, SET_VALUE=STRING(val, FORMAT='(f0.1)')
+          clearRes, 'ROI' & redrawImg,0,0
+        END
+        txtROIXx:BEGIN
+          WIDGET_CONTROL, txtROIXx, GET_VALUE=val
+          val=ABS(FLOAT(comma2pointFloat(val(0))))
+          WIDGET_CONTROL, txtROIXx, SET_VALUE=STRING(val, FORMAT='(f0.1)')
+          clearRes, 'ROI' & redrawImg,0,0
+        END
+        txtROIXy:BEGIN
+          WIDGET_CONTROL, txtROIXy, GET_VALUE=val
+          val=ABS(FLOAT(comma2pointFloat(val(0))))
+          WIDGET_CONTROL, txtROIXy, SET_VALUE=STRING(val, FORMAT='(f0.1)')
+          clearRes, 'ROI' & redrawImg,0,0
+        END
+        txtROIXa:BEGIN
+          WIDGET_CONTROL, txtROIXa, GET_VALUE=val
+          val=ABS(FLOAT(comma2pointFloat(val(0))))
+          WIDGET_CONTROL, txtROIXa, SET_VALUE=STRING(val, FORMAT='(f0.1)')
           clearRes, 'ROI' & redrawImg,0,0
         END
 
@@ -3108,10 +3166,12 @@ pro ImageQC_event, ev
       IF active THEN BEGIN
         tabSel=WIDGET_INFO(resTab,/TABLE_SELECT)
         rowNo=tabSel(1)
-        IF marked(0) NE -1 THEN sel=marked(rowNo) ELSE sel=rowNo
-        WIDGET_CONTROL, listFiles, SET_LIST_SELECT=sel
-        redrawImg,0,1 & updateInfo
-        updatePlot, 0,0,0
+        IF rowNo NE -1 THEN BEGIN
+          IF marked(0) NE -1 THEN sel=marked(rowNo) ELSE sel=rowNo
+          WIDGET_CONTROL, listFiles, SET_LIST_SELECT=sel
+          redrawImg,0,1 & updateInfo
+          updatePlot, 0,0,0
+       ENDIF
       ENDIF
     ENDIF
 
@@ -3297,7 +3357,7 @@ pro ImageQC_event, ev
 
         IF N_ELEMENTS(switchMode) EQ 0 THEN BEGIN
           sv='Yes'
-          IF TOTAL(results) GT 0 THEN sv=DIALOG_MESSAGE('Switch test-mode and loose current results?', /QUESTION, DIALOG_PARENT=evTop)
+          IF TOTAL(results) GT 0 THEN sv=DIALOG_MESSAGE('Switch test-mode and lose current results?', /QUESTION, DIALOG_PARENT=evTop)
           IF sv EQ 'Yes' THEN BEGIN
             modality=selTab
             clearRes

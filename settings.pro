@@ -35,13 +35,13 @@ pro settings, GROUP_LEADER = mainbase, xoff, yoff, tabString;tabString = 'PARAM'
     lstModality_QT, QTnames, lstTempQT, lstQT, lstQTusedAuto, autoNames_qt, lstTest_qt,txtNimgTest_qt,$
     lstModality_qto, lstTemplates_qto, tblQTout, lstTest, lstAlt, lstCols, lstCalc, lstPer, txtDescr, lstQTOusedParam, setNames_qto, autoNames_qto, listTagAdded_qto, btnAddTag, btnEditTag, btnDelTag, lblTagContent_qto,lblTagFormat_qto,$
     qto_currMod, qto_currTemp, qto_currTest, qto_currOutp, qto_currSel, $
-    txtAutoImpPath, lstModality_a, listTemp_a, txtBrowse_a, txtStatName_a, txtDCMcritGroup, txtDCMcritElem, btnDCMcritLookup, txtDCMcrit, listSets_a, listQT_a, listElem, listSort, btnInclSub, btnOnlyLastDate,txtBrowseApp, btnMoveFiles, btnDeleteFiles,btnDeleteFilesEnd,$
+    txtAutoImpPath, lstModality_a, listTemp_a, txtBrowse_a, txtStatName_a, txtDCMcritGroup, txtDCMcritElem, btnDCMcritLookup, txtDCMcrit, listSets_a, listQT_a, listElem, listSort, txtBrowseApp, btnMoveFiles, btnDeleteFiles,btnDeleteFilesEnd,$
     selecTemp_a,a_currMod,tempnames_a,paramSetNames,quickTempNames, tags_imgStruct, sortElem, ascElem, auto_warningBox, warningTxt1, warningTxt2,warningTxt3,autoChanged, $
     tbl_rde, lstTemp_rdt, txtCat_rdt, txtFile_rdt, rdt_names, txtInputTest,txtFormatTest,txtOutputTest,$
     btnAdd_s,btnSave_s,btnDupliTemp_s,btnRenameTemp_s,btnUpTemp_s,btnDownTemp_s,btnDelete_s,btnSetDef,btnImport_s,btnRefreshQT,$
     btnAdd_qt, btnEdit_qt, btnDuplicate_qt,btnRename_qt,btnUpTemp_qt,btnDownTemp_qt,btnDelete_qt,btnImport_qt,$
     btnDupliTemp_qto,btnRenameTemp_qto,btnDeleteTemp_qto,btnAddQTO,btnEditQTO,btnDelQTO,btnImport_qto,$
-    btnAddTemp_a,btnOverWriteAuto,btnDupliTemp_a,btnRenameTemp_a,btnUpTemp_a,btnDownTemp_a,btnDelTemp_a,btnImport_a,$
+    btnAddTemp_a,btnOverWriteAuto,btnDupliTemp_a,btnRenameTemp_a,btnUpTemp_a,btnDownTemp_a,btnDelTemp_a,btnImport_a,bAutoParam2, bImportA, bAlt_a,btnAltAuto,lblQTO_a,$
     btnAdd_rde,btnOverWrite_rde,btnDupli_rde,btnUp_rde,btnDown_rde,btnDel_rde,btnDuplicate_rdt,btnRename_rdt,btnUpTemp_rdt,btnDownTemp_rdt,btnDelete_rdt, btnImport_rdt
   COMMON VARI
   COMPILE_OPT hidden
@@ -316,7 +316,7 @@ pro settings, GROUP_LEADER = mainbase, xoff, yoff, tabString;tabString = 'PARAM'
   lbl=WIDGET_LABEL(autobox1, VALUE='', YSIZE=20, /NO_COPY)
 
   bAutoImportPath=WIDGET_BASE(autobox1,/ROW)
-  lbl=WIDGET_LABEL(bAutoImportPath, VALUE='Default path where new files for import can be found:', FONT=font1, /NO_COPY)
+  lbl=WIDGET_LABEL(bAutoImportPath, VALUE='Default path incoming files:', FONT=font1, /NO_COPY)
   txtAutoImpPath=WIDGET_TEXT(bAutoImportPath, VALUE=configS.(1).AUTOIMPORTPATH, XSIZE=70,/EDITABLE, FONT=font1)
   btnAutoImpPath=WIDGET_BUTTON(bAutoImportPath, VALUE='Browse', UVALUE='aimp_Browse',  FONT=font1)
   btnSaveImpPath=WIDGET_BUTTON(bAutoImportPath, VALUE=thisPath+'images\save.bmp',/BITMAP, UVALUE='aimp_Save',  FONT=font1)
@@ -364,7 +364,7 @@ pro settings, GROUP_LEADER = mainbase, xoff, yoff, tabString;tabString = 'PARAM'
   bAutoParam=WIDGET_BASE(bContA,/COLUMN, /ALIGN_LEFT)
 
   lbl=WIDGET_LABEL(bAutoParam, VALUE='For import/sorting files ', FONT=font0,/ALIGN_LEFT,/NO_COPY)
-  bImportA=WIDGET_BASE(bAutoParam, /COLUMN, FRAME=1)
+  bImportA=WIDGET_BASE(bAutoParam, /COLUMN, FRAME=1, MAP=1)
   ;stationname
   bStatName=WIDGET_BASE(bImportA, /ROW)
   lbl=WIDGET_LABEL(bStatName, VALUE='Station name (DICOM 0008,1010):', FONT=font1, /NO_COPY)
@@ -379,21 +379,46 @@ pro settings, GROUP_LEADER = mainbase, xoff, yoff, tabString;tabString = 'PARAM'
   btnDCMcrit=WIDGET_BUTTON(bDCMcrit, VALUE='Retrieve from DICOM file', UVALUE='a_getDCMcrit', FONT=font1)
   btnDCMcrit=WIDGET_BUTTON(bDCMcrit, VALUE='Clear', UVALUE='a_DCMcrit_clear', FONT=font1)
 
-  lbl=WIDGET_LABEL(bImportA, VALUE='', YSIZE=15, /NO_COPY)
+  lbl=WIDGET_LABEL(bAutoParam, VALUE='', YSIZE=10, /NO_COPY)
 
   ;path
-  bBrowse=WIDGET_BASE(bImportA, /ROW)
-  lbl=WIDGET_LABEL(bBrowse, VALUE='Path:', FONT=font1, /NO_COPY)
+  bBrowse=WIDGET_BASE(bAutoParam, /ROW)
+  lbl=WIDGET_LABEL(bBrowse, VALUE='Path input files:', FONT=font1, /NO_COPY)
   txtBrowse_a=WIDGET_TEXT(bBrowse, VALUE='', XSIZE=70,/EDITABLE, FONT=font1, UVALUE='txtBrowse_a',/KBRD_FOCUS_EVENTS)
   btnBrowse=WIDGET_BUTTON(bBrowse, VALUE='Browse', UVALUE='a_Browse',  FONT=font1)
-  lbl=WIDGET_LABEL(bImportA, VALUE='     Info: Where to place the images matching station name (and optional DICOM criterion)', FONT=font1, /ALIGN_LEFT, /NO_COPY)
-  lbl=WIDGET_LABEL(bImportA, VALUE='           and where to find the images when the automation template runs ', FONT=font1, /ALIGN_LEFT, /NO_COPY)
+  ;lbl=WIDGET_LABEL(bImportA, VALUE='     Info: Where to place the images matching station name (and optional DICOM criterion)', FONT=font1, /ALIGN_LEFT, /NO_COPY)
+  ;lbl=WIDGET_LABEL(bImportA, VALUE='           and where to find the images when the automation template runs ', FONT=font1, /ALIGN_LEFT, /NO_COPY)
   lbl=WIDGET_LABEL(bAutoParam, VALUE='', YSIZE=10, /NO_COPY)
 
   bAutoParam2=WIDGET_BASE(bAutoParam, /COLUMN, FRAME=1)
   bOpenDetails=WIDGET_BASE(bAutoParam2, /Row)
-  bSortBy=WIDGET_BASE(bOpenDetails, XSIZE=355,/COLUMN, FRAME=1)
+  
+  bOpenDetailsLft=WIDGET_BASE(bOpenDetails, /COLUMN, XSIZE=290)
+  ;bBtnInclSub=WIDGET_BASE(bOpenDetailsRgt, /NONEXCLUSIVE)
+  ;btnInclSub=WIDGET_BUTTON(bBtnInclSub, VALUE='Include images in subfolders', FONT=font1, UVALUE='btnInclSub')
+  ;btnOnlyLastDate=WIDGET_BUTTON(bBtnInclSub, VALUE='Last date images only (file creation date).', FONT=font1, UVALUE='btnOnlyLastDate')
+
+  lbl=WIDGET_LABEL(bAutoParam2, VALUe='', YSIZE=10, /NO_COPY)
+  ;parameter set
+  bSets=WIDGET_BASE(bOpenDetailsLft, /ROW)
+  lbl=WIDGET_LABEL(bSets, VALUE='Parameter set:', XSIZE=120, FONT=font1, /NO_COPY)
+  listSets_a=WIDGET_DROPLIST(bSets, VALUE=paramSetNames, UVALUE='listSets_a', XSIZE=150, FONT=font1)
+  WIDGET_CONTROL, listSets_a, SET_DROPLIST_SELECT=selParam
+  bOutpTemp=WIDGET_BASE(bOpenDetailsLft, /ROW)
+  lbl=WIDGET_LABEL(bOutpTemp, VALUe='  Linked to Output template: ', XSIZE=160, FONT=font1, /NO_COPY)
+  lblQTO_a=WIDGET_LABEL(bOutpTemp, VALUE='', XSIZE=120, FONT=font1)
+
+  lbl=WIDGET_LABEL(bOpenDetailsLft, VALUe='', YSIZE=15, /NO_COPY)
+
+  ;bQT2=WIDGET_BASE(bOpenDetailsLft,/COLUMN)
+  ;quickTemp list
+  bQTlist=WIDGET_BASE(bOpenDetailsLft, /ROW)
+  lbl=WIDGET_LABEL(bQTlist, VALUE='QuickTest template:', XSIZE=120, FONT=font1, /NO_COPY)
+  listQT_a=WIDGET_DROPLIST(bQTlist, VALUE='', UVALUE='listQT_a', XSIZE=150, FONT=font1)
+
+  bSortBy=WIDGET_BASE(bOpenDetails, XSIZE=355,/COLUMN, FRAME=1, MAP=1)
   lblS=WIDGET_LABEL(bSortBy, VALUE='Add elements from DICOM-header to sort the images by', FONT=font1, /NO_COPY)
+  lblS=WIDGET_LABEL(bSortBy, VALUE='(acq. date will have no effect - always used first)', FONT=font1, /NO_COPY)
   bSortByLists=WIDGET_BASE(bSortBy, /ROW)
   listElem=WIDGET_DROPLIST(bSortByLists, VALUE='', XSIZE=150, FONT=font1)
   bButtMid=WIDGET_BASE(bSortByLists, /COLUMN)
@@ -405,45 +430,32 @@ pro settings, GROUP_LEADER = mainbase, xoff, yoff, tabString;tabString = 'PARAM'
   btnDownElem=WIDGET_BUTTON(bButtEndSort, VALUE=thisPath+'images\switch_down.bmp',/BITMAP, UVALUE='a_downElem', TOOLTIP='Move element downwards in sort list')
   btnAscElem=WIDGET_BUTTON(bButtEndSort, VALUE=thisPath+'images\sort.bmp',/BITMAP, UVALUE='a_sort_asc', TOOLTIP='Reverse sort order')
 
-  bOpenDetailsRgt=WIDGET_BASE(bOpenDetails, /COLUMN)
-  bBtnInclSub=WIDGET_BASE(bOpenDetailsRgt, /NONEXCLUSIVE)
-  btnInclSub=WIDGET_BUTTON(bBtnInclSub, VALUE='Include images in subfolders', FONT=font1, UVALUE='btnInclSub')
-  btnOnlyLastDate=WIDGET_BUTTON(bBtnInclSub, VALUE='Last date images only (file creation date).', FONT=font1, UVALUE='btnOnlyLastDate')
-  lbl=WIDGET_LABEL(bOpenDetailsRgt, VALUE='Hint: Include images in subfolders useful', FONT=font1, /ALIGN_LEFT, /NO_COPY)
-  lbl=WIDGET_LABEL(bOpenDetailsRgt, VALUE='      when re-analysing the full Archive.', FONT=font1, /ALIGN_LEFT, /NO_COPY)
-
-  lbl=WIDGET_LABEL(bAutoParam2, VALUe='', YSIZE=10, /NO_COPY)
-  ;parameter set
-  bSets=WIDGET_BASE(bAutoParam2, /ROW)
-  lblSets=WIDGET_LABEL(bSets, VALUE='Use parameter set:', XSIZE=150, FONT=font1)
-  listSets_a=WIDGET_DROPLIST(bSets, VALUE=paramSetNames, XSIZE=180, FONT=font1)
-  WIDGET_CONTROL, listSets_a, SET_DROPLIST_SELECT=selParam
-
-  lbl=WIDGET_LABEL(bAutoParam2, VALUe='', YSIZE=15, /NO_COPY)
-
-  bQT2=WIDGET_BASE(bAutoParam2,/COLUMN)
-  ;quickTemp list
-  bQTlist=WIDGET_BASE(bQT2, /ROW)
-  lbl=WIDGET_LABEL(bQTlist, VALUE='Use QuickTest template:', XSIZE=150, FONT=font1, /NO_COPY)
-  listQT_a=WIDGET_DROPLIST(bQTlist, VALUE='', XSIZE=180, FONT=font1)
-
   bQTalt=WIDGET_BASE(bAutoParam2, /ROW)
   bQTalt0=WIDGET_BASE(bQTalt, XSIZE=30)
   bQTalt1=WIDGET_BASE(bQTalt, /COLUMN)
-
-  ;append resultfile
-  lbl=WIDGET_LABEL(bQTalt1, VALUE='Append results (row, no headers) to this file:', FONT=font1, /ALIGN_LEFT, /NO_COPY)
-  bBrowseApp=WIDGET_BASE(bQTalt1, /ROW)
-  lbl=WIDGET_LABEL(bBrowseApp, VALUE='', XSIZE=30, /NO_COPY)
-  txtBrowseApp=WIDGET_TEXT(bBrowseApp, VALUE=pathApp, /EDITABLE, XSIZE=50, FONT=font1, UVALUE='txtBrowseApp',/KBRD_FOCUS_EVENTS)
-  btnBrowseApp=WIDGET_BUTTON(bBrowseApp, VALUE='Browse', UVALUE='a_BrowseApp', FONT=font1)
-  btnClearApp=WIDGET_BUTTON(bBrowseApp, VALUE='Clear', UVALUE='a_ClearApp', FONT=font1)
-  btnShowApp=WIDGET_BUTTON(bBrowseApp, VALUE='Open', UVALUE='a_OpenApp', FONT=font1)
 
   bMoveFiles=WIDGET_BASE(bQTalt1, /NONEXCLUSIVE)
   btnMoveFiles=WIDGET_BUTTON(bMoveFiles, VALUE='Move images automatically to folder named "Archive" when finished calculation.', FONT=font1, UVALUE='btnMoveFiles')
   btnDeleteFiles=WIDGET_BUTTON(bMoveFiles, VALUE='Delete files not accepted (i.e. SR reports, images with no acquisition date).', FONT=font1, UVALUE='btnDeleteFiles')
   btnDeleteFilesEnd=WIDGET_BUTTON(bMoveFiles, VALUE='Delete files (images) exceeding the last image marked for testing.', FONT=font1, UVALUE='btnDeleteFilesEnd')
+
+  lbl=WIDGET_LABEL(bAutoParam, VALUe='', YSIZE=10, /NO_COPY)
+
+  ;append resultfile
+  lbl=WIDGET_LABEL(bAutoParam, VALUE='Append results to this output file:', FONT=font1, /ALIGN_LEFT, /NO_COPY)
+  bBrowseApp=WIDGET_BASE(bAutoParam, /ROW)
+  lbl=WIDGET_LABEL(bBrowseApp, VALUE='', XSIZE=10, /NO_COPY)
+  txtBrowseApp=WIDGET_TEXT(bBrowseApp, VALUE=pathApp, /EDITABLE, XSIZE=65, FONT=font1, UVALUE='txtBrowseApp',/KBRD_FOCUS_EVENTS)
+  btnBrowseApp=WIDGET_BUTTON(bBrowseApp, VALUE='Browse', UVALUE='a_BrowseApp', FONT=font1)
+  btnClearApp=WIDGET_BUTTON(bBrowseApp, VALUE='Clear', UVALUE='a_ClearApp', FONT=font1)
+  btnShowApp=WIDGET_BUTTON(bBrowseApp, VALUE='Open', UVALUE='a_OpenApp', FONT=font1)
+
+  lbl=WIDGET_LABEL(bAutoParam, VALUe='', YSIZE=10, /NO_COPY)
+
+  bAlt_a=WIDGET_BASE(bAutoParam, /ROW, FRAME=1, MAP=0)
+  lbl=WIDGET_LABEL(bAlt_a, VALUe='', YSIZE=10, /NO_COPY)
+  bAlt_a2=WIDGET_BASE(bAlt_a, /ROW, /NONEXCLUSIVE)
+  btnAltAuto=WIDGET_BUTTON(bAlt_a2, VALUE='input files are text files from the GE QAP test (decimal mark as for default parameter set)', FONT=font1, UVALUE='btnAltAuto')
 
   selecTemp_a=0
   a_currMod=defModality
@@ -828,8 +840,8 @@ pro settings_event, event
                 newconfigS.(0).USERNAME=userinfo.user_name
 
                 configS=newconfigS
-                quickTemp=updateQuickT(adr(0), multiOpt)
-                loadTemp=updateLoadT(adr(0),multiOpt)
+                quickTemp=updateQuickT(adr(0), multiOpt, TEMPPA=tempPath)
+                loadTemp=updateLoadT(adr(0),multiOpt, TEMPPA=tempPath)
                 quickTout=updateQuickTout(adr(0))
                 renameTemp=updateRenameTemp(adr(0))
 
@@ -1047,7 +1059,7 @@ pro settings_event, event
         adr=DIALOG_PICKFILE(TITLE='Locate config file to import from', /READ, FILTER='*.dat', /FIX_FILTER, DIALOG_PARENT=event.Top, PATH='C:\')
         IF adr(0) NE '' THEN BEGIN
           WIDGET_CONTROL, /HOURGLASS
-          import_s, adr(0), configPath, xoffset, yoffset, Event.top
+          import_s, adr(0), configPath, multiOpt, xoffset, yoffset, Event.top;in settings_import.pro
           s_upd, WIDGET_INFO(listSets_s, /LIST_SELECT), 0
         ENDIF
       END
@@ -1057,7 +1069,11 @@ pro settings_event, event
         IF FILE_TEST(configPath, /READ) THEN RESTORE, configPath ELSE sv=DIALOG_MESSAGE('Lost connection to config file '+configPath, /ERROR)
         setNames=TAG_NAMES(configS)
         refreshParam, configS.(selConfig), setNames(selConfig)
-        IF N_ELEMENTS(quickTemp) NE 0 THEN fillQuickTempList, quickTemp.(modality) ELSE fillQuickTempList, -1
+        IF SIZE(quickTemp, /TNAME) EQ 'STRUCT' THEN BEGIN
+          IF SIZE(quickTemp.(modality), /TNAME) EQ 'STRUCT' THEN BEGIN
+            fillQuickTempList, quickTemp.(modality)
+          ENDIF ELSE  fillQuickTempList, -1
+        ENDIF ELSE fillQuickTempList, -1
         WIDGET_CONTROL, Event.top, /DESTROY
       END
 
@@ -1328,7 +1344,7 @@ pro settings_event, event
 
           modNmb=WIDGET_INFO(lstModality_QT,/DROPLIST_SELECT)
           modSel=availModNmb(modNmb)
-          import_qt, adr(0), configPath, multiOpt, modSel, xoffset, yoffset, Event.top
+          import_qt, adr(0), configPath, multiOpt, modSel, xoffset, yoffset, Event.top;in settings_import.pro
 
           currSel=WIDGET_INFO(lstTempQT, /LIST_SELECT)
           IF currSel LT 0 THEN currSel=0
@@ -1465,7 +1481,7 @@ pro settings_event, event
         adr=DIALOG_PICKFILE(TITLE='Locate config file to import from', /READ, FILTER='*.dat', /FIX_FILTER, DIALOG_PARENT=event.Top, PATH='C:\')
         IF adr(0) NE '' THEN BEGIN
           WIDGET_CONTROL, /HOURGLASS
-          import_qto, adr(0), configPath, analyseStringsAll, qto_currMod, xoffset, yoffset, Event.top ;analyseStringsAll defined in imageQC.pro
+          import_qto, adr(0), configPath, analyseStringsAll, qto_currMod, xoffset, yoffset, Event.top ;analyseStringsAll defined in imageQC.pro, import_qto defined in settings_import.pro
           IF FILE_TEST(configPath, /READ) THEN RESTORE, configPath ELSE sv=DIALOG_MESSAGE('Lost connection to config file '+configPath, /ERROR)
           currNames=TAG_NAMES(quickTout.(qto_currMod))
           WIDGET_CONTROL, lstTemplates_qto, SET_VALUE=currnames, SET_LIST_SELECT=qto_currTemp, SCR_YSIZE=150;added as last, set selected
@@ -1604,17 +1620,17 @@ pro settings_event, event
             IF res.newdesc NE addedTags(selTag) OR res.group NE STRING(uint_(0), FORMAT='(z04)') or res.element NE STRING(uint_(1), FORMAT='(z04)') OR res.formatcodestr NE STRMID(formatThis,1,STRLEN(formatThis)-2) THEN BEGIN
               newALTmin1Struct=changeTagOutputTempMinOne(altMinOneStruct, STRUPCASE(IDL_VALIDNAME(res.newdesc, /CONVERT_ALL)), [res.group,res.element], res.formatcodestr, selTag) ; in a0_functionsMini.pro - creates new if no struct input
               IF N_ELEMENTS(newALTmin1Struct.warnings) GT 1 THEN sv=DIALOG_MESSAGE(STRJOIN(newALTmin1Struct.warnings,newline), DIALOG_PARENT=event.top)
-              
+
               currTestStruct=quickTout.(qto_currMod).(qto_currTemp).(altMinOne(0))
               tempstructTest=replaceStructStruct(currTestStruct, newALTmin1Struct.(0), altMinOne(1))
-              
+
               quickToutTemp=replaceStructStruct(quickTout.(qto_currMod).(qto_currTemp), tempstructTest, altMinOne(0))
               quickToutMod=replaceStructStruct(quickTout.(qto_currMod), quickToutTemp, qto_currTemp)
               quickTout=replaceStructStruct(quickTout, quickToutMod, qto_currMod)
 
               SAVEIF, saveOK, configS, quickTemp, quickTout, loadTemp, renameTemp, FILENAME=configPath
               qto_updTagList, selTag
-              
+
             ENDIF
           ENDIF
 
@@ -1935,12 +1951,12 @@ pro settings_event, event
         ENDIF
 
       END
-      
+
       'a_DCMcrit_clear': BEGIN
-          WIDGET_CONTROL, txtDCMcritGroup, SET_VALUE='0000'
-          WIDGET_CONTROL, txtDCMcritElem, SET_VALUE='0000'
-          WIDGET_CONTROL, txtDCMcrit, SET_VALUE=''
-          autoChanged=1
+        WIDGET_CONTROL, txtDCMcritGroup, SET_VALUE='0000'
+        WIDGET_CONTROL, txtDCMcritElem, SET_VALUE='0000'
+        WIDGET_CONTROL, txtDCMcrit, SET_VALUE=''
+        autoChanged=1
       END
 
       'a_ClearApp': BEGIN
@@ -1956,6 +1972,17 @@ pro settings_event, event
             Else: if (!version.os_name eq 'Mac OS X') then SPAWN, 'open '+file2open
           Endcase
         ENDIF ELSE sv=DIALOG_MESSAGE('File not found.',DIALOG_PARENT=event.top)
+      END
+
+      'btnAltAuto':BEGIN
+        IF WIDGET_INFO(btnAltAuto, /BUTTON_SET) THEN BEGIN
+          WIDGET_CONTROL, bImportA, MAP=0
+          WIDGET_CONTROL, bAutoParam2, MAP=0
+        ENDIF ELSE BEGIN
+          WIDGET_CONTROL, bImportA, MAP=1
+          WIDGET_CONTROL, bAutoParam2, MAP=1
+        ENDELSE
+        autoChanged=1
       END
 
       'a_add':BEGIN
@@ -1992,7 +2019,8 @@ pro settings_event, event
                 'pathApp','',$
                 'archive',0,$
                 'deleteFiles',0,$
-                'deleteFilesEnd',0)
+                'deleteFilesEnd',0,$
+                'alternative','')
 
               IF alreadyNames(0) EQ '' THEN BEGIN; new single
                 loadTm=CREATE_STRUCT(newName, loadTempSing)
@@ -2062,29 +2090,61 @@ pro settings_event, event
             IF newPath NE '' THEN BEGIN
               WIDGET_CONTROL, /HOURGLASS
               WIDGET_CONTROL, txtBrowseApp, GET_VALUE=newPathApp
-              WIDGET_CONTROL, txtStatName_a, GET_VALUE=newStatName
-              WIDGET_CONTROL, txtDCMcritGroup, GET_VALUE=txtGroup
-              WIDGET_CONTROL, txtDCMcritElem, GET_VALUE=txtElem
-              WIDGET_CONTROL, txtDCMcrit, GET_VALUE=dcmCritStr
 
-              loadTempSing=CREATE_STRUCT($
-                'path',newPath,$
-                'statName', newStatName,$
-                'dcmCrit',[txtGroup,txtElem,dcmCritStr],$
-                'loadBy',WIDGET_INFO(btnOnlyLastDate,/BUTTON_SET),$
-                'includeSub',WIDGET_INFO(btnInclSub,/BUTTON_SET),$
-                'sortBy', sortElem, $
-                'sortAsc', ascElem,$
-                'paramSet',paramSetNames(WIDGET_INFO(listSets_a,/DROPLIST_SELECT)), $
-                'quickTemp',quicktempnames(WIDGET_INFO(listQT_a,/DROPLIST_SELECT)),$
-                'pathApp',newPathApp,$
-                'archive',WIDGET_INFO(btnMoveFiles,/BUTTON_SET),$
-                'deleteFiles',WIDGET_INFO(btnDeleteFiles,/BUTTON_SET),$
-                'deleteFilesEnd',WIDGET_INFO(btnDeleteFilesEnd,/BUTTON_SET))
-
-              IF FILE_TEST(configPath, /READ) THEN RESTORE, configPath ELSE sv=DIALOG_MESSAGE('Lost connection to config file '+configPath, /ERROR)
               selMod=WIDGET_INFO(lstModality_a,/DROPLIST_SELECT)
               thisMod=availModNmb(selMod)
+
+              loadTempSing=!Null
+              IF WIDGET_INFO(btnAltAuto, /BUTTON_SET) THEN BEGIN
+
+                altAlt=''
+                CASE thisMod OF
+                  1: altAlt='GE_QAP'
+                  ELSE: altAlt=''
+                ENDCASE
+
+                loadTempSing=CREATE_STRUCT($
+                  'path',newPath,$
+                  'statName','',$
+                  'dcmCrit',['0000','0000',''],$
+                  'loadBy',0,$
+                  'includeSub',0,$
+                  'sortBy', '', $
+                  'sortAsc',0, $
+                  'paramSet','', $
+                  'quickTemp','',$
+                  'pathApp',newPathApp,$
+                  'archive',0,$
+                  'deleteFiles',0,$
+                  'deleteFilesEnd',0,$
+                  'alternative',altAlt)
+              ENDIF ELSE BEGIN
+                WIDGET_CONTROL, txtStatName_a, GET_VALUE=newStatName
+                WIDGET_CONTROL, txtDCMcritGroup, GET_VALUE=txtGroup
+                WIDGET_CONTROL, txtDCMcritElem, GET_VALUE=txtElem
+                WIDGET_CONTROL, txtDCMcrit, GET_VALUE=dcmCritStr
+
+                ;WIDGET_INFO(btnInclSub,/BUTTON_SET)
+                ;WIDGET_INFO(btnOnlyLastDate,/BUTTON_SET)
+                loadTempSing=CREATE_STRUCT($
+                  'path',newPath,$
+                  'statName', newStatName,$
+                  'dcmCrit',[txtGroup,txtElem,dcmCritStr],$
+                  'loadBy',0,$
+                  'includeSub',0,$
+                  'sortBy', sortElem, $
+                  'sortAsc', ascElem,$
+                  'paramSet',paramSetNames(WIDGET_INFO(listSets_a,/DROPLIST_SELECT)), $
+                  'quickTemp',quicktempnames(WIDGET_INFO(listQT_a,/DROPLIST_SELECT)),$
+                  'pathApp',newPathApp,$
+                  'archive',WIDGET_INFO(btnMoveFiles,/BUTTON_SET),$
+                  'deleteFiles',WIDGET_INFO(btnDeleteFiles,/BUTTON_SET),$
+                  'deleteFilesEnd',WIDGET_INFO(btnDeleteFilesEnd,/BUTTON_SET),$
+                  'alternative','')
+              ENDELSE
+
+              IF FILE_TEST(configPath, /READ) THEN RESTORE, configPath ELSE sv=DIALOG_MESSAGE('Lost connection to config file '+configPath, /ERROR)
+
               loadTm=loadTemp.(thisMod)
               loadTm=replaceStructStruct(loadTm, loadTempSing, selecTemp_a)
               loadTemp=replaceStructStruct(loadTemp, loadTm, thisMod)
@@ -2140,14 +2200,18 @@ pro settings_event, event
           WIDGET_CONTROL, /HOURGLASS
           selMod=WIDGET_INFO(lstModality_a,/DROPLIST_SELECT)
           thisMod=availModNmb(selMod)
-          import_a, adr(0), configPath, multiOpt, thisMod, xoffset, yoffset, Event.top
+          import_a, adr(0), configPath, multiOpt, thisMod, xoffset, yoffset, Event.top;in settings_import.pro
 
           IF FILE_TEST(configPath, /READ) THEN RESTORE, configPath ELSE sv=DIALOG_MESSAGE('Lost connection to config file '+configPath, /ERROR)
 
-          tempnames_a=TAG_NAMES(loadTemp.(thisMod))
-          selecTemp_a=WIDGET_INFO(listTemp_a, /LIST_SELECT)
-          WIDGET_CONTROL, listTemp_a, SET_VALUE=tempnames_a, SET_LIST_SELECT=selecTemp_a
-          auto_upd, selecTemp_a(0), 1
+          IF SIZE(loadTemp,/TNAME) EQ 'STRUCT' THEN BEGIN
+            IF SIZE(loadTemp.(thisMod), /TNAME) EQ 'STRUCT' THEN BEGIN
+              tempnames_a=TAG_NAMES(loadTemp.(thisMod))
+              selecTemp_a=WIDGET_INFO(listTemp_a, /LIST_SELECT)
+              WIDGET_CONTROL, listTemp_a, SET_VALUE=tempnames_a, SET_LIST_SELECT=selecTemp_a
+              auto_upd, selecTemp_a(0), 1
+            ENDIF
+          ENDIF
         ENDIF
       END
 
@@ -2162,31 +2226,36 @@ pro settings_event, event
           selTemp=loadTemp.(thisMod).(selecTemp_a)
           WIDGET_CONTROL, txtBrowse_a, GET_VALUE=newPath
           WIDGET_CONTROL, txtBrowseApp, GET_VALUE=newPathApp
+          IF selTemp.alternative EQ '' THEN selAlt=0 ELSE selAlt=1
           IF selTemp.path NE newPath THEN equal=0 ELSE BEGIN
-            IF selTemp.loadBy NE WIDGET_INFO(btnOnlyLastDate,/BUTTON_SET) THEN equal=0 ELSE BEGIN
-              IF selTemp.includeSub NE WIDGET_INFO(btnInclSub,/BUTTON_SET) THEN equal=0 ELSE BEGIN
-                IF ~ARRAY_EQUAL(selTemp.sortBy, sortElem) THEN equal=0 ELSE BEGIN
-                  IF ~ARRAY_EQUAL(selTemp.sortAsc, ascElem) THEN equal=0 ELSE BEGIN
-                    IF selTemp.paramSet NE paramSetNames(WIDGET_INFO(listSets_a,/DROPLIST_SELECT)) THEN equal=0 ELSE BEGIN
-                      IF selTemp.quickTemp NE quickTempNames(WIDGET_INFO(listQT_a,/DROPLIST_SELECT)) THEN equal=0 ELSE BEGIN
-                        IF selTemp.pathApp NE newPathApp THEN equal=0 ELSE BEGIN
-                          IF selTemp.archive NE WIDGET_INFO(btnMoveFiles,/BUTTON_SET) THEN equal=0 ELSE BEGIN
-                            IF selTemp.deleteFiles NE WIDGET_INFO(btnDeleteFiles,/BUTTON_SET) THEN equal=0 ELSE BEGIN
-                              IF selTemp.deleteFilesEnd NE WIDGET_INFO(btnDeleteFilesEnd,/BUTTON_SET) THEN equal=0
-                            ENDELSE
-                          ENDELSE
-                        ENDELSE
-                      ENDELSE
-                    ENDELSE
-                  ENDELSE
-                ENDELSE
-              ENDELSE
-            ENDELSE
-          ENDELSE
+            IF selTemp.pathApp NE newPathApp THEN equal=0 ELSE BEGIN
+              IF selAlt NE WIDGET_INFO(btnAltAuto, /BUTTON_SET) THEN equal=0 ELSE BEGIN
+                IF selAlt EQ 0 THEN BEGIN
+                  ;IF selTemp.loadBy NE WIDGET_INFO(btnOnlyLastDate,/BUTTON_SET) THEN equal=0 ELSE BEGIN
+                    ;IF selTemp.includeSub NE WIDGET_INFO(btnInclSub,/BUTTON_SET) THEN equal=0 ELSE BEGIN
+                      IF ~ARRAY_EQUAL(selTemp.sortBy, sortElem) THEN equal=0 ELSE BEGIN
+                        IF ~ARRAY_EQUAL(selTemp.sortAsc, ascElem) THEN equal=0 ELSE BEGIN
+                          IF selTemp.paramSet NE paramSetNames(WIDGET_INFO(listSets_a,/DROPLIST_SELECT)) THEN equal=0 ELSE BEGIN
+                            IF selTemp.quickTemp NE quickTempNames(WIDGET_INFO(listQT_a,/DROPLIST_SELECT)) THEN equal=0 ELSE BEGIN
+                              IF selTemp.archive NE WIDGET_INFO(btnMoveFiles,/BUTTON_SET) THEN equal=0 ELSE BEGIN
+                                IF selTemp.deleteFiles NE WIDGET_INFO(btnDeleteFiles,/BUTTON_SET) THEN equal=0 ELSE BEGIN
+                                  IF selTemp.deleteFilesEnd NE WIDGET_INFO(btnDeleteFilesEnd,/BUTTON_SET) THEN equal=0
+                                ENDELSE
+                              ENDELSE;archive
+                            ENDELSE;quickTemp
+                          ENDELSE;paramSet
+                        ENDELSE;sortAsc
+                      ENDELSE;sortBy
+                    ;ENDELSE;includeSub
+                  ;ENDELSE;loadBy
+                ENDIF; selAlt = 0
+              ENDELSE;selAlt eq
+            ENDELSE;pathAppende
+          ENDELSE;path
           IF equal THEN BEGIN
             WIDGET_CONTROL, Event.top, /DESTROY
             autoStopFlag=0
-            thisTempName=tempnames_a(0)
+            thisTempName=tempnames_a(selecTemp_a)
             autoTempRun, selTemp, thisMod, TEMPNAME=thisTempName
           ENDIF ELSE sv=DIALOG_MESSAGE('Saved template and current values do not match. Save before running the template.',DIALOG_PARENT=event.top)
         ENDIF ELSE sv=DIALOG_MESSAGE('No template selected.',DIALOG_PARENT=event.top)
@@ -2263,8 +2332,8 @@ pro settings_event, event
           autoChanged=1
         ENDIF
       END
-      'btnInclSub': autoChanged=1
-      'btnOnlyLastDate': autoChanged=1
+      ;'btnInclSub': autoChanged=1
+      ;'btnOnlyLastDate': autoChanged=1
       'txtStatName_a': autoChanged=1
       'txtBrowse_a': autoChanged=1
       'txtBrowseApp': autoChanged=1
@@ -2272,6 +2341,20 @@ pro settings_event, event
       'btnDeleteFiles': autoChanged=1
       'btnDeleteFilesEnd': autoChanged=1
       'txtDCMcrit': autoChanged=1
+      'listQT_a': autoChanged=1
+      'listSets_a': BEGIN
+        autoChanged=1
+        selMod=WIDGET_INFO(lstModality_a,/DROPLIST_SELECT)
+        thisMod=availModNmb(selMod)
+        IF FILE_TEST(configPath, /READ) THEN BEGIN
+          RESTORE, configPath 
+          WIDGET_CONTROL, lblQTO_a, SET_VALUE=configS.(WIDGET_INFO(listSets_a,/DROPLIST_SELECT)+1).qtOutTemps(thisMod)
+        ENDIF ELSE BEGIN
+          sv=DIALOG_MESSAGE('Lost connection to config file '+configPath, /ERROR)
+          WIDGET_CONTROL, lblQTO_a, SET_VALUE='?'
+        ENDELSE
+        
+        END
 
       ;************** Rename DICOM setup *********
 
@@ -2485,7 +2568,7 @@ pro settings_event, event
       'rde_test':BEGIN
         adrSel=dialog_pickfile(PATH=defPath, GET_PATH=defPath, /READ, TITLE='Select DICOM file')
         IF adrSel(0) NE '' THEN BEGIN
-          IF FILE_BASENAME(adr) NE 'DICOMDIR' THEN BEGIN
+          IF FILE_BASENAME(adrSel) NE 'DICOMDIR' THEN BEGIN
             IF FILE_TEST(configPath, /READ) THEN RESTORE, configPath ELSE sv=DIALOG_MESSAGE('Lost connection to config file '+configPath, /ERROR)
 
             selT=WIDGET_INFO(lstTemp_rdt,/LIST_SELECT)
@@ -3094,6 +3177,8 @@ pro auto_upd, selT, first
     ENDIF
     WIDGET_CONTROL, listTemp_a, SET_VALUE=tempnames_a, SET_LIST_SELECT=0
 
+    If thisMod EQ 1 THEN WIDGET_CONTROL, bAlt_a, MAP=1 ELSE WIDGET_CONTROL, bAlt_a, MAP=0
+
     includeArr=actualTags(allTags, imgStructInfo, thisMod)
     idsInclude=WHERE(includeArr EQ 1)
     tags_imgStruct=allTags(idsInclude)
@@ -3121,11 +3206,21 @@ pro auto_upd, selT, first
     WIDGET_CONTROL, txtDCMcritElem, SET_VALUE=loadTemp.(thisMod).(selT).dcmCrit(1)
     WIDGET_CONTROL, txtDCMcrit, SET_VALUE=loadTemp.(thisMod).(selT).dcmCrit(2)
     WIDGET_CONTROL, txtBrowseApp, SET_VALUE=loadTemp.(thisMod).(selT).pathApp
-    WIDGET_CONTROL, btnOnlyLastDate, SET_BUTTON=loadTemp.(thisMod).(selT).loadBy
-    WIDGET_CONTROL, btnInclSub, SET_BUTTON=loadTemp.(thisMod).(selT).includeSub
+    ;WIDGET_CONTROL, btnOnlyLastDate, SET_BUTTON=loadTemp.(thisMod).(selT).loadBy
+    ;WIDGET_CONTROL, btnInclSub, SET_BUTTON=loadTemp.(thisMod).(selT).includeSub
     WIDGET_CONTROL, btnMoveFiles, SET_BUTTON=loadTemp.(thisMod).(selT).archive
     WIDGET_CONTROL, btnDeleteFiles, SET_BUTTON=loadTemp.(thisMod).(selT).deleteFiles
     WIDGET_CONTROL, btnDeleteFilesEnd, SET_BUTTON=loadTemp.(thisMod).(selT).deleteFilesEnd
+    IF loadTemp.(thisMod).(selT).alternative EQ '' THEN BEGIN
+      WIDGET_CONTROL, btnAltAuto, SET_BUTTON=0
+      WIDGET_CONTROL, bImportA, MAP=1
+      WIDGET_CONTROL, bAutoParam2, MAP=1
+    ENDIF ELSE BEGIN
+      WIDGET_CONTROL, btnAltAuto, SET_BUTTON=1
+      WIDGET_CONTROL, bImportA, MAP=0
+      WIDGET_CONTROL, bAutoParam2, MAP=0
+    ENDELSE
+
     sortElem=loadTemp.(thisMod).(selT).sortBy
     ascElem=loadTemp.(thisMod).(selT).sortAsc
     IF N_ELEMENTS(sortElem) GT N_ELEMENTS(ascElem) THEN BEGIN
@@ -3141,7 +3236,7 @@ pro auto_upd, selT, first
       selParam=selNo(0)
     ENDIF ELSE BEGIN
       selParam=selConfig-1
-      sv=DIALOG_MESSAGE('Automation template saved with parameter set which no longer exists ('+loadTemp.(thisMod).(selT).paramSet+')', DIALOG_PARENT=evTop)
+      IF loadTemp.(thisMod).(selT).alternative EQ '' THEN sv=DIALOG_MESSAGE('Automation template saved with parameter set which no longer exists ('+loadTemp.(thisMod).(selT).paramSet+')', DIALOG_PARENT=evTop)
     ENDELSE
     ;quickTemp - exists still?
     quickTempName=STRUPCASE(loadTemp.(thisMod).(selT).quickTemp)
@@ -3154,6 +3249,7 @@ pro auto_upd, selT, first
     ENDELSE
 
     WIDGET_CONTROL, listSets_a, SET_DROPLIST_SELECT=selParam
+    WIDGET_CONTROL, lblQTO_a, SET_VALUE=configS.(selParam+1).qtOutTemps(thisMod)
     WIDGET_CONTROL, listQT_a, SET_DROPLIST_SELECT=selQT
 
     ;warning if same stationname on more than one template - run all will take first in list
@@ -3210,12 +3306,14 @@ pro auto_upd, selT, first
     WIDGET_CONTROL, txtDCMcritGroup, SET_VALUE='0000'
     WIDGET_CONTROL, txtDCMcritElem, SET_VALUE='0000'
     WIDGET_CONTROL, txtDCMcrit, SET_VALUE=''
-    WIDGET_CONTROL, btnInclSub, SET_BUTTON=0
-    WIDGET_CONTROL, btnOnlyLastDate, SET_BUTTON=0
+    ;WIDGET_CONTROL, btnInclSub, SET_BUTTON=0
+    ;WIDGET_CONTROL, btnOnlyLastDate, SET_BUTTON=0
     WIDGET_CONTROL, listSort, SET_VALUE=''
     WIDGET_CONTROL, btnMoveFiles, SET_BUTTON=0
     WIDGET_CONTROL, txtBrowseApp, SET_VALUE=''
     WIDGET_CONTROL, listQT_a, SET_DROPLIST_SELECT=0
+    WIDGET_CONTROL, lblQTO_a, SET_VALUE=configS.(1).qtOutTemps(thisMod)
+    WIDGET_CONTROL, btnAltAuto, SET_BUTTON=0
     sortElem=''
     ascElem=0
   ENDELSE

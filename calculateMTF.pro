@@ -381,7 +381,7 @@ END
   If smoothSz GT 2 THEN pixVals=SMOOTH(pixVals,smoothSz)
 
   pixValsInterp=INTERPOL(pixVals, dists*pix(0), newdists); linear interpolation
-  pixValsInterp[0:9]=pixValsInterp(10);don't trust first 10 values (first original pix)
+  IF N_ELEMENTS(pixValsInterp) GT 10 THEN pixValsInterp[0:9]=pixValsInterp(10);don't trust first 10 values (first original pix)
   nn=N_ELEMENTS(pixValsInterp)
 
   ;smooth with gaussian

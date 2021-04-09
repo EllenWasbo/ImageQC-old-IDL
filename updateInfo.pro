@@ -38,7 +38,8 @@ pro updateInfo
           'SeriesName:'+tab+ tempStruct.seriesName, $
           'ImageType:'+tab+ tempStruct.imageType, $
           'ExposureModType:'+tab+tempStruct.ExModType, $
-          'Kernel:'+tab+tempStruct.kernel]
+          'Kernel:'+tab+tab+tempStruct.kernel, $
+          'FilterType:'+tab+tempStruct.filterAddOn]
 
         infoString2=$
           ['SliceThick:'+tab+ (tempStruct.SliceThick NE -1 ? string(tempStruct.SliceThick, format='(f0.2)') : '-'), $
@@ -46,9 +47,10 @@ pro updateInfo
           'Imagesize:'+tab+string(imSz[0],format='(i0)')+', '+string(imSz[1],format='(i0)'),$
           'CollWidth:'+tab+(tempStruct.coll[0] NE -1 ? string(tempStruct.coll[0],format='(f0.2)') : '-')+' | '+(tempStruct.coll[1] NE -1 ? string(tempStruct.coll[1],format='(f0.2)') : '-'), $
           'kVp:'+tab+(tempStruct.kVp NE -1 ? STRING(tempStruct.kVp, format='(f0.2)') : '-'), $
-          'mAs:'+tab+(tempStruct.mAs NE -1 ? STRING(tempStruct.mAs, format=formatCode(tempStruct.mAs)) : '-'), $
+          'mA / mAs:'+tab+(tempStruct.mA NE -1 ? STRING(tempStruct.mA, format=formatCode(tempStruct.mA)) : '-')+' / '+(tempStruct.mAs NE -1 ? STRING(tempStruct.mAs, format=formatCode(tempStruct.mAs)) : '-'), $
           'ExpTime (ms):'+tab+(tempStruct.ExpTime NE -1 ? STRING(tempStruct.ExpTime, format=formatCode(tempStruct.ExpTime)) : '-'), $
           'Pitch:'+tab+(tempStruct.pitch NE -1 ? STRING(tempStruct.pitch, format=formatCode(tempStruct.pitch)) : '-'), $
+          'Focal spot size:'+tab+tempStruct.focalSpotSz, $
           'CTDIvol:'+tab+(tempStruct.CTDIvol(0) NE -1 ? (N_ELEMENTS(tempStruct.CTDIvol) EQ 1 ? STRING(tempStruct.CTDIvol, format=formatCode(tempStruct.CTDIvol)): 'err') : '-')]
       END
       1: BEGIN
@@ -70,7 +72,8 @@ pro updateInfo
           'kVp:'+tab+tab+(tempStruct.kVp NE -1 ? STRING(tempStruct.kVp, format='(f0.2)') : '-'), $
           'mA / mAs:'+tab+tab+(tempStruct.mA NE -1 ? STRING(tempStruct.mA, format=formatCode(tempStruct.mA)) : '-') + $
           ' / '+(tempStruct.mAs NE -1 ? STRING(tempStruct.mAs, format=formatCode(tempStruct.mAs)) : '-'), $
-          'ExpTime(ms):' + tab + (tempStruct.ExpTime NE -1 ? STRING(tempStruct.ExpTime, format=formatCode(tempStruct.ExpTime)) : '-'), $     
+          'ExpTime(ms):' + tab + (tempStruct.ExpTime NE -1 ? STRING(tempStruct.ExpTime, format=formatCode(tempStruct.ExpTime)) : '-'), $
+          'Focal spot size:'+tab+tempStruct.focalSpotSz, $     
           'EI:'+tab+tab+(tempStruct.EI NE -1 ? STRING(tempStruct.EI, format=formatCode(tempStruct.EI)) : '-'), $
           'DAP (dGycm2):'+tab+(tempStruct.DAP NE -1 ? STRING(tempStruct.DAP, format=formatCode(tempStruct.DAP)) : '-'), $
           'ExposureModType:'+tab+tempStruct.ExModType,$

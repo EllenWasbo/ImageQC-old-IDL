@@ -23,6 +23,7 @@ pro getParam, configTemp
   WIDGET_CONTROL, unitDeltaO_MTF_CT, GET_VALUE=offxyMTF_unit
   WIDGET_CONTROL, unitDeltaO_MTF_X, GET_VALUE=offxyMTF_X_unit
   WIDGET_CONTROL, unitDeltaO_ROI_CT, GET_VALUE=offxyROI_unit
+  WIDGET_CONTROL, unitDeltaO_ROI_X, GET_VALUE=offxyROIX_unit
 
   ;CT tests
   WIDGET_CONTROL, cw_typeMTF, GET_VALUE=typeMTF
@@ -57,6 +58,7 @@ pro getParam, configTemp
   WIDGET_CONTROL, txtROIa, GET_VALUE=ROIa
   ;Xray tests
   WIDGET_CONTROL, txtStpROIsz, GET_VALUE=STProiSz
+  WIDGET_CONTROL, txtNoiseX, GET_VALUE=NoiseXpercent
   WIDGET_CONTROL, cw_formLSFX, GET_VALUE=typeMTFX
   WIDGET_CONTROL, cw_plotMTFX, GET_VALUE= plotWhichX
   WIDGET_CONTROL, cw_tableMTFX, GET_VALUE= tableWhichX
@@ -64,6 +66,12 @@ pro getParam, configTemp
   WIDGET_CONTROL, txtMTFroiSzX, GET_VALUE=MTFroiSzX
   WIDGET_CONTROL, txtMTFroiSzY, GET_VALUE=MTFroiSzY
   WIDGET_CONTROL, txtHomogROIszX, GET_VALUE=homogROIszX
+  WIDGET_CONTROL, cw_HomogAltX, GET_VALUE=altHomogX
+  WIDGET_CONTROL, typeROIX, GET_VALUE=ROIXtype
+  WIDGET_CONTROL, txtROIXrad, GET_VALUE=ROIXrad
+  WIDGET_CONTROL, txtROIXx, GET_VALUE=ROIXx
+  WIDGET_CONTROL, txtROIXy, GET_VALUE=ROIXy
+  WIDGET_CONTROL, txtROIXa, GET_VALUE=ROIXa
   WIDGET_CONTROL, txtNPSroiSzX, GET_VALUE=NPSroiSzX
   WIDGET_CONTROL, txtNPSsubSzX, GET_VALUE=NPSsubSzX
   ;NM tests
@@ -105,9 +113,10 @@ pro getParam, configTemp
     'searchMaxMTF_ROI',WIDGET_INFO(btnSearchMaxMTF,/BUTTON_SET),$
     'LinROIrad',FLOAT(rad1(0)),'LinROIradS',FLOAT(radS(0)), 'LinTab', lintab, $
     'RampDist',FLOAT(rampDist(0)),'RampLen',FLOAT(rampLen(0)),'RampBackG',FLOAT(rampBackG(0)),'RampSearch',LONG(RampSearch(0)),'RampAvg',LONG(rampAvg(0)),'RampType',ramptype,'RampDens',rampdens,$
-    'HomogROIsz',FLOAT(homogROIsz(0)), 'HomogROIszPET',FLOAT(homogROIszPET(0)), 'HomogROIszX',FLOAT(homogROIszX(0)),'HomogROIdist',FLOAT(homogROIdist(0)), 'HomogROIdistPET',FLOAT(homogROIdistPET(0)),$
-    'NoiseROIsz',FLOAT(noiseROIsz(0)), 'HUwaterROIsz', FLOAT(HUwaterROIsz(0)),$
+    'HomogROIsz',FLOAT(homogROIsz(0)), 'HomogROIszX',FLOAT(homogROIszX(0)),'altHomogX', altHomogX,'HomogROIszPET',FLOAT(homogROIszPET(0)),'HomogROIdist',FLOAT(homogROIdist(0)), 'HomogROIdistPET',FLOAT(homogROIdistPET(0)),$
+    'NoiseROIsz',FLOAT(noiseROIsz(0)), 'NoiseXpercent',FLOAT(NoiseXpercent(0)), 'HUwaterROIsz', FLOAT(HUwaterROIsz(0)),$
     'typeROI',ROItype,'ROIrad',FLOAT(ROIrad(0)),'ROIx',FLOAT(ROIx(0)),'ROIy',FLOAT(ROIy(0)),'ROIa',FLOAT(ROIa(0)),'offxyROI', offxyROI,'offxyROI_unit',offxyROI_unit,$
+    'typeROIX',ROIXtype,'ROIXrad',FLOAT(ROIXrad(0)),'ROIXx',FLOAT(ROIXx(0)),'ROIXy',FLOAT(ROIXy(0)),'ROIXa',FLOAT(ROIXa(0)),'offxyROIX', offxyROIX,'offxyROIX_unit',offxyROIX_unit,$
     'NPSroiSz', LONG(NPSroiSz(0)), 'NPSroiDist', FLOAT(NPSroiDist(0)),'NPSsubNN', LONG(NPSsubNN(0)), 'NPSroiSzX', LONG(NPSroiSzX(0)), 'NPSsubSzX', LONG(NPSsubSzX(0)), 'NPSavg',WIDGET_INFO(btnNPSavg, /BUTTON_SET),$
     'STProiSz', FLOAT(STProiSz(0)), $
     'unifAreaRatio', FLOAT(unifAreaRatio(0)),'SNIAreaRatio', FLOAT(SNIAreaRatio(0)),'unifCorr',WIDGET_INFO(btnUnifCorr,/BUTTON_SET),'SNIcorr',WIDGET_INFO(btnSNICorr,/BUTTON_SET),'distCorr',FLOAT(distCorr(0)),'attCoeff',FLOAT(attCorr(0)),'detThick',FLOAT(thickCorr(0)), $

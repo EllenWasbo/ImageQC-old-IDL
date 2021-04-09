@@ -146,9 +146,10 @@ function updateConfigS, file
     'searchMaxMTF_ROI',0,$
     'LinROIrad',3.,'LinROIradS',11., 'LinTab',lintab, $
     'RampDist',38.,'RampLen',60.,'RampBackG',5.,'RampSearch',5,'RampAvg',1,'RampType',0,'RampDens',0,$
-    'HomogROIsz',10., 'HomogROIszX',10., 'HomogROIszPET', 10.,'HomogROIdist',55.,'HomogROIdistPET',55.,$
-    'NoiseROIsz',55., 'HUwaterROIsz', 55.,$
+    'HomogROIsz',10., 'HomogROIszX',10., 'altHomogX', 0, 'HomogROIszPET', 10.,'HomogROIdist',55.,'HomogROIdistPET',55.,$
+    'NoiseROIsz',55., 'NoiseXpercent',90, 'HUwaterROIsz', 55.,$
     'typeROI',0,'ROIrad',5.,'ROIx',10.,'ROIy',10.,'ROIa',0.,'offxyROI', [0,0], 'offxyROI_unit', 0,$
+    'typeROIX',0,'ROIXrad',5.,'ROIXx',10.,'ROIXy',10.,'ROIXa',0.,'offxyROIX', [0,0], 'offxyROIX_unit', 0,$
     'NPSroiSz', 50, 'NPSroiDist', 50., 'NPSsubNN', 20, 'NPSroiSzX', 256, 'NPSsubSzX', 5, 'NPSavg', 1, $
     'STProiSz', 11.3, $
     'unifAreaRatio', 0.95,'SNIAreaRatio', 0.9,'unifCorr',0,'SNIcorr',0,'distCorr',385.0,'attCoeff',2.2,'detThick',9.5,$
@@ -231,7 +232,7 @@ function updateConfigS, file
   return, newConfigS
 end
 
-function updateQuickT, file, mOpt
+function updateQuickT, file, mOpt, TEMPPA=temppa
   IF file EQ '' THEN quickT=!Null ELSE BEGIN
     ;find existing values and paste into new quicktemp structure
     RESTORE, file
@@ -246,7 +247,7 @@ function updateQuickT, file, mOpt
     ENDIF
     IF N_ELEMENTS(quickTemp) NE 0 THEN quickT=quickTemp ELSE quickT=!Null
     IF SIZE(quickT, /TNAME) EQ 'STRUCT' THEN BEGIN
-      ;mOpt= Struct 'CT',[1,2,3,4,5,6,7,0,0,0],'Xray',[1,2,3,4,5,0,0],'NM',[1,1,1,1,0,0,0],'SPECT', INTARR(3),'PET',INTARR(3),'MR',INTARR(1))
+      ;mOpt= Struct 'CT',[1,2,3,4,5,6,7,0,0,0],'Xray',[1,2,3,4,5,6,0,0],'NM',[1,1,1,1,0,0,0],'SPECT', INTARR(3),'PET',INTARR(3),'MR',INTARR(1))
       ms=TAG_NAMES(mOpt)
       tnamQT=TAG_NAMES(quickT)
       IF ~ARRAY_EQUAL(ms, tnamQT) THEN BEGIN
@@ -284,12 +285,14 @@ function updateQuickT, file, mOpt
               IF adr(0) NE '' THEN BEGIN
                 fi=FILE_INFO(FILE_DIRNAME(adr))
                 IF fi.write THEN FILE_COPY, file, adr ELSE BEGIN
-                  adr='C:\temp\'+FILE_BASENAME(adr)+'.dat'
-                  fi=FILE_INFO('C:\temp\')
-                  IF fi.write THEN BEGIN
-                    FILE_COPY, file, adr
-                    sv=DIALOG_MESSAGE('Failed to save backup in selected folder. Backup can be found in C:\temp instead.')
-                  ENDIF ELSE sv=DIALOG_MESSAGE('Failed to save backup. No write permission on selected folder.',/ERROR)
+                   IF N_ELEMENTS(temppa) GT 0 THEN BEGIN
+                      adr=temppa+FILE_BASENAME(adr)+'.dat'
+                      fi=FILE_INFO(temppa)
+                      IF fi.write THEN BEGIN
+                        FILE_COPY, file, adr
+                        sv=DIALOG_MESSAGE('Failed to save backup in selected folder. Backup can be found in '+temppa+' instead.')
+                      ENDIF ELSE sv=DIALOG_MESSAGE('Failed to save backup. No write permission on selected folder nor in '+temppa+'.',/ERROR)
+                    ENDIF ELSE sv=DIALOG_MESSAGE('Failed to save backup in selected folder. No write permission.',/ERROR)
                 ENDELSE
               ENDIF
             ENDIF
@@ -353,7 +356,7 @@ function updateQuickTout, file, analyseStrAll
     'CTLIN',-1,'HUWATER',-1,'EXP',-1,'ROI',-1)
   defXray=CREATE_STRUCT($
     'STP', CREATE_STRUCT('Pixel_mean',CREATE_STRUCT('ALT',0,'COLUMNS',2,'CALC',0,'PER_SERIES',0)),$
-    'HOMOG',-1,'NOISE',-1,'EXP',-1,'MTF',-1)
+    'HOMOG',-1,'NOISE',-1,'EXP',-1,'MTF',-1,'ROI',-1)
   defNM=CREATE_STRUCT('UNIF', -1,'SNI',-1,'ACQ',-1,'BAR',-1)
   defMR=CREATE_STRUCT('DCM', -1,'POS',-1)
   quickToutDefault=CREATE_STRUCT('CT',CREATE_STRUCT('DEFAULT',defCT),'Xray',CREATE_STRUCT('DEFAULT',defXray),'NM',CREATE_STRUCT('DEFAULT',defNM),'MR',CREATE_STRUCT('DEFAULT',defMR))
@@ -478,7 +481,7 @@ function updateQuickTout, file, analyseStrAll
   return, quickTout
 end
 
-function updateLoadT, file, mOpt
+function updateLoadT, file, mOpt, TEMPPA=temppa
   IF file EQ '' THEN loadT=!Null ELSE BEGIN
     ;find existing values and paste into new loadTemp structure (no doing anything yet as this is first version with this)
     RESTORE, file
@@ -487,7 +490,7 @@ function updateLoadT, file, mOpt
       IF SIZE(loadTemp, /TNAME) EQ 'STRUCT' THEN BEGIN
         tempsExist=TAG_NAMES(loadTemp)
         loadT=loadTemp
-        IF ~ARRAY_EQUAL(tempsExist[0:2],['CT','XRAY','NM']) THEN BEGIN
+        IF ~ARRAY_EQUAL(tempsExist[0:2],['CT','XRAY','NM']) THEN BEGIN;at least three first match = correct type of structure
           ;mOpt= Struct 'CT',[1,2,3,4,5,6,7,0,0,0],'Xray',[1,2,3,4,5,0,0],'NM',[1,1,1,1,0,0,0],'SPECT', INTARR(3),'PET',INTARR(3),'MR',INTARR(1))
           ms=TAG_NAMES(mOpt)
           loadTm=loadTemp
@@ -524,11 +527,11 @@ function updateLoadT, file, mOpt
                 IF adr(0) NE '' THEN BEGIN
                   fi=FILE_INFO(FILE_DIRNAME(adr))
                   IF fi.write THEN FILE_COPY, file, adr ELSE BEGIN
-                    adr='C:\temp\'+FILE_BASENAME(adr)+'.dat'
-                    fi=FILE_INFO('C:\temp\')
+                    adr=temppa+FILE_BASENAME(adr)+'.dat'
+                    fi=FILE_INFO(temppa)
                     IF fi.write THEN BEGIN
                       FILE_COPY, file, adr
-                      sv=DIALOG_MESSAGE('Failed to save backup in selected folder. Backup can be found in C:\temp instead.')
+                      sv=DIALOG_MESSAGE('Failed to save backup in selected folder. Backup can be found in '+temppa+' instead.')
                     ENDIF ELSE sv=DIALOG_MESSAGE('Failed to save backup. No write permission on selected folder.',/ERROR)
                   ENDELSE
                 ENDIF
@@ -564,7 +567,8 @@ function updateLoadT, file, mOpt
           'pathApp','',$
           'archive',0,$
           'deleteFiles',0,$
-          'deleteFilesEnd',0)
+          'deleteFilesEnd',0,$
+          'alternative','')
         loadTsetDef=CREATE_STRUCT('loadTempDefault',loadTthisVersion)
         tagNewest=TAG_NAMES(loadTthisVersion)
 

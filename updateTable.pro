@@ -194,9 +194,31 @@ pro updateTable
           'HOMOG':BEGIN
             szTab=SIZE(homogRes, /DIMENSIONS)
             nCols=szTab(0)
-            headers=tableHeaders.XRAY.HOMOG.Alt1;['Center','UpperLeft','LowerLeft','UpperRight','LowerRight','Std center', 'Std UL','Std LL','Std UR','Std LR']
             resArrString=STRARR(nCols,nRows)
-            FOR i=0, nRows-1 DO resArrString[*,i]=STRING(homogRes[*,markedTemp(i)], FORMAT=formatCode(homogRes[*,markedTemp(i)]))
+            WIDGET_CONTROL, cw_HomogAltX, GET_VALUE=tabType
+            currentHeaderAlt(curTab)=tabType
+            headers=tableHeaders.XRAY.HOMOG.(tabType)
+            CASE tabType OF
+              0: FOR i=0, nRows-1 DO resArrString[*,i]=STRING(homogRes[*,markedTemp(i)], FORMAT=formatCode(homogRes[*,markedTemp(i)]))
+              1: BEGIN
+                  FOR i=0, nRows-1 DO BEGIN
+                    resArrString[0:4,i]=STRING(homogRes[0:4,markedTemp(i)], FORMAT=formatCode(homogRes[0:4,markedTemp(i)]))
+                    avg=MEAN(homogRes[0:4,i])
+                    diff=homogRes[0:4,markedTemp(i)]-avg
+                    resArrString[5:9,i]=STRING(diff, FORMAT=formatCode(homogRes[0:4,markedTemp(i)]))
+                  ENDFOR
+                END
+              2: BEGIN
+                  FOR i=0, nRows-1 DO BEGIN
+                    resArrString[0:4,i]=STRING(homogRes[0:4,markedTemp(i)], FORMAT=formatCode(homogRes[0:4,markedTemp(i)]))
+                    avg=MEAN(homogRes[0:4,i])
+                    diff=100.0*(homogRes[0:4,markedTemp(i)]-avg)/avg
+                    resArrString[5:9,i]=STRING(diff, FORMAT='(f0.1)')
+                  ENDFOR
+                END
+              ELSE:
+            ENDCASE
+
           END
           'NOISE':BEGIN
             nCols=2
@@ -235,6 +257,14 @@ pro updateTable
               ENDELSE
             ENDIF ELSE resArrString=STRARR(6,nRows)
           END
+          
+          'ROI': BEGIN
+            nCols=2
+            headers=tableHeaders.XRAY.ROI.Alt1;[mean,stdev]
+            resArrString=STRARR(nCols,nRows)
+            FOR i=0, nRows-1 DO resArrString[*,i]=STRING(ROIres[*,markedTemp(i)],FORMAT=formatCode(ROIres[*,markedTemp(i)]))
+          END
+          
           'NPS':
           ELSE:
         ENDCASE

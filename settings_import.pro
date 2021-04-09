@@ -1,7 +1,7 @@
 ;procedures for importing templates from another config-path. Used in settings.pro
 
 ;import parameter set(s)
-pro import_s, source_path, target_path, xo, yo, parent, NAMED_SETS=named_sets
+pro import_s, source_path, target_path, mOpt, xo, yo, parent, NAMED_SETS=named_sets
   impConfigS=updateConfigS(source_path)
 
   IF SIZE(impConfigS, /TNAME) EQ 'STRUCT' THEN BEGIN
@@ -36,6 +36,8 @@ pro import_s, source_path, target_path, xo, yo, parent, NAMED_SETS=named_sets
       currNames=TAG_NAMES(configS)
       updSet=0
 
+      qto2imp=!Null
+      qto2def=!Null
       FOR i=0, N_ELEMENTS(IDs2import)-1 DO BEGIN
         newname=names(IDs2import(i))
         IF currNames.HasValue(newname) THEN BEGIN
@@ -62,6 +64,7 @@ pro import_s, source_path, target_path, xo, yo, parent, NAMED_SETS=named_sets
             ots=impConfigS.(impConfigS.(idSource)).QTOUTTEMPS
             def_ots=WHERE(ots NE 'DEFAULT')
             IF def_ots(0) NE -1 THEN BEGIN
+              not_def=ots(def_ots)
               newline = string([13B, 10B])
               sv=DIALOG_MESSAGE('The parameter set '+newname+' have links to these QuickTest Output templates '+newline+STRJOIN(ots,newline)+newline+'These will all be set to DEFAULT. Consider importing output templates and reconnect the paramater set.', /INFORMATION, DIALOG_PARENT=parent)
               FOREACH elem, impConfigS.(idSource).QTOUTTEMPS, o DO impConfigS.(idSource).QTOUTTEMPS(o)='DEFAULT'
@@ -80,6 +83,12 @@ pro import_s, source_path, target_path, xo, yo, parent, NAMED_SETS=named_sets
             ots=impConfigS.(IDs2import(i)+1).QTOUTTEMPS
             def_ots=WHERE(ots NE 'DEFAULT')
             IF def_ots(0) NE -1 THEN BEGIN
+              ;FOR q=0, N_ELEMENTS(def_ots)-1 DO BEGIN
+              ;  nameExist=TAG_NAMES(quickTout.(def_ots(q)))
+              ;  IF ~nameExist.HasValue(ots(def_ots(q))) THEN BEGIN
+              ;    TODO - implement import of QTO based on linked to paramset
+              ;  ENDIF
+              ;ENDFOR
               newline = string([13B, 10B])
               sv=DIALOG_MESSAGE('The parameter set '+newname+' have links to these QuickTest Output templates '+newline+STRJOIN(ots,newline)+newline+'These will all be set to DEFAULT. Consider importing output templates and reconnect the paramater set.', /INFORMATION, DIALOG_PARENT=parent)
               FOREACH elem, impConfigS.(IDs2import(i)+1).QTOUTTEMPS, o DO impConfigS.(IDs2import(i)+1).QTOUTTEMPS(o)='DEFAULT'
@@ -89,6 +98,13 @@ pro import_s, source_path, target_path, xo, yo, parent, NAMED_SETS=named_sets
           ENDELSE
         ENDIF
       ENDFOR
+      
+      ;IF N_ELEMENTS(qto2imp) GT 0 THEN BEGIN
+        ;TODO - not implemented yet - import those QTO temp if accepted
+       ; FOR i=0, N_ELEMENTS(qto2def)-1 DO BEGIN
+       ;   FOREACH elem, configS.(qto2def(i)+1).QTOUTTEMPS, o DO configS.(qto2def(i)+1).QTOUTTEMPS(o)='DEFAULT'
+       ; ENDFOR
+      ;ENDIF
 
       IF updSet EQ 1 THEN SAVEIF, saveOK, configS, quickTemp, quickTout, loadTemp, renameTemp, FILENAME=target_path
     ENDIF
@@ -190,31 +206,43 @@ pro import_qt, source_path, target_path, mOpt, modSel, xo, yo, parent, NAMED_TEM
 end
 
 ;import QuickTest Output template(s)
-pro import_qto, source_path, target_path, analyseStrA, modNmb, xo, yo, parent
+pro import_qto, source_path, target_path, analyseStrA, modNmb, xo, yo, parent, NAMED_TEMPS=named_temps
   impquickTout=updateQuickTout(source_path, analyseStrA)
   modNames=TAG_NAMES(impquickTout)
   curimpQTO=impquickTout.(modNmb)
   names=TAG_NAMES(curimpQTO)
-
-  box=[$
-    '1, BASE,, /COLUMN', $
-    '0, LABEL, Templates found in selected config file for '+modNames(modNmb), $
-    '0, LABEL, Select template(s) to import', $
-    '0, LABEL, ',$
-    '2, LIST, ' + STRJOIN(names,'|') + ', TAG=templates', $
-    '1, BASE,, /ROW', $
-    '0, BUTTON, Cancel, QUIT, TAG=Cancel',$
-    '2, BUTTON, OK, QUIT, TAG=OK']
-  res=CW_FORM_2(box, /COLUMN, TAB_MODE=1, TITLE='Select template(s) to import', XSIZE=300, YSIZE=300, FOCUSNO=3, XOFFSET=xo+250, YOFFSET=yo+250)
-
-  IF res.OK THEN BEGIN
-    IF N_ELEMENTS(res.templates) NE 0 THEN BEGIN
-      RESTORE, target_path
-      curQTO=quickTout.(modNmb)
-      currNames=TAG_NAMES(curQTO)
-
-      updcurQTO=0
-      IDs2import=res.templates
+  
+  IDs2import=!Null
+  IF N_ELEMENTS(named_temps) GT 0 THEN BEGIN
+    FOR i=0, N_ELEMENTS(named_temps)-1 DO BEGIN
+      id=WHERE(names EQ named_temps(i))
+      IF id(0) NE -1 THEN IDs2import=[IDs2import, id(0)]
+    ENDFOR
+  ENDIF ELSE BEGIN
+    box=[$
+      '1, BASE,, /COLUMN', $
+      '0, LABEL, Templates found in selected config file for '+modNames(modNmb), $
+      '0, LABEL, Select template(s) to import', $
+      '0, LABEL, ',$
+      '2, LIST, ' + STRJOIN(names,'|') + ', TAG=templates', $
+      '1, BASE,, /ROW', $
+      '0, BUTTON, Cancel, QUIT, TAG=Cancel',$
+      '2, BUTTON, OK, QUIT, TAG=OK']
+    res=CW_FORM_2(box, /COLUMN, TAB_MODE=1, TITLE='Select template(s) to import', XSIZE=300, YSIZE=300, FOCUSNO=3, XOFFSET=xo+250, YOFFSET=yo+250)
+  
+    IF res.OK THEN BEGIN
+      IF N_ELEMENTS(res.templates) NE 0 THEN BEGIN
+        RESTORE, target_path
+        curQTO=quickTout.(modNmb)
+        currNames=TAG_NAMES(curQTO)
+  
+        updcurQTO=0
+        IDs2import=res.templates
+      ENDIF
+    ENDIF
+  ENDELSE
+ 
+  IF N_ELEMENTS(IDs2import) GT 0 THEN BEGIN
 
       FOR i=0, N_ELEMENTS(IDs2import)-1 DO BEGIN
         newname=names(IDs2import(i))
@@ -253,7 +281,6 @@ pro import_qto, source_path, target_path, analyseStrA, modNmb, xo, yo, parent
         quickTout=replaceStructStruct(quickTout, curQTO, modNmb)
         SAVEIF, saveOK, configS, quickTemp, quickTout, loadTemp, renameTemp, FILENAME=target_path
       ENDIF
-    ENDIF
 
   ENDIF
 
@@ -382,7 +409,7 @@ pro import_a, source_path, target_path, mOpt, modSel, xo, yo, parent
             IF N_ELEMENTS(missingParamSets) GT 0 THEN BEGIN
               missingParamSets=missingParamSets(SORT(missingParamSets))
               missingParamSets=missingParamSets(UNIQ(missingParamSets))
-              import_s, source_path, target_path, xo, yo, parent, NAMED_SETS=missingParamSets
+              import_s, source_path, target_path, mOpt, xo, yo, parent, NAMED_SETS=missingParamSets
             ENDIF
             IF N_ELEMENTS(missingQuickTemp) GT 0 THEN BEGIN
               missingQuickTemp=missingQuickTemp(SORT(missingQuickTemp))

@@ -18,10 +18,14 @@ pro headerEdit, nam, strTab, imgNo, GROUP_LEADER = bMain
   
   bBottom=WIDGET_BASE(editbox, /ROW)
 
-  mlBottom0=WIDGET_LABEL(bBottom, VALUE='', XSIZE=200)
-  btnPlay=WIDGET_BUTTON(bBottom,VALUE='Use', UVALUE='useEdit', XSIZE=100)
-  mlBottom1=WIDGET_LABEL(bBottom, VALUE='', XSIZE=20)
-  btnClose=WIDGET_BUTTON(bBottom, VALUE='Cancel', UVALUE='cancelEdit', XSIZE=100)
+  lbl = WIDGET_LABEL(bBottom, VALUE='', XSIZE=200, /NO_COPY)
+  btn = WIDGET_BUTTON(bBottom,VALUE='Use', UVALUE='useEdit', XSIZE=100, /NO_COPY)
+  lbl = WIDGET_LABEL(bBottom, VALUE='', XSIZE=20, /NO_COPY)
+  btn = WIDGET_BUTTON(bBottom, VALUE='Cancel', UVALUE='cancelEdit', XSIZE=100, /NO_COPY)
+  
+  bInfoBottom=WIDGET_BASE(editbox, /ROW)
+  lbl = WIDGET_LABEL(bInfoBottom, VALUE='', XSIZE=200, /NO_COPY)
+  lbl = WIDGET_LABEL(bInfoBottom, VALUE='NB: Press enter after editing cell', /NO_COPY)
 
   WIDGET_CONTROL, editbox, /REALIZE
   XMANAGER, 'headerEdit', editbox

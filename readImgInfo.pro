@@ -76,7 +76,7 @@ end
 ;  .pitch
 ;  .ExModType (exposure modulation type)
 ;  .CTDIvol
-;  .spotSize
+;  .focalSpotSz
 ;  .DAP
 ;  .EI
 ;  .sensitivity
@@ -277,6 +277,7 @@ function readImgInfo, adr, dialog_par, silentValue
         test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
         IF test(0) NE -1 THEN kVp=*(test_peker[0]) ELSE kVp=-1.
         IF N_ELEMENTS(kVp) GT 1 THEN kVp=FLOAT(fix(kVp, type=7))
+        IF SIZE(kVp, /TNAME) NE 'FLOAT' THEN kVp=FLOAT(kVp)
 
         test=o->GetReference('0018'x,'0090'x)
         test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
@@ -412,7 +413,8 @@ function readImgInfo, adr, dialog_par, silentValue
 
         test=o->GetReference('0018'x,'1190'x)
         test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
-        IF test(0) NE -1 THEN spotSize=*(test_peker[0]) ELSE spotSize=-1.
+        IF test(0) NE -1 THEN focalSpotSz=*(test_peker[0]) ELSE focalSpotSz='-'
+        IF SIZE(focalSpotSz, /TNAME) NE 'STRING' THEN focalSpotSz=STRTRIM(STRING(focalSpotSz))
 
         test=o->GetReference('0018'x,'115E'x)
         test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
@@ -471,6 +473,12 @@ function readImgInfo, adr, dialog_par, silentValue
         test=o->GetReference('0018'x,'1210'x);more than one possible...
         test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
         IF test(0) NE -1 THEN kernel=*(test_peker[0]) ELSE kernel='-'
+        IF STRMID(manufacturer,0,2) EQ 'GE' THEN BEGIN
+          test=o->GetReference('0053'x,'1042'x);IR or AI grade
+          test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
+          IF test(0) NE -1 THEN kernel2=', '+*(test_peker[0]) ELSE kernel2=''
+          kernel=kernel+kernel2
+        ENDIF
 
         IF nFrames EQ 0 THEN BEGIN
           test=o->GetReference('0020'x,'1041'x)
@@ -494,7 +502,7 @@ function readImgInfo, adr, dialog_par, silentValue
 
         test=o->GetReference('0020'x,'0013'x)
         test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
-        IF test(0) NE -1 THEN imgNo=*(test_peker[0]) ELSE imgNo=-1
+        IF test(0) NE -1 THEN imgNo=LONG(*(test_peker[0])) ELSE imgNo=-1
 
         test=o->GetReference('0028'x,'1050'x)
         test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
@@ -645,7 +653,7 @@ function readImgInfo, adr, dialog_par, silentValue
         imgStruct=CREATE_STRUCT('filename',adr,'studydatetime', studyDate+studyTime, 'acqDate', acqDate, 'imgDate', imgDate, 'institution',institution,'manufacturer',manufacturer,'modality', modality, 'modelName',modelName,'stationName',stationName,'SWversion',SWversion,'detectorID',detectorID,$
           'patientName',patientName, 'patientID', patientID, 'patientWeight', patientWeight, 'imageType',imageType,'presType',presType,'studyDescr',studyDescr,'seriesName',seriesName, 'protocolname', protocolname,$
           'seriesNmb',seriesNmb,'seriesTime', seriesTime,'seriesUID',seriesUID,'acqNmb',acqNmb, 'acqtime',acqtime,'sliceThick',sliceThick, 'pix', pix,'imageSize',imageSize,'kVp',kVp,'FOV',dFOV,'rekonFOV',rekonFOV,'mA',mA,'mAs',mAs,'ExpTime',time,'coll',coll,'pitch',pitch,$
-          'ExModType',ExModType,'CTDIvol',CTDIvol,'spotSize',spotSize,'DAP',DAP,'EI',EI,'sensitivity',sensitivity,'sdd',sdd,'filterAddOn',filterAddOn,'kernel',kernel,$
+          'ExModType',ExModType,'CTDIvol',CTDIvol,'focalSpotSz',focalSpotSz,'DAP',DAP,'EI',EI,'sensitivity',sensitivity,'sdd',sdd,'filterAddOn',filterAddOn,'kernel',kernel,$
           'zpos', zpos, 'imgNo',imgNo,'nFrames',nFrames,'wCenter',wCenter,'wWidth',wWidth,$
           'collType',collType,'nEWindows',nEWindows,'EWindowName',EWindowName,'zoomFactor',zoomFactor,'radius1',radPos1,'radius2',radPos2,'detectorVector',detectorVector,'angle',angle,'acqFrameDuration',acqFrameDuration,'acqTerminationCond',acqTerminationCond,$
           'units',units,'radiopharmaca',radiopharmaca,'admDose',admDose,'admDoseTime',admDoseTime,'reconMethod',reconMethod,'attCorrMethod',attCorrMethod,'scaCorrMethod',scaCorrMethod, 'scatterFrac',scatterFrac,$
@@ -777,7 +785,7 @@ function readImgInfo, adr, dialog_par, silentValue
         detNmbString=findTxtHeader(tagStr,valStr,'0054,0020','')
         IF detNmbString NE '' THEN detectorVector=STRSPLIT(detNmbStrin,'\',/EXTRACT) ELSE detectorVector='-'
         CTDIvol=findTxtHeader(tagStr,valStr,'0018,9345',-1.)
-        spotSize=findTxtHeader(tagStr,valStr,'0018,1190',-1.)
+        focalSpotSz=findTxtHeader(tagStr,valStr,'0018,1190','-')
         DAP=findTxtHeader(tagStr,valStr,'0018,115E',-1.)
         IF DAP EQ -1. THEN DAP=findTxtHeader(tagStr,valStr,'0018,9473',-1.)
         EI=findTxtHeader(tagStr,valStr,'0018,1411',-1.)
@@ -843,7 +851,7 @@ function readImgInfo, adr, dialog_par, silentValue
       imgStruct=CREATE_STRUCT('filename',adr,'studydatetime', '', 'acqDate', '', 'imgDate', '', 'institution','','manufacturer','','modality', '', 'modelName','','stationName','','SWversion','','detectorID','',$
         'patientName','', 'patientID', '', 'patientWeight', '-', 'imageType','','presType','','studyDescr','','seriesName','', 'protocolname', '',$
         'seriesNmb',-1,'seriesTime', '','seriesUID','','acqNmb',-1, 'acqtime','','sliceThick',-1., 'pix', [-1.,-1.],'imageSize',[-1,-1],'kVp',-1.,'FOV',-1.,'rekonFOV',-1.,'mA',-1.,'mAs',-1.,'ExpTime',-1.,'coll',[-1.,-1.],'pitch',-1.,$
-        'ExModType','-','CTDIvol',-1.,'spotSize',-1.,'DAP',-1.,'EI',-1.,'sensitivity',-1.,'sdd',-1.,'filterAddOn','','kernel','-',$
+        'ExModType','-','CTDIvol',-1.,'focalSpotSz','-','DAP',-1.,'EI',-1.,'sensitivity',-1.,'sdd',-1.,'filterAddOn','','kernel','-',$
         'zpos', -999., 'imgNo',-1,'nFrames',0,'wCenter',-1,'wWidth',-1,$
         'collType','-','nEWindows',-1,'EWindowName','-','zoomFactor','-','radius1',-1.,'radius2',-1.,'detectorVector',detectorVector,'angle',-999.,'acqFrameDuration',-1.,'acqTerminationCond','-',$
         'units','-','radiopharmaca','-','admDose','-','admDoseTime','-','reconMethod','-','attCorrMethod','-','scaCorrMethod','-', 'scatterFrac','-',$
@@ -855,7 +863,7 @@ function readImgInfo, adr, dialog_par, silentValue
       imgStruct=CREATE_STRUCT('filename',adr,'studydatetime', studyDate+studyTime, 'acqDate', acqDate, 'imgDate', imgDate, 'institution',institution,'manufacturer',manufacturer,'modality', modality, 'modelName',modelName,'stationName',stationName,'SWversion',SWversion,'detectorID',detectorID,$
         'patientName',patientName, 'patientID', patientID, 'patientWeight', patientWeight, 'imageType',imageType,'presType',presType,'studyDescr',studyDescr,'seriesName',seriesName, 'protocolname', protocolname,$
         'seriesNmb',seriesNmb,'seriesTime', seriesTime,'seriesUID',seriesUID,'acqNmb',acqNmb, 'acqtime',acqtime,'sliceThick',sliceThick, 'pix', pix,'imageSize',imageSize,'kVp',kVp,'FOV',dFOV,'rekonFOV',rekonFOV,'mA',mA,'mAs',mAs,'ExpTime',time,'coll',coll,'pitch',pitch,$
-        'ExModType',ExModType,'CTDIvol',CTDIvol,'spotSize',spotSize,'DAP',DAP,'EI',EI,'sensitivity',sensitivity,'sdd',sdd,'filterAddOn',filterAddOn,'kernel',kernel,$
+        'ExModType',ExModType,'CTDIvol',CTDIvol,'focalSpotSz',focalSpotSz,'DAP',DAP,'EI',EI,'sensitivity',sensitivity,'sdd',sdd,'filterAddOn',filterAddOn,'kernel',kernel,$
         'zpos', zpos, 'imgNo',imgNo,'nFrames',nFrames,'wCenter',wCenter,'wWidth',wWidth,$
         'collType',collType,'nEWindows',nEWindows,'EWindowName',EWindowName,'zoomFactor',zoomFactor,'radius1',radPos1,'radius2',radPos2,'detectorVector',detectorVector,'angle',angle,'acqFrameDuration',acqFrameDuration,'acqTerminationCond',acqTerminationCond,$
         'units',units,'radiopharmaca',radiopharmaca,'admDose',admDose,'admDoseTime',admDoseTime,'reconMethod',reconMethod,'attCorrMethod',attCorrMethod,'scaCorrMethod',scaCorrMethod, 'scatterFrac',scatterFrac,$

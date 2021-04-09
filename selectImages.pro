@@ -105,43 +105,43 @@ pro selectImages, markArr, QTstring, defPath
   fontTit="Tahoma*ITALIC*BOLD*18"
 
   selImgbox = WIDGET_BASE(TITLE='Select images to open', /COLUMN, XSIZE=1150, YSIZE=680, XOFFSET=20, YOFFSET=20)
-  ml0=WIDGET_LABEL(selImgbox, VALUE='', YSIZE=20)
+  lbl=WIDGET_LABEL(selImgbox, VALUE='', YSIZE=20, /NO_COPY)
   topBase=WIDGET_BASE(selImgbox,/ROW)
   bBrowse = WIDGET_BASE(topBase, /ROW)
-  lblBrowse = WIDGET_LABEL(bBrowse, VALUE='Selected folder:', FONT=font1)
+  lbl = WIDGET_LABEL(bBrowse, VALUE='Selected folder:', FONT=font1, /NO_COPY)
   txtBrowse = WIDGET_TEXT(bBrowse, VALUE='', XSIZE=500, SCR_XSIZE=500, FONT=font1)
   btnBrowse = WIDGET_BUTTON(bBrowse, VALUE='Browse...', UVALUE='selectFolder', FONT=font1)
-  lblBrowseTip = WIDGET_LABEL(bBrowse, VALUE='NB - files on local disc are accessed faster than files on network disc', FONT=font1)
-  lblTopMl0=WIDGET_LABEL(topBase, VALUE='', XSIZE=20)
+  lbl = WIDGET_LABEL(bBrowse, VALUE='NB - files on local disc are accessed faster than files on network disc', FONT=font1, /NO_COPY)
+  lbl=WIDGET_LABEL(topBase, VALUE='', XSIZE=20, /NO_COPY)
   lblProgressSelIm=WIDGET_LABEL(selImgbox, VALUE='', /DYNAMIC_RESIZE, XSIZE=200)
 
-  ml1=WIDGET_LABEL(selImgbox, VALUE='', YSIZE=20)
+  lbl=WIDGET_LABEL(selImgbox, VALUE='', YSIZE=20, /NO_COPY)
 
   bLists=WIDGET_BASE(selImgbox, /ROW)
   bSerList=WIDGET_BASE(bLists, /COLUMN)
-  lblSer=WIDGET_LABEL(bSerList, VALUE='Series ', FONT=fontTit)
-  lblSer2=WIDGET_LABEL(bSerList, VALUE='', FONT=font1);'default sorted by series number '
+  lbl=WIDGET_LABEL(bSerList, VALUE='Series ', FONT=fontTit, /NO_COPY)
+  lbl=WIDGET_LABEL(bSerList, VALUE='', FONT=font1, /NO_COPY);'default sorted by series number '
   lstSer=WIDGET_LIST(bSerList, XSIZE=300, SCR_XSIZE=250, YSIZE=1, SCR_YSIZE=350, MULTIPLE=1, FONT=font1, UVALUE='serList');, /CONTEXT_EVENTS)
 
   bImgList=WIDGET_BASE(bLists, /COLUMN)
-  lblImg=WIDGET_LABEL(bImgList, VALUE='Images in selected series ', FONT=fontTit)
-  lblImg2=WIDGET_LABEL(bImgList, VALUE='images of first selected series sorted by image number', FONT=font1)
+  lbl=WIDGET_LABEL(bImgList, VALUE='Images in selected series ', FONT=fontTit, /NO_COPY)
+  lbl=WIDGET_LABEL(bImgList, VALUE='images of first selected series sorted by image number', FONT=font1, /NO_COPY)
   lstImg=WIDGET_LIST(bImgList, XSIZE=280, SCR_XSIZE=340, YSIZE=1, SCR_YSIZE=350, MULTIPLE=1, FONT=font1, UVALUE='imgList');, /CONTEXT_EVENTS)
 
   bTransfer=WIDGET_BASE(bLists, /COLUMN)
-  lblTransfer0=WIDGET_LABEL(bTransfer, VALUE='', YSIZE=100)
-  lblTransfer1=WIDGET_LABEL(bTransfer, VALUE='Push', FONT=font1)
-  lblTransfer2=WIDGET_LABEL(bTransfer, VALUE='selected', FONT=font1)
+  lbl=WIDGET_LABEL(bTransfer, VALUE='', YSIZE=100, /NO_COPY)
+  lbl=WIDGET_LABEL(bTransfer, VALUE='Push', FONT=font1, /NO_COPY)
+  lbl=WIDGET_LABEL(bTransfer, VALUE='selected', FONT=font1, /NO_COPY)
   btnAddSel=WIDGET_BUTTON(bTransfer, VALUE='>>', TOOLTIP='Add selected images of this series to the list of selected images', FONT=font1, UVALUE='addSel')
 
   bSelImgList=WIDGET_BASE(bLists, /COLUMN)
-  lblSelImg=WIDGET_LABEL(bSelImgList, VALUE='Images to be opened ', FONT=fontTit)
-  lblSelImg2=WIDGET_LABEL(bSelImgList, VALUE='in main window ', FONT=font1)
+  lbl=WIDGET_LABEL(bSelImgList, VALUE='Images to be opened ', FONT=fontTit, /NO_COPY)
+  lbl=WIDGET_LABEL(bSelImgList, VALUE='in main window ', FONT=font1, /NO_COPY)
   lstSelImg=WIDGET_LIST(bSelImgList, XSIZE=280, SCR_XSIZE=330, YSIZE=1, SCR_YSIZE=350, MULTIPLE=1, FONT=font1, UVALUE='selImgList');, /CONTEXT_EVENTS)
 
   bQTlist=WIDGET_BASE(bLists, /COLUMN)
-  lblQT=WIDGET_LABEL(bQTlist, VALUE='QuickTemp ', FONT=fontTit)
-  lblQT2=WIDGET_LABEL(bQTlist, VALUE=QTstring, FONT=font1)
+  lbl=WIDGET_LABEL(bQTlist, VALUE='QuickTemp ', FONT=fontTit, /NO_COPY)
+  lbl=WIDGET_LABEL(bQTlist, VALUE=QTstring, FONT=font1, /NO_COPY)
   lstQT=WIDGET_LIST(bQTlist, XSIZE=50, SCR_XSIZE=100, YSIZE=1, SCR_YSIZE=350, MULTIPLE=1, FONT=font1, UVALUE='qtList');, /CONTEXT_EVENTS)
 
   nQT=0
@@ -161,29 +161,29 @@ pro selectImages, markArr, QTstring, defPath
   ;bottom base
   bBottom=WIDGET_BASE(selImgbox, /ROW)
   b1=WIDGET_BASE(bBottom, XSIZE=250, /COLUMN)
-  lblB11=WIDGET_LABEL(b1, VALUE='Select options will affect all', FONT=font1, /ALIGN_LEFT)
-  lblB12=WIDGET_LABEL(b1, VALUE='selected series.', FONT=font1,/ALIGN_LEFT)
+  lbl=WIDGET_LABEL(b1, VALUE='Select options will affect all', FONT=font1, /ALIGN_LEFT, /NO_COPY)
+  lbl=WIDGET_LABEL(b1, VALUE='selected series.', FONT=font1,/ALIGN_LEFT, /NO_COPY)
 
   ;bSortBy=WIDGET_BASE(b1, /ROW)
   ;lblSort=WIDGET_LABEL(bSortby, VALUE='Sort by', FONT=font1, /ALIGN_LEFT)
   ;lstSort=WIDGET_DROPLIST(bSortby, VALUE=['Series time / Acquisition number',''], XSIZE=150, FONT=font1, UVALUE='listSort')
 
-  lblBtm1=WIDGET_LABEL(bBottom, VALUE='', XSIZE=5)
+  lbl=WIDGET_LABEL(bBottom, VALUE='', XSIZE=5, /NO_COPY)
   b2=WIDGET_BASE(bBottom, /COLUMN, FRAME=1)
 
   b2_top=WIDGET_BASE(b2, /ROW)
 
   cw_typeSelect=CW_BGROUP(b2_top, ['Select all','Select the','Select the'], /EXCLUSIVE, FONT=font1, COLUMN=1, SPACE=7, YPAD=0, SET_VALUE=0, XSIZE=88, UVALUE='cw_typeSelect')
   b2_2=WIDGET_BASE(b2_top, /COLUMN)
-  lblemptyall=WIDGET_LABEL(b2_2, VALUE='', YSIZE=25)
+  lbl=WIDGET_LABEL(b2_2, VALUE='', YSIZE=25, /NO_COPY)
   bSelZ=WIDGET_BASE(b2_2,/ROW)
   txtSelNZ= WIDGET_TEXT(bSelZ, VALUE='1', XSIZE=5, SCR_XSIZE=25, FONT=font1, /EDITABLE)
-  lblSelCloseZ=WIDGET_LABEL(bSelZ, VALUE=' images closest to z =', FONT=font1)
+  lbl=WIDGET_LABEL(bSelZ, VALUE=' images closest to z =', FONT=font1, /NO_COPY)
   txtSelCloseZ= WIDGET_TEXT(bSelZ, VALUE='0.0', XSIZE=7, SCR_XSIZE=40, FONT=font1, /EDITABLE)
   bSelPos=WIDGET_BASE(b2_2,/ROW)
   txtSelNpos= WIDGET_TEXT(bSelPos, VALUE='1', XSIZE=5, SCR_XSIZE=25, FONT=font1, /EDITABLE)
   cw_SelPos=CW_BGROUP(bSelPos, ['first','mid','last'], /EXCLUSIVE, FRAME=1, FONT=font1, ROW=1, SPACE=-2, YPAD=0, SET_VALUE=0, UVALUE='cw_selPos')
-  lblSelPos=WIDGET_LABEL(bSelPos, VALUE='images', FONT=font1)
+  lbl=WIDGET_LABEL(bSelPos, VALUE='images', FONT=font1, /NO_COPY)
 
   b2_btm=WIDGET_BASE(b2, /COLUMN)
   btnTestSel=WIDGET_BUTTON(b2_btm, VALUE='Test selection rules on current series', FONT=font1, UVALUE='testSel')
@@ -191,13 +191,13 @@ pro selectImages, markArr, QTstring, defPath
 
   b4=WIDGET_BASE(bBottom, /COLUMN)
   b4_top=WIDGET_BASE(b4,/ROW)
-  lbl4t=WIDGET_LABEL(b4_top, VALUE='', XSIZE=100)
+  lbl=WIDGET_LABEL(b4_top, VALUE='', XSIZE=100, /NO_COPY)
   btnDesel=WIDGET_BUTTON(b4_top, VALUE='Remove selected from list', UVALUE='removeSel', FONT=font1)
   btnClearSel=WIDGET_BUTTON(B4_top, VALUE='Clear list', UVALUE='clearSel', FONT=font1)
 
-  b4ml=WIDGET_LABEL(b4, VALUE='', YSIZE=80)
+  lbl=WIDGET_LABEL(b4, VALUE='', YSIZE=80, /NO_COPY)
   b_btm=WIDGET_BASE(b4,/ROW)
-  lbl4=WIDGET_LABEL(b_btm, VALUE='', XSIZE=250)
+  lbl=WIDGET_LABEL(b_btm, VALUE='', XSIZE=250, /NO_COPY)
   btnClose=WIDGET_BUTTON(b_btm, VALUE='Cancel', UVALUE='closeSelim', XSIZE=100, FONT=font1)
   btnOpen=WIDGET_BUTTON(b_btm, VALUE='Open selected', UVALUE='openSelim', XSIZE=100, FONT=font1)
 

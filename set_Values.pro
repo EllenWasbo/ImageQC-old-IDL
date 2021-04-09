@@ -18,7 +18,7 @@ pro set_imgStructInfo, iSi
     ['filterAddOn','STRING','0/1','0018 1160'],$
     ['coll','FLOAT','0','0018 9307'],['pitch','FLOAT','0','0018 9311'],$
     ['ExModType','STRING','0','0018 9323'],['ExModType','STRING','1','0018 7062'],$
-    ['CTDIvol','FLOAT','0','0018 9345'],['spotSize','FLOAT','0/1','0018 1190'],['DAP','FLOAT','1','0018 115E'],$
+    ['CTDIvol','FLOAT','0','0018 9345'],['','STRING','0/1','0018 1190'],['DAP','FLOAT','1','0018 115E'],$
     ['EI','FLOAT','1','0018 1411'],['sensitivity','FLOAT','1','0018 6000'],$
     ['sdd','FLOAT','1','0018 1110'],$
     ['collType','STRING','2/3/4','0018 1181'],$
@@ -81,10 +81,12 @@ pro set_configSinfo, cSi
     ['RampAvg','Average over neighbour profiles','0','SLICETHICK','INT'],$
     ['HomogROIsz','ROI radius','0','HOMOG','FLOAT'],$
     ['HomogROIszX','ROI radius','1','HOMOG','FLOAT'],$
+    ['altHomogX','Table output selection','1','HOMOG','INT'],$
     ['HomogROIszPET', 'ROI radius','4','HOMOG','FLOAT'],$
     ['HomogROIdist','ROI distance from center','0','HOMOG','FLOAT'],$
     ['HomogROIdistPET','ROI distance from center','4','HOMOG','FLOAT'],$
     ['NoiseROIsz','ROI radius','0','NOISE','FLOAT'],$
+    ['NoiseXpercent','ROI (%)','1','NOISE','INTEGER'],$
     ['HUwaterROIsz','ROI radius','0','HUWATER','FLOAT'],$
     ['typeROI','ROI shape (0..2)','0','ROI','INT'],$
     ['ROIrad','ROI radius','0','ROI','FLOAT'],$
@@ -93,6 +95,13 @@ pro set_configSinfo, cSi
     ['ROIa','ROI rotation','0','ROI','FLOAT'],$
     ['offxyROI', 'Extra offset ROI dx,dy','0','ROI','INT'], $
     ['offxyROI_unit', 'Extra offset ROI pix(0) or mm(1)','0','ROI','INT'], $
+    ['typeROIX','ROI shape (0..2)','1','ROI','INT'],$
+    ['ROIXrad','ROI radius','1','ROI','FLOAT'],$
+    ['ROIXx','ROI size x','1','ROI','FLOAT'],$
+    ['ROIXy','ROI size y','1','ROI','FLOAT'],$
+    ['ROIXa','ROI rotation','1','ROI','FLOAT'],$
+    ['offxyROIX', 'Extra offset ROI dx,dy','1','ROI','INT'], $
+    ['offxyROIX_unit', 'Extra offset ROI pix(0) or mm(1)','1','ROI','INT'], $
     ['NPSroiSz', 'ROI size','0','NPS','INT'],$
     ['NPSroiDist','ROI distance from center','0','NPS','FLOAT'],$
     ['NPSsubNN', 'Number of ROIs', '0','NPS','INT'],$

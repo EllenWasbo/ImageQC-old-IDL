@@ -40,26 +40,26 @@ pro RenameDICOM, GROUP_LEADER = mainbase, xoff, yoff, inputAdr
   ;Name templates
 
   bhead=WIDGET_BASE(bMain, /ROW, YSIZE=30)
-  lblInfoName=WIDGET_LABEL(bHead,VALUE='Build or select naming template ', FONT="Arial*Bold*18")
+  lbl = WIDGET_LABEL(bHead,VALUE='Build or select naming template ', FONT="Arial*Bold*18", /NO_COPY)
   bNameConstruct=WIDGET_BASE(bMAin, /COLUMN, FRAME=1, XSIZE=880, YSIZE=220)
 
   bNC2=WIDGET_BASE(bNameConstruct, /ROW)
   bTags=WIDGET_BASE(bNC2, /COLUMN)
-  lblTags=WIDGET_LABEL(bTags, VALUE='Tag list ', FONT=font0, /ALIGN_LEFT)
+  lbl = WIDGET_LABEL(bTags, VALUE='Tag list ', FONT=font0, /ALIGN_LEFT, /NO_COPY)
   lstTags=WIDGET_LIST(bTags, VALUE=tagDesc, UVALUE='lstTags', SCR_YSIZE=170, FONT=font1)
   bPush=WIDGET_BASE(bNC2,/COLUMN)
-  lblPush=WIDGET_LABEL(bPush, VALUE='', YSIZE=60)
+  lbl=WIDGET_LABEL(bPush, VALUE='', YSIZE=60, /NO_COPY)
   btnPush=WIDGET_BUTTON(bPush, VALUE='>>', TOOLTIP='Add tag to name template', UVALUE='addTag', FONT=font1)
 
   bNCcol=WIDGET_BASE(bNC2, /COLUMN)
   bTemplate=WIDGET_BASE(bNCcol, /ROW)
-  lblTemplate=WIDGET_LABEL(bTemplate, VALUE='Select template:', FONT=font1)
+  lbl=WIDGET_LABEL(bTemplate, VALUE='Select template:', FONT=font1, /NO_COPY)
   lstTemplate=WIDGET_DROPLIST(bTemplate, VALUE='', UVALUE='lstTemplate', XSIZE=100, FONT=font1)
   btnSaveTemplate=WIDGET_BUTTON(bTemplate, VALUE=thisPath+'images\save.bmp', /BITMAP, TOOLTIP='Save current Name formats as template', UVALUE='saveTemp')
   btnDelTemplate=WIDGET_BUTTON(bTemplate, VALUE=thisPath+'images\delete.bmp', /BITMAP, TOOLTIP='Delete selected template', UVALUE='delTemp')
   btnSettRD=WIDGET_BUTTON(bTemplate, VALUE=thisPath+'images\gears.bmp', /BITMAP, TOOLTIP='RenameDICOM settings and template manager', UVALUE='settingsRD')
 
-  lblInfoName=WIDGET_LABEL(bNCcol,VALUE='Double-click on element in the list to add element to the name template.', /ALIGN_LEFT, FONT=font1)
+  lbl=WIDGET_LABEL(bNCcol,VALUE='Double-click on element in the list to add element to the name template.', /ALIGN_LEFT, FONT=font1, /NO_COPY)
 
   bNCrow=WIDGET_BASE(bNCcol, /ROW)
   defCatOrFile=CW_BGROUP(bNCrow, ['Subfolder name','File name'], UVALUE='defCatOrFile', SET_VALUE=0, /COLUMN, /EXCLUSIVE, /RETURN_INDEX, FONT=font1)
@@ -74,37 +74,37 @@ pro RenameDICOM, GROUP_LEADER = mainbase, xoff, yoff, inputAdr
   btnFileEmpty=WIDGET_BUTTON(bStringsFile, VALUE='<<', UVALUE='filePop', TOOLTIP='Remove last element from name format', FONT=font1)
   btnFileEdit=WIDGET_BUTTON(bStringsFile, VALUE=thisPath+'images\edit.bmp', /BITMAP, UVALUE='fileEdit', TOOLTIP='Remove specific elements from name template')
 
-  mlF=WIDGET_LABEL(bNCcol, VALUE='')
+  lbl=WIDGET_LABEL(bNCcol, VALUE='', /NO_COPY)
 
   ;Format coding
   bFormat=WIDGET_BASE(bNCcol, /ROW)
-  lblFormat=WIDGET_LABEL(bFormat, VALUE='Format code for selected tag and template:', FONT=font1)
+  lbl=WIDGET_LABEL(bFormat, VALUE='Format code for selected tag and template:', FONT=font1, /NO_COPY)
   txtFormat=WIDGET_TEXT(bFormat, VALUE='',/EDITABLE, XSIZE=20, FONT=font1)
   btnFormat=WIDGET_BUTTON(bFormat, VALUE='Apply', UVALUE='applyFormat', FONT=font1)
-  lblFormatInfo=WIDGET_LABEL(bNCcol, VALUE='Text: a<#letters, 0=all>, Integer: i<#digits>, Float: f<#digits>.<#decimals>', /ALIGN_LEFT, FONT=font1)
-  lblFormatInfo2=WIDGET_LABEL(bNCcol, VALUE='See settings for more on format codes and testing format codes.', /ALIGN_LEFT, FONT=font1)
+  lbl=WIDGET_LABEL(bNCcol, VALUE='Text: a<#letters, 0=all>, Integer: i<#digits>, Float: f<#digits>.<#decimals>', /ALIGN_LEFT, FONT=font1, /NO_COPY)
+  lbl=WIDGET_LABEL(bNCcol, VALUE='See settings for more on format codes and testing format codes.', /ALIGN_LEFT, FONT=font1, /NO_COPY)
 
 
-  lblMlm=WIDGET_LABEL(bMain, VALUE='', YSIZE=20)
+  lbl=WIDGET_LABEL(bMain, VALUE='', YSIZE=20, /NO_COPY)
 
   ;browse
   bBrowse=WIDGET_BASE(bMain, /ROW, XSIZE=500, SCR_XSIZE=450)
-  lblCat=WIDGET_LABEL(bBrowse, VALUE='Selected folder: ', FONT="Arial*Bold*18")
-  txtCat=WIDGET_TEXT(bBrowse, XSIZE=100)
+  lbl=WIDGET_LABEL(bBrowse, VALUE='Selected folder: ', FONT="Arial*Bold*18", /NO_COPY)
+  txtCat=WIDGET_TEXT(bBrowse, XSIZE=100, /EDITABLE,/KBRD_FOCUS_EVENTS)
   btnBrowse=WIDGET_BUTTON(bBrowse, VALUE='Browse',UVALUE='browse', XSIZE=50, FONT=font1)
   btnClear=WIDGET_BUTTON(bBrowse, VALUE='Clear',TOOLTIP='Use files open in ImageQC (if any)',UVALUE='clear', XSIZE=50, FONT=font1)
-  lblInfoSel=WIDGET_LABEL(bMain,VALUE='If no path specified then files open in ImageQC will be the files subject to renaming.',FONT=font1)
+  lbl=WIDGET_LABEL(bMain,VALUE='If no path specified then files open in ImageQC will be the files subject to renaming.',FONT=font1, /NO_COPY)
 
   bFileActions=WIDGET_BASE(bMain, /ROW, XSIZE=300)
   btnPutAllinOne=WIDGET_BUTTON(bFileActions, VALUE='Move all files in subfolders to selected folder', UVALUE='putAllinOne', FONT=font1, XSIZE=300)
   btnPutSeriesInFolders=WIDGET_BUTTON(bFileActions, VALUE='Sort files into subfolders of same seriesnumber', UVALUE='putSeriesFolder', TOOLTIP='Put all files with same seriesnumber into folder named <seriesnumber>', FONT=font1, XSIZE=300)
   ;btnResetToInput=WIDGET_BUTTON(bFileActions, VALUE='Use paths from open files in ImageQC',UVALUE='resetInput', TOOLTIP='Work on the files already open in the main window (if any)', FONT=font1, XSIZE=300)
 
-  lblMlm2=WIDGET_LABEL(bMain, VALUE='', YSIZE=20)
+  lbl=WIDGET_LABEL(bMain, VALUE='', YSIZE=20, /NO_COPY)
 
   ;table
   bTable=WIDGET_BASE(bMain, /ROW)
-  mlmTbl=WIDGET_LABEL(bTable, VALUE='', XSIZE=20)
+  lbl=WIDGET_LABEL(bTable, VALUE='', XSIZE=20, /NO_COPY)
   rownames=['Original name', 'Suggested name']
   displayStrArr=STRARR(2,200)
   IF origPaths(0) NE '' THEN BEGIN
@@ -112,13 +112,13 @@ pro RenameDICOM, GROUP_LEADER = mainbase, xoff, yoff, inputAdr
     displayStrArr[0,0:MIN([200,N_ELEMENTS(origPathsUniq)])-1]=origPathsUniq
   ENDIF
   tblAdr = WIDGET_TABLE(bTable, VALUE=displayStrArr, SCR_XSIZE=700, XSIZE=2, YSIZE=200, SCR_YSIZE=400, /NO_ROW_HEADERS, column_widths=[350,350], column_labels=rownames, ALIGNMENT=1)
-  lblMl3=WIDGET_LABEL(bTable, VALUE='', XSIZE=20)
+  lbl=WIDGET_LABEL(bTable, VALUE='', XSIZE=20, /NO_COPY)
   bSide=WIDGET_BASE(bTable, /COLUMN)
-  lblS=WIDGET_LABEL(bSide, VALUe='', YSIZE=20)
+  lbl=WIDGET_LABEL(bSide, VALUe='', YSIZE=20, /NO_COPY)
   btnViewFirstCat=WIDGET_BUTTON(bSide, VALUE='Test 10 first', UVALUE='firstFolders', FONT=font1)
   btnUpdateName = WIDGET_BUTTON(bSide, VALUE='Generate names', UVALUE='update', FONT=font1)
   btnRename = WIDGET_BUTTON(bSide, VALUE='Rename', SENSITIVE=0, XSIZE=80, UVALUE='rename', FONT=font1)
-  mlSide=WIDGET_LABEL(bSide, VALUE='', YSIZE=290)
+  lbl=WIDGET_LABEL(bSide, VALUE='', YSIZE=290, /NO_COPY)
   btnClose=WIDGET_BUTTON(bSide, VALUE='Close/Cancel', XSIZE=80, UVALUE='cancel', FONT=font1)
 
   bBottom=WIDGET_BASE(bMain, /row, XSIZE=950)
@@ -317,7 +317,7 @@ pro RenameDICOM_event, event
           for i=0, nFiles-1 do BEGIN
             IF origPaths(i) NE '' AND origPaths(i) NE newPaths(i) THEN BEGIN
               WIDGET_CONTROL, lblStatus, SET_VALUE='Moving file '+STRING(i,FORMAT='(i0)')+'/'+  STRING(nFiles,FORMAT='(i0)')
-              file_move, origPaths(i), newPaths(i) 
+              file_move, origPaths(i), newPaths(i)
               askEmptyDir=[askEmptyDir, FILE_DIRNAME(origPaths(i))]
               IF inputAdrRD(0) NE '' AND adr(0) EQ '' THEN BEGIN
                 filenoInput=where(inputAdrRD EQ origPaths(i))
@@ -339,7 +339,7 @@ pro RenameDICOM_event, event
           ENDIF ELSE BEGIN
             sv=DIALOG_MESSAGE('All DICOM files in the subfolders ('+STRING(nFiles, FORMAT='(i0)')+') are now moved to the selected folder. Delete empty folders?',/QUESTION, DIALOG_PARENT=event.Top)
             IF sv EQ 'Yes' THEN BEGIN
-              WIDGET_CONTROL, /HOURGLASS            
+              WIDGET_CONTROL, /HOURGLASS
               ;sort longest path first
               strLenArr=!Null
               FOR i=0, N_ELEMENTS(askEmptyDir)-1 DO strLenArr=[strLenArr, STRLEN(askEmptyDir(i))]
@@ -474,6 +474,32 @@ pro RenameDICOM_event, event
   ;******************* Exit program ***********************
   IF TAG_NAMES(event, /STRUCTURE_NAME) EQ 'WIDGET_KILL_REQUEST' THEN BEGIN
     WIDGET_CONTROL, event.top, /DESTROY
+  ENDIF
+
+  ;************** Manueally change text input - check for corrections ***************************
+  IF (TAG_NAMES(event, /STRUCTURE_NAME) EQ 'WIDGET_KBRD_FOCUS') OR (TAG_NAMES(event, /STRUCTURE_NAME) EQ 'WIDGET_TEXT_CH') THEN BEGIN
+    action=0
+    IF (TAG_NAMES(event, /STRUCTURE_NAME) EQ 'WIDGET_KBRD_FOCUS') THEN BEGIN
+      IF event.enter EQ 0 THEN action=1 ; lost focus
+    ENDIF
+    IF (TAG_NAMES(event, /STRUCTURE_NAME) EQ 'WIDGET_TEXT_CH') THEN BEGIN
+      IF event.type EQ 0 THEN action=1 ;return or enter pressed
+    ENDIF
+    IF action EQ 1 THEN BEGIN
+      CASE event.ID OF
+        txtCat: BEGIN
+          WIDGET_CONTROL, txtCat, GET_VALUE=adr
+          IF adr(0) NE '' THEN BEGIN
+            lastChar=STRMID(adr(0),0,1,/REVERSE_OFFSET)
+            IF lastChar NE '\' THEN BEGIN
+              adr=adr(0)+'\'
+              WIDGET_CONTROL, txtCat, SET_VALUE=adr
+            ENDIF
+          ENDIF
+        END
+        ELSE:
+      ENDCASE
+    ENDIF
   ENDIF
 
   ;******************* Finding suggested names ***********************

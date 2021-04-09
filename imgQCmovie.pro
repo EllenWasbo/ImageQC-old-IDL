@@ -18,20 +18,20 @@ pro imgQCmovie, vol, progPath, windowLevel, colTab, GROUP_LEADER = bMain
   moviebox = WIDGET_BASE(TITLE='ImageQC_movie', GROUP_LEADER=bMain,  $
     /COLUMN, XSIZE=600, YSIZE=600, XOFFSET=150, YOFFSET=150, /MODAL)
 
-  ml1=WIDGET_LABEL(moviebox, VALUE='', YSIZE=20)
+  lbl = WIDGET_LABEL(moviebox, VALUE='', YSIZE=20, /NO_COPY)
   bImgNo=WIDGET_BASE(moviebox, /ROW)
-  lblImgNo0=WIDGET_LABEL(bImgNo, VALUE='Image no. ')
+  lbl = WIDGET_LABEL(bImgNo, VALUE='Image no. ', /NO_COPY)
   lblImgNo=WIDGET_LABEL(bImgNo, VALUE='0', /DYNAMIC_RESIZE)
   drawMov = WIDGET_DRAW(moviebox, XSIZE=500, YSIZE=500, GRAPHICS_LEVEL=2, RETAIN=2, SENSITIVE=0)
 
   bBottom=WIDGET_BASE(moviebox, /ROW)
-  lblFrameDur=WIDGET_LABEL(bBottom, VALUE='Frame duration:')
+  lbl = WIDGET_LABEL(bBottom, VALUE='Frame duration:', /NO_COPY)
   txtFrameDur=WIDGET_TEXT(bBottom, VALUE=STRING(frameDur,FORMAT='(f0.1)'),XSIZE=5, /EDITABLE)
-  lblFrameDur2=WIDGET_LABEL(bBottom, VALUE='sec')
-  btnPlay=WIDGET_BUTTON(bBottom,VALUE=progPath+'images\play.bmp',/BITMAP, UVALUE='playMov')
+  lbl = WIDGET_LABEL(bBottom, VALUE='sec', /NO_COPY)
+  btn = WIDGET_BUTTON(bBottom,VALUE=progPath+'images\play.bmp',/BITMAP, UVALUE='playMov', /NO_COPY)
   ;btnStop=WIDGET_BUTTON(bBottom,VALUE=progPath+'images\stop.bmp',/BITMAP, UVALUE='stopMov')
-  mlBottom=WIDGET_LABEL(bBottom, VALUE='', XSIZE=20)
-  btnClose=WIDGET_BUTTON(bBottom, VALUE='Close window', UVALUE='closeMov', XSIZE=110)
+  lbl = WIDGET_LABEL(bBottom, VALUE='', XSIZE=20, /NO_COPY)
+  btn = WIDGET_BUTTON(bBottom, VALUE='Close window', UVALUE='closeMov', XSIZE=110, /NO_COPY)
 
   loadct, 0, /SILENT
   WIDGET_CONTROL, moviebox, /REALIZE

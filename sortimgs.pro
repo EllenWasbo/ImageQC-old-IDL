@@ -44,8 +44,8 @@ pro sortImgs, GROUP_LEADER = mainbase, xoff, yoff, firstLast
 
   mlTop=WIDGET_BASE(sortbox,YSIZE=10)
   
-  lblSortBy=WIDGET_LABEL(sortbox, VALUE='Sort images by elements from DICOM-header.', FONT=font1, /ALIGN_LEFT)
-  lblSortBy2=WIDGET_LABEL(sortbox, VALUE='Add elements to list (>>) to define sort order.', FONT=font1, /ALIGN_LEFT)
+  lbl=WIDGET_LABEL(sortbox, VALUE='Sort images by elements from DICOM-header.', FONT=font1, /ALIGN_LEFT, /NO_COPY)
+  lbl=WIDGET_LABEL(sortbox, VALUE='Add elements to list (>>) to define sort order.', FONT=font1, /ALIGN_LEFT, /NO_COPY)
   mlTop2=WIDGET_BASE(sortbox,YSIZE=10)
 
   bSortBy=WIDGET_BASE(sortbox, XSIZE=355,/COLUMN, FRAME=1)
@@ -73,8 +73,8 @@ pro sortImgs, GROUP_LEADER = mainbase, xoff, yoff, firstLast
   btnAscElem=WIDGET_BUTTON(bButtEndSort, VALUE=thisPath+'images\sort.bmp',/BITMAP, UVALUE='sort_asc', TOOLTIP='Set ascending/descending option')
 
   mlTop5=WIDGET_BASE(sortbox,YSIZE=20)
-  lblLoadTemp=WIDGET_LABEL(sortbox, VALUE='Load or save sort pattern for automation templates', FONT=font1, /ALIGN_LEFT)
-  lblLoadTemp2=WIDGET_LABEL(sortbox, VALUE='(Only templates for current modality selection is available)', FONT=font1, /ALIGN_LEFT)
+  lbl=WIDGET_LABEL(sortbox, VALUE='Load or save sort pattern for automation templates', FONT=font1, /ALIGN_LEFT, /NO_COPY)
+  lbl=WIDGET_LABEL(sortbox, VALUE='(Only templates for current modality selection is available)', FONT=font1, /ALIGN_LEFT, /NO_COPY)
   mlTop=WIDGET_BASE(sortbox,YSIZE=10)
   bLoadTemp=WIDGET_BASE(sortbox, XSIZE=355, /ROW, FRAME=1)
   listVals=''
@@ -88,13 +88,13 @@ pro sortImgs, GROUP_LEADER = mainbase, xoff, yoff, firstLast
     ENDIF
   ENDIF
   listTemp=WIDGET_DROPLIST(bLoadTemp, VALUE=listVals, XSIZE=150, FONT=font1, SENSITIV=sens)
-  mlRowButt=WIDGET_LABEL(bLoadTemp, VALUE='', XSIZE=20)
+  lbl=WIDGET_LABEL(bLoadTemp, VALUE='', XSIZE=20, /NO_COPY)
   btnLoadTemp=WIDGET_BUTTON(bLoadTemp, VALUE='Load pattern', FONT=font1, UVALUE='loadPattern', SENSITIV=sens)
   btnSaveTemp=WIDGET_BUTTON(bLoadTemp, VALUE='Save pattern', FONT=font1, UVALUE='savePattern', SENSITIV=sens)
 
-  lblMlButt=WIDGET_LABEL(sortbox, VALUE='', YSIZE=10)
+  lbl=WIDGET_LABEL(sortbox, VALUE='', YSIZE=10, /NO_COPY)
   bBtmButt=WIDGET_BASE(sortbox, /ROW)
-  mlRowButt=WIDGET_LABEL(bBtmButt, VALUE='', XSIZE=200)
+  lbl=WIDGET_LABEL(bBtmButt, VALUE='', XSIZE=200, /NO_COPY)
   btnCancel=WIDGET_BUTTON(bBtmButt, VALUE='Cancel',UVALUE='sortCancel', FONT=font1)
   btnSortClear=WIDGET_BUTTON(bBtmButt, VALUE='Clear', UVALUE='sortClear', FONT=font1)
   btnSortOK=WIDGET_BUTTON(bBtmButt, VALUE='Sort', UVALUE='sortOK', FONT=font1)

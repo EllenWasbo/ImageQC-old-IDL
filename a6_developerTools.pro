@@ -4,7 +4,7 @@ pro verifyStructures
   ;create dummy imgStruct
   dummyImgStruct=imgStructUpdate('','')
   imgDummyTags=TAG_NAMES(dummyImgStruct)
-  descImgStruct=imgStructDescTags();a0_functionsMini.pro
+  descImgStruct=imgStructDescTags() ;a0_functionsMini.pro
   imgDescTags=TAG_NAMES(descImgStruct)
   set_imgStructInfo, imgInfo;set_Values.pro
   arrInfo=STRUPCASE(TRANSPOSE(imgInfo[0,*]))

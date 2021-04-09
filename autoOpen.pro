@@ -32,38 +32,37 @@ pro autoOpen, GROUP_LEADER = mainbase, xoff, yoff
     /COLUMN, XSIZE=430, YSIZE=460, XOFFSET=xoff, YOFFSET=yoff,GROUP_LEADER=mainbase, /TLB_KILL_REQUEST_EVENTS, /MODAL)
 
   bAutoToolbar=WIDGET_BASE(autobox,/ROW,/TOOLBAR)
-  btnRefresh=WIDGET_BUTTON(bAutoToolbar, VALUE=thisPath+'images\refresh.bmp',/BITMAP, UVALUE='au_refresh', TOOLTIP='Refresh to count new files')
+  btnRefresh=WIDGET_BUTTON(bAutoToolbar, VALUE=thisPath+'images\refresh.bmp',/BITMAP, UVALUE='au_refresh', TOOLTIP='Refresh to count new DICOM files')
   btnImport=WIDGET_BUTTON(bAutoToolbar, VALUE=thisPath+'images\importd.bmp',/BITMAP, UVALUE='au_import', TOOLTIP='Sort images from select folder to paths defined in templates based on station-name from DICOM header. The files will be renamed to better describe the content.')
   btnSettings=WIDGET_BUTTON(bAutoToolbar, VALUE=thisPath+'images\gears.bmp',/BITMAP, UVALUE='au_settings', TOOLTIP='Go to settings to edit the automation templates.')
   btnSettings=WIDGET_BUTTON(bAutoToolbar, VALUE=thisPath+'images\document.bmp',/BITMAP, UVALUE='au_openRes', TOOLTIP='Open the results file for the selected template.')
 
-  lblMLProgress=WIDGET_LABEL(bAutoToolbar, VALUE=' ', XSIZE=20, FONT=font1)
+  lbl = WIDGET_LABEL(bAutoToolbar, VALUE=' ', XSIZE=20, FONT=font1, /NO_COPY)
   lblAutoProgress=WIDGET_LABEL(bAutoToolbar, VALUE=' ', XSIZE=280, FONT=font1, /DYNAMIC_RESIZE)
   btnPutAllInOne=WIDGET_BUTTON(bAutoToolbar, VALUE=thisPath+'images\undo.bmp',/BITMAP,UVALUE='putAllinOne',TOOLTIP='Move files out of the Archive to re-run the analysis', FONT=font1)
 
-
   mlTop=WIDGET_BASE(autobox,YSIZE=10)
 
-  lblAuto2=WIDGET_LABEL(autobox, VALUE='Refresh to show number of files waiting (number of files not in Archive yet).', FONT=font1, /ALIGN_LEFT)
+  lbl = WIDGET_LABEL(autobox, VALUE='Refresh to show number of files waiting (number of files not in Archive yet).', FONT=font1, /ALIGN_LEFT, /NO_COPY)
 
   mlTop2=WIDGET_BASE(autobox,YSIZE=20)
 
   bAutoMid=WIDGET_BASE(autobox, /ROW)
   bAutoLft=WIDGET_BASE(bAutoMid, /COLUMN)
-  lblAuto=WIDGET_LABEL(bAutoLft, VALUE='Automation templates', FONT=font0, /ALIGN_LEFT)
+  lbl = WIDGET_LABEL(bAutoLft, VALUE='Automation templates', FONT=font0, /ALIGN_LEFT, /NO_COPY)
   listAuto=WIDGET_LIST(bAutoLft, VALUE='', XSIZE=20, MULTIPLE=1, FONT=font1, SCR_XSIZE=200, SCR_YSIZE=300)
 
-  lblMlMid=WIDGET_LABEL(bAutoLft, VALUE='', YSIZE=10)
+  lbl = WIDGET_LABEL(bAutoLft, VALUE='', YSIZE=10, /NO_COPY)
   bAutoRgt=WIDGET_BASE(bAutoMid, /COLUMN)
 
   bRgtButt=WIDGET_BASE(bAutoRgt, /COLUMN)
-  mlRowButt=WIDGET_LABEL(bRgtButt, VALUE='', XSIZE=200)
+  lbl = WIDGET_LABEL(bRgtButt, VALUE='', XSIZE=200, /NO_COPY)
   btnRunSelected=WIDGET_BUTTON(bRgtButt, VALUE='Run selected',UVALUE='autoRunSel',TOOLTIP='Run selected templates', FONT=font1)
   btnRunAll=WIDGET_BUTTON(bRgtButt, VALUE='Run All',UVALUE='autoRunAll', TOOLTIP='Run all templates',FONT=font1)
   btnRunPickFiles=WIDGET_BUTTON(bRgtButt, VALUE='Run for selected files...', UVALUE='autoRunPicked',TOOLTIP='Run selected template on specified files',  FONT=font1)
 
   bBtmButt=WIDGET_BASE(autobox, /ROW)
-  mlRowButt=WIDGET_LABEL(bBtmButt, VALUE='', XSIZE=350)
+  lbl = WIDGET_LABEL(bBtmButt, VALUE='', XSIZE=350, /NO_COPY)
   btnAutoCancel=WIDGET_BUTTON(bBtmButt, VALUE='Cancel', UVALUE='autoCancel', FONT=font1)
 
   upd_AutoList,0
@@ -393,9 +392,16 @@ pro autoOpen_event, event
                   ;dateArr=!Null
                   FOR i=0, nFiles-1 DO BEGIN
                     pathSplit=STRSPLIT(origPaths(i),'\',/EXTRACT)
-                    IF pathSplit(-2) NE 'Archive' THEN BEGIN; not directly under Archive - prefix filename = subfoldername
-                      ;already same prefix?
-                      IF pathSplit(-2) EQ STRMID(FILE_BASENAME(origPaths(i)),0,STRLEN(pathSplit(-2))) THEN pref='' ELSE pref=pathSplit(-2)+'_'
+                    IF pathSplit(-2) NE 'Archive' THEN BEGIN
+                      IF loadTemp.(modArr(selTemp(t))).(tempIDarr(selTemp(t))).alternative EQ 'GE_QAP' THEN BEGIN;keep subfolders
+                        pref=pathSplit(-2)+'\'
+                        fi=FILE_INFO(adr(0)+pathSplit(-2))
+                        IF fi.exists EQ 0 THEN FILE_MKDIR, adr(0)+pathSplit(-2)
+                      ENDIF ELSE BEGIN      
+                        ; not directly under Archive - prefix filename = subfoldername
+                        ;already same prefix?
+                        IF pathSplit(-2) EQ STRMID(FILE_BASENAME(origPaths(i)),0,STRLEN(pathSplit(-2))) THEN pref='' ELSE pref=pathSplit(-2)+'_'
+                      ENDELSE
                     ENDIF ELSE pref=''
                     newName=adr(0)+ pref +FILE_BASENAME(origPaths(i))
                     alr=WHERE(newPaths EQ newName, nEq)

@@ -122,6 +122,7 @@ pro calculateQuickTest
                 3: noise
                 4: getExposure
                 5: mtfx
+                6: ROI
                 ELSE:
               ENDCASE
             END
