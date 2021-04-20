@@ -51,8 +51,8 @@ pro ImageQC,  GROUP_LEADER=bMain
     varImgRes,txtVarImageROIsz, lblProgressVarX, $
     contrastRes, conROIs, txtConR1SPECT, txtConR2SPECT,$
     radialRes, txtRadialMedian, $
-    unifRes, unifROI, txtUnifAreaRatio, txtUnifDistCorr, txtUnifThickCorr, txtUnifAttCorr, btnUnifCorr, btnSaveUnifCorr,$
-    SNIres, SNIroi, txtSNIAreaRatio, txtSNIDistCorr, txtSNIThickCorr, txtSNIAttCorr, btnSNICorr, btnSaveSNICorr, $
+    unifRes, unifROI, txtUnifAreaRatio, txtUnifDistCorr, txtUnifThickCorr, txtUnifAttCorr, btnUnifCorr, btnSaveUnifCorr,cw_plotUnif,cw_imgUnif,$
+    SNIres, SNIroi, txtSNIAreaRatio, txtSNIDistCorr, txtSNIThickCorr, txtSNIAttCorr, btnSNICorr, btnSaveSNICorr, txtSNI_f, txtSNI_c,txtSNI_d,cw_plotSNI,cw_imgSNI, txtSmoothNPS_SNI, txtfreqNPS_SNI,$
     acqRes, barRes, barROI, txtBarROIsize,txtBar1,txtBar2,txtBar3,txtBar4,$
     crossRes, crossROI, txtCrossROIsz, txtCrossMeasAct,txtCrossMeasActT, txtCrossMeasRest, txtCrossMeasRT, txtCrossScanAct, txtCrossScanStart,$
     txtCrossVol, txtCrossConc, txtCrossFactorPrev, txtCrossFactor,$
@@ -60,7 +60,7 @@ pro ImageQC,  GROUP_LEADER=bMain
     MRposRes
 
   !EXCEPT=0;2 to see all errors
-  currVersion='1.89'
+  currVersion='1.89.1'
   thisPath=FILE_DIRNAME(ROUTINE_FILEPATH('ImageQC'))+'\'
   xoffset=100
   yoffset=50
@@ -932,71 +932,109 @@ pro ImageQC,  GROUP_LEADER=bMain
 
   ;----------------Uniformity------------------
   lblunifMl0=WIDGET_LABEL(bUniformity, VALUE='', SCR_YSIZE=5)
-  lblunif2=WIDGET_LABEL(bUniformity, VALUE='Based on NEMA NU-1 2007. See "Image Results" for resized and smoothed matrix.',FONT=font1, /ALIGN_LEFT)
+  
+  lblunif2=WIDGET_LABEL(bUniformity, VALUE='Based on NEMA NU-1 2007',FONT=font1, /ALIGN_LEFT)
   lblunifMl2=WIDGET_LABEL(bUniformity, VALUE='', SCR_YSIZE=5)
 
-  bUnifAreaRatio=WIDGET_BASE(bUniformity, /ROW)
+  bUniformity_row=WIDGET_BASE(bUniformity,/ROW)
+  bUniformity_lft=WIDGET_BASE(bUniformity_row,/COLUMN)
+
+  bUnifAreaRatio=WIDGET_BASE(bUniformity_lft, /ROW)
   lblUnifAreaRatio=WIDGET_LABEL(bUnifAreaRatio, VALUE='UFOV ratio of image (nonzero part of image)', FONT=font1)
   txtUnifAreaRatio=WIDGET_TEXT(bUnifAreaRatio, VALUE='', XSIZE=5, /EDITABLE, /KBRD_FOCUS_EVENTS, FONT=font1)
-
+  
   ;distance correction
-  bUnifDistCorr=WIDGET_BASE(bUniformity, /COLUMN)
+  bUnifDistCorr=WIDGET_BASE(bUniformity_lft, /COLUMN)
   bSetUnifCorr=WIDGET_BASE(bUnifDistCorr, /NONEXCLUSIVE, /COLUMN, YSIZE=22)
-  btnUnifCorr=WIDGET_BUTTON(bSetUnifCorr, VALUE='Correct for point-source to imager distance (source assumed centrally positioned)', UVALUE='unifCorrSet', FONT=font1)
+  btnUnifCorr=WIDGET_BUTTON(bSetUnifCorr, VALUE='Correct for point-source curvature', UVALUE='unifCorrSet', FONT=font1)
   bUnifCorrParam=WIDGET_BASE(bUnifDistCorr, /ROW)
   lblCP=WIDGET_LABEL(bUnifCorrParam, VALUE='', XSIZE=20)
   bUnifCorrParams=WIDGET_BASE(bUnifCorrParam, /COLUMN)
 
   bUnifDistCorrVal=WIDGET_BASE(bUnifCorrParams, /ROW, YSIZE=22)
-  lblUnifDistCorr=WIDGET_LABEL(bUnifDistCorrVal, VALUE='Source - detector distance', FONT=font1, XSIZE=150)
+  lblUnifDistCorr=WIDGET_LABEL(bUnifDistCorrVal, VALUE='Source - detector distance', FONT=font1, XSIZE=160)
   txtUnifDistCorr=WIDGET_TEXT(bUnifDistCorrVal, VALUE='', /EDITABLE, XSIZE=7, SCR_YSIZE=20, /KBRD_FOCUS_EVENTS, FONT=font1)
   lblUnifDistCorr2=WIDGET_LABEL(bUnifDistCorrVal, VALUE='mm', FONT=font1)
   bUnifThickCorrVal=WIDGET_BASE(bUnifCorrParams, /ROW, YSIZE=20)
-  lblUnifThickCorr=WIDGET_LABEL(bUnifThickCorrVal, VALUE='Detector thickness', FONT=font1, XSIZE=150)
+  lblUnifThickCorr=WIDGET_LABEL(bUnifThickCorrVal, VALUE='Detector thickness', FONT=font1, XSIZE=160)
   txtUnifThickCorr=WIDGET_TEXT(bUnifThickCorrVal, VALUE='', /EDITABLE, XSIZE=5, SCR_YSIZE=20, /KBRD_FOCUS_EVENTS, FONT=font1)
   lblUnifThickCorr2=WIDGET_LABEL(bUnifThickCorrVal, VALUE='mm', FONT=font1)
   bUnifAttCorrVal=WIDGET_BASE(bUnifCorrParams, /ROW, YSIZE=20)
-  lblUnifAttCorr=WIDGET_LABEL(bUnifAttCorrVal, VALUE='Attenuation coefficient of detector', FONT=font1, XSIZE=150)
+  lblUnifAttCorr=WIDGET_LABEL(bUnifAttCorrVal, VALUE='Att. coefficient of detector', FONT=font1, XSIZE=160)
   txtUnifAttCorr=WIDGET_TEXT(bUnifAttCorrVal, VALUE='', /EDITABLE, XSIZE=5, SCR_YSIZE=20, /KBRD_FOCUS_EVENTS, FONT=font1)
   lblUnifAttCorr2=WIDGET_LABEL(bUnifAttCorrVal, VALUE='1/cm', FONT=font1)
   bSaveUnifCorr=WIDGET_BASE(bUnifCorrParams, /NONEXCLUSIVE, /COLUMN, YSIZE=22)
-  btnSaveUnifCorr=WIDGET_BUTTON(bSaveUnifCorr, VALUE='Save corrected image (full resolution) as .dat-file for verification', UVALUE='saveUnifCorrSet', FONT=font1)
+  btnSaveUnifCorr=WIDGET_BUTTON(bSaveUnifCorr, VALUE='Save corrected image as .dat-file', TOOLTIP='This .dat file can be opened in ImageQC just as any DICOM image',UVALUE='saveUnifCorrSet', FONT=font1)
+
+  bUniformity_rgt=WIDGET_BASE(bUniformity_row,/COLUMN)
+  cw_plotUnif=CW_BGROUP(bUniformity_rgt, ['Uniformity result for all images','Curvature correction check'],/EXCLUSIVE, UVALUE='cw_plotUnif', SET_VALUE=0,  LABEL_TOP='Plot result', /FRAME, FONT=font1, COLUMN=1, SPACE=-2, YPAD=0)
+  cw_imgUnif=CW_BGROUP(bUniformity_rgt, ['Curvature corr. image','Processed image (pix 6.4mm, smoothed, corrected)'],/EXCLUSIVE, UVALUE='cw_imgUnif', SET_VALUE=0, LABEL_TOP='Image result', /FRAME, FONT=font1, COLUMN=1, SPACE=-2, YPAD=0)
+
 
   btnUnif=WIDGET_BUTTON(bUniformity, VALUE='Calculate Uniformity', UVALUE='uniformityNM',FONT=font1)
 
   ;----------------SNI------------------
   lblsniMl0=WIDGET_LABEL(bSNI, VALUE='', SCR_YSIZE=5)
-  lblSNI=WIDGET_LABEL(bSNI, VALUE='SNI = Structured Noise Index, Based on: Nelson et al. J Nucl Med 2014; 55:169-174',FONT=font1, /ALIGN_LEFT)
+  lblSNI=WIDGET_LABEL(bSNI, VALUE='SNI = Structured Noise Index,(J Nucl Med 2014; 55:169-174)',FONT=font1, /ALIGN_LEFT)
   lblsniMl0=WIDGET_LABEL(bSNI, VALUE='', SCR_YSIZE=5)
 
-  bSNIAreaRatio=WIDGET_BASE(bSNI, /ROW)
-  lblSNIAreaRatio=WIDGET_LABEL(bSNIAreaRatio, VALUE='Ratio of image to be analyzed (ratio of nonzero part of image)', FONT=font1)
+  bSNI2=WIDGET_BASE(bSNI,/ROW)
+  bSNI_Lft=WIDGET_BASE(bSNI2, /COLUMN)
+
+  bSNIAreaRatio=WIDGET_BASE(bSNI_Lft, /ROW)
+  lblSNIAreaRatio=WIDGET_LABEL(bSNIAreaRatio, VALUE='Ratio of nonzero part of image to be analyzed', FONT=font1)
   txtSNIAreaRatio=WIDGET_TEXT(bSNIAreaRatio, VALUE='', XSIZE=5, /EDITABLE, /KBRD_FOCUS_EVENTS, FONT=font1)
 
   ;distance correction
-  bSNIDistCorr=WIDGET_BASE(bSNI, /COLUMN)
+  bSNIDistCorr=WIDGET_BASE(bSNI_Lft, /COLUMN, FRAME=1)
   bSetSNICorr=WIDGET_BASE(bSNIDistCorr, /NONEXCLUSIVE, /COLUMN, YSIZE=22)
-  btnSNICorr=WIDGET_BUTTON(bSetSNICorr, VALUE='Correct for point-source to imager distance (source assumed centrally positioned)', UVALUE='SNICorrSet', FONT=font1)
+  btnSNICorr=WIDGET_BUTTON(bSetSNICorr, VALUE='Correct for point-source curvature', UVALUE='SNICorrSet', FONT=font1)
   bSNICorrParam=WIDGET_BASE(bSNIDistCorr, /ROW)
   lblCP=WIDGET_LABEL(bSNICorrParam, VALUE='', XSIZE=20)
   bSNICorrParams=WIDGET_BASE(bSNICorrParam, /COLUMN)
 
   bSNIDistCorrVal=WIDGET_BASE(bSNICorrParams, /ROW, YSIZE=22)
-  lblSNIDistCorr=WIDGET_LABEL(bSNIDistCorrVal, VALUE='Source - detector distance', FONT=font1, XSIZE=150)
+  lbl=WIDGET_LABEL(bSNIDistCorrVal, VALUE='Source - detector distance', FONT=font1, XSIZE=160, /NO_COPY)
   txtSNIDistCorr=WIDGET_TEXT(bSNIDistCorrVal, VALUE='', /EDITABLE, XSIZE=7, SCR_YSIZE=20, /KBRD_FOCUS_EVENTS, FONT=font1)
-  lblSNIDistCorr2=WIDGET_LABEL(bSNIDistCorrVal, VALUE='mm', FONT=font1)
+  lbl=WIDGET_LABEL(bSNIDistCorrVal, VALUE='mm', FONT=font1,/NO_COPY)
   bSNIThickCorrVal=WIDGET_BASE(bSNICorrParams, /ROW, YSIZE=20)
-  lblSNIThickCorr=WIDGET_LABEL(bSNIThickCorrVal, VALUE='Detector thickness', FONT=font1, XSIZE=150)
+  lbl=WIDGET_LABEL(bSNIThickCorrVal, VALUE='Detector thickness', FONT=font1, XSIZE=160,/NO_COPY)
   txtSNIThickCorr=WIDGET_TEXT(bSNIThickCorrVal, VALUE='', /EDITABLE, XSIZE=5, SCR_YSIZE=20, /KBRD_FOCUS_EVENTS, FONT=font1)
-  lblSNIThickCorr2=WIDGET_LABEL(bSNIThickCorrVal, VALUE='mm', FONT=font1)
+  lbl=WIDGET_LABEL(bSNIThickCorrVal, VALUE='mm', FONT=font1,/NO_COPY)
   bSNIAttCorrVal=WIDGET_BASE(bSNICorrParams, /ROW, YSIZE=20)
-  lblSNIAttCorr=WIDGET_LABEL(bSNIAttCorrVal, VALUE='Attenuation coefficient of detector', FONT=font1, XSIZE=150)
+  lbl=WIDGET_LABEL(bSNIAttCorrVal, VALUE='Att. coefficient of detector', FONT=font1, XSIZE=160,/NO_COPY)
   txtSNIAttCorr=WIDGET_TEXT(bSNIAttCorrVal, VALUE='', /EDITABLE, XSIZE=5, SCR_YSIZE=20, /KBRD_FOCUS_EVENTS, FONT=font1)
-  lblSNIAttCorr2=WIDGET_LABEL(bSNIAttCorrVal, VALUE='1/cm', FONT=font1)
+  lbl=WIDGET_LABEL(bSNIAttCorrVal, VALUE='1/cm', FONT=font1,/NO_COPY)
   bSaveSNICorr=WIDGET_BASE(bSNICorrParams, /NONEXCLUSIVE, /COLUMN, YSIZE=22)
-  btnSaveSNICorr=WIDGET_BUTTON(bSaveSNICorr, VALUE='Save corrected image (full resolution) as .dat-file for verification', UVALUE='saveSNICorrSet', FONT=font1)
+  btnSaveSNICorr=WIDGET_BUTTON(bSaveSNICorr, VALUE='Save corrected image as .dat-file', TOOLTIP='This .dat file can be opened in ImageQC just as any DICOM image', UVALUE='saveSNICorrSet', FONT=font1)
 
-  btnSNI=WIDGET_BUTTON(bSNI, VALUE='Calculate SNI', UVALUE='SNI',FONT=font1)
+  bSNI_Rgt=WIDGET_BASE(bSNI2,/COLUMN)
+  bHumVis=WIDGET_BASE(bSNI_Rgt, /COLUMN, FRAME=1)
+  lbl=WIDGET_LABEL(bHumVis, VALUE='Human visual response filter = r^f*exp(-cr^2)', FONT=font1, /NO_COPY)
+  bHumVis_f=WIDGET_BASE(bHumVis,/ROW)
+  lbl=WIDGET_LABEL(bHumVis_f, VALUE='f: ', FONT=font1, /NO_COPY)
+  txtSNI_f=WIDGET_TEXT(bHumVis_f, VALUE='', /EDITABLE, XSIZE=4, /KBRD_FOCUS_EVENTS, FONT=font1)
+  ;bHumVis_c=WIDGET_BASE(bHumVis,/ROW)
+  lbl=WIDGET_LABEL(bHumVis_f, VALUE='  c: ', FONT=font1, /NO_COPY)
+  txtSNI_c=WIDGET_TEXT(bHumVis_f, VALUE='', /EDITABLE, XSIZE=4, /KBRD_FOCUS_EVENTS, FONT=font1)
+  ;lbl=WIDGET_LABEL(bHumVis_c, VALUE='28 if view dist = 1.5m', FONT=font1, /NO_COPY)
+  ;bHumVis_d=WIDGET_BASE(bHumVis,/ROW)
+  lbl=WIDGET_LABEL(bHumVis_f, VALUE='  display (mm):', FONT=font1, /NO_COPY)
+  txtSNI_d=WIDGET_TEXT(bHumVis_f, VALUE='', /EDITABLE, XSIZE=5, /KBRD_FOCUS_EVENTS, FONT=font1)
+  ;lbl=WIDGET_LABEL(bHumVis_d, VALUE='mm', FONT=font1, /NO_COPY)
+
+  bCW_SNI=WIDGET_BASE(bSNI_Rgt,/ROW)
+  cw_plotSNI=CW_BGROUP(bCW_SNI, ['SNI values','Curves to calculate SNI'], /EXCLUSIVE, UVALUE='cw_plotSNI', LABEL_TOP='Plot result', /FRAME,FONT=font1, COLUMN=1, SPACE=-2, YPAD=0)
+  cw_imgSNI=CW_BGROUP(bCW_SNI, ['2d NPS','Curvature corr. image'],/EXCLUSIVE, UVALUE='cw_imgSNI', SET_VALUE=0, LABEL_TOP='Image result', /FRAME, FONT=font1, COLUMN=1, SPACE=-2, YPAD=0)
+
+  bSmoothNPS_SNI=WIDGET_BASE(bSNI_Rgt, /ROW)
+  lbl=WIDGET_LABEL(bSmoothNPS_SNI, VALUE='Smooth NPS curve (mm-1)',FONT=font1, /NO_COPY)
+  txtSmoothNPS_SNI=WIDGET_TEXT(bSmoothNPS_SNI, VALUE='0.010', /EDITABLE, XSIZE=5, SCR_YSIZE=20, /KBRD_FOCUS_EVENTS, FONT=font1)
+  bfreqNPS_SNI=WIDGET_BASE(bSNI_Rgt, /ROW)
+  lbl=WIDGET_LABEL(bfreqNPS_SNI, VALUE='Sampling frequency NPS curve (mm-1)',FONT=font1,/NO_COPY)
+  txtfreqNPS_SNI=WIDGET_TEXT(bfreqNPS_SNI, VALUE='0.005', /EDITABLE, XSIZE=5, SCR_YSIZE=20, /KBRD_FOCUS_EVENTS, FONT=font1)
+
+  btnSNI=WIDGET_BUTTON(bSNI_Lft, VALUE='Calculate SNI', UVALUE='SNI',FONT=font1)
 
   ;----------------Acquisition params----------
   lblacqMl0=WIDGET_LABEL(bAcq, VALUE='', SCR_YSIZE=20)

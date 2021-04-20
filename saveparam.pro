@@ -87,6 +87,10 @@ pro getParam, configTemp
   WIDGET_CONTROL, txtUnifAttCorr, GET_VALUE=attCorr
   WIDGET_CONTROL, txtUnifAreaRatio, GET_VALUE=unifAreaRatio
   WIDGET_CONTROL, txtSNIAreaRatio, GET_VALUE=SNIAreaRatio
+  WIDGET_CONTROL, txtSNI_f, GET_VALUE=SNI_f
+  WIDGET_CONTROL, txtSNI_c, GET_VALUE=SNI_c
+  WIDGET_CONTROL, txtSNI_d, GET_VALUE=SNI_d
+  WIDGET_CONTROL, cw_plotSNI, GET_VALUE=plotSNI
   WIDGET_CONTROL, txtBarROIsize, GET_VALUE=barROIsz
   WIDGET_CONTROL, txtBar1, GET_VALUE=bar1
   WIDGET_CONTROL, txtBar2, GET_VALUE=bar2
@@ -120,6 +124,7 @@ pro getParam, configTemp
     'NPSroiSz', LONG(NPSroiSz(0)), 'NPSroiDist', FLOAT(NPSroiDist(0)),'NPSsubNN', LONG(NPSsubNN(0)), 'NPSroiSzX', LONG(NPSroiSzX(0)), 'NPSsubSzX', LONG(NPSsubSzX(0)), 'NPSavg',WIDGET_INFO(btnNPSavg, /BUTTON_SET),$
     'STProiSz', FLOAT(STProiSz(0)), $
     'unifAreaRatio', FLOAT(unifAreaRatio(0)),'SNIAreaRatio', FLOAT(SNIAreaRatio(0)),'unifCorr',WIDGET_INFO(btnUnifCorr,/BUTTON_SET),'SNIcorr',WIDGET_INFO(btnSNICorr,/BUTTON_SET),'distCorr',FLOAT(distCorr(0)),'attCoeff',FLOAT(attCorr(0)),'detThick',FLOAT(thickCorr(0)), $
+    'SNI_fcd',FLOAT([SNI_f(0),SNI_c(0),SNI_d(0)]),'plotSNI',plotSNI,$
     'barROIsz', FLOAT(barROIsz(0)),'barWidths',barWidths,$
     'scanSpeedAvg',LONG(scanSpeedAvg(0)), 'scanSpeedHeight', FLOAT(scanSpeedHeight(0)), 'scanSpeedFiltW', LONG(scanSpeedFiltW(0)), $
     'contrastRad1', FLOAT(contrastRad1(0)), 'contrastRad2', FLOAT(contrastRad2(0)),$

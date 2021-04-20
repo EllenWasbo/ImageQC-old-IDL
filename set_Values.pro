@@ -116,6 +116,8 @@ pro set_configSinfo, cSi
     ['distCorr','Source-detector distance','2','UNIF/SNI','FLOAT'],$
     ['detThick','Detector thickness','2','UNIF/SNI','FLOAT'],$
     ['attCoeff','Attenuation coeff detector','2','UNIF/SNI','FLOAT'],$
+    ['SNI_fcd','SNI human filter c,f,d,','2','SNI','FLOAT'],$
+    ['plotSNI','Plot selection (0..1)','2','SNI','INT'],$
     ['barWidths','Bar widths','2','BAR','FLOAT'],$
     ['barROIsz','ROI diameter','2','BAR','FLOAT'],$
     ['ScanSpeedAvg', 'Average over ROI width','2','SCANSPEED','INT'],$

@@ -476,7 +476,9 @@ function readImgInfo, adr, dialog_par, silentValue
         IF STRMID(manufacturer,0,2) EQ 'GE' THEN BEGIN
           test=o->GetReference('0053'x,'1042'x);IR or AI grade
           test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
-          IF test(0) NE -1 THEN kernel2=', '+*(test_peker[0]) ELSE kernel2=''
+          IF test(0) NE -1 THEN BEGIN
+            IF N_ELEMENTS(*(test_peker[0])) EQ 1 THEN kernel2=', '+*(test_peker[0]) ELSE kernel2=''; bytarr 10 for older GE - something else than IR/AI info
+          ENDIF ELSE kernel2=''
           kernel=kernel+kernel2
         ENDIF
 

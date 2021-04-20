@@ -180,6 +180,10 @@ pro refreshParam, paramSet, paramSetName
   WIDGET_CONTROL, txtSNIDistCorr, SET_VALUE=STRING(paramSet.distCorr, FORMAT='(f0.1)')
   WIDGET_CONTROL, txtSNIThickCorr, SET_VALUE=STRING(paramSet.detThick, FORMAT='(f0.1)')
   WIDGET_CONTROL, txtSNIAttCorr, SET_VALUE=STRING(paramSet.attCoeff, FORMAT='(f0.1)')
+  WIDGET_CONTROL, txtSNI_f, SET_VALUE=STRING(paramSet.SNI_fcd[0], FORMAT='(f0.1)')
+  WIDGET_CONTROL, txtSNI_c, SET_VALUE=STRING(paramSet.SNI_fcd[1], FORMAT='(i0)')
+  WIDGET_CONTROL, txtSNI_d, SET_VALUE=STRING(paramSet.SNI_fcd[2], FORMAT='(i0)')
+  WIDGET_CONTROL, cw_plotSNI, SET_VALUE=paramSet.plotSNI
   WIDGET_CONTROL, txtBarROIsize, SET_VALUE=STRING(paramSet.barROIsz, FORMAT='(f0.1)')
   WIDGET_CONTROL, txtBar1, SET_VALUE=STRING(paramSet.barWidths(0), FORMAT='(f0.1)')
   WIDGET_CONTROL, txtBar2, SET_VALUE=STRING(paramSet.barWidths(1), FORMAT='(f0.1)')

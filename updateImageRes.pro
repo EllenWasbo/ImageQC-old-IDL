@@ -22,7 +22,7 @@ pro updateImageRes
 
   WIDGET_CONTROL, drawImageRes, GET_VALUE = iDrawImageRes
   WSET, iDrawImageRes
-  TVSCL, INTARR(400,400)
+  TVSCL, INTARR(450,450)
 
   curMode=WIDGET_INFO(wTabModes, /TAB_CURRENT)
 
@@ -129,29 +129,85 @@ pro updateImageRes
             CASE analyse OF
 
               'UNIF':BEGIN
-                activeResImg=unifRes.(sel+1).matrix
-                TVSCL, activeResImg
+                WIDGET_CONTROL, cw_imgUnif, GET_VALUE= imgWhich
+
+                CASE imgWhich OF
+                  0: BEGIN;curvature corrected
+                    IF WIDGET_INFO(btnUnifCorr, /BUTTON_SET) THEN BEGIN
+                      tempImg=readImg(structImgs.(sel).filename, structImgs.(sel).frameNo)
+                      WIDGET_CONTROL, txtUnifDistCorr, GET_VALUE=distSource
+                      WIDGET_CONTROL, txtUnifThickCorr, GET_VALUE=detThick
+                      WIDGET_CONTROL, txtUnifAttCorr, GET_VALUE=detAtt
+                      corrM=corrDistPointSource(tempImg, FLOAT(distSource(0)), pix, FLOAT(detThick(0)), 0.1*FLOAT(detAtt(0))) ; functionsMini
+                      activeResImg=tempImg*corrM
+                      szX=450
+                      szImg=SIZE(activeResImg, /DIMENSIONS)
+                      szY=ROUND(szX*(szImg(1)*1./szImg(0)))
+                      WIDGET_CONTROL, txtMinWL, GET_VALUE=lower
+                      WIDGET_CONTROL, txtMaxWL, GET_VALUE=upper
+                      rangeWL=LONG([lower,upper])
+                      TVSCL,congrid(adjustWindowLevel(activeResImg, rangeWL), szX, szY, /INTERP)
+                      XYOUTS, 0.05,0.05,'Curvature corrected image', CHARSIZE=1.5, COLOR=255
+                    ENDIF ELSE XYOUTS, 0.05,0.05,'No correction applied', CHARSIZE=1.5, COLOR=255
+                    END
+                  1: BEGIN;all processing finished
+                    activeResImg=unifRes.(sel+1).matrix
+                    tvRes=upscaleImg(activeResImg, 3)
+                    TVSCL, tvRes
+                    XYOUTS, 0.05,0.09,'View zoomed by factor 3 ', CHARSIZE=1.2, COLOR=255
+                    XYOUTS, 0.05,0.05,'Pixel size 6.4mm, smoothed as specified by NEMA', CHARSIZE=1.2, COLOR=255
+                    END
+                  ELSE:
+                ENDCASE
+                              
               END
               'SNI': BEGIN
-                WIDGET_CONTROL, resTab, GET_VALUE=resArr
-                ;displaying filtered 2d NPS for selected region'
-                tabSel=WIDGET_INFO(resTab,/TABLE_SELECT)
-                colNo=tabSel(0)
-                maxstr=''
-                IF colNo LE 0 THEN BEGIN
-                  colmax=WHERE(resArr[1:8,sel] EQ MAX(resArr[1:8,sel]))
-                  ss=colmax(0)
-                  maxstr=' (max)'
-                ENDIF ELSE ss=colNo-1
+                WIDGET_CONTROL, cw_imgSNI, GET_VALUE= imgWhich
                 
-                ssnames=['L1','L2','S1','S2','S3','S4','S5','S6']  
-                activeResImg=SNIres.(sel).NPS_filt.(ss)
-                tvRes=activeResImg
-                szNPS=SIZE(activeResImg, /DIMENSIONS)
-                szX=450
-                szY=ROUND(szX*(szNPS(1)*1./szNPS(0)))
-                TVSCL,congrid(adjustWindowLevel(tvRes, [0,100*max(SNIres.(sel).NPS_filt.(ss))]), szX, szY, /INTERP)
-                XYOUTS, 0.05,0.05, 'NPS filtered '+ssnames(ss)+maxstr, CHARSIZE=1.5, COLOR=255
+                CASE imgWhich OF
+                  0: BEGIN;2d NPS
+                      WIDGET_CONTROL, resTab, GET_VALUE=resArr
+                      ;displaying filtered 2d NPS for selected region'
+                      tabSel=WIDGET_INFO(resTab,/TABLE_SELECT)
+                      colNo=tabSel(0)
+                      maxstr=''
+                      IF colNo LE 0 THEN BEGIN
+                        colmax=WHERE(resArr[1:8,sel] EQ MAX(resArr[1:8,sel]))
+                        ss=colmax(0)
+                        maxstr=' (max)'
+                      ENDIF ELSE ss=colNo-1
+                      
+                      ssnames=['L1','L2','S1','S2','S3','S4','S5','S6']  
+                      activeResImg=SNIres.(sel).NPS_filt.(ss)
+                      tvRes=activeResImg
+                      szNPS=SIZE(activeResImg, /DIMENSIONS)
+                      szX=450
+                      szY=ROUND(szX*(szNPS(1)*1./szNPS(0)))
+                      TVSCL,congrid(adjustWindowLevel(tvRes, [0,100*max(SNIres.(sel).NPS_filt.(ss))]), szX, szY, /INTERP)
+                      XYOUTS, 0.05,0.05, 'NPS filtered '+ssnames(ss)+maxstr, CHARSIZE=1.5, COLOR=255
+                   END
+                   1: BEGIN; curvature corrected image
+                     IF WIDGET_INFO(btnSNICorr, /BUTTON_SET) THEN BEGIN
+                      tempImg=readImg(structImgs.(sel).filename, structImgs.(sel).frameNo)
+                      WIDGET_CONTROL, txtSNIDistCorr, GET_VALUE=distSource
+                      WIDGET_CONTROL, txtSNIThickCorr, GET_VALUE=detThick     
+                      WIDGET_CONTROL, txtSNIAttCorr, GET_VALUE=detAtt
+                      corrM=corrDistPointSource(tempImg, FLOAT(distSource(0)), pix, FLOAT(detThick(0)), 0.1*FLOAT(detAtt(0))) ; functionsMini
+                      activeResImg=tempImg*corrM
+                      szX=450
+                      szImg=SIZE(activeResImg, /DIMENSIONS)
+                      szY=ROUND(szX*(szImg(1)*1./szImg(0)))
+                      WIDGET_CONTROL, txtMinWL, GET_VALUE=lower
+                      WIDGET_CONTROL, txtMaxWL, GET_VALUE=upper
+                      rangeWL=LONG([lower,upper])
+                      TVSCL,congrid(adjustWindowLevel(activeResImg, rangeWL), szX, szY, /INTERP)
+                      XYOUTS, 0.05,0.05,'Curvature corrected image', CHARSIZE=1.5, COLOR=255
+                     ENDIF ELSE XYOUTS, 0.05,0.05,'No correction applied', CHARSIZE=1.5, COLOR=255
+                    END
+                   ELSE:
+                   ENDCASE
+                
+
               END
               'GEOMMEAN':BEGIN
                 IF structImgs.(sel).nFrames GE 2 THEN BEGIN

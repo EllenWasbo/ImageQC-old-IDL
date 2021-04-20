@@ -110,235 +110,235 @@ pro updatePlot, setRangeMinMaxX, setRangeMinMaxY, optionSet
 
               'MTF': BEGIN
                 IF SIZE(MTFres, /TNAME) EQ 'STRUCT' THEN BEGIN
-                resforeach=WHERE(TAG_NAMES(MTFres) EQ 'M0')
-                v3d=0
-                IF resforeach(0) EQ -1 THEN v3d=1
+                  resforeach=WHERE(TAG_NAMES(MTFres) EQ 'M0')
+                  v3d=0
+                  IF resforeach(0) EQ -1 THEN v3d=1
 
-                WIDGET_CONTROL, txtMTFroiSz, GET_VALUE=ROIsz
-                ROIsz=ROUND(ROIsz(0)/pix)
-                halfSz=SIZE(activeImg, /DIMENSIONS)/2
-                x1=ROUND(halfSz(0)+dxya(0)-ROIsz(0)) & x2=ROUND(halfSz(0)+dxya(0)+ROIsz(0))
-                y1=ROUND(halfSz(1)+dxya(1)-ROIsz(0)) & y2=ROUND(halfSz(1)+dxya(1)+ROIsz(0))
+                  WIDGET_CONTROL, txtMTFroiSz, GET_VALUE=ROIsz
+                  ROIsz=ROUND(ROIsz(0)/pix)
+                  halfSz=SIZE(activeImg, /DIMENSIONS)/2
+                  x1=ROUND(halfSz(0)+dxya(0)-ROIsz(0)) & x2=ROUND(halfSz(0)+dxya(0)+ROIsz(0))
+                  y1=ROUND(halfSz(1)+dxya(1)-ROIsz(0)) & y2=ROUND(halfSz(1)+dxya(1)+ROIsz(0))
 
-                WIDGET_CONTROL, cw_plotMTF, GET_VALUE= plotWhich
-                WIDGET_CONTROL, cw_cyclMTF, GET_VALUE=MTFcyclWhich
-                IF MTFcyclWhich EQ 0 THEN cyclFactor=1.0 ELSE cyclFactor=10.0
+                  WIDGET_CONTROL, cw_plotMTF, GET_VALUE= plotWhich
+                  WIDGET_CONTROL, cw_cyclMTF, GET_VALUE=MTFcyclWhich
+                  IF MTFcyclWhich EQ 0 THEN cyclFactor=1.0 ELSE cyclFactor=10.0
 
-                CASE plotWhich OF
+                  CASE plotWhich OF
 
-                  0: BEGIN ;centered xy profile
+                    0: BEGIN ;centered xy profile
 
-                    MTFtags=TAG_NAMES(MTFres)
-                    IF v3d THEN BEGIN
+                      MTFtags=TAG_NAMES(MTFres)
+                      IF v3d THEN BEGIN
 
-                      IF MTFtags.HasValue('CDX') THEN BEGIN
+                        IF MTFtags.HasValue('CDX') THEN BEGIN
 
-                        valuesPlot=CREATE_STRUCT('x',MTFres.cdx,'Xprof',MTFres.submatrixAll[*,ROUND(MTFres.centerPos(1)),0],'y', MTFres.cdy, 'Yprof', transpose(MTFres.submatrixAll[ROUND(MTFres.centerPos(0)),*,0]))
+                          valuesPlot=CREATE_STRUCT('x',MTFres.cdx,'Xprof',MTFres.submatrixAll[*,ROUND(MTFres.centerPos(1)),0],'y', MTFres.cdy, 'Yprof', transpose(MTFres.submatrixAll[ROUND(MTFres.centerPos(0)),*,0]))
 
-                        IF setRangeMinMaxX THEN rangeX=[min(MTFres.cdx),max(MTFres.cdx)]
-                        IF setRangeMinMaxY THEN rangeY=[min(MTFres.submatrixAll),max(MTFres.submatrixAll)]
+                          IF setRangeMinMaxX THEN rangeX=[min(MTFres.cdx),max(MTFres.cdx)]
+                          IF setRangeMinMaxY THEN rangeY=[min(MTFres.submatrixAll),max(MTFres.submatrixAll)]
+
+                          IF optionSet NE 3 THEN BEGIN
+                            szM=size(MTFres.submatrixAll,/DIMENSIONS)
+                            nObj=1 & IF N_ELEMENTS(szM) EQ 3 THEN nObj=szM(2)
+                            resPlotX=OBJARR(nObj) & resPlotY=OBJARR(nObj)
+                            resPlotX[0]=PLOT(MTFres.cdx,MTFres.submatrixAll[*,ROUND(MTFres.centerPos(1)),0], '-', NAME='x', XTITLE='x or y pos (mm)', YTITLE='Pixel value' , TITLE='Centered x and y profile for all (marked) images', $
+                              XRANGE=rangeX, YRANGE=rangeY, XSTYLE=1, YSTYLE=1, MARGIN=resPlotMargin, FONT_NAME=foName, FONT_SIZE=foSize, CURRENT=currWin)
+                            resPlotX[0].refresh, /DISABLE
+                            resPlotY[0]=PLOT(MTFres.cdy,MTFres.submatrixAll[ROUND(MTFres.centerPos(0)),*,0], '--',  NAME='y', /OVERPLOT)
+                            IF N_ELEMENTS(szM) EQ 3 THEN BEGIN
+                              FOR i = 1, szM(2)-1 DO BEGIN
+                                resPlotX[i]=PLOT(MTFres.cdx, MTFres.submatrixAll[*,ROUND(MTFres.centerPos(1)),i], '-', COLOR=[i*40,i*40+30, i*40+70], /OVERPLOT)
+                                resPlotY[i]=PLOT(MTFres.cdy, MTFres.submatrixAll[ROUND(MTFres.centerPos(0)),*,i], '--', COLOR=[i*40,i*40+30, i*40+70], /OVERPLOT)
+                                valuesPlot=CREATE_STRUCT(valuesPlot, 'Xprof'+STRING(i,FORMAT='(i0)'), MTFres.submatrixAll[*,ROUND(MTFres.centerPos(1)),i], $
+                                  'Yprof'+STRING(i,FORMAT='(i0)'), MTFres.submatrixAll[ROUND(MTFres.centerPos(0)),*,i])
+                                ;valuesPlot=CREATE_STRUCT(valuesPlot, 'COPY'+STRING(i,FORMAT='(i03)')+'x',MTFres.cdx, 'Xprof'+STRING(i,FORMAT='(i0)'), MTFres.submatrixAll[*,ROUND(MTFres.centerPos(1)),i], 'COPY'+STRING(i,FORMAT='(i03)')+'y', MTFres.cdy,'Yprof'+STRING(i,FORMAT='(i0)'), MTFres.submatrixAll[ROUND(MTFres.centerPos(0)),*,i])
+                              ENDFOR
+                            ENDIF
+                            resPlotLeg=LEGEND(TARGET=[resPlotX[0],resPlotY[0]], FONT_NAME=foName, FONT_SIZE=foSize, POSITION=legPos)
+                            resPlotX[0].refresh
+
+                          ENDIF
+                        ENDIF ELSE t=TEXT(0.1, 0.2,'Plot not available for wire method.')
+                      ENDIF ELSE BEGIN
+                        valuesPlot=CREATE_STRUCT('x',MTFres.(sel).cdx, 'Xprof', MTFres.(sel).submatrixAll[*,ROUND(MTFres.(sel).centerPos(1)),0], 'y',MTFres.(sel).cdy, 'Yprof', MTFres.(sel).submatrixAll[ROUND(MTFres.(sel).centerPos(0)),*,0])
+
+                        IF setRangeMinMaxX THEN rangeX=[min(MTFres.(sel).cdx),max(MTFres.(sel).cdx)]
+                        IF setRangeMinMaxY THEN rangeY=[min(MTFres.(sel).submatrixAll),max(MTFres.(sel).submatrixAll)]
+
+                        IF optionSet NE 3 THEN BEGIN
+                          xprof=MTFres.(sel).submatrixAll[*,ROUND(MTFres.(sel).centerPos(1)),0]
+                          yprof=MTFres.(sel).submatrixAll[ROUND(MTFres.(sel).centerPos(0)),*,0]
+
+                          resPlotX=PLOT(MTFres.(sel).cdx,xprof, '-', NAME='x', XTITLE='x or y pos (mm)', YTITLE='Pixel value' , TITLE='Centered x and y profile', $
+                            XRANGE=rangeX, YRANGE=rangeY, XSTYLE=1, YSTYLE=1, MARGIN=resPlotMargin, FONT_NAME=foName, FONT_SIZE=foSize, CURRENT=currWin)
+                          resPlotY=PLOT(MTFres.(sel).cdy,yprof, '--',  NAME='y', /OVERPLOT)
+                          resPlotLeg=LEGEND(TARGET=[resPlotX[0],resPlotY[0]], FONT_NAME=foName, FONT_SIZE=foSize, POSITION=legPos)
+
+                        ENDIF
+                      ENDELSE
+                    END
+                    1: BEGIN ;sorted pixelvalues, interpolated and smoothed
+                      IF v3d THEN BEGIN
+
+                        valuesPlot=CREATE_STRUCT('distance from center', MTFres.newdists,'Interpolated pixel values',MTFres.pixValsInterp)
+                        MTFtags=TAG_NAMES(MTFres)
+                        IF MTFtags.HasValue('PIXVALSSMOOTH') THEN valuesPlot=CREATE_STRUCT(valuesPlot, 'Smoothed pixelvalues',MTFres.pixValsSmooth)
+
+                        IF setRangeMinMaxX THEN rangeX=[min(MTFres.distspix0),max(MTFres.distspix0)]
+                        IF setRangeMinMaxY THEN rangeY=[min(MTFres.pixValSort),max(MTFres.pixValSort)]
 
                         IF optionSet NE 3 THEN BEGIN
                           szM=size(MTFres.submatrixAll,/DIMENSIONS)
                           nObj=1 & IF N_ELEMENTS(szM) EQ 3 THEN nObj=szM(2)
-                          resPlotX=OBJARR(nObj) & resPlotY=OBJARR(nObj)
-                          resPlotX[0]=PLOT(MTFres.cdx,MTFres.submatrixAll[*,ROUND(MTFres.centerPos(1)),0], '-', NAME='x', XTITLE='x or y pos (mm)', YTITLE='Pixel value' , TITLE='Centered x and y profile for all (marked) images', $
+                          resPlot=PLOT(MTFres.distspix0, MTFres.pixValSort, '', SYMBOL='.', NAME='Sorted pixel values', TITLE='Pixel values sorted by distance to center', XTITLE='Distance from center (mm)', YTITLE='Pixel value', $
                             XRANGE=rangeX, YRANGE=rangeY, XSTYLE=1, YSTYLE=1, MARGIN=resPlotMargin, FONT_NAME=foName, FONT_SIZE=foSize, CURRENT=currWin)
-                          resPlotX[0].refresh, /DISABLE
-                          resPlotY[0]=PLOT(MTFres.cdy,MTFres.submatrixAll[ROUND(MTFres.centerPos(0)),*,0], '--',  NAME='y', /OVERPLOT)
-                          IF N_ELEMENTS(szM) EQ 3 THEN BEGIN
-                            FOR i = 1, szM(2)-1 DO BEGIN
-                              resPlotX[i]=PLOT(MTFres.cdx, MTFres.submatrixAll[*,ROUND(MTFres.centerPos(1)),i], '-', COLOR=[i*40,i*40+30, i*40+70], /OVERPLOT)
-                              resPlotY[i]=PLOT(MTFres.cdy, MTFres.submatrixAll[ROUND(MTFres.centerPos(0)),*,i], '--', COLOR=[i*40,i*40+30, i*40+70], /OVERPLOT)
-                              valuesPlot=CREATE_STRUCT(valuesPlot, 'Xprof'+STRING(i,FORMAT='(i0)'), MTFres.submatrixAll[*,ROUND(MTFres.centerPos(1)),i], $
-                                'Yprof'+STRING(i,FORMAT='(i0)'), MTFres.submatrixAll[ROUND(MTFres.centerPos(0)),*,i])
-                              ;valuesPlot=CREATE_STRUCT(valuesPlot, 'COPY'+STRING(i,FORMAT='(i03)')+'x',MTFres.cdx, 'Xprof'+STRING(i,FORMAT='(i0)'), MTFres.submatrixAll[*,ROUND(MTFres.centerPos(1)),i], 'COPY'+STRING(i,FORMAT='(i03)')+'y', MTFres.cdy,'Yprof'+STRING(i,FORMAT='(i0)'), MTFres.submatrixAll[ROUND(MTFres.centerPos(0)),*,i])
-                            ENDFOR
+                          plotInterp=PLOT(MTFres.newdists, MTFres.pixValsInterp, '-r', NAME='Interpolated', /OVERPLOT)
+                          tars=[resPlot,plotInterp]
+                          IF MTFtags.HasValue('PIXVALSSMOOTH') THEN BEGIN
+                            plotSmooth=PLOT(MTFres.newdists, MTFres.pixValsSmooth, '-b', NAME='Smoothed', /OVERPLOT)
+                            tars=[tars, plotSmooth]
                           ENDIF
-                          resPlotLeg=LEGEND(TARGET=[resPlotX[0],resPlotY[0]], FONT_NAME=foName, FONT_SIZE=foSize, POSITION=legPos)
-                          resPlotX[0].refresh
-
+                          resLeg=LEGEND(TARGET=tars, FONT_NAME=foName, FONT_SIZE=foSize, POSITION=legPos)
                         ENDIF
-                      ENDIF ELSE t=TEXT(0.1, 0.2,'Plot not available for wire method.')
-                    ENDIF ELSE BEGIN
-                      valuesPlot=CREATE_STRUCT('x',MTFres.(sel).cdx, 'Xprof', MTFres.(sel).submatrixAll[*,ROUND(MTFres.(sel).centerPos(1)),0], 'y',MTFres.(sel).cdy, 'Yprof', MTFres.(sel).submatrixAll[ROUND(MTFres.(sel).centerPos(0)),*,0])
 
-                      IF setRangeMinMaxX THEN rangeX=[min(MTFres.(sel).cdx),max(MTFres.(sel).cdx)]
-                      IF setRangeMinMaxY THEN rangeY=[min(MTFres.(sel).submatrixAll),max(MTFres.(sel).submatrixAll)]
+                      ENDIF ELSE BEGIN
+                        t=TEXT(0.1, 0.2,'Sorted pixelvalues not available for 2d bead method.')
+                      ENDELSE
 
-                      IF optionSet NE 3 THEN BEGIN
-                        xprof=MTFres.(sel).submatrixAll[*,ROUND(MTFres.(sel).centerPos(1)),0]
-                        yprof=MTFres.(sel).submatrixAll[ROUND(MTFres.(sel).centerPos(0)),*,0]
+                    END
+                    2: BEGIN; LSF
+                      IF v3d EQ 0 THEN BEGIN
+                        IF N_TAGS(MTFres.(sel)) GT 1 THEN BEGIN
+                          valuesPlot=CREATE_STRUCT('xpos mm',MTFres.(sel).dx, 'LSFx',MTFres.(sel).LSFx)
 
-                        resPlotX=PLOT(MTFres.(sel).cdx,xprof, '-', NAME='x', XTITLE='x or y pos (mm)', YTITLE='Pixel value' , TITLE='Centered x and y profile', $
-                          XRANGE=rangeX, YRANGE=rangeY, XSTYLE=1, YSTYLE=1, MARGIN=resPlotMargin, FONT_NAME=foName, FONT_SIZE=foSize, CURRENT=currWin)
-                        resPlotY=PLOT(MTFres.(sel).cdy,yprof, '--',  NAME='y', /OVERPLOT)
-                        resPlotLeg=LEGEND(TARGET=[resPlotX[0],resPlotY[0]], FONT_NAME=foName, FONT_SIZE=foSize, POSITION=legPos)
+                          IF setRangeMinMaxX THEN rangeX=[min([MTFres.(sel).dx,MTFres.(sel).dy]),max([MTFres.(sel).dx,MTFres.(sel).dy])]
+                          IF setRangeMinMaxY THEN rangeY=[min([MTFres.(sel).LSFx,MTFres.(sel).LSFy]),max([MTFres.(sel).LSFx,MTFres.(sel).LSFy])]
 
-                      ENDIF
-                    ENDELSE
-                  END
-                  1: BEGIN ;sorted pixelvalues, interpolated and smoothed
-                    IF v3d THEN BEGIN
-
-                      valuesPlot=CREATE_STRUCT('distance from center', MTFres.newdists,'Interpolated pixel values',MTFres.pixValsInterp)
-                      MTFtags=TAG_NAMES(MTFres)
-                      IF MTFtags.HasValue('PIXVALSSMOOTH') THEN valuesPlot=CREATE_STRUCT(valuesPlot, 'Smoothed pixelvalues',MTFres.pixValsSmooth)
-
-                      IF setRangeMinMaxX THEN rangeX=[min(MTFres.distspix0),max(MTFres.distspix0)]
-                      IF setRangeMinMaxY THEN rangeY=[min(MTFres.pixValSort),max(MTFres.pixValSort)]
-
-                      IF optionSet NE 3 THEN BEGIN
-                        szM=size(MTFres.submatrixAll,/DIMENSIONS)
-                        nObj=1 & IF N_ELEMENTS(szM) EQ 3 THEN nObj=szM(2)
-                        resPlot=PLOT(MTFres.distspix0, MTFres.pixValSort, '', SYMBOL='.', NAME='Sorted pixel values', TITLE='Pixel values sorted by distance to center', XTITLE='Distance from center (mm)', YTITLE='Pixel value', $
-                          XRANGE=rangeX, YRANGE=rangeY, XSTYLE=1, YSTYLE=1, MARGIN=resPlotMargin, FONT_NAME=foName, FONT_SIZE=foSize, CURRENT=currWin)
-                        plotInterp=PLOT(MTFres.newdists, MTFres.pixValsInterp, '-r', NAME='Interpolated', /OVERPLOT)
-                        tars=[resPlot,plotInterp]
-                        IF MTFtags.HasValue('PIXVALSSMOOTH') THEN BEGIN
-                          plotSmooth=PLOT(MTFres.newdists, MTFres.pixValsSmooth, '-b', NAME='Smoothed', /OVERPLOT)
-                          tars=[tars, plotSmooth]
-                        ENDIF
-                        resLeg=LEGEND(TARGET=tars, FONT_NAME=foName, FONT_SIZE=foSize, POSITION=legPos)
-                      ENDIF
-
-                    ENDIF ELSE BEGIN
-                      t=TEXT(0.1, 0.2,'Sorted pixelvalues not available for 2d bead method.')
-                    ENDELSE
-
-                  END
-                  2: BEGIN; LSF
-                    IF v3d EQ 0 THEN BEGIN
-                      IF N_TAGS(MTFres.(sel)) GT 1 THEN BEGIN
-                        valuesPlot=CREATE_STRUCT('xpos mm',MTFres.(sel).dx, 'LSFx',MTFres.(sel).LSFx)
-
-                        IF setRangeMinMaxX THEN rangeX=[min([MTFres.(sel).dx,MTFres.(sel).dy]),max([MTFres.(sel).dx,MTFres.(sel).dy])]
-                        IF setRangeMinMaxY THEN rangeY=[min([MTFres.(sel).LSFx,MTFres.(sel).LSFy]),max([MTFres.(sel).LSFx,MTFres.(sel).LSFy])]
+                          IF optionSet NE 3 THEN BEGIN
+                            tagMTFres=tag_names(MTFres.(sel))
+                            resPlot=objarr(6)
+                            IF tagMTFres.hasValue('FITLSFX') THEN BEGIN
+                              resPlot[0]=PLOT(MTFres.(sel).dx,MTFres.(sel).fitLSFx,'-', NAME='Gaussian fit LSF x', XTITLE='position (mm)', TITLE='Line Spread Function',$
+                                XRANGE=rangeX, YRANGE=rangeY, XSTYLE=1, YSTYLE=1, MARGIN=resPlotMargin, FONT_NAME=foName, FONT_SIZE=foSize, CURRENT=currWin)
+                              valuesPlot=CREATE_STRUCT(valuesPlot, 'Gaussian fit LSFx', MTFres.(sel).fitLSFx)
+                            ENDIF ELSE BEGIN
+                              resPlot[0]=PLOT(MTFres.(sel).dx,MTFres.(sel).dx,'-', XTITLE='position (mm)', TITLE='Line Spread Function', /NODATA,$
+                                XRANGE=rangeX, YRANGE=rangeY, XSTYLE=1, YSTYLE=1, MARGIN=resPlotMargin, FONT_NAME=foName, FONT_SIZE=foSize, CURRENT=currWin)
+                            ENDELSE
+                            resPlot[0].refresh, /DISABLE
+                            valuesPlot=CREATE_STRUCT(valuesPlot, 'ypos mm', MTFres.(sel).dy, 'LSFy', MTFres.(sel).LSFy)
+                            IF tagMTFres.hasValue('FITLSFY') THEN BEGIN
+                              resPlot[2]=PLOT(MTFres.(sel).dy,MTFres.(sel).fitLSFy, '--', NAME='Gaussian fit LSF y', /OVERPLOT)
+                              valuesPlot=CREATE_STRUCT(valuesPlot, 'Gaussian fit LSFy', MTFres.(sel).fitLSFy)
+                            ENDIF
+                            resPlot[4]=PLOT(MTFres.(sel).dx, MTFres.(sel).LSFx, '-r', NAME='LSF x', /OVERPLOT)
+                            resPlot[5]=PLOT(MTFres.(sel).dy, MTFres.(sel).LSFy, '--r', NAME='LSF y', /OVERPLOT)
+                            resLeg=LEGEND(TARGET=[resPlot[4:5],resPlot[0],resPlot[2]], FONT_NAME=foName, FONT_SIZE=foSize, POSITION=legPos)
+                            resPlot[0].refresh
+                          ENDIF
+                        ENDIF ELSE iDrawPlot.Erase
+                      ENDIF ELSE BEGIN
+                        valuesPlot=CREATE_STRUCT('pos mm', MTFres.dx, 'LSF', MTFres.LSFx)
+                        IF setRangeMinMaxX THEN rangeX=[min(MTFres.dx),max(MTFres.dx)]
+                        IF setRangeMinMaxY THEN rangeY=[min(MTFres.LSFx),max(MTFres.LSFx)]
 
                         IF optionSet NE 3 THEN BEGIN
-                          tagMTFres=tag_names(MTFres.(sel))
-                          resPlot=objarr(6)
+                          tagMTFres=tag_names(MTFres)
+                          resPlot=objarr(3)
                           IF tagMTFres.hasValue('FITLSFX') THEN BEGIN
-                            resPlot[0]=PLOT(MTFres.(sel).dx,MTFres.(sel).fitLSFx,'-', NAME='Gaussian fit LSF x', XTITLE='position (mm)', TITLE='Line Spread Function',$
+                            resPlot[0]=PLOT(MTFres.dx,MTFres.fitLSFx, '-', NAME='Fitted gaussian',XTITLE='position (mm)',TITLE='Line Spread Function',$
                               XRANGE=rangeX, YRANGE=rangeY, XSTYLE=1, YSTYLE=1, MARGIN=resPlotMargin, FONT_NAME=foName, FONT_SIZE=foSize, CURRENT=currWin)
-                            valuesPlot=CREATE_STRUCT(valuesPlot, 'Gaussian fit LSFx', MTFres.(sel).fitLSFx)
+                            valuesPlot=CREATE_STRUCT(valuesPlot, 'Fit to smoothed LSF', MTFres.fitLSFx)
                           ENDIF ELSE BEGIN
-                            resPlot[0]=PLOT(MTFres.(sel).dx,MTFres.(sel).dx,'-', XTITLE='position (mm)', TITLE='Line Spread Function', /NODATA,$
+                            resPlot[0]=PLOT(MTFres.dx,MTFres.dx, XTITLE='position (mm)',TITLE='Line Spread Function', /NODATA, $
                               XRANGE=rangeX, YRANGE=rangeY, XSTYLE=1, YSTYLE=1, MARGIN=resPlotMargin, FONT_NAME=foName, FONT_SIZE=foSize, CURRENT=currWin)
                           ENDELSE
-                          resPlot[0].refresh, /DISABLE
-                          valuesPlot=CREATE_STRUCT(valuesPlot, 'ypos mm', MTFres.(sel).dy, 'LSFy', MTFres.(sel).LSFy)
-                          IF tagMTFres.hasValue('FITLSFY') THEN BEGIN
-                            resPlot[2]=PLOT(MTFres.(sel).dy,MTFres.(sel).fitLSFy, '--', NAME='Gaussian fit LSF y', /OVERPLOT)
-                            valuesPlot=CREATE_STRUCT(valuesPlot, 'Gaussian fit LSFy', MTFres.(sel).fitLSFy)
+                          IF tagMTFres.hasValue('SMLSFX') THEN BEGIN
+                            IF N_ELEMENTS(MTFres.smLSFx) GT 1 THEN BEGIN
+                              resPlot[1]=PLOT( MTFres.dx,MTFres.smLSFx, '-b', NAME='Smoothed LSF', /OVERPLOT)
+                              valuesPlot=CREATE_STRUCT(valuesPlot, 'Smoothed LSF', MTFres.smLSFx)
+                            ENDIF
                           ENDIF
-                          resPlot[4]=PLOT(MTFres.(sel).dx, MTFres.(sel).LSFx, '-r', NAME='LSF x', /OVERPLOT)
-                          resPlot[5]=PLOT(MTFres.(sel).dy, MTFres.(sel).LSFy, '--r', NAME='LSF y', /OVERPLOT)
-                          resLeg=LEGEND(TARGET=[resPlot[4:5],resPlot[0],resPlot[2]], FONT_NAME=foName, FONT_SIZE=foSize, POSITION=legPos)
-                          resPlot[0].refresh
+                          resPlot[2]=PLOT( MTFres.dx,MTFres.LSFx, '-r', NAME='Interpolated LSF', /OVERPLOT)
+                          resLeg=LEGEND(TARGET=[resPlot[2],resPlot[1],resPlot[0]], FONT_NAME=foName, FONT_SIZE=foSize, POSITION=legPos)
                         ENDIF
-                      ENDIF ELSE iDrawPlot.Erase
-                    ENDIF ELSE BEGIN
-                      valuesPlot=CREATE_STRUCT('pos mm', MTFres.dx, 'LSF', MTFres.LSFx)
-                      IF setRangeMinMaxX THEN rangeX=[min(MTFres.dx),max(MTFres.dx)]
-                      IF setRangeMinMaxY THEN rangeY=[min(MTFres.LSFx),max(MTFres.LSFx)]
+                      ENDELSE
+                    END
+                    3: BEGIN ;MTF
 
-                      IF optionSet NE 3 THEN BEGIN
+                      mm2cm=cyclFactor;1. means no converstion to cm, 10. when convert to cm
+                      IF v3d EQ 0 THEN BEGIN
+                        IF N_TAGS(MTFres.(sel)) GT 1 THEN BEGIN
+
+                          tagMTFres=tag_names(MTFres.(sel))
+                          valuesPlot=CREATE_STRUCT('discrete du mm_1',MTFres.(sel).fx*mm2cm, 'discrete MTFu',MTFres.(sel).MTFx)
+                          IF tagMTFres.hasValue('GFX') THEN valuesPlot=CREATE_STRUCT(valuesPlot,'gaussian du mm_1',MTFres.(sel).gfx*mm2cm,'gaussian MTFu',MTFres.(sel).gMTFx)
+                          IF tagMTFres.hasValue('FY') THEN valuesPlot=CREATE_STRUCT(valuesPlot,'discrete dv mm_1',MTFres.(sel).fy*mm2cm, 'discrete MTFv',MTFres.(sel).MTFy)
+                          IF tagMTFres.hasValue('GFY') THEN valuesPlot=CREATE_STRUCT(valuesPlot,'gaussian dv mm_1',MTFres.(sel).gfy*mm2cm,'gaussian MTFv',MTFres.(sel).gMTFy)
+
+                          IF setRangeMinMaxX THEN rangeX=[0,nyqfr*1.1]*mm2cm
+                          IF setRangeMinMaxY THEN rangeY=[min([MTFres.(sel).MTFx,MTFres.(sel).MTFy]),max([MTFres.(sel).MTFx,MTFres.(sel).MTFy])]
+
+                          IF optionSet NE 3 THEN BEGIN
+                            resPlot=objarr(11)
+                            resPlot[0]=PLOT(MTFres.(sel).fx*mm2cm,MTFres.(sel).MTFx, '-r', NAME='Discrete MTF x', XTITLE='frequency (mm-1)',YTITLE='MTF', TITLE='Modulation Transfer Function',$
+                              XRANGE=rangeX, YRANGE=rangeY, XSTYLE=1, YSTYLE=1, MARGIN=resPlotMargin, FONT_NAME=foName, FONT_SIZE=foSize, CURRENT=currWin)
+                            resPlot[0].refresh, /DISABLE
+                            resPlot[1]=PLOT(MTFres.(sel).fy*mm2cm,MTFres.(sel).MTFy,'--r', NAME='Discrete MTF y', /OVERPLOT)
+                            nleg=1
+                            IF tagMTFres.hasValue('GFX') THEN BEGIN
+                              resPlot[2]=PLOT(MTFres.(sel).gfx*mm2cm,MTFres.(sel).gMTFx, '-', NAME='Gaussian MTF x', /OVERPLOT);OPLOT, MTFres.(sel).gfx*mm2cm,MTFres.(sel).gMTFx,linestyle=0
+                              nleg=nleg+1
+                            ENDIF
+                            IF tagMTFres.hasValue('GFY') THEN BEGIN
+                              resPlot[3]=PLOT(MTFres.(sel).gfy*mm2cm,MTFres.(sel).gMTFy, '--', NAME='Gaussian MTF y', /OVERPLOT);OPLOT, MTFres.(sel).gfy*mm2cm,MTFres.(sel).gMTFy,linestyle=1
+                              nleg=nleg+1
+                            ENDIF
+                            legPlot=LEGEND(TARGET=resPlot[0:nleg], FONT_NAME=foName, FONT_SIZE=foSize, POSITION=legPos)
+                            resPlot[4]=PLOT([0,MTFres.(sel).F50_10_2(0)*mm2cm],[.5,.5],'-',/OVERPLOT)
+                            resPlot[5]=PLOT([0,MTFres.(sel).F50_10_2(1)*mm2cm],[.1,.1],'-',/OVERPLOT)
+                            resPlot[6]=PLOT([0,MTFres.(sel).F50_10_2(2)*mm2cm],[.02,.02],'-',/OVERPLOT)
+                            resPlot[7]=PLOT([0,MTFres.(sel).F50_10_2(3)*mm2cm],[.5,.5],'--',/OVERPLOT)
+                            resPlot[8]=PLOT([0,MTFres.(sel).F50_10_2(4)*mm2cm],[.1,.1],'--',/OVERPLOT)
+                            resPlot[9]=PLOT([0,MTFres.(sel).F50_10_2(5)*mm2cm],[.02,.02],'--',/OVERPLOT)
+                            resPlot[10]=PLOT([nyqfr,nyqfr]*mm2cm,[0,1],'-',/OVERPLOT)
+                            nqTxt=TEXT(nyqfr*.95,.5,'NQf',/DATA)
+                            resPlot[0].refresh
+                          ENDIF
+                        ENDIF ELSE iDrawPlot.erase
+                      ENDIF ELSE BEGIN
+
                         tagMTFres=tag_names(MTFres)
-                        resPlot=objarr(3)
-                        IF tagMTFres.hasValue('FITLSFX') THEN BEGIN
-                          resPlot[0]=PLOT(MTFres.dx,MTFres.fitLSFx, '-', NAME='Fitted gaussian',XTITLE='position (mm)',TITLE='Line Spread Function',$
-                            XRANGE=rangeX, YRANGE=rangeY, XSTYLE=1, YSTYLE=1, MARGIN=resPlotMargin, FONT_NAME=foName, FONT_SIZE=foSize, CURRENT=currWin)
-                          valuesPlot=CREATE_STRUCT(valuesPlot, 'Fit to smoothed LSF', MTFres.fitLSFx)
-                        ENDIF ELSE BEGIN
-                          resPlot[0]=PLOT(MTFres.dx,MTFres.dx, XTITLE='position (mm)',TITLE='Line Spread Function', /NODATA, $
-                            XRANGE=rangeX, YRANGE=rangeY, XSTYLE=1, YSTYLE=1, MARGIN=resPlotMargin, FONT_NAME=foName, FONT_SIZE=foSize, CURRENT=currWin)
-                        ENDELSE
-                        IF tagMTFres.hasValue('SMLSFX') THEN BEGIN
-                          IF N_ELEMENTS(MTFres.smLSFx) GT 1 THEN BEGIN
-                            resPlot[1]=PLOT( MTFres.dx,MTFres.smLSFx, '-b', NAME='Smoothed LSF', /OVERPLOT)
-                            valuesPlot=CREATE_STRUCT(valuesPlot, 'Smoothed LSF', MTFres.smLSFx)
-                          ENDIF
-                        ENDIF
-                        resPlot[2]=PLOT( MTFres.dx,MTFres.LSFx, '-r', NAME='Interpolated LSF', /OVERPLOT)
-                        resLeg=LEGEND(TARGET=[resPlot[2],resPlot[1],resPlot[0]], FONT_NAME=foName, FONT_SIZE=foSize, POSITION=legPos)
-                      ENDIF
-                    ENDELSE
-                  END
-                  3: BEGIN ;MTF
-
-                    mm2cm=cyclFactor;1. means no converstion to cm, 10. when convert to cm
-                    IF v3d EQ 0 THEN BEGIN
-                      IF N_TAGS(MTFres.(sel)) GT 1 THEN BEGIN
-
-                        tagMTFres=tag_names(MTFres.(sel))
-                        valuesPlot=CREATE_STRUCT('discrete du mm_1',MTFres.(sel).fx*mm2cm, 'discrete MTFu',MTFres.(sel).MTFx)
-                        IF tagMTFres.hasValue('GFX') THEN valuesPlot=CREATE_STRUCT(valuesPlot,'gaussian du mm_1',MTFres.(sel).gfx*mm2cm,'gaussian MTFu',MTFres.(sel).gMTFx)
-                        IF tagMTFres.hasValue('FY') THEN valuesPlot=CREATE_STRUCT(valuesPlot,'discrete dv mm_1',MTFres.(sel).fy*mm2cm, 'discrete MTFv',MTFres.(sel).MTFy)
-                        IF tagMTFres.hasValue('GFY') THEN valuesPlot=CREATE_STRUCT(valuesPlot,'gaussian dv mm_1',MTFres.(sel).gfy*mm2cm,'gaussian MTFv',MTFres.(sel).gMTFy)
+                        valuesPlot=CREATE_STRUCT('discrete frequency mm_1',MTFres.fx*mm2cm, 'discrete MTF',MTFres.MTFx)
+                        IF tagMTFres.hasValue('GFX') THEN valuesPlot=CREATE_STRUCT(valuesPlot,'gaussian frequency mm_1',MTFres.gfx*mm2cm,'gaussian MTF',MTFres.gMTFx)
 
                         IF setRangeMinMaxX THEN rangeX=[0,nyqfr*1.1]*mm2cm
-                        IF setRangeMinMaxY THEN rangeY=[min([MTFres.(sel).MTFx,MTFres.(sel).MTFy]),max([MTFres.(sel).MTFx,MTFres.(sel).MTFy])]
-
+                        IF setRangeMinMaxY THEN rangeY=[min(MTFres.MTFx),max(MTFres.MTFx)]
                         IF optionSet NE 3 THEN BEGIN
-                          resPlot=objarr(11)
-                          resPlot[0]=PLOT(MTFres.(sel).fx*mm2cm,MTFres.(sel).MTFx, '-r', NAME='Discrete MTF x', XTITLE='frequency (mm-1)',YTITLE='MTF', TITLE='Modulation Transfer Function',$
+                          resPlot=objarr(7)
+                          resPlot[0]=PLOT(MTFres.fx*mm2cm,MTFres.MTFx,XTITLE='frequency (mm-1)',YTITLE='MTF',TITLE='Modulation Transfer Function',/NODATA,$
                             XRANGE=rangeX, YRANGE=rangeY, XSTYLE=1, YSTYLE=1, MARGIN=resPlotMargin, FONT_NAME=foName, FONT_SIZE=foSize, CURRENT=currWin)
+                          nLeg=1
                           resPlot[0].refresh, /DISABLE
-                          resPlot[1]=PLOT(MTFres.(sel).fy*mm2cm,MTFres.(sel).MTFy,'--r', NAME='Discrete MTF y', /OVERPLOT)
-                          nleg=1
                           IF tagMTFres.hasValue('GFX') THEN BEGIN
-                            resPlot[2]=PLOT(MTFres.(sel).gfx*mm2cm,MTFres.(sel).gMTFx, '-', NAME='Gaussian MTF x', /OVERPLOT);OPLOT, MTFres.(sel).gfx*mm2cm,MTFres.(sel).gMTFx,linestyle=0
-                            nleg=nleg+1
+                            resPlot[2]=PLOT(MTFres.gfx*mm2cm,MTFres.gMTFx, '-',NAME='Gaussian MTF',/OVERPLOT)
+                            nLeg=2
                           ENDIF
-                          IF tagMTFres.hasValue('GFY') THEN BEGIN
-                            resPlot[3]=PLOT(MTFres.(sel).gfy*mm2cm,MTFres.(sel).gMTFy, '--', NAME='Gaussian MTF y', /OVERPLOT);OPLOT, MTFres.(sel).gfy*mm2cm,MTFres.(sel).gMTFy,linestyle=1
-                            nleg=nleg+1
-                          ENDIF
-                          legPlot=LEGEND(TARGET=resPlot[0:nleg], FONT_NAME=foName, FONT_SIZE=foSize, POSITION=legPos)
-                          resPlot[4]=PLOT([0,MTFres.(sel).F50_10_2(0)*mm2cm],[.5,.5],'-',/OVERPLOT)
-                          resPlot[5]=PLOT([0,MTFres.(sel).F50_10_2(1)*mm2cm],[.1,.1],'-',/OVERPLOT)
-                          resPlot[6]=PLOT([0,MTFres.(sel).F50_10_2(2)*mm2cm],[.02,.02],'-',/OVERPLOT)
-                          resPlot[7]=PLOT([0,MTFres.(sel).F50_10_2(3)*mm2cm],[.5,.5],'--',/OVERPLOT)
-                          resPlot[8]=PLOT([0,MTFres.(sel).F50_10_2(4)*mm2cm],[.1,.1],'--',/OVERPLOT)
-                          resPlot[9]=PLOT([0,MTFres.(sel).F50_10_2(5)*mm2cm],[.02,.02],'--',/OVERPLOT)
-                          resPlot[10]=PLOT([nyqfr,nyqfr]*mm2cm,[0,1],'-',/OVERPLOT)
+                          resPlot[1]=PLOT(MTFres.fx*mm2cm, MTFres.MTFx, '-r',NAME='Discrete MTF',/OVERPLOT)
+                          legPlot=LEGEND(TARGET=resPlot[1:nleg], FONT_NAME=foName, FONT_SIZE=foSize, POSITION=legPos)
+                          resPlot[3]=PLOT([0,MTFres.F50_10_2(0)*mm2cm],[.5,.5],'-',/OVERPLOT)
+                          resPlot[4]=PLOT([0,MTFres.F50_10_2(1)*mm2cm],[.1,.1],'-',/OVERPLOT)
+                          resPlot[5]=PLOT([0,MTFres.F50_10_2(2)*mm2cm],[.02,.02],'-',/OVERPLOT)
+                          resPlot[6]=PLOT([nyqfr,nyqfr]*mm2cm,[0,1],'-',/OVERPLOT)
                           nqTxt=TEXT(nyqfr*.95,.5,'NQf',/DATA)
                           resPlot[0].refresh
                         ENDIF
-                      ENDIF ELSE iDrawPlot.erase
-                    ENDIF ELSE BEGIN
-
-                      tagMTFres=tag_names(MTFres)
-                      valuesPlot=CREATE_STRUCT('discrete frequency mm_1',MTFres.fx*mm2cm, 'discrete MTF',MTFres.MTFx)
-                      IF tagMTFres.hasValue('GFX') THEN valuesPlot=CREATE_STRUCT(valuesPlot,'gaussian frequency mm_1',MTFres.gfx*mm2cm,'gaussian MTF',MTFres.gMTFx)
-
-                      IF setRangeMinMaxX THEN rangeX=[0,nyqfr*1.1]*mm2cm
-                      IF setRangeMinMaxY THEN rangeY=[min(MTFres.MTFx),max(MTFres.MTFx)]
-                      IF optionSet NE 3 THEN BEGIN
-                        resPlot=objarr(7)
-                        resPlot[0]=PLOT(MTFres.fx*mm2cm,MTFres.MTFx,XTITLE='frequency (mm-1)',YTITLE='MTF',TITLE='Modulation Transfer Function',/NODATA,$
-                          XRANGE=rangeX, YRANGE=rangeY, XSTYLE=1, YSTYLE=1, MARGIN=resPlotMargin, FONT_NAME=foName, FONT_SIZE=foSize, CURRENT=currWin)
-                        nLeg=1
-                        resPlot[0].refresh, /DISABLE
-                        IF tagMTFres.hasValue('GFX') THEN BEGIN
-                          resPlot[2]=PLOT(MTFres.gfx*mm2cm,MTFres.gMTFx, '-',NAME='Gaussian MTF',/OVERPLOT)
-                          nLeg=2
-                        ENDIF
-                        resPlot[1]=PLOT(MTFres.fx*mm2cm, MTFres.MTFx, '-r',NAME='Discrete MTF',/OVERPLOT)
-                        legPlot=LEGEND(TARGET=resPlot[1:nleg], FONT_NAME=foName, FONT_SIZE=foSize, POSITION=legPos)
-                        resPlot[3]=PLOT([0,MTFres.F50_10_2(0)*mm2cm],[.5,.5],'-',/OVERPLOT)
-                        resPlot[4]=PLOT([0,MTFres.F50_10_2(1)*mm2cm],[.1,.1],'-',/OVERPLOT)
-                        resPlot[5]=PLOT([0,MTFres.F50_10_2(2)*mm2cm],[.02,.02],'-',/OVERPLOT)
-                        resPlot[6]=PLOT([nyqfr,nyqfr]*mm2cm,[0,1],'-',/OVERPLOT)
-                        nqTxt=TEXT(nyqfr*.95,.5,'NQf',/DATA)
-                        resPlot[0].refresh
-                      ENDIF
-                    ENDELSE
-                  END
-                  ELSE: iDrawPlot.erase
-                ENDCASE
-                ENDIF ELSE iDrawPlot.erase 
+                      ENDELSE
+                    END
+                    ELSE: iDrawPlot.erase
+                  ENDCASE
+                ENDIF ELSE iDrawPlot.erase
               END
 
               'NPS': BEGIN
@@ -485,7 +485,7 @@ pro updatePlot, setRangeMinMaxX, setRangeMinMaxY, optionSet
                   valuesPlot=CREATE_STRUCT('zPos', zPosMarked, 'Noise', yValues)
                 ENDIF
               END
-              
+
               'HUWATER': BEGIN
                 WIDGET_CONTROL, resTab, GET_VALUE=resArr
                 zPosMarked=getZposMarked(structImgs, markedTemp)
@@ -581,114 +581,114 @@ pro updatePlot, setRangeMinMaxX, setRangeMinMaxY, optionSet
                     a0=REGRESS(TRANSPOSE(xValues),TRANSPOSE(yValues), YFIT=yfit, MCORRELATION=mcorr)
                     resPlotFit=PLOT(xValues, TRANSPOSE(yfit),'-', NAME='Linear fit, mCorr= '+STRING(mcorr, FORMAT='(f0.4)'), /OVERPLOT)
                     resLeg=LEGEND(TARGET=resPlotFit, FONT_NAME=foName, FONT_SIZE=foSize, POSITION=legPos)
-                  ENDIF                
+                  ENDIF
                   valuesPlot=CREATE_STRUCT('mAs', xValues, yTitle, yValues)
                 ENDIF
               END
 
               'MTF': BEGIN
                 IF SIZE(MTFres, /TNAME) EQ 'STRUCT' THEN BEGIN
-                IF N_TAGS(MTFres.(sel)) GT 1 THEN BEGIN
-                  WIDGET_CONTROL, cw_plotMTFX, GET_VALUE= plotWhich
-                  WIDGET_CONTROL, cw_formLSFX, GET_VALUE=formLSF
+                  IF N_TAGS(MTFres.(sel)) GT 1 THEN BEGIN
+                    WIDGET_CONTROL, cw_plotMTFX, GET_VALUE= plotWhich
+                    WIDGET_CONTROL, cw_formLSFX, GET_VALUE=formLSF
 
-                  CASE plotWhich OF
+                    CASE plotWhich OF
 
-                    0: BEGIN ;edge
-                      IF setRangeMinMaxX THEN rangeX=[min(MTFres.(sel).edgePos),max(MTFres.(sel).edgePos)]
-                      IF setRangeMinMaxY THEN rangeY=[min(MTFres.(sel).edgeRow),max(MTFres.(sel).edgeRow)]
-                      IF optionSet NE 3 THEN BEGIN
-                        resPlot=plot(MTFres.(sel).edgePos,  MTFres.(sel).edgeRow, '', SYMBOL='.',  XTITLE='Position of edge (pix i ROI)', YTITLE='Profile number', TITLE='Edgeposition for each row in ROI with interpolation', $
-                          XRANGE=rangeX, YRANGE=rangeY, XSTYLE=2, YSTYLE=2, MARGIN=resPlotMargin, FONT_NAME=foName, FONT_SIZE=foSize, CURRENT=currWin)
-                        resPlotFit=PLOT(MTFres.(sel).edgeFitx, MTFres.(sel).edgeFity,'-', /OVERPLOT)
-                        valuesPlot=CREATE_STRUCT('position pix', MTFres.(sel).edgePos, 'Row or column number ', MTFres.(sel).edgeRow, 'fitted position pix', MTFres.(sel).edgeFitx, 'fitted row_col', MTFres.(sel).edgeFity)
-                      ENDIF
-                    END
-                    1: BEGIN ;sorted pixelvalues, interpolated (and smoothed)
-
-                      valuesPlot=CREATE_STRUCT('distance from edge', MTFres.(sel).newdists, 'Interpolated pixel values', MTFres.(sel).pixValsInterp, 'Smoothed pixelvalues',MTFres.(sel).pixValsSmooth)
-
-                      IF setRangeMinMaxX THEN rangeX=[min(MTFres.(sel).distspix0),max(MTFres.(sel).distspix0)]
-                      IF setRangeMinMaxY THEN rangeY=[min(MTFres.(sel).pixValSort),max(MTFres.(sel).pixValSort)]
-                      IF optionSet NE 3 THEN BEGIN
-                        resPlot=plot(MTFres.(sel).distspix0, MTFres.(sel).pixValSort, '', SYMBOL='.', NAME='Pixel values', XTITLE='Distance from edge (mm)', YTITLE='Pixel value', TITLE='Sorted pixel values', $
-                          XRANGE=rangeX, YRANGE=rangeY, XSTYLE=1, YSTYLE=1, MARGIN=resPlotMargin, FONT_NAME=foName, FONT_SIZE=foSize, CURRENT=currWin)
-                        resPlotInterp=PLOT(MTFres.(sel).newdists, MTFres.(sel).pixValsInterp,'-r', NAME='Interpolated', /OVERPLOT)
-                        resPlotSmooth=PLOT(MTFres.(sel).newdists, MTFres.(sel).pixValsSmooth,'-b', NAME='Smoothed', /OVERPLOT)
-                        resLeg=LEGEND(TARGET=[resPlot,resPlotInterp,resPlotSmooth], FONT_NAME=foName, FONT_SIZE=foSize, POSITION=legPos)
-                      ENDIF
-                    END
-                    2: BEGIN; LSF
-
-                      valuesPlot=CREATE_STRUCT('pos mm',MTFres.(sel).newdists, 'LSF', MTFres.(sel).dLSF)
-                      IF setRangeMinMaxX THEN BEGIN
-                        rangeX=[min(MTFres.(sel).newdists),max(MTFres.(sel).newdists)]
-                        IF TOTAL(MTFres.(sel).dLSF[0:10]) EQ 0 AND TOTAL(MTFres.(sel).dLSF[-10:-1]) EQ 0 THEN BEGIN
-                          nonZero=WHERE(MTFres.(sel).dLSF NE 0)
-                          rangeX=1.1*[MTFres.(sel).newdists(nonZero(0)),MTFres.(sel).newdists(nonZero(-1))]
+                      0: BEGIN ;edge
+                        IF setRangeMinMaxX THEN rangeX=[min(MTFres.(sel).edgePos),max(MTFres.(sel).edgePos)]
+                        IF setRangeMinMaxY THEN rangeY=[min(MTFres.(sel).edgeRow),max(MTFres.(sel).edgeRow)]
+                        IF optionSet NE 3 THEN BEGIN
+                          resPlot=plot(MTFres.(sel).edgePos,  MTFres.(sel).edgeRow, '', SYMBOL='.',  XTITLE='Position of edge (pix i ROI)', YTITLE='Profile number', TITLE='Edgeposition for each row in ROI with interpolation', $
+                            XRANGE=rangeX, YRANGE=rangeY, XSTYLE=2, YSTYLE=2, MARGIN=resPlotMargin, FONT_NAME=foName, FONT_SIZE=foSize, CURRENT=currWin)
+                          resPlotFit=PLOT(MTFres.(sel).edgeFitx, MTFres.(sel).edgeFity,'-', /OVERPLOT)
+                          valuesPlot=CREATE_STRUCT('position pix', MTFres.(sel).edgePos, 'Row or column number ', MTFres.(sel).edgeRow, 'fitted position pix', MTFres.(sel).edgeFitx, 'fitted row_col', MTFres.(sel).edgeFity)
                         ENDIF
-                      ENDIF
-                      IF setRangeMinMaxY THEN rangeY=[min(MTFres.(sel).dLSF),max(MTFres.(sel).dLSF)]
-                      IF optionSet NE 3 THEN BEGIN
+                      END
+                      1: BEGIN ;sorted pixelvalues, interpolated (and smoothed)
 
-                        resPlot=objarr(3)
-                        resPlot[0]=plot(MTFres.(sel).newdists,MTFres.(sel).dLSF, '-r', NAME='LSF from interpolated values', XTITLE='position (mm)',TITLE='Line Spread Function',$
-                          XRANGE=rangeX, YRANGE=rangeY, XSTYLE=1, YSTYLE=1, MARGIN=resPlotMargin, FONT_NAME=foName, FONT_SIZE=foSize, CURRENT=currWin)
-                        tar=resPlot(0)
-                        IF formLSF EQ 1 THEN BEGIN
-                          resPlot[2]=PLOT(MTFres.(sel).d,MTFres.(sel).smLSF, '-b', NAME='LSF from smoothed values', /OVERPLOT)
-                          valuesPlot=CREATE_STRUCT(valuesPlot,'pos mm smoothed', MTFres.(sel).d, 'smoothed LSF', MTFres.(sel).smLSF)
-                          tar=[tar, resPlot(2)]
+                        valuesPlot=CREATE_STRUCT('distance from edge', MTFres.(sel).newdists, 'Interpolated pixel values', MTFres.(sel).pixValsInterp, 'Smoothed pixelvalues',MTFres.(sel).pixValsSmooth)
+
+                        IF setRangeMinMaxX THEN rangeX=[min(MTFres.(sel).distspix0),max(MTFres.(sel).distspix0)]
+                        IF setRangeMinMaxY THEN rangeY=[min(MTFres.(sel).pixValSort),max(MTFres.(sel).pixValSort)]
+                        IF optionSet NE 3 THEN BEGIN
+                          resPlot=plot(MTFres.(sel).distspix0, MTFres.(sel).pixValSort, '', SYMBOL='.', NAME='Pixel values', XTITLE='Distance from edge (mm)', YTITLE='Pixel value', TITLE='Sorted pixel values', $
+                            XRANGE=rangeX, YRANGE=rangeY, XSTYLE=1, YSTYLE=1, MARGIN=resPlotMargin, FONT_NAME=foName, FONT_SIZE=foSize, CURRENT=currWin)
+                          resPlotInterp=PLOT(MTFres.(sel).newdists, MTFres.(sel).pixValsInterp,'-r', NAME='Interpolated', /OVERPLOT)
+                          resPlotSmooth=PLOT(MTFres.(sel).newdists, MTFres.(sel).pixValsSmooth,'-b', NAME='Smoothed', /OVERPLOT)
+                          resLeg=LEGEND(TARGET=[resPlot,resPlotInterp,resPlotSmooth], FONT_NAME=foName, FONT_SIZE=foSize, POSITION=legPos)
                         ENDIF
-                        IF formLSF NE 2 THEN BEGIN
-                          resPlot[1]=PLOT(MTFres.(sel).d,MTFres.(sel).gLSF,'-',NAME='LSF fit to smoothed',/OVERPLOT)
-                          valuesPlot=CREATE_STRUCT(valuesPlot,'pos mm fitted', MTFres.(sel).d, 'fitted LSF', MTFres.(sel).gLSF)
-                          tar=[tar, resPlot(1)]
+                      END
+                      2: BEGIN; LSF
+
+                        valuesPlot=CREATE_STRUCT('pos mm',MTFres.(sel).newdists, 'LSF', MTFres.(sel).dLSF)
+                        IF setRangeMinMaxX THEN BEGIN
+                          rangeX=[min(MTFres.(sel).newdists),max(MTFres.(sel).newdists)]
+                          IF TOTAL(MTFres.(sel).dLSF[0:10]) EQ 0 AND TOTAL(MTFres.(sel).dLSF[-10:-1]) EQ 0 THEN BEGIN
+                            nonZero=WHERE(MTFres.(sel).dLSF NE 0)
+                            rangeX=1.1*[MTFres.(sel).newdists(nonZero(0)),MTFres.(sel).newdists(nonZero(-1))]
+                          ENDIF
                         ENDIF
-                        resLeg=LEGEND(TARGET=tar, FONT_NAME=foName, FONT_SIZE=foSize, POSITION=legPos)
-                      ENDIF
-                    END
-                    3: BEGIN ;MTF
+                        IF setRangeMinMaxY THEN rangeY=[min(MTFres.(sel).dLSF),max(MTFres.(sel).dLSF)]
+                        IF optionSet NE 3 THEN BEGIN
 
-                      tagMTFres=tag_names(MTFres.(sel))
-                      IF setRangeMinMaxX THEN rangeX=[0,nyqfr*1.1]
-                      IF setRangeMinMaxY THEN rangeY=[0,max([MTFres.(sel).dMTF])]
-                      IF optionSet NE 3 THEN BEGIN
-                        CASE formLSF OF
-                          0: textStr='exponetial'
-                          1: textStr='gaussian'
-                          2: textStr=''
-                          ELSE:
-                        ENDCASE
-                        IF formLSF EQ 2 THEN BEGIN
-                          valuesPlot=CREATE_STRUCT('frequency mm_1',MTFres.(sel).dx,'MTF',MTFres.(sel).dMTF)
-                        ENDIF ELSE BEGIN
-                          valuesPlot=CREATE_STRUCT('discrete du mm_1',MTFres.(sel).dx,'discrete MTF',MTFres.(sel).dMTF)
-                          IF tagMTFres.HasValue('GMTF') THEN valuesPlot=CREATE_STRUCT(valuesPlot, textStr+' du mm_1',MTFres.(sel).gx,textStr+' MTF',MTFres.(sel).gMTF)
-                        ENDELSE
-
-                        resPlot=objarr(10)
-                        resPlot[0]=PLOT(MTFres.(sel).dx,MTFres.(sel).dMTF, '-r', NAME='MTF from interpolated', XTITLE='frequency (mm-1)',YTITLE='MTF', TITLE='Modulation Transfer Function', $
-                          XRANGE=rangeX, YRANGE=rangeY, XSTYLE=1, YSTYLE=1, MARGIN=resPlotMargin, FONT_NAME=foName, FONT_SIZE=foSize, CURRENT=currWin)
-
-                        IF formLSF NE 2 AND tagMTFres.HasValue('GMTF') THEN BEGIN
-                          resPlot[1]=PLOT(MTFres.(sel).gx,MTFres.(sel).gMTF,'-', NAME='MTF from fitted', /OVERPLOT)
+                          resPlot=objarr(3)
+                          resPlot[0]=plot(MTFres.(sel).newdists,MTFres.(sel).dLSF, '-r', NAME='LSF from interpolated values', XTITLE='position (mm)',TITLE='Line Spread Function',$
+                            XRANGE=rangeX, YRANGE=rangeY, XSTYLE=1, YSTYLE=1, MARGIN=resPlotMargin, FONT_NAME=foName, FONT_SIZE=foSize, CURRENT=currWin)
+                          tar=resPlot(0)
+                          IF formLSF EQ 1 THEN BEGIN
+                            resPlot[2]=PLOT(MTFres.(sel).d,MTFres.(sel).smLSF, '-b', NAME='LSF from smoothed values', /OVERPLOT)
+                            valuesPlot=CREATE_STRUCT(valuesPlot,'pos mm smoothed', MTFres.(sel).d, 'smoothed LSF', MTFres.(sel).smLSF)
+                            tar=[tar, resPlot(2)]
+                          ENDIF
+                          IF formLSF NE 2 THEN BEGIN
+                            resPlot[1]=PLOT(MTFres.(sel).d,MTFres.(sel).gLSF,'-',NAME='LSF fit to smoothed',/OVERPLOT)
+                            valuesPlot=CREATE_STRUCT(valuesPlot,'pos mm fitted', MTFres.(sel).d, 'fitted LSF', MTFres.(sel).gLSF)
+                            tar=[tar, resPlot(1)]
+                          ENDIF
+                          resLeg=LEGEND(TARGET=tar, FONT_NAME=foName, FONT_SIZE=foSize, POSITION=legPos)
                         ENDIF
-                        lim=[0.5,1.,1.5,2.,2.5]
-                        FOR i=0,4 DO resPlot[i+2]=PLOT([lim(i),lim(i)],[0,MTFres.(sel).lpmm(i)],'-',/OVERPLOT)
-                        resPlot[7]=PLOT([0,MTFres.(sel).lpmm(5)],[0.5,0.5],'-',/OVERPLOT)
-                        resPlot[8]=PLOT([nyqfr,nyqfr],[0,1],'-',/OVERPLOT)
-                        nqTxt=TEXT(nyqfr*.95,.5,'NQf',/DATA)
-                        sincRect=SIN(!pi*pix*MTFres.(sel).dx)/(!pi*pix*MTFres.(sel).dx)
-                        sincRect(0)=1.
-                        resPlot[9]=PLOT(MTFres.(sel).dx, sincRect,'--',NAME='Aperture MTF (pix.size)',/OVERPLOT)
-                        resLeg=LEGEND(TARGET=[resPlot[0:1],resPlot[9]], FONT_NAME=foName, FONT_SIZE=foSize, POSITION=legPos)
-                      ENDIF
-                    END
-                    ELSE: iDrawPlot.erase
-                  ENDCASE
+                      END
+                      3: BEGIN ;MTF
 
-                ENDIF
+                        tagMTFres=tag_names(MTFres.(sel))
+                        IF setRangeMinMaxX THEN rangeX=[0,nyqfr*1.1]
+                        IF setRangeMinMaxY THEN rangeY=[0,max([MTFres.(sel).dMTF])]
+                        IF optionSet NE 3 THEN BEGIN
+                          CASE formLSF OF
+                            0: textStr='exponetial'
+                            1: textStr='gaussian'
+                            2: textStr=''
+                            ELSE:
+                          ENDCASE
+                          IF formLSF EQ 2 THEN BEGIN
+                            valuesPlot=CREATE_STRUCT('frequency mm_1',MTFres.(sel).dx,'MTF',MTFres.(sel).dMTF)
+                          ENDIF ELSE BEGIN
+                            valuesPlot=CREATE_STRUCT('discrete du mm_1',MTFres.(sel).dx,'discrete MTF',MTFres.(sel).dMTF)
+                            IF tagMTFres.HasValue('GMTF') THEN valuesPlot=CREATE_STRUCT(valuesPlot, textStr+' du mm_1',MTFres.(sel).gx,textStr+' MTF',MTFres.(sel).gMTF)
+                          ENDELSE
+
+                          resPlot=objarr(10)
+                          resPlot[0]=PLOT(MTFres.(sel).dx,MTFres.(sel).dMTF, '-r', NAME='MTF from interpolated', XTITLE='frequency (mm-1)',YTITLE='MTF', TITLE='Modulation Transfer Function', $
+                            XRANGE=rangeX, YRANGE=rangeY, XSTYLE=1, YSTYLE=1, MARGIN=resPlotMargin, FONT_NAME=foName, FONT_SIZE=foSize, CURRENT=currWin)
+
+                          IF formLSF NE 2 AND tagMTFres.HasValue('GMTF') THEN BEGIN
+                            resPlot[1]=PLOT(MTFres.(sel).gx,MTFres.(sel).gMTF,'-', NAME='MTF from fitted', /OVERPLOT)
+                          ENDIF
+                          lim=[0.5,1.,1.5,2.,2.5]
+                          FOR i=0,4 DO resPlot[i+2]=PLOT([lim(i),lim(i)],[0,MTFres.(sel).lpmm(i)],'-',/OVERPLOT)
+                          resPlot[7]=PLOT([0,MTFres.(sel).lpmm(5)],[0.5,0.5],'-',/OVERPLOT)
+                          resPlot[8]=PLOT([nyqfr,nyqfr],[0,1],'-',/OVERPLOT)
+                          nqTxt=TEXT(nyqfr*.95,.5,'NQf',/DATA)
+                          sincRect=SIN(!pi*pix*MTFres.(sel).dx)/(!pi*pix*MTFres.(sel).dx)
+                          sincRect(0)=1.
+                          resPlot[9]=PLOT(MTFres.(sel).dx, sincRect,'--',NAME='Aperture MTF (pix.size)',/OVERPLOT)
+                          resLeg=LEGEND(TARGET=[resPlot[0:1],resPlot[9]], FONT_NAME=foName, FONT_SIZE=foSize, POSITION=legPos)
+                        ENDIF
+                      END
+                      ELSE: iDrawPlot.erase
+                    ENDCASE
+
+                  ENDIF
                 ENDIF ELSE iDrawPlot.erase
               END
 
@@ -721,49 +721,136 @@ pro updatePlot, setRangeMinMaxX, setRangeMinMaxY, optionSet
           IF results(curTab) EQ 1 THEN BEGIN
 
             CASE analyse OF
-              
+
               'UNIF':BEGIN
-                WIDGET_CONTROL, resTab, GET_VALUE=resArr
-                resArr=FLOAT(resArr[*,markedTemp])
+                WIDGET_CONTROL, cw_plotUnif, GET_VALUE= plotWhich
+                
+                CASE plotWhich OF
+                  0: BEGIN
+                      WIDGET_CONTROL, resTab, GET_VALUE=resArr
+                      resArr=FLOAT(resArr[*,markedTemp])
+  
+                      imgNo=markedTemp
+  
+                      IF setRangeMinMaxX THEN rangeX=[min(imgNo),max(imgNo)]
+                      IF setRangeMinMaxY THEN rangeY=[0.,1.05*max(resArr)]
+  
+                      IF optionSet NE 3 THEN BEGIN
+                        IU_UFOV=transpose(resArr[0,*])
+                        DU_UFOV=transpose(resArr[1,*])
+                        IU_CFOV=transpose(resArr[2,*])
+                        DU_CFOV=transpose(resArr[3,*])
+                        valuesPlot=CREATE_STRUCT('image number', imgNo, 'IU_UFOV', IU_UFOV, 'DU_UFOV', DU_UFOV, 'IU_CFOV', IU_CFOV, 'DU_CFOV', DU_CFOV)
+  
+                        resPlot=OBJARR(4)
+                        resPlot[0]=PLOT(imgNo, IU_UFOV, '-r', NAME='IU_UFOV', XTITLE='imgNo', YTITLE='Uniformity %' , TITLE='', $
+                          XRANGE=rangeX, YRANGE=rangeY, XSTYLE=1, YSTYLE=1, MARGIN=resPlotMargin, FONT_NAME=foName, FONT_SIZE=foSize, CURRENT=currWin)
+                        resPlot[0].refresh, /DISABLE
+                        resPlot[1]=PLOT(imgNo, DU_UFOV, '-b',  NAME='DU_UFOV', /OVERPLOT)
+                        resPlot[2]=PLOT(imgNo, IU_CFOV, '-g',  NAME='IU_CFOV', /OVERPLOT)
+                        resPlot[3]=PLOT(imgNo, DU_CFOV, '-c',  NAME='DU_CFOV', /OVERPLOT)
+                        resPlotLeg=LEGEND(TARGET=resPlot[0:3], FONT_NAME=foName, FONT_SIZE=foSize, POSITION=legPos)
+                        resPlot[0].refresh
+                      ENDIF
+                    END
+                    1: BEGIN
+                      tempImg=readImg(structImgs.(sel).filename, structImgs.(sel).frameNo)
+                      IF WIDGET_INFO(btnUnifCorr, /BUTTON_SET) THEN BEGIN
+                        
+                        WIDGET_CONTROL, txtUnifDistCorr, GET_VALUE=distSource
+                        WIDGET_CONTROL, txtUnifThickCorr, GET_VALUE=detThick
+                        WIDGET_CONTROL, txtUnifAttCorr, GET_VALUE=detAtt
+                        corrM=corrDistPointSource(tempImg, FLOAT(distSource(0)), pix, FLOAT(detThick(0)), 0.1*FLOAT(detAtt(0))) ; functionsMini
+                        tempImg=tempImg*corrM
+                      ENDIF 
+  
+                      sumRows=TOTAL(tempImg, 1)
+                      sumCols=TOTAL(tempImg, 2)
+                      pixNmb=INDGEN(N_ELEMENTS(sumRows))
+                      
+                      IF setRangeMinMaxX THEN rangeX=[0,N_ELEMENTS(sumRows)]
+                      IF setRangeMinMaxY THEN rangeY=[0.,1.05*max([max(sumRows),max(sumCols)])]
 
-                imgNo=markedTemp
+                      IF optionSet NE 3 THEN BEGIN
+                        valuesPlot=CREATE_STRUCT('pixelNumber', pixNmb, 'SumOfEachRow', sumRows, 'COPYpixelNumber', pixNmb, 'SumOfEachcolumn', sumCols)
 
-                IF setRangeMinMaxX THEN rangeX=[min(imgNo),max(imgNo)]
-                IF setRangeMinMaxY THEN rangeY=[0.,1.05*max(resArr)]
-
-                IF optionSet NE 3 THEN BEGIN
-                  IU_UFOV=transpose(resArr[0,*])
-                  DU_UFOV=transpose(resArr[1,*])
-                  IU_CFOV=transpose(resArr[2,*])
-                  DU_CFOV=transpose(resArr[3,*])
-                  valuesPlot=CREATE_STRUCT('image number', imgNo, 'IU_UFOV', IU_UFOV, 'DU_UFOV', DU_UFOV, 'IU_CFOV', IU_CFOV, 'DU_CFOV', DU_CFOV)
-
-                  resPlot=OBJARR(4)
-                  resPlot[0]=PLOT(imgNo, IU_UFOV, '-r', NAME='IU_UFOV', XTITLE='imgNo', YTITLE='Uniformity %' , TITLE='', $
-                    XRANGE=rangeX, YRANGE=rangeY, XSTYLE=1, YSTYLE=1, MARGIN=resPlotMargin, FONT_NAME=foName, FONT_SIZE=foSize, CURRENT=currWin)
-                  resPlot[0].refresh, /DISABLE
-                  resPlot[1]=PLOT(imgNo, DU_UFOV, '-b',  NAME='DU_UFOV', /OVERPLOT)
-                  resPlot[2]=PLOT(imgNo, IU_CFOV, '-g',  NAME='IU_CFOV', /OVERPLOT)
-                  resPlot[3]=PLOT(imgNo, DU_CFOV, '-c',  NAME='DU_CFOV', /OVERPLOT)
-                  resPlotLeg=LEGEND(TARGET=resPlot[0:3], FONT_NAME=foName, FONT_SIZE=foSize, POSITION=legPos)
-                  resPlot[0].refresh
-                ENDIF
-
+                        resPlot=OBJARR(2)
+                        resPlot[0]=PLOT(pixNmb, sumRows, '-r', NAME='Sum of each row', XTITLE='pixel number', YTITLE='Total' , TITLE='', $
+                          XRANGE=rangeX, YRANGE=rangeY, XSTYLE=1, YSTYLE=1, MARGIN=resPlotMargin, FONT_NAME=foName, FONT_SIZE=foSize, CURRENT=currWin)
+                        resPlot[0].refresh, /DISABLE
+                        resPlot[1]=PLOT(pixNmb, sumCols, '-b',  NAME='Sum of each column', /OVERPLOT)
+                        resPlotLeg=LEGEND(TARGET=resPlot[0:1], FONT_NAME=foName, FONT_SIZE=foSize, POSITION=legPos)
+                        resPlot[0].refresh
+                        
+                        IF WIDGET_INFO(btnUnifCorr, /BUTTON_SET) EQ 0 THEN t=TEXT(0.1, 0.2,'No curvature correction applied')
+                        
+                      ENDIF
+                      END
+                    ELSE:
+                ENDCASE
+                
               END
               'SNI': BEGIN
-                  WIDGET_CONTROL, resTab, GET_VALUE=resArr
-                  imgNo=markedTemp
-                  yValues = FLOAT(resArr[0,markedTemp])
-                  IF setRangeMinMaxX THEN rangeX=[min(imgNo),max(imgNo)+1]
-                  IF setRangeMinMaxY THEN rangeY=[0.,1.05*MAX(yValues)]
-                  IF optionSet NE 3 THEN BEGIN
-                    resPlot=plot(imgNo, yValues,  '-r', XTITLE='ImgNo', YTITLE='SNI max' , TITLE='Structured Noise Index', $
-                      XRANGE=rangeX, YRANGE=rangeY, XSTYLE=1, YSTYLE=1, MARGIN=resPlotMargin, FONT_NAME=foName, FONT_SIZE=foSize, CURRENT=currWin)
-                    valuesPlot=CREATE_STRUCT('image number', imgNo, 'SNImax', yValues)
-                  ENDIF
-                
-                END
-                
+                WIDGET_CONTROL, cw_plotSNI, GET_VALUE= plotWhich
+
+                CASE plotWhich OF
+                  0:BEGIN;SNI values
+                    imgNo=markedTemp
+                    WIDGET_CONTROL, resTab, GET_VALUE=resArr
+                    yValues = FLOAT(resArr[0,markedTemp])
+                    IF setRangeMinMaxX THEN rangeX=[min(imgNo),max(imgNo)+1]
+                    IF setRangeMinMaxY THEN rangeY=[0.,1.05*MAX(yValues)]
+                    IF optionSet NE 3 THEN BEGIN
+                      resPlot=plot(imgNo, yValues,  '-r', XTITLE='ImgNo', YTITLE='SNI max' , TITLE='Structured Noise Index', $
+                        XRANGE=rangeX, YRANGE=rangeY, XSTYLE=1, YSTYLE=1, MARGIN=resPlotMargin, FONT_NAME=foName, FONT_SIZE=foSize, CURRENT=currWin)
+                      valuesPlot=CREATE_STRUCT('image number', imgNo, 'SNImax', yValues)
+                    ENDIF
+
+                  END
+                  1:BEGIN;Curves to calculate SNI for first selected image (NPS, estimated quantum noise, human visual filter)
+
+                    IF N_TAGS(SNIres.(sel)) GT 1 THEN BEGIN
+                      IF setRangeMinMaxX THEN rangeX=[0,1.1*nyqfr]
+                      IF setRangeMinMaxY THEN rangeY=[0,5.*SNIres.(sel).estQuantNoiseL1]
+                      IF optionSet NE 3 THEN BEGIN
+                        
+                        ;NPS
+                        resPlot=OBJARR(10)
+                        resPlot[0]=PLOT(SNIres.(sel).rNPS.L1.dr,SNIres.(sel).rNPS.L1.rNPS, '-r', NAME='L1', XTITLE='spatial frequency (mm-1)',YTITLE='NPS', TITLE='Noise Power Spectrum', $
+                          XRANGE=rangeX, YRANGE=rangeY, XSTYLE=1, YSTYLE=1, MARGIN=resPlotMargin, FONT_NAME=foName, FONT_SIZE=foSize, CURRENT=currWin)
+                        resPlot[0].refresh, /DISABLE
+                        resPlot[1]=PLOT(SNIres.(sel).rNps.L1.dr,SNIres.(sel).rNPS.L2.rNPS,'-b', NAME='L2', /OVERPLOT)
+                        resPlot[2]=PLOT(SNIres.(sel).rNps.S1.dr,SNIres.(sel).rNPS.S1.rNPS,'-',COLOR='Lime', NAME='S1', /OVERPLOT)
+                        resPlot[3]=PLOT(SNIres.(sel).rNps.S1.dr,SNIres.(sel).rNPS.S2.rNPS,'-c', NAME='S2', /OVERPLOT)
+                        resPlot[4]=PLOT(SNIres.(sel).rNps.S1.dr,SNIres.(sel).rNPS.S3.rNPS,'-m', NAME='S3', /OVERPLOT)
+                        resPlot[5]=PLOT(SNIres.(sel).rNps.S1.dr,SNIres.(sel).rNPS.S4.rNPS,'--',COLOR='Lime', NAME='S4', /OVERPLOT)
+                        resPlot[6]=PLOT(SNIres.(sel).rNps.S1.dr,SNIres.(sel).rNPS.S5.rNPS,'--c', NAME='S5', /OVERPLOT)
+                        resPlot[7]=PLOT(SNIres.(sel).rNps.S1.dr,SNIres.(sel).rNPS.S6.rNPS,'--m', NAME='S6', /OVERPLOT)
+                        resPlot[8]=PLOT(SNIres.(sel).humVisFiltCurve.L.r,SNIres.(sel).humVisFiltCurve.L.V*rangeY(1),':', NAME='Human vis filter',/OVERPLOT)
+                        resPlot[9]=PLOT(rangeX, [SNIres.(sel).estQuantNoiseL1,SNIres.(sel).estQuantNoiseL1],'--',NAME='estimated quantum noise L1',/OVERPLOT)
+                        
+                        resPlotLeg=LEGEND(TARGET=resPlot[0:9], FONT_NAME=foName, FONT_SIZE=foSize, POSITION=legPos)
+                        resPlot[0].refresh
+                        
+                        valuesPlot=CREATE_STRUCT('freq Large mm_1',SNIres.(sel).rNPS.L1.dr,'NPS L1',SNIres.(sel).rNPS.L1.rNPS,'COPYfreq Large mm_1',SNIres.(sel).rNPS.L2.dr,'NPS L2',SNIres.(sel).rNPS.L2.rNPS)
+                        valuesPlot=CREATE_STRUCT(valuesPlot,'freq Small mm_1',SNIres.(sel).rNPS.S1.dr,'NPS S1',SNIres.(sel).rNPS.S1.rNPS,'COPY2freq Small mm_1',SNIres.(sel).rNPS.S1.dr,'NPS S2',SNIres.(sel).rNPS.S2.rNPS)
+                        valuesPlot=CREATE_STRUCT(valuesPlot,'COPY3freq Small mm_1',SNIres.(sel).rNPS.S1.dr,'NPS S3',SNIres.(sel).rNPS.S3.rNPS,'COPY4freq Small mm_1',SNIres.(sel).rNPS.S1.dr,'NPS S4',SNIres.(sel).rNPS.S4.rNPS)
+                        valuesPlot=CREATE_STRUCT(valuesPlot,'COPY5freq Small mm_1',SNIres.(sel).rNPS.S1.dr,'NPS S5',SNIres.(sel).rNPS.S5.rNPS,'COPY6freq Small mm_1',SNIres.(sel).rNPS.S1.dr,'NPS S6',SNIres.(sel).rNPS.S6.rNPS)
+                        ;Nyquist freq 
+                        mm2cm=1.
+                        nqPlot=PLOT([nyqfr,nyqfr]*mm2cm,[0,rangeY(1)],'-',/OVERPLOT)
+                        nqTxt=TEXT(nyqfr*.95*mm2cm,rangeY(1)/2,'NQf',/DATA)
+                        
+                      ENDIF
+
+                    ENDIF ELSE iDrawPlot.erase
+                  END
+                  
+                  ELSE:
+                ENDCASE
+
+              END
+
               'ACQ': BEGIN
                 WIDGET_CONTROL, resTab, GET_VALUE=resArr
                 resArr=FLOAT(resArr[*,markedTemp])
@@ -786,7 +873,7 @@ pro updatePlot, setRangeMinMaxX, setRangeMinMaxY, optionSet
                   resPlotLeg=LEGEND(TARGET=resPlot[0:1], FONT_NAME=foName, FONT_SIZE=foSize, POSITION=legPos)
                   resPlot[0].refresh
                 ENDIF
-                END
+              END
               'ENERGYSPEC': BEGIN
                 fwhm=energyRes.gausscoeff(2)*2*SQRT(2*ALOG(2))
                 fwtm=energyRes.gausscoeff(2)*2*SQRT(2*ALOG(10))

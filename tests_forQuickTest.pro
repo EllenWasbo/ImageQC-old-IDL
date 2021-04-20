@@ -1010,6 +1010,12 @@ pro sni
   detAtt=FLOAT(detAtt(0))
   WIDGET_CONTROL, txtSNIAreaRatio, GET_VALUE=areaRatio
   areaRatio=FLOAT(areaRatio(0))
+  WIDGET_CONTROL, txtSNI_f, GET_VALUE=f
+  WIDGET_CONTROL, txtSNI_c, GET_VALUE=c
+  WIDGET_CONTROL, txtSNI_d, GET_VALUE=d
+  humVis_fcd=FLOAT([f(0),c(0),d(0)])
+  WIDGET_CONTROL, txtSmoothNPS_SNI, GET_VALUE=sm
+  WIDGET_CONTROL, txtfreqNPS_SNI, GET_VALUE=fr
 
   ;IF N_ELEMENTS(SNIroi) GT 1 THEN BEGIN
   resArr=FLTARR(2,nImg)-1; mean, stdev all circles
@@ -1027,6 +1033,7 @@ pro sni
     adrToSave=!Null
     corrMatrix=!Null
     nI=MIN([nImg,N_ELEMENTS(markedArr)])
+
     FOR i=0, nI-1 DO BEGIN
       IF markedArr(i) THEN BEGIN
         ;check if same size
@@ -1051,7 +1058,7 @@ pro sni
             corrMatrix=corrDistPointSource(tempImg, distSource, curPix, detThick, detAtt/10) ; functionsMini
           ENDIF
 
-          tempImg=tempImg*corrMatrix;
+          ;tempImg=tempImg*corrMatrix;
 
           ;save corrected image as dat and upload as last image
           IF WIDGET_INFO(btnSaveSNICorr, /BUTTON_SET) THEN BEGIN
@@ -1073,7 +1080,7 @@ pro sni
             ENDIF
             IF STRLEN(adr) NE 0 THEN BEGIN
               adrToSave=[adrToSave,adr]
-              imageQCmatrix=CREATE_STRUCT(structImgs.(i),'matrix', tempImg)
+              imageQCmatrix=CREATE_STRUCT(structImgs.(i),'matrix', tempImg*corrMatrix)
               imageQCmatrix.filename=adr; changed when opened so that renaming/moving file is possible
               SAVE, imageQCmatrix, FILENAME=adr
             ENDIF
@@ -1081,15 +1088,15 @@ pro sni
           ENDIF   ;save?
         ENDIF; correct?
         IF N_ELEMENTS(SNIroi) GT 1 THEN BEGIN
-          SNI=calculateSNI(tempImg, SNIroi[*,*,0], curPix)
+          SNIthis=calculateSNI(tempImg, corrMatrix, SNIroi[*,*,0], curPix, humVis_fcd, FLOAT(sm(0)), FLOAT(fr(0)))
         ENDIF ELSE BEGIN
-          SNI=CREATE_STRUCT('empty',0)
+          SNIthis=CREATE_STRUCT('empty',0)
           errLogg=errLogg+'Image #'+STRING(i+1, FORMAT='(i0)')+' not in expected shape/signal.'+newline
         ENDELSE
 
-      ENDIF ELSE SNI=CREATE_STRUCT('empty',0)
+      ENDIF ELSE SNIthis=CREATE_STRUCT('empty',0)
 
-      IF i EQ 0 THEN SNIres=CREATE_STRUCT('S0',SNI) ELSE SNIres=CREATE_STRUCT(SNIres, 'S'+STRING(i, FORMAT='(i0)'), SNI)
+      IF i EQ 0 THEN SNIres=CREATE_STRUCT('S0',SNIthis) ELSE SNIres=CREATE_STRUCT(SNIres, 'S'+STRING(i, FORMAT='(i0)'), SNIthis)
       WIDGET_CONTROL, lblProgress, SET_VALUE='SNI progress: '+STRING(i*100./nIMG, FORMAT='(i0)')+' %'
     ENDFOR
     WIDGET_CONTROL, lblProgress, SET_VALUE=''

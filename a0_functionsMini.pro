@@ -153,6 +153,7 @@ function updateConfigS, file
     'NPSroiSz', 50, 'NPSroiDist', 50., 'NPSsubNN', 20, 'NPSroiSzX', 256, 'NPSsubSzX', 5, 'NPSavg', 1, $
     'STProiSz', 11.3, $
     'unifAreaRatio', 0.95,'SNIAreaRatio', 0.9,'unifCorr',0,'SNIcorr',0,'distCorr',385.0,'attCoeff',2.2,'detThick',9.5,$
+    'SNI_fcd',[1.3,28.,65.],'plotSNI',1,$
     'barROIsz',50.0,'barWidths',[6.4,4.8,4.0,3.2],$
     'ScanSpeedAvg', 25, 'ScanSpeedHeight', 100., 'ScanSpeedFiltW', 15, $
     'ContrastRad1', 20., 'ContrastRad2', 58.,$
@@ -1614,6 +1615,19 @@ function sum2x2pix, img, repeats
     IF r NE repeats THEN downscaledImg=FLTARR(szImg/2)
   ENDFOR
   return, downscaledImg
+end
+
+;upscale image to view each pixel as nxn pixels
+function upscaleImg, img, nZoom
+  szImg=SIZE(img, /DIMENSIONS)
+  nZoom=LONG(nZoom)
+  upscaledImg=FLTARR(szImg*nZoom)
+  FOR i=0, szImg(0)-1 DO BEGIN
+      FOR j=0, szImg(1)-1 DO BEGIN
+        upscaledImg[i*nZoom:i*nZoom+nZoom-1,j*nZoom:j*nZoom+nZoom-1]=img(i,j)
+      ENDFOR
+  ENDFOR
+  return, upscaledImg
 end
 
 ;return max position [x,y] in array after medianfilter (width 5)

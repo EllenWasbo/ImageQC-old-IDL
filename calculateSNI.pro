@@ -18,7 +18,7 @@
 ;generate human visual response filter
 ;ROIsz should be a even number
 ; Response function based on equation in Nelson et al, J Nucl Med 2014;55:169-174
-function generateHumVisFilter, ROIsz, pixSize
+function generateHumVisFilter, ROIsz, pixSize, fcd;, c, displaySize, f
   
   ;V(r)=r^1.3*exp(-cr^2)
   ;c adjusted to have V(r) max @ 4 cy/degree
@@ -27,12 +27,13 @@ function generateHumVisFilter, ROIsz, pixSize
   ;viewingDistMM=1500.;viewing distance in millimeter
   ;maxCyMM=maxCyDeg/(viewingDistMM*TAN(1./!RADEG))
   
-  c=28;c=28 with viewing distance 1.5m (as Nelson et al), c=12 with viewing distance 1.0m
-  displaySize=65.;mm on screen (height of ROI) - Nelson et al uses 65mm
+  c=fcd(1);c=28 with viewing distance 1.5m (as Nelson et al), c=12 with viewing distance 1.0m
+  displaySize=fcd(2);mm on screen (height of ROI) - Nelson et al uses 65mm
+  f=fcd(0)
   roiHeight=ROIsz*pixSize; mm for real in image
   s=ROIsz/2
   r=(1./displaySize)*FINDGEN(s)
-  Vr=r^1.3*exp(-c*r^2)
+  Vr=r^f*exp(-c*r^2)
   
   ;quadrant
   corn=FLTARR(s,s)
@@ -57,13 +58,59 @@ function generateHumVisFilter, ROIsz, pixSize
   
   humVisFilter=humVisFilter/MAX(humVisFilter); max=1
 
-  return, humVisFilter
+  return, CREATE_STRUCT('filt2d',humVisFilter,'curve',CREATE_STRUCT('r',r,'V',Vr/(MAX(Vr))))
+end
+
+function get_dists_sorting, dim
+  ;radial binning
+  distCenter=FLTARR(dim,dim)
+  centerPos=(1.0*dim)/2-0.5
+  FOR i=0, dim-1 DO BEGIN
+    FOR j=0, dim-1 DO BEGIN
+      distCenter(i,j)=SQRT((i-centerPos)^2+(j-centerPos)^2)
+    ENDFOR
+  ENDFOR
+  sorting=SORT(distCenter)
+  dists=distCenter(sorting)
+  
+  return, CREATE_STRUCT('sorting',sorting,'dists',dists)
+end
+
+function get_rNPS, NPS_2d, ROIsz, pix, dists, sorting, smoothWidth, sampFreq
+  
+  NPSvals=NPS_2d(sorting)
+
+  ;avg over unique dists
+  uu=uniq(dists)
+  nvals=N_ELEMENTS(uu)
+  NPSvalsU=FLTARR(nvals)
+  NPSvalsU(0)=MEAN(NPSvals[0:uu(0)])
+  FOR i=1, nvals-1 DO NPSvalsU(i)=MEAN(NPSvals[uu(i-1):uu(i)])
+  newdists=dists[UNIQ(dists, SORT(dists))];keep only uniq dists
+
+  ;smooth irregularly sampled data within given width
+  unity=1./(ROIsz*pix(0))
+  width=smoothWidth/unity
+  NPSvalsU=smoothIrreg(newdists,NPSvalsU, width)
+
+  ;regular sampling
+  sampRelUnity=sampFreq/unity
+  newdistsReg=FINDGEN(ROUND(max(newdists)/sampRelUnity))*sampRelUnity
+  NPSvalsInterp=INTERPOL(NPSvalsU, newdists, newdistsReg); linear interpolation
+  nn=N_ELEMENTS(NPSValsInterp)
+
+  dr=(FINDGEN(nn))*(sampRelUnity/(ROIsz*pix(0)))
+  
+  return, CREATE_STRUCT('dr',dr,'rNPS',NPSvalsInterp)
 end
 
 
 ;Calculate Structured Noise Index (SNI) based on Nelson et al, J Nucl Med 2014;55:169-174
-function calculateSNI, noiseImg, SNIroi, pix
+function calculateSNI, noiseImg, corrMat, SNIroi, pix, fcd, smoothWidth, sampFreq
+  
   szI=SIZE(noiseImg,/DIMENSIONS)
+  
+  IF N_ELEMENTS(corrMat) NE 0 THEN noiseImgCorr=noiseImg*corrMat ELSE noiseImgCorr=noiseImg
 
   temp=TOTAL(SNIroi,2)
   temp2=WHERE(temp GT 0)
@@ -79,51 +126,77 @@ function calculateSNI, noiseImg, SNIroi, pix
   lastY=firstY+largeDim-1
   smallDim=largeDim/2
 
+  totROI=noiseImg[firstX:lastX,firstY:lastY]
+
   ;large ROIs (2)
   subL=FLTARR(largeDim,largeDim,2)
-  subL[*,*,0]=noiseImg[firstX:firstX+largeDim-1,firstY:firstY+largeDim-1]
-  subL[*,*,1]=noiseImg[lastX-largeDim+1:lastX,firstY:firstY+largeDim-1]
+  subL[*,*,0]=noiseImgCorr[firstX:firstX+largeDim-1,firstY:firstY+largeDim-1]
+  subL[*,*,1]=noiseImgCorr[lastX-largeDim+1:lastX,firstY:firstY+largeDim-1]
+  
+  corrNoiseL=FLTARR(2)+1.
+  IF N_ELEMENTS(corrMat) NE 0 THEN BEGIN
+    corrNoiseL(0)=MEAN(corrMat[firstX:firstX+largeDim-1,firstY:firstY+largeDim-1])
+    corrNoiseL(1)=MEAN(corrMat[lastX-largeDim+1:lastX,firstY:firstY+largeDim-1])
+  ENDIF
 
   ;small ROIs (6)
   subS=FLTARR(smallDim, smallDim, 6)
   mid=(lastX+firstX)/2
   firstM=mid-(smallDim/2-1)
-  subS[*,*,0]=noiseImg[firstX:firstX+smallDim-1,lastY-smallDim+1:lastY];upper lft
-  subS[*,*,1]=noiseImg[firstM:firstM+smallDim-1,lastY-smallDim+1:lastY];upper mid
-  subS[*,*,2]=noiseImg[lastX-smallDim+1:lastX,lastY-smallDim+1:lastY];upper rgt
-  subS[*,*,3]=noiseImg[firstX:firstX+smallDim-1,firstY:firstY+smallDim-1];lower lft
-  subS[*,*,4]=noiseImg[firstM:firstM+smallDim-1,firstY:firstY+smallDim-1];lower mid
-  subS[*,*,5]=noiseImg[lastX-smallDim+1:lastX,firstY:firstY+smallDim-1];lower rgt
+  subS[*,*,0]=noiseImgCorr[firstX:firstX+smallDim-1,lastY-smallDim+1:lastY];upper lft
+  subS[*,*,1]=noiseImgCorr[firstM:firstM+smallDim-1,lastY-smallDim+1:lastY];upper mid
+  subS[*,*,2]=noiseImgCorr[lastX-smallDim+1:lastX,lastY-smallDim+1:lastY];upper rgt
+  subS[*,*,3]=noiseImgCorr[firstX:firstX+smallDim-1,firstY:firstY+smallDim-1];lower lft
+  subS[*,*,4]=noiseImgCorr[firstM:firstM+smallDim-1,firstY:firstY+smallDim-1];lower mid
+  subS[*,*,5]=noiseImgCorr[lastX-smallDim+1:lastX,firstY:firstY+smallDim-1];lower rgt
+
+  corrNoiseS=FLTARR(6)+1.
+  IF N_ELEMENTS(corrMat) NE 0 THEN BEGIN
+    corrNoiseS(0)=MEAN(corrMat[firstX:firstX+smallDim-1,lastY-smallDim+1:lastY])
+    corrNoiseS(1)=MEAN(corrMat[firstM:firstM+smallDim-1,lastY-smallDim+1:lastY])
+    corrNoiseS(2)=MEAN(corrMat[lastX-smallDim+1:lastX,lastY-smallDim+1:lastY])
+    corrNoiseS(3)=MEAN(corrMat[firstX:firstX+smallDim-1,firstY:firstY+smallDim-1])
+    corrNoiseS(4)=MEAN(corrMat[firstM:firstM+smallDim-1,firstY:firstY+smallDim-1])
+    corrNoiseS(5)=MEAN(corrMat[lastX-smallDim+1:lastX,firstY:firstY+smallDim-1])
+  ENDIF
 
   ;****2d fourier of each ROI***
   NPS_L=FLTARR(largeDim,largeDim,2)
   NPS_S=FLTARR(smallDim, smallDim, 6)
   NPS_L_filt=NPS_L
   NPS_S_filt=NPS_S
+  rNPS_L=!Null;radial NPS large ROIs
+  rNPS_S=!Null;radial NPS small ROIs
   ;filter with human visual response filter (also removing peak on very low ferquency - trendremoval not needed)
-  humVisFilterLarge=generateHumVisFilter(largeDim,pix)
-  humVisFilterSmall=generateHumVisFilter(smallDim,pix)
+  large=generateHumVisFilter(largeDim,pix, fcd)
+  small=generateHumVisFilter(smallDim,pix, fcd)
+  humVisFilterLarge=large.filt2d
+  humVisFilterSmall=small.filt2d
+  humVisFiltCurve=CREATE_STRUCT('L',large.curve,'S',small.curve)
+  
   SNIvalues=FLTARR(9);max,L1,L2,S1..6
+  
   FOR i = 0, 1 DO BEGIN
     subM=subL[*,*,i]
-    subtr=SFIT(subM, 2);subtract 2nd order 2d polynomial fit - to remove trend
-    temp=FFT(subM-MEAN(subM),/CENTER);FFT(subM-subtr,/CENTER); or without polynomial fit: FFT(subM-MEAN(subM),/CENTER)
+    ;subtr=SFIT(subM, 2);subtract 2nd order 2d polynomial fit - to remove trend
+    temp=FFT(subM-MEAN(subM),/CENTER);MEAN(subM),/CENTER);FFT(subM-subtr,/CENTER); or without polynomial fit: FFT(subM-MEAN(subM),/CENTER)
     NPS_L[*,*,i]=largeDim^2*pix^2*(REAL_PART(temp)^2+IMAGINARY(temp)^2)
     ;remove quantum noise
-    NPS_Lstruc=NPS_L[*,*,i]-MEAN(subM)*pix^2;Meancount=variance=pixNPS^2*Total(NPS) where pixNPS=1./(ROIsz*pix), Total(NPS)=NPSvalue*ROIsz^2, NPSvalue=Meancount/(pixNPS^2*ROIsz^2)=MeanCount*pix^2
+    NPS_Lstruc=NPS_L[*,*,i]-MEAN(subM)*corrNoiseL(i)*pix^2;Meancount=variance=pixNPS^2*Total(NPS) where pixNPS=1./(ROIsz*pix), Total(NPS)=NPSvalue*ROIsz^2, NPSvalue=Meancount/(pixNPS^2*ROIsz^2)=MeanCount*pix^2
     ;filter with human visual response filter
     NPS_L_filt[*,*,i]=NPS_L[*,*,i]*humVisFilterLarge
     NPS_Lstruc_filt=NPS_Lstruc*humVisFilterLarge
     SNIvalues(i+1)=TOTAL(NPS_Lstruc_filt)/TOTAL(NPS_L_filt[*,*,i])
+    
   ENDFOR
 
   FOR i = 0, 5 DO BEGIN
     subM=subS[*,*,i]
-    subtr=SFIT(subM, 2);subtract 2nd order 2d polynomial fit - to remove trend
-    temp=FFT(subM-MEAN(subM),/CENTER);FFT(subM-subtr,/CENTER); or without polynomial fit: FFT(subM-MEAN(subM),/CENTER)
+    ;subtr=SFIT(subM, 2);subtract 2nd order 2d polynomial fit - to remove trend
+    temp=FFT(subM-MEAN(subM),/CENTER);MEAN(subM),/CENTER);FFT(subM-subtr,/CENTER); or without polynomial fit: FFT(subM-MEAN(subM),/CENTER)
     NPS_S[*,*,i]=smallDim^2*pix^2*(REAL_PART(temp)^2+IMAGINARY(temp)^2)
     ;remove quantum noise
-    NPS_Sstruc=NPS_S[*,*,i]-MEAN(subM)*pix^2;Meancount=variance=pixNPS^2*Total(NPS) where pixNPS=1./(ROIsz*pix), Total(NPS)=NPSvalue*ROIsz^2, NPSvalue=Meancount/(pixNPS^2*ROIsz^2)=MeanCount*pix^2
+    NPS_Sstruc=NPS_S[*,*,i]-MEAN(subM)*corrNoiseS(i)*pix^2;Meancount=variance=pixNPS^2*Total(NPS) where pixNPS=1./(ROIsz*pix), Total(NPS)=NPSvalue*ROIsz^2, NPSvalue=Meancount/(pixNPS^2*ROIsz^2)=MeanCount*pix^2
     ;filter with human visual response filter
     NPS_S_filt[*,*,i]=NPS_S[*,*,i]*humVisFilterSmall
     NPS_Sstruc_filt=NPS_Sstruc*humVisFilterSmall
@@ -134,6 +207,19 @@ function calculateSNI, noiseImg, SNIroi, pix
 
   NPS_filt=CREATE_STRUCT('L1',NPS_L_filt[*,*,0],'L2',NPS_L_filt[*,*,1],'S1',NPS_S_filt[*,*,0],'S2',NPS_S_filt[*,*,1],'S3',NPS_S_filt[*,*,2],'S4',NPS_S_filt[*,*,3],'S5',NPS_S_filt[*,*,4],'S6',NPS_S_filt[*,*,5])
   
-  SNIstruc=CREATE_STRUCT('SNIvalues',SNIvalues, 'NPS_filt', NPS_filt)
+  ds=get_dists_sorting(largeDim)
+  rNPS_L1=get_rNPS(NPS_L[*,*,0], largeDim, pix, ds.dists, ds.sorting, smoothWidth, sampFreq)
+  rNPS_L2=get_rNPS(NPS_L[*,*,1], largeDim, pix, ds.dists, ds.sorting, smoothWidth, sampFreq)
+  ds=get_dists_sorting(smallDim)
+  rNPS_S1=get_rNPS(NPS_S[*,*,0], smallDim, pix, ds.dists, ds.sorting, smoothWidth, sampFreq)
+  rNPS_S2=get_rNPS(NPS_S[*,*,1], smallDim, pix, ds.dists, ds.sorting, smoothWidth, sampFreq)
+  rNPS_S3=get_rNPS(NPS_S[*,*,2], smallDim, pix, ds.dists, ds.sorting, smoothWidth, sampFreq)
+  rNPS_S4=get_rNPS(NPS_S[*,*,3], smallDim, pix, ds.dists, ds.sorting, smoothWidth, sampFreq)
+  rNPS_S5=get_rNPS(NPS_S[*,*,4], smallDim, pix, ds.dists, ds.sorting, smoothWidth, sampFreq)
+  rNPS_S6=get_rNPS(NPS_S[*,*,5], smallDim, pix, ds.dists, ds.sorting, smoothWidth, sampFreq)
+  
+  rNPS = CREATE_STRUCT('L1',rNPS_L1,'L2',rNPS_L2,'S1',rNPS_S1,'S2',rNPS_S2,'S3',rNPS_S3,'S4',rNPS_S4,'S5',rNPS_S5,'S6',rNPS_S6)
+  
+  SNIstruc=CREATE_STRUCT('SNIvalues',SNIvalues, 'NPS_filt', NPS_filt, 'rNPS', rNPS, 'estQuantNoiseL1',MEAN(corrNoiseL(0)*subL[*,*,0])*pix^2,'humVisFiltCurve',humVisFiltCurve)
   return, SNIstruc
 end

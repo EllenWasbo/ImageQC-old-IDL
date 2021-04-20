@@ -111,7 +111,7 @@ pro ImageQC_event, ev
             WIDGET_CONTROL, listFiles, SET_VALUE=fileList, SET_LIST_SELECT=sel(N_ELEMENTS(sel)-1), SET_LIST_TOP=oldTop
           ENDIF
         ENDIF
-        END
+      END
       'manageQTexp': BEGIN
         prevMarkedMulti=markedMulti
         prevMarked=marked
@@ -128,7 +128,7 @@ pro ImageQC_event, ev
             WIDGET_CONTROL, listFiles, SET_VALUE=fileList, SET_LIST_SELECT=sel(N_ELEMENTS(sel)-1), SET_LIST_TOP=oldTop
           ENDIF
         ENDIF
-        END
+      END
 
       ;-----button open files------------generate list of adresses to open---------------------------------------------
 
@@ -726,29 +726,29 @@ pro ImageQC_event, ev
                 'MTF': BEGIN
                   WIDGET_CONTROL, unitDeltaO_MTF_CT, GET_VALUE=mm
                   IF mm THEN offxyMTF=thisOff_mm ELSE offxyMTF=thisOff
-                  strOff=STRING(offxyMTF(0), FORMAT='(i0)')+','+STRING(offxyMTF(1), FORMAT='(i0)')               
+                  strOff=STRING(offxyMTF(0), FORMAT='(i0)')+','+STRING(offxyMTF(1), FORMAT='(i0)')
                   WIDGET_CONTROL, lblDeltaO, SET_VALUE=strOff
-                  END
+                END
                 'ROI': BEGIN
                   WIDGET_CONTROL, unitDeltaO_ROI_CT, GET_VALUE=mm
                   IF mm THEN offxyROI=thisOff_mm ELSE offxyROI=thisOff
                   strOff=STRING(offxyROI(0), FORMAT='(i0)')+','+STRING(offxyROI(1), FORMAT='(i0)')
                   WIDGET_CONTROL, lblDeltaO_ROI, SET_VALUE=strOff
-                  END
-                ELSE: 
+                END
+                ELSE:
               ENDCASE
-              END
+            END
             1:BEGIN;Xray
-               CASE analyse OF
+              CASE analyse OF
                 'MTF': BEGIN
                   WIDGET_CONTROL, unitDeltaO_MTF_X, GET_VALUE=mm
                   IF mm THEN offxyMTF_X=thisOff_mm ELSE offxyMTF_X=thisOff
                   strOff=STRING(offxyMTF_X(0), FORMAT='(i0)')+','+STRING(offxyMTF_X(1), FORMAT='(i0)')
                   WIDGET_CONTROL, lblDeltaOX, SET_VALUE=strOff
-                  END
+                END
                 ELSE:
-               ENDCASE
-              END
+              ENDCASE
+            END
             ELSE:
           ENDCASE
 
@@ -762,7 +762,7 @@ pro ImageQC_event, ev
         IF ev.SELECT THEN BEGIN
           sel=WIDGET_INFO(listFiles, /LIST_SELECT)  & sel=sel(0)
           IF sel NE -1 THEN BEGIN
-            
+
             CASE modality OF
               0:BEGIN;CT
                 CASE analyse of
@@ -793,15 +793,15 @@ pro ImageQC_event, ev
                 ENDCASE
               END
               ELSE:
-            ENDCASE        
-            
+            ENDCASE
+
             testNmb=getResNmb(modality,analyse,analyseStringsAll)
             IF results(testNmb) GT 0 THEN clearRes, analyse
             updateROI
             redrawImg, 0,0
           ENDIF;sel ne -1
         ENDIF; select
-        END
+      END
       'minusDx': BEGIN
         dxya(0)=dxya(0)-1
         WIDGET_CONTROL, txtDeltaX, SET_VALUE=STRING(dxya(0), FORMAT='(i0)')
@@ -946,7 +946,7 @@ pro ImageQC_event, ev
             WIDGET_CONTROL, listFiles, SET_VALUE=fileList, SET_LIST_SELECT=sel(N_ELEMENTS(sel)-1), SET_LIST_TOP=oldTop
           ENDIF
         ENDIF
-        END
+      END
 
       ;***************************************************************************************************************
       ;******************************** TESTS *******************************************************************************
@@ -1130,14 +1130,14 @@ pro ImageQC_event, ev
         IF ev.SELECT EQ 1 AND results(getResNmb(modality,analyse,analyseStringsAll)) EQ 1 THEN BEGIN
           IF WIDGET_INFO(wTabResult, /TAB_CURRENT) EQ 0 THEN updateTable
         ENDIF
-        END
+      END
       ;----analyse tab Noise--------------------------------------------------------------------------------------------------
       'noise': BEGIN
         IF tags(0) NE 'EMPTY' THEN BEGIN
           noise; tests_forQuickTest.pro
           updateTable
           updatePlot, 1,1,0
-          IF modality EQ 0 THEN WIDGET_CONTROL, wtabResult, SET_TAB_CURRENT=1 ELSE WIDGET_CONTROL, wtabResult, SET_TAB_CURRENT=0 
+          IF modality EQ 0 THEN WIDGET_CONTROL, wtabResult, SET_TAB_CURRENT=1 ELSE WIDGET_CONTROL, wtabResult, SET_TAB_CURRENT=0
         ENDIF
       END
 
@@ -1815,12 +1815,36 @@ pro ImageQC_event, ev
       'unifCorrSet': IF TOTAL(results) GT 0 THEN sv=DIALOG_MESSAGE('Calculate uniformity to update with new setting.', DIALOG_PARENT=evTop)
       'saveUnifCorrSet': IF TOTAL(results) GT 0 THEN sv=DIALOG_MESSAGE('Calculate uniformity to update with new setting.', DIALOG_PARENT=evTop)
 
+      'cw_plotUnif':BEGIN
+        IF WIDGET_INFO(wTabResult, /TAB_CURRENT) EQ 1 THEN BEGIN
+          IF ev.SELECT EQ 1 AND results(getResNmb(modality,analyse,analyseStringsAll)) EQ 1 THEN updatePlot, 1,1,0
+        ENDIF
+      END
+
+      'cw_imgUnif':BEGIN
+        IF WIDGET_INFO(wTabResult, /TAB_CURRENT) EQ 2 THEN BEGIN
+          IF ev.SELECT EQ 1 AND results(getResNmb(modality,analyse,analyseStringsAll)) EQ 1 THEN updateImageRes
+        ENDIF
+      END
+
       'SNI': BEGIN
         IF tags(0) NE 'EMPTY' THEN BEGIN
           SNI; tests_forQuickTest.pro
           updateTable
           updatePlot, 1,1,0
           WIDGET_CONTROL, wtabResult, SET_TAB_CURRENT=0
+        ENDIF
+      END
+
+      'cw_plotSNI':BEGIN
+        IF ev.SELECT EQ 1 AND results(getResNmb(modality,analyse,analyseStringsAll)) EQ 1 THEN BEGIN
+          IF WIDGET_INFO(wTabResult, /TAB_CURRENT) EQ 1 THEN updatePlot, 1,1,0
+        ENDIF
+      END
+
+      'cw_imgSNI':BEGIN
+        IF WIDGET_INFO(wTabResult, /TAB_CURRENT) EQ 2 THEN BEGIN
+          IF ev.SELECT EQ 1 AND results(getResNmb(modality,analyse,analyseStringsAll)) EQ 1 THEN updateImageRes
         ENDIF
       END
 
@@ -1957,7 +1981,7 @@ pro ImageQC_event, ev
             WIDGET_CONTROL, /HOURGLASS
             ;assume first half of images is AP and secound half is PA
             nImg=N_TAGS(structImgs)
-            
+
             ;TODO
             ;detectorVector=!Null
             ;nDetec=1
@@ -2032,37 +2056,37 @@ pro ImageQC_event, ev
         ENDIF
       END
 
-;      'defROITimeAct':BEGIN
-;        IF tags(0) NE 'EMPTY' THEN BEGIN
-;          sel=WIDGET_INFO(listFiles, /LIST_SELECT)  & sel=sel(0)
-;          tempStruct=structImgs.(sel)
-;          
-;          WIDGET_CONTROL, txtMinWL, GET_VALUE=lower
-;          WIDGET_CONTROL, txtMaxWL, GET_VALUE=upper
-;          rangeWL=LONG([lower,upper])
-;          tvRes=readImg(tempStruct.filename, tempStruct.frameNo)
-;          sv=DIALOG_MESSAGE('Draw on or more ROIs with the tool. Close the popup (for each ROI) and close the ROI tool. Then continue in ImageQC with the defined ROI.'+newline+'The ROI can also be saved and reopened with the same tool later on.', DIALOG_PARENT=evTop)
-;          XROI, adjustWindowLevel(tvRes, rangeWL), /MODAL, GROUP=evTop, TITLE='Define ROI', REGIONS_OUT=definedROIs
-;          timeActROI=0
-;          IF ISA(definedROIs) THEN BEGIN
-;            szImg=SIZE(tvRes, /DIMENSIONS)
-;            nROIs=N_ELEMENTS(definedROIs)
-;            timeActROI=INTARR(tvRes(0), tvRes(1), nROIs)
-;            FOR i=0, nROIs-1 DO timeActROI[*,*,i]=definedROIs(0) -> ComputeMask(Dimensions=Size(tvRes, /Dimensions), Mask_Rule=2)
-;          ENDIF
-;        ENDIF
-;      END
-;      'timeActCurve':BEGIN
-;        IF N_ELEMENTS(timeActROI) GT 1 THEN BEGIN
-;          sel=WIDGET_INFO(listFiles, /LIST_SELECT)  & sel=sel(0)
-;          ;img same size as roi?
-;          ;all frames same detector (detectorVector) ?
-;          ;read img ( + oppsing image, flip and geom mean)
-;          ;read timepoint
-;          ;timeActResult 
-;          
-;        ENDIF ELSE sv=DIALOG_MESSAGE('ROI not defined.', DIALOG_PARENT=evTop)
-;      END
+      ;      'defROITimeAct':BEGIN
+      ;        IF tags(0) NE 'EMPTY' THEN BEGIN
+      ;          sel=WIDGET_INFO(listFiles, /LIST_SELECT)  & sel=sel(0)
+      ;          tempStruct=structImgs.(sel)
+      ;
+      ;          WIDGET_CONTROL, txtMinWL, GET_VALUE=lower
+      ;          WIDGET_CONTROL, txtMaxWL, GET_VALUE=upper
+      ;          rangeWL=LONG([lower,upper])
+      ;          tvRes=readImg(tempStruct.filename, tempStruct.frameNo)
+      ;          sv=DIALOG_MESSAGE('Draw on or more ROIs with the tool. Close the popup (for each ROI) and close the ROI tool. Then continue in ImageQC with the defined ROI.'+newline+'The ROI can also be saved and reopened with the same tool later on.', DIALOG_PARENT=evTop)
+      ;          XROI, adjustWindowLevel(tvRes, rangeWL), /MODAL, GROUP=evTop, TITLE='Define ROI', REGIONS_OUT=definedROIs
+      ;          timeActROI=0
+      ;          IF ISA(definedROIs) THEN BEGIN
+      ;            szImg=SIZE(tvRes, /DIMENSIONS)
+      ;            nROIs=N_ELEMENTS(definedROIs)
+      ;            timeActROI=INTARR(tvRes(0), tvRes(1), nROIs)
+      ;            FOR i=0, nROIs-1 DO timeActROI[*,*,i]=definedROIs(0) -> ComputeMask(Dimensions=Size(tvRes, /Dimensions), Mask_Rule=2)
+      ;          ENDIF
+      ;        ENDIF
+      ;      END
+      ;      'timeActCurve':BEGIN
+      ;        IF N_ELEMENTS(timeActROI) GT 1 THEN BEGIN
+      ;          sel=WIDGET_INFO(listFiles, /LIST_SELECT)  & sel=sel(0)
+      ;          ;img same size as roi?
+      ;          ;all frames same detector (detectorVector) ?
+      ;          ;read img ( + oppsing image, flip and geom mean)
+      ;          ;read timepoint
+      ;          ;timeActResult
+      ;
+      ;        ENDIF ELSE sv=DIALOG_MESSAGE('ROI not defined.', DIALOG_PARENT=evTop)
+      ;      END
 
       ;-----analyse tab contrast-----------------------------------------------------------------------------------------
       'contrastSPECT': BEGIN; exctract results
@@ -3005,6 +3029,38 @@ pro ImageQC_event, ev
           clearRes, 'SNI'
           clearRes, 'UNIF'
         END
+        txtSNI_f: BEGIN
+          WIDGET_CONTROL, txtSNI_f, GET_VALUE=val
+          val=ABS(FLOAT(comma2pointFloat(val(0))))
+          WIDGET_CONTROL, txtSNI_f, SET_VALUE=STRING(val, FORMAT='(f0.1)')
+          clearRes, 'SNI'
+        END
+        txtSNI_c: BEGIN
+          WIDGET_CONTROL, txtSNI_c, GET_VALUE=val
+          val=ABS(LONG(comma2pointFloat(val(0))))
+          WIDGET_CONTROL, txtSNI_c, SET_VALUE=STRING(val, FORMAT='(i0)')
+          clearRes, 'SNI'
+        END
+        txtSNI_d: BEGIN
+          WIDGET_CONTROL, txtSNI_d, GET_VALUE=val
+          val=ABS(LONG(comma2pointFloat(val(0))))
+          WIDGET_CONTROL, txtSNI_d, SET_VALUE=STRING(val, FORMAT='(i0)')
+          clearRes, 'SNI'
+        END
+        txtSmoothNPS_SNI: BEGIN
+          WIDGET_CONTROL, txtSmoothNPS_SNI, GET_VALUE=val
+          val=ABS(FLOAT(comma2pointFloat(val(0))))
+          IF val EQ 0 THEN val=0.001
+          WIDGET_CONTROL, txtSmoothNPS_SNI, SET_VALUE=STRING(val, FORMAT='(f0.3)')
+          clearRes, 'SNI'
+        END
+        txtfreqNPS_SNI: BEGIN
+          WIDGET_CONTROL, txtfreqNPS_SNI, GET_VALUE=val
+          val=ABS(FLOAT(comma2pointFloat(val(0))))
+          IF val EQ 0 THEN val=0.001
+          WIDGET_CONTROL, txtfreqNPS_SNI, SET_VALUE=STRING(val, FORMAT='(f0.3)')
+          clearRes, 'SNI'
+        END
         txtBarROIsize: BEGIN
           WIDGET_CONTROL, txtBarROIsize, GET_VALUE=val
           val=ABS(FLOAT(comma2pointFloat(val(0))))
@@ -3171,7 +3227,7 @@ pro ImageQC_event, ev
           WIDGET_CONTROL, listFiles, SET_LIST_SELECT=sel
           redrawImg,0,1 & updateInfo
           updatePlot, 0,0,0
-       ENDIF
+        ENDIF
       ENDIF
     ENDIF
 
@@ -3401,7 +3457,7 @@ pro ImageQC_event, ev
         IF loadedImg THEN redrawImg, 0,0
       END
       wtabResult:BEGIN
-        IF TOTAL(results) GT 0 THEN BEGIN
+        ;IF TOTAL(results) GT 0 THEN BEGIN
           CASE selTab OF
             0: updateTable
             1: updatePlot, 0,0,0
@@ -3409,7 +3465,7 @@ pro ImageQC_event, ev
             3: updateTableSup
             ELSE:
           ENDCASE
-        ENDIF
+        ;ENDIF
       END
 
       ELSE:
