@@ -166,7 +166,7 @@ pro ImageQC,  GROUP_LEADER=bMain
         IF SIZE(configS.(0).SAVESTAMP,/TNAME) EQ 'DOUBLE' THEN BEGIN
           msgString=msgString+', '+STRING((systime(/SECONDS)-configS.(0).SAVESTAMP)/60/60,FORMAT='(i0)')+' hours ago'
         ENDIF
-        sv=DIALOG_MESSAGE(msgString+newline+'If this blocking is due to a software crash the blocking can be removed in Settings - find button <Claim permission to save to config>')
+        sv=DIALOG_MESSAGE(msgString+newline+'If this blocking is due to a software crash the blocking can be removed in Settings - find button <Reset timestamp>')
       ENDIF
     ENDIF
 

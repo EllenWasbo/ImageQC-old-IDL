@@ -691,7 +691,7 @@ pro settings_event, event
           ENDIF ELSE BEGIN;saveOK=0
             IF FILE_TEST(configPath, /READ) THEN RESTORE, configPath ELSE sv=DIALOG_MESSAGE('Lost connection to config file '+configPath, /ERROR)
             IF configS.(0).USERNAME EQ '' THEN username='NN' ELSE username=configS.(0).USERNAME
-            sv=DIALOG_MESSAGE('Make sure '+username+' do not have an open session. Reset blocking?', /QUESTION, DIALOG_PARENT=event.Top)
+            sv=DIALOG_MESSAGE('Make sure '+username+' do not have an open session. Reset timestamp?', /QUESTION, DIALOG_PARENT=event.Top)
             IF sv EQ 'Yes' THEN BEGIN
               saveOK=1
               userinfo=get_login_info()
