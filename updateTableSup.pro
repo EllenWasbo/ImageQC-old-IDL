@@ -223,6 +223,20 @@ pro updateTableSup
       IF results(curTab) EQ 1 THEN BEGIN
 
         CASE analyse OF
+          
+          'UNIF':BEGIN
+            nCols=3
+            headers=tableHeaders.NM.UNIF.AltSup;['FitX (mm from center)','FitY (mm from center)','Fit distance (mm)']
+            resArrString=STRARR(nCols,nRows)
+            FOR i=0, nRows-1 DO resArrString[*,i]=STRING(unifRes.table[4:6,markedTemp(i)], FORMAT='(f0.1)')
+          END
+
+          'SNI':BEGIN
+            nCols=3
+            headers=tableHeaders.NM.SNI.AltSup;;['FitX (mm from center)','FitY (mm from center)','Fit distance (mm)']
+            resArrString=STRARR(nCols,nRows)
+            FOR i=0, nRows-1 DO resArrString[*,i]=STRING(SNIsupTab[*,markedTemp(i)], FORMAT='(f0.1)')
+          END
 
           'MTF': BEGIN
 

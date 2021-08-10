@@ -1812,8 +1812,59 @@ pro ImageQC_event, ev
           WIDGET_CONTROL, wtabResult, SET_TAB_CURRENT=0
         ENDIF
       END
-      'unifCorrSet': IF TOTAL(results) GT 0 THEN sv=DIALOG_MESSAGE('Calculate uniformity to update with new setting.', DIALOG_PARENT=evTop)
-      'saveUnifCorrSet': IF TOTAL(results) GT 0 THEN sv=DIALOG_MESSAGE('Calculate uniformity to update with new setting.', DIALOG_PARENT=evTop)
+      'unifCorrSet': BEGIN
+        IF results(getResNmb(modality,analyse,analyseStringsAll)) EQ 1 THEN BEGIN
+          sv=DIALOG_MESSAGE('Calculate uniformity to update with new setting.', DIALOG_PARENT=evTop)
+          clearRes, 'UNIF'
+        ENDIF
+        END
+      'cw_posfitUnifCorr':BEGIN
+          IF results(getResNmb(modality,analyse,analyseStringsAll)) EQ 1 THEN BEGIN
+            sv=DIALOG_MESSAGE('Calculate uniformity to update with new setting.', DIALOG_PARENT=evTop)
+            clearRes, 'UNIF'
+          ENDIF
+        END  
+     'unifCorrLockRad':BEGIN
+          IF results(getResNmb(modality,analyse,analyseStringsAll)) EQ 1 THEN BEGIN
+            sv=DIALOG_MESSAGE('Calculate uniformity to update with new setting.', DIALOG_PARENT=evTop)
+            clearRes, 'UNIF'
+          ENDIF
+          IF WIDGET_INFO(btnLockRadUnifCorr, /BUTTON_SET) THEN BEGIN;turned on - if empty fill
+            WIDGET_CONTROL, txtLockRadUnifCorr, GET_VALUE=currRadStr
+            IF currRadStr EQ '' THEN BEGIN
+              nImg=N_TAGS(structImgs)
+              IF nImg GT 0 THEN radDef=MEAN([structImgs.(0).radius1,structImgs.(0).radius2]) ELSE radDef=100.
+              WIDGET_CONTROL, txtLockRadUnifCorr, SET_VALUE=STRING(radDef, FORMAT='(f0.1)')
+            ENDIF
+          ENDIF
+        END
+
+      'SNICorrSet': BEGIN
+          IF results(getResNmb(modality,analyse,analyseStringsAll)) EQ 1 THEN BEGIN
+            sv=DIALOG_MESSAGE('Calculate uniformity to update with new setting.', DIALOG_PARENT=evTop)
+            clearRes, 'SNI'
+          ENDIF
+        END
+      'cw_posfitSNICorr': BEGIN
+          IF results(getResNmb(modality,analyse,analyseStringsAll)) EQ 1 THEN BEGIN
+            sv=DIALOG_MESSAGE('Calculate uniformity to update with new setting.', DIALOG_PARENT=evTop)
+            clearRes, 'SNI'
+          ENDIF
+        END
+      'SNICorrLockRad': BEGIN
+          IF results(getResNmb(modality,analyse,analyseStringsAll)) EQ 1 THEN BEGIN
+            sv=DIALOG_MESSAGE('Calculate uniformity to update with new setting.', DIALOG_PARENT=evTop)
+            clearRes, 'SNI'
+          ENDIF
+          IF WIDGET_INFO(btnLockRadSNICorr, /BUTTON_SET) THEN BEGIN;turned on - if empty fill
+            WIDGET_CONTROL, txtLockRadSNICorr, GET_VALUE=currRadStr
+            IF currRadStr EQ '' THEN BEGIN
+              nImg=N_TAGS(structImgs)
+              IF nImg GT 0 THEN radDef=MEAN([structImgs.(0).radius1,structImgs.(0).radius2]) ELSE radDef=100.
+              WIDGET_CONTROL, txtLockRadSNICorr, SET_VALUE=STRING(radDef, FORMAT='(f0.1)')
+            ENDIF
+          ENDIF
+        END
 
       'cw_plotUnif':BEGIN
         IF WIDGET_INFO(wTabResult, /TAB_CURRENT) EQ 1 THEN BEGIN
@@ -2428,9 +2479,11 @@ pro ImageQC_event, ev
 
       'ax':BEGIN
         sel=WIDGET_INFO(listFiles, /LIST_SELECT)
-        pix=structImgs.(0).pix
+        pix=structImgs.(sel).pix
         iImage, activeImg, TITLE='Axial image', ASPECT_RATIO=pix(1)/pix(0)
       END
+      
+      'surf': su=SURFACE(activeImg)
 
       'sumax': BEGIN
         nImg=N_ELEMENTS(tags)
@@ -2972,6 +3025,13 @@ pro ImageQC_event, ev
           WIDGET_CONTROL, txtUnifAreaRatio, SET_VALUE=STRING(val, FORMAT='(f0.2)')
           clearRes, 'UNIF' & redrawImg,0,0
         END
+        txtLockRadUnifCorr: BEGIN
+          WIDGET_CONTROL, txtLockRadUnifCorr, GET_VALUE=val
+          val=ABS(FLOAT(comma2pointFloat(val(0))))
+          IF val LT 1. THEN val=1.
+          WIDGET_CONTROL, txtLockRadUnifCorr, SET_VALUE=STRING(val, FORMAT='(f0.1)')
+          clearRes, 'UNIF' & redrawImg,0,0
+        END
         txtSNIAreaRatio: BEGIN
           WIDGET_CONTROL, txtSNIAreaRatio, GET_VALUE=val
           val=ABS(FLOAT(comma2pointFloat(val(0))))
@@ -2979,55 +3039,12 @@ pro ImageQC_event, ev
           WIDGET_CONTROL, txtSNIAreaRatio, SET_VALUE=STRING(val, FORMAT='(f0.2)')
           clearRes, 'SNI' & redrawImg,0,0
         END
-        txtUnifDistCorr: BEGIN
-          WIDGET_CONTROL, txtUnifDistCorr, GET_VALUE=val
+        txtLockRadSNICorr: BEGIN
+          WIDGET_CONTROL, txtLockRadSNICorr, GET_VALUE=val
           val=ABS(FLOAT(comma2pointFloat(val(0))))
-          IF val LE 0 THEN val=100
-          WIDGET_CONTROL, txtUnifDistCorr, SET_VALUE=STRING(val, FORMAT='(f0.1)')
-          WIDGET_CONTROL, txtSNIDistCorr, SET_VALUE=STRING(val, FORMAT='(f0.1)')
-          clearRes, 'UNIF'
-          clearRes, 'SNI'
-        END
-        txtUnifThickCorr: BEGIN
-          WIDGET_CONTROL, txtUnifThickCorr, GET_VALUE=val
-          val=ABS(FLOAT(comma2pointFloat(val(0))))
-          WIDGET_CONTROL, txtUnifThickCorr, SET_VALUE=STRING(val, FORMAT='(f0.1)')
-          WIDGET_CONTROL, txtSNIThickCorr, SET_VALUE=STRING(val, FORMAT='(f0.1)')
-          clearRes, 'UNIF'
-          clearRes, 'SNI'
-        END
-        txtUnifAttCorr: BEGIN
-          WIDGET_CONTROL, txtUnifAttCorr, GET_VALUE=val
-          val=ABS(FLOAT(comma2pointFloat(val(0))))
-          WIDGET_CONTROL, txtUnifAttCorr, SET_VALUE=STRING(val, FORMAT='(f0.1)')
-          WIDGET_CONTROL, txtSNIAttCorr, SET_VALUE=STRING(val, FORMAT='(f0.1)')
-          clearRes, 'UNIF'
-          clearRes, 'SNI'
-        END
-        txtSNIDistCorr: BEGIN
-          WIDGET_CONTROL, txtSNIDistCorr, GET_VALUE=val
-          val=ABS(FLOAT(comma2pointFloat(val(0))))
-          IF val EQ 0 THEN val=100
-          WIDGET_CONTROL, txtSNIDistCorr, SET_VALUE=STRING(val, FORMAT='(f0.1)')
-          WIDGET_CONTROL, txtUnifDistCorr, SET_VALUE=STRING(val, FORMAT='(f0.1)')
-          clearRes, 'SNI'
-          clearRes, 'UNIF'
-        END
-        txtSNIThickCorr: BEGIN
-          WIDGET_CONTROL, txtSNIThickCorr, GET_VALUE=val
-          val=ABS(FLOAT(comma2pointFloat(val(0))))
-          WIDGET_CONTROL, txtSNIThickCorr, SET_VALUE=STRING(val, FORMAT='(f0.1)')
-          WIDGET_CONTROL, txtUnifThickCorr, SET_VALUE=STRING(val, FORMAT='(f0.1)')
-          clearRes, 'SNI'
-          clearRes, 'UNIF'
-        END
-        txtSNIAttCorr: BEGIN
-          WIDGET_CONTROL, txtSNIAttCorr, GET_VALUE=val
-          val=ABS(FLOAT(comma2pointFloat(val(0))))
-          WIDGET_CONTROL, txtSNIAttCorr, SET_VALUE=STRING(val, FORMAT='(f0.1)')
-          WIDGET_CONTROL, txtUnifAttCorr, SET_VALUE=STRING(val, FORMAT='(f0.1)')
-          clearRes, 'SNI'
-          clearRes, 'UNIF'
+          IF val LT 1. THEN val=1.
+          WIDGET_CONTROL, txtLockRadSNICorr, SET_VALUE=STRING(val, FORMAT='(f0.1)')
+          clearRes, 'SNI' & redrawImg,0,0
         END
         txtSNI_f: BEGIN
           WIDGET_CONTROL, txtSNI_f, GET_VALUE=val

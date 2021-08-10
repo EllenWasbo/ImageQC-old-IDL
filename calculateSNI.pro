@@ -79,19 +79,29 @@ end
 function get_rNPS, NPS_2d, ROIsz, pix, dists, sorting, smoothWidth, sampFreq
   
   NPSvals=NPS_2d(sorting)
-
-  ;avg over unique dists
-  uu=uniq(dists)
-  nvals=N_ELEMENTS(uu)
-  NPSvalsU=FLTARR(nvals)
-  NPSvalsU(0)=MEAN(NPSvals[0:uu(0)])
-  FOR i=1, nvals-1 DO NPSvalsU(i)=MEAN(NPSvals[uu(i-1):uu(i)])
-  newdists=dists[UNIQ(dists, SORT(dists))];keep only uniq dists
-
-  ;smooth irregularly sampled data within given width
   unity=1./(ROIsz*pix(0))
   width=smoothWidth/unity
-  NPSvalsU=smoothIrreg(newdists,NPSvalsU, width)
+
+  ;avg over unique dists
+;  uu=uniq(dists)
+;  nvals=N_ELEMENTS(uu)
+;  NPSvalsU=FLTARR(nvals)
+;  NPSvalsU(0)=MEAN(NPSvals[0:uu(0)])
+;  FOR i=1, nvals-1 DO NPSvalsU(i)=MEAN(NPSvals[uu(i-1):uu(i)])
+;  newdists=dists[UNIQ(dists, SORT(dists))];keep only uniq dists
+  
+  ;need to speed up code and avg over close to unique dists (1/10 of the width regarded as small enough) 
+  tenthWidths=ROUND((10./width)*dists)
+  u=uniq(tenthWidths)
+  nvals=N_ELEMENTS(u)
+  valsU=FLTARR(nvals)
+  valsU(0)=MEAN(NPSvals[0:u(0)])
+  FOR i=1, nvals-1 DO valsU(i)=MEAN(NPSvals[u(i-1):u(i)])
+  nd=tenthWidths[UNIQ(tenthWidths, SORT(tenthWidths))];keep only uniq dists
+  newdists=width/10.*nd
+
+  ;smooth irregularly sampled data within given width
+  NPSvalsU=smoothIrreg(newdists,valsU, width);smoothIrreg in a0_functionsMini.pro
 
   ;regular sampling
   sampRelUnity=sampFreq/unity
@@ -110,7 +120,11 @@ function calculateSNI, noiseImg, corrMat, SNIroi, pix, fcd, smoothWidth, sampFre
   
   szI=SIZE(noiseImg,/DIMENSIONS)
   
-  IF N_ELEMENTS(corrMat) NE 0 THEN noiseImgCorr=noiseImg*corrMat ELSE noiseImgCorr=noiseImg
+  IF N_ELEMENTS(corrMat) NE 0 THEN BEGIN
+    zeros=WHERE(noiseImg EQ 0)
+    noiseImgCorr=noiseImg-corrMat
+    noiseImgCorr(zeros)=0. 
+  ENDIF ELSE noiseImgCorr=noiseImg
 
   temp=TOTAL(SNIroi,2)
   temp2=WHERE(temp GT 0)
@@ -126,18 +140,18 @@ function calculateSNI, noiseImg, corrMat, SNIroi, pix, fcd, smoothWidth, sampFre
   lastY=firstY+largeDim-1
   smallDim=largeDim/2
 
-  totROI=noiseImg[firstX:lastX,firstY:lastY]
+  ;totROI=noiseImg[firstX:lastX,firstY:lastY]
 
   ;large ROIs (2)
   subL=FLTARR(largeDim,largeDim,2)
   subL[*,*,0]=noiseImgCorr[firstX:firstX+largeDim-1,firstY:firstY+largeDim-1]
   subL[*,*,1]=noiseImgCorr[lastX-largeDim+1:lastX,firstY:firstY+largeDim-1]
   
-  corrNoiseL=FLTARR(2)+1.
-  IF N_ELEMENTS(corrMat) NE 0 THEN BEGIN
-    corrNoiseL(0)=MEAN(corrMat[firstX:firstX+largeDim-1,firstY:firstY+largeDim-1])
-    corrNoiseL(1)=MEAN(corrMat[lastX-largeDim+1:lastX,firstY:firstY+largeDim-1])
-  ENDIF
+  quantNoiseL=FLTARR(2)
+;  IF N_ELEMENTS(corrMat) NE 0 THEN BEGIN
+  quantNoiseL(0)=MEAN(noiseImg[firstX:firstX+largeDim-1,firstY:firstY+largeDim-1])
+  quantNoiseL(1)=MEAN(noiseImg[lastX-largeDim+1:lastX,firstY:firstY+largeDim-1])
+;  ENDIF
 
   ;small ROIs (6)
   subS=FLTARR(smallDim, smallDim, 6)
@@ -150,15 +164,13 @@ function calculateSNI, noiseImg, corrMat, SNIroi, pix, fcd, smoothWidth, sampFre
   subS[*,*,4]=noiseImgCorr[firstM:firstM+smallDim-1,firstY:firstY+smallDim-1];lower mid
   subS[*,*,5]=noiseImgCorr[lastX-smallDim+1:lastX,firstY:firstY+smallDim-1];lower rgt
 
-  corrNoiseS=FLTARR(6)+1.
-  IF N_ELEMENTS(corrMat) NE 0 THEN BEGIN
-    corrNoiseS(0)=MEAN(corrMat[firstX:firstX+smallDim-1,lastY-smallDim+1:lastY])
-    corrNoiseS(1)=MEAN(corrMat[firstM:firstM+smallDim-1,lastY-smallDim+1:lastY])
-    corrNoiseS(2)=MEAN(corrMat[lastX-smallDim+1:lastX,lastY-smallDim+1:lastY])
-    corrNoiseS(3)=MEAN(corrMat[firstX:firstX+smallDim-1,firstY:firstY+smallDim-1])
-    corrNoiseS(4)=MEAN(corrMat[firstM:firstM+smallDim-1,firstY:firstY+smallDim-1])
-    corrNoiseS(5)=MEAN(corrMat[lastX-smallDim+1:lastX,firstY:firstY+smallDim-1])
-  ENDIF
+  quantNoiseS=FLTARR(6)
+  quantNoiseS(0)=MEAN(noiseImg[firstX:firstX+smallDim-1,lastY-smallDim+1:lastY])
+  quantNoiseS(1)=MEAN(noiseImg[firstM:firstM+smallDim-1,lastY-smallDim+1:lastY])
+  quantNoiseS(2)=MEAN(noiseImg[lastX-smallDim+1:lastX,lastY-smallDim+1:lastY])
+  quantNoiseS(3)=MEAN(noiseImg[firstX:firstX+smallDim-1,firstY:firstY+smallDim-1])
+  quantNoiseS(4)=MEAN(noiseImg[firstM:firstM+smallDim-1,firstY:firstY+smallDim-1])
+  quantNoiseS(5)=MEAN(noiseImg[lastX-smallDim+1:lastX,firstY:firstY+smallDim-1])
 
   ;****2d fourier of each ROI***
   NPS_L=FLTARR(largeDim,largeDim,2)
@@ -178,11 +190,10 @@ function calculateSNI, noiseImg, corrMat, SNIroi, pix, fcd, smoothWidth, sampFre
   
   FOR i = 0, 1 DO BEGIN
     subM=subL[*,*,i]
-    ;subtr=SFIT(subM, 2);subtract 2nd order 2d polynomial fit - to remove trend
-    temp=FFT(subM-MEAN(subM),/CENTER);MEAN(subM),/CENTER);FFT(subM-subtr,/CENTER); or without polynomial fit: FFT(subM-MEAN(subM),/CENTER)
+    temp=FFT(subM-MEAN(subM),/CENTER)
     NPS_L[*,*,i]=largeDim^2*pix^2*(REAL_PART(temp)^2+IMAGINARY(temp)^2)
-    ;remove quantum noise
-    NPS_Lstruc=NPS_L[*,*,i]-MEAN(subM)*corrNoiseL(i)*pix^2;Meancount=variance=pixNPS^2*Total(NPS) where pixNPS=1./(ROIsz*pix), Total(NPS)=NPSvalue*ROIsz^2, NPSvalue=Meancount/(pixNPS^2*ROIsz^2)=MeanCount*pix^2
+    ;remove quantum noise to be left with structural noise
+    NPS_Lstruc=NPS_L[*,*,i]-quantNoiseL(i)*pix^2;Meancount=variance=pixNPS^2*Total(NPS) where pixNPS=1./(ROIsz*pix), Total(NPS)=NPSvalue*ROIsz^2, NPSvalue=Meancount/(pixNPS^2*ROIsz^2)=MeanCount*pix^2
     ;filter with human visual response filter
     NPS_L_filt[*,*,i]=NPS_L[*,*,i]*humVisFilterLarge
     NPS_Lstruc_filt=NPS_Lstruc*humVisFilterLarge
@@ -192,11 +203,10 @@ function calculateSNI, noiseImg, corrMat, SNIroi, pix, fcd, smoothWidth, sampFre
 
   FOR i = 0, 5 DO BEGIN
     subM=subS[*,*,i]
-    ;subtr=SFIT(subM, 2);subtract 2nd order 2d polynomial fit - to remove trend
-    temp=FFT(subM-MEAN(subM),/CENTER);MEAN(subM),/CENTER);FFT(subM-subtr,/CENTER); or without polynomial fit: FFT(subM-MEAN(subM),/CENTER)
+    temp=FFT(subM-MEAN(subM),/CENTER)
     NPS_S[*,*,i]=smallDim^2*pix^2*(REAL_PART(temp)^2+IMAGINARY(temp)^2)
     ;remove quantum noise
-    NPS_Sstruc=NPS_S[*,*,i]-MEAN(subM)*corrNoiseS(i)*pix^2;Meancount=variance=pixNPS^2*Total(NPS) where pixNPS=1./(ROIsz*pix), Total(NPS)=NPSvalue*ROIsz^2, NPSvalue=Meancount/(pixNPS^2*ROIsz^2)=MeanCount*pix^2
+    NPS_Sstruc=NPS_S[*,*,i]-quantNoiseS(i)*pix^2;Meancount=variance=pixNPS^2*Total(NPS) where pixNPS=1./(ROIsz*pix), Total(NPS)=NPSvalue*ROIsz^2, NPSvalue=Meancount/(pixNPS^2*ROIsz^2)=MeanCount*pix^2
     ;filter with human visual response filter
     NPS_S_filt[*,*,i]=NPS_S[*,*,i]*humVisFilterSmall
     NPS_Sstruc_filt=NPS_Sstruc*humVisFilterSmall
@@ -220,6 +230,7 @@ function calculateSNI, noiseImg, corrMat, SNIroi, pix, fcd, smoothWidth, sampFre
   
   rNPS = CREATE_STRUCT('L1',rNPS_L1,'L2',rNPS_L2,'S1',rNPS_S1,'S2',rNPS_S2,'S3',rNPS_S3,'S4',rNPS_S4,'S5',rNPS_S5,'S6',rNPS_S6)
   
-  SNIstruc=CREATE_STRUCT('SNIvalues',SNIvalues, 'NPS_filt', NPS_filt, 'rNPS', rNPS, 'estQuantNoiseL1',MEAN(corrNoiseL(0)*subL[*,*,0])*pix^2,'humVisFiltCurve',humVisFiltCurve)
+  SNIstruc=CREATE_STRUCT('SNIvalues',SNIvalues, 'NPS_filt', NPS_filt, 'rNPS', rNPS, 'estQuantNoiseL1',quantNoiseL(0)*pix^2,'humVisFiltCurve',humVisFiltCurve)
+  IF N_ELEMENTS(corrMat) NE 0 THEN SNIstruc=CREATE_STRUCT(SNIstruc,'corrMatrix',noiseImgCorr)
   return, SNIstruc
 end

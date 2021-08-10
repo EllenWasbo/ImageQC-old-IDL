@@ -67,12 +67,25 @@ pro updateMulti, AUTOACTIVE=autoactive, NIMGTEMP=nImgTemp
             IF szMNew(0) NE nTests OR szMNew(1) NE nImg THEN BEGIN
               IF autoActive THEN BEGIN
                 IF szMNew(1) GT nImg THEN BEGIN
-                  sv=DIALOG_MESSAGE('Warning: Template created with '+STRING(szMNew(0), FORMAT='(i0)')+' tests and '+STRING(szMNew(1), FORMAT='(i0)')+' images. Numbers do not match. Continue?', /QUESTION, DIALOG_PARENT=evTop)
-                  IF sv EQ 'Yes' THEN autoStopFlag=0 ELSE autoStopFlag=1
+                  ;sv=DIALOG_MESSAGE('Warning: Template created with '+STRING(szMNew(0), FORMAT='(i0)')+' tests and '+STRING(szMNew(1), FORMAT='(i0)')+' images. Numbers do not match. Continue?', /QUESTION, DIALOG_PARENT=evTop)
+                  ;IF sv EQ 'Yes' THEN autoStopFlag=0 ELSE autoStopFlag=1
+                  box=[$
+                    '1, BASE,, /COLUMN', $
+                    '0, LABEL, Warning:' ,$
+                    '0, LABEL, Template created with '+STRING(szMNew(0), FORMAT='(i0)')+' tests and '+STRING(szMNew(1), FORMAT='(i0)')+' images.', $
+                    '0, LABEL, Template loaded with '+STRING(nTests, FORMAT='(i0)')+' tests and '+STRING(nImg, FORMAT='(i0)')+' images.',$
+                    '2, LABEL, Numbers do not match.', $
+                    '1, BASE,, /ROW', $
+                    '0, BUTTON, Accept and continue?, QUIT, TAG=Cont',$
+                    '0, BUTTON, Skip to next template?, QUIT, TAG=Next',$
+                    '2, BUTTON, Stop, QUIT, TAG=Stop']
+                  res=CW_FORM_2(box, /COLUMN, TAB_MODE=1, TITLE='Continue?', XSIZE=300, YSIZE=180, FOCUSNO=3, XOFFSET=xoffset+200, YOFFSET=yoffset+200)
+                  IF res.Stop THEN autoStopFlag=1
+                  IF res.Next THEN autoStopFlag=2
                 ENDIF    
               ENDIF ELSE BEGIN
                 sv=DIALOG_MESSAGE('Warning: Template created with '+STRING(szMNew(0), FORMAT='(i0)')+' tests and '+STRING(szMNew(1), FORMAT='(i0)')+' images. Numbers do not match. Please validate template.', DIALOG_PARENT=evTop)
-                autoStopFlag=0
+                ;autoStopFlag=0
               ENDELSE
               
               markedMultiNew=INTARR(nTests, nImg)

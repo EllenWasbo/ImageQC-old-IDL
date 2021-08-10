@@ -17,7 +17,7 @@
 ;Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 ;calculated uniformity according to NEMA NU-1 2007
-function calcUniformityNM, imgMatrix, roiMatrix, pix
+function calcUniformityNM, imgMatrix, roiMatrix, pix, corrFlag
 
   szI=SIZE(imgMatrix,/DIMENSIONS)
 
@@ -99,6 +99,7 @@ function calcUniformityNM, imgMatrix, roiMatrix, pix
   IU_CFOV=100.*(MAX(CFOVmatrix)-MIN(CFOVmatrix))/(MAX(CFOVmatrix)+MIN(CFOVmatrix))
 
   resU=CREATE_STRUCT('matrix',smoothedImg, 'table', [IU_UFOV, DU_UFOV, IU_CFOV, DU_CFOV])
+  IF corrFlag THEN resU=CREATE_STRUCT(resU,'corrMatrix',imgMatrix)
 
 return, resU
 end

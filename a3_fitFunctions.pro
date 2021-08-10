@@ -44,3 +44,16 @@ PRO expFit, X, A, F, pder
   ENDIF
   
 END
+
+;fit to CA/[(A^2+x^2)^(3/2)]
+;first derivative dA = -C(2A^2-x^2)/[(A^2+x^2)^(5/2)]
+PRO pointSourceFit, X, A, F, pder
+  F=A[0]*A[1]/[(X^2+A[1]^2)^(1.5)]
+
+  IF N_PARAMS() GE 4 THEN BEGIN
+    dfdA0=A[1]/[(X^2+A[1]^2)^(1.5)]
+    dfDA1=-A[0]*(2*A[1]^2-X^2)/[(X^2+A[1]^2)^(2.5)]
+    pder=[[dfdA0],[dfdA1]]
+  ENDIF
+
+END

@@ -67,6 +67,7 @@ pro clearRes, analyseStr
       fwhmRes=!Null
       unifRes=!Null
       SNIres=!Null
+      SNIsupTab=!Null
       barRes=!Null
       energyRes=!Null
       crossRes=!Null
@@ -96,7 +97,10 @@ pro clearRes, analyseStr
         END
         'FWHM': fwhmRes=!Null
         'UNIF': unifRes=!Null
-        'SNI': SNIres=!Null
+        'SNI': BEGIN
+          SNIres=!Null
+          SNIsupTab=!Null
+          END
         'BAR': barRes=!Null
         'ENERGYSPEC': energyRes=!Null
         'SCANSPEED':

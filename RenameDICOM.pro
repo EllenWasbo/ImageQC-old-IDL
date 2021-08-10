@@ -96,7 +96,7 @@ pro RenameDICOM, GROUP_LEADER = mainbase, xoff, yoff, inputAdr
   lbl=WIDGET_LABEL(bMain,VALUE='If no path specified then files open in ImageQC will be the files subject to renaming.',FONT=font1, /NO_COPY)
 
   bFileActions=WIDGET_BASE(bMain, /ROW, XSIZE=300)
-  btnPutAllinOne=WIDGET_BUTTON(bFileActions, VALUE='Move all files in subfolders to selected folder', UVALUE='putAllinOne', FONT=font1, XSIZE=300)
+  btnPutAllinOne=WIDGET_BUTTON(bFileActions, VALUE='Move all DCM files in subfolders to selected folder', UVALUE='putAllinOne', FONT=font1, XSIZE=300)
   btnPutSeriesInFolders=WIDGET_BUTTON(bFileActions, VALUE='Sort files into subfolders of same seriesnumber', UVALUE='putSeriesFolder', TOOLTIP='Put all files with same seriesnumber into folder named <seriesnumber>', FONT=font1, XSIZE=300)
   ;btnResetToInput=WIDGET_BUTTON(bFileActions, VALUE='Use paths from open files in ImageQC',UVALUE='resetInput', TOOLTIP='Work on the files already open in the main window (if any)', FONT=font1, XSIZE=300)
 
@@ -265,8 +265,14 @@ pro RenameDICOM_event, event
         proceed=1
         adrDir=''
         askEmptyDir=!Null
+        qu=0
         IF adr(0) NE '' THEN BEGIN
-          Spawn, 'dir '  + '"'+adr+'"' + '*'+ '/b /s', res; files only
+          ;Spawn, 'dir '  + '"'+adr+'"' + '*'+ '/b /s', res; files only - problem with special characters
+          res=FILE_SEARCH(adr,'*.dcm', COUNT=nFound)
+          IF nFound EQ 0 THEN BEGIN
+            res=FILE_SEARCH(adr,'*', COUNT=nFound);search all files if no .dcm is found
+            qu=1
+          ENDIF
           origPaths=res(sort(res))
           adrDir=adr(0)
         ENDIF ELSE BEGIN
@@ -289,13 +295,12 @@ pro RenameDICOM_event, event
             resFI=FILE_INFO(origPaths(i))
             IF resFI.DIRECTORY EQ 1 THEN origPaths(i)='' ELSE BEGIN
 
-              ;IF STRMID(origPaths(i),2,/REVERSE_OFFSET) NE 'dcm' THEN origPaths(i)=''
-              IF FILE_BASENAME(origPaths(i)) EQ 'DICOMDIR' THEN dcm=0 ELSE dcm=QUERY_DICOM(origPaths(i))
-              IF dcm EQ 0 THEN BEGIN
-                origPaths(i)=''
-              ENDIF ELSE BEGIN
-                IF FILE_BASENAME(origPaths(i)) EQ 'DICOMDIR' THEN origPaths(i)=''
-              ENDELSE
+              IF FILE_BASENAME(origPaths(i)) EQ 'DICOMDIR' THEN origPaths(i)=''
+
+              IF qu AND origPaths(i) NE '' THEN BEGIN;query dicom if .dcm extension not found
+                dcm=QUERY_DICOM(origPaths(i))
+                IF dcm EQ 0 THEN origPaths(i)=''
+              ENDIF
             ENDELSE
           ENDFOR
 
@@ -314,10 +319,12 @@ pro RenameDICOM_event, event
           modPaths=getUniqPaths(origPaths,newPaths,2)
           origPaths=modPaths.origPaths & newPaths=modPaths.newPaths
 
+          nMove=0
           for i=0, nFiles-1 do BEGIN
             IF origPaths(i) NE '' AND origPaths(i) NE newPaths(i) THEN BEGIN
               WIDGET_CONTROL, lblStatus, SET_VALUE='Moving file '+STRING(i,FORMAT='(i0)')+'/'+  STRING(nFiles,FORMAT='(i0)')
               file_move, origPaths(i), newPaths(i)
+              nMove=nMove+1
               askEmptyDir=[askEmptyDir, FILE_DIRNAME(origPaths(i))]
               IF inputAdrRD(0) NE '' AND adr(0) EQ '' THEN BEGIN
                 filenoInput=where(inputAdrRD EQ origPaths(i))
@@ -334,7 +341,7 @@ pro RenameDICOM_event, event
           alreadyName=WHERE(newPaths EQ tempname)
           IF alreadyName(0) NE -1 THEN tempname=STRMID(tempname,0,STRLEN(tempname)-4)+'_1.dcm'
 
-          IF N_ELEMENTS(origPaths) EQ 1 AND origPaths(0) EQ '' THEN BEGIN
+          IF nMove EQ 0 THEN BEGIN;IF N_ELEMENTS(origPaths) EQ 1 AND origPaths(0) EQ '' THEN BEGIN
             sv=DIALOG_MESSAGE('No valid DICOM files found.', DIALOG_PARENT=event.top)
           ENDIF ELSE BEGIN
             sv=DIALOG_MESSAGE('All DICOM files in the subfolders ('+STRING(nFiles, FORMAT='(i0)')+') are now moved to the selected folder. Delete empty folders?',/QUESTION, DIALOG_PARENT=event.Top)
@@ -372,7 +379,12 @@ pro RenameDICOM_event, event
         proceed=1
         adrDir=''
         IF adr(0) NE '' THEN BEGIN
-          Spawn, 'dir '  + '"'+adr(0)+'\"' + '*'+ '/b /s', res; both files and directories
+          ;Spawn, 'dir '  + '"'+adr+'"' + '*'+ '/b /s', res; files only - problem with special characters
+          res=FILE_SEARCH(adr,'*.dcm', COUNT=nFound)
+          IF nFound EQ 0 THEN BEGIN
+            res=FILE_SEARCH(adr,'*', COUNT=nFound);search all files if no .dcm is found
+            qu=1
+          ENDIF
           origPaths=res(sort(res))
           adrDir=adr(0)
         ENDIF ELSE BEGIN
@@ -423,6 +435,7 @@ pro RenameDICOM_event, event
 
           for i=0, nFiles-1 do BEGIN
             IF origPaths(i) NE '' AND origPaths(i) NE newPaths(i) THEN BEGIN
+              WIDGET_CONTROL, lblStatus, SET_VALUE='Moving files to subfolders... '+STRING(i+1,FORMAT='(i0)')+' / '+STRING(nFiles, FORMAT='(i0)')
               file_move, origPaths(i), newPaths(i)
               IF inputAdrRD(0) NE '' AND adr(0) EQ '' THEN BEGIN
                 filenoInput=where(inputAdrRD EQ origPaths(i))

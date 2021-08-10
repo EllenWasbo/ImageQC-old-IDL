@@ -14,7 +14,7 @@ pro set_imgStructInfo, iSi
     ['zpos', 'FLOAT','0/3/4/5','0020 1041'], $
     ['reconMethod','STRING','2/3/4','0054 1103'],$
     ['kernel','STRING','0/3/4','0018 1210'],$
-    ['kVp','FLOAT','0/1','0018 0060'],['mA','FLOAT','0/1','0018 8151'],['mAs','FLOAT','0/1','0018 1153'],['ExpTime','FLOAT','0/1','0018 1150'],$
+    ['kVp','FLOAT','0/1','0018 0060'],['mA','FLOAT','0/1','0018 8151'],['mAs','FLOAT','0/1','0018 1153'],['ExpTime','FLOAT','0/1','0018 1150'],['focalSpotSz','STRING','0/1','0018 1190'],$
     ['filterAddOn','STRING','0/1','0018 1160'],$
     ['coll','FLOAT','0','0018 9307'],['pitch','FLOAT','0','0018 9311'],$
     ['ExModType','STRING','0','0018 9323'],['ExModType','STRING','1','0018 7062'],$
@@ -42,6 +42,7 @@ pro set_configSinfo, cSi
     ['transposeTable', 'Transpose table','-1','','BOOL'], $
     ['append','Append when opening files','-2','','BOOL'],$
     ['autoImportPath','Default path for automation import','-10','','STRING'],$
+    ['autoContinue','Default setting to stop 0 or not 1 between automation templates','-10','','INT'],$
     ['qtOutTemps', 'QuickTest Output templates', '-10','','STRING'], $
     ['MTFtype','MTF method (0..2)','0','MTF','INT'],$
     ['MTFtypeX','LSF fit to.. (0..2)','1','MTF','INT'],$
@@ -112,10 +113,11 @@ pro set_configSinfo, cSi
     ['unifAreaRatio', 'UFOV ratio','2','UNIF','FLOAT'],$
     ['SNIAreaRatio','Ratio of image to be analyzed','2','SNI','FLOAT'],$
     ['unifCorr','Correct for point-source','2','UNIF','BOOL'],$
+    ['unifCorrPos','Fit x,y pos when correcting','2','UNIF','INT'],$
+    ['unifCorrRad','Lock fit to radius','2','UNIF','FLOAT'],$
     ['SNIcorr','Correct for point-source','2','SNI','BOOL'],$
-    ['distCorr','Source-detector distance','2','UNIF/SNI','FLOAT'],$
-    ['detThick','Detector thickness','2','UNIF/SNI','FLOAT'],$
-    ['attCoeff','Attenuation coeff detector','2','UNIF/SNI','FLOAT'],$
+    ['SNIcorrPos','Fit x,y pos when correcting','2','SNI','INT'],$
+    ['SNIcorrRad','Lock fit to radius','2','SNI','FLOAT'],$
     ['SNI_fcd','SNI human filter c,f,d,','2','SNI','FLOAT'],$
     ['plotSNI','Plot selection (0..1)','2','SNI','INT'],$
     ['barWidths','Bar widths','2','BAR','FLOAT'],$

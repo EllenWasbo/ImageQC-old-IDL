@@ -138,6 +138,7 @@ function updateConfigS, file
     'includeFilename', 0, $
     'append',0,$
     'autoImportPath','',$
+    'autoContinue',0,$
     'qtOutTemps', ['DEFAULT','DEFAULT','DEFAULT','DEFAULT','DEFAULT','DEFAULT'], $
     'MTFtype',2,'MTFtypeX',1,'MTFtypeNM',1,'MTFtypeSPECT',1, $
     'plotMTF',3,'plotMTFX', 3, 'plotMTFNM',4,'plotMTFSPECT',4, 'tableMTF',0,'cyclMTF',0,'tableMTFX', 0, $
@@ -152,12 +153,13 @@ function updateConfigS, file
     'typeROIX',0,'ROIXrad',5.,'ROIXx',10.,'ROIXy',10.,'ROIXa',0.,'offxyROIX', [0,0], 'offxyROIX_unit', 0,$
     'NPSroiSz', 50, 'NPSroiDist', 50., 'NPSsubNN', 20, 'NPSroiSzX', 256, 'NPSsubSzX', 5, 'NPSavg', 1, $
     'STProiSz', 11.3, $
-    'unifAreaRatio', 0.95,'SNIAreaRatio', 0.9,'unifCorr',0,'SNIcorr',0,'distCorr',385.0,'attCoeff',2.2,'detThick',9.5,$
+    'unifAreaRatio', 0.95,'SNIAreaRatio', 0.9,'unifCorr',0,'unifCorrPos',[0,0],'unifCorrRad',-1.,'SNIcorr',0,'SNIcorrPos',[0,0],'SNIcorrRad',-1.,$
     'SNI_fcd',[1.3,28.,65.],'plotSNI',1,$
     'barROIsz',50.0,'barWidths',[6.4,4.8,4.0,3.2],$
     'ScanSpeedAvg', 25, 'ScanSpeedHeight', 100., 'ScanSpeedFiltW', 15, $
     'ContrastRad1', 20., 'ContrastRad2', 58.,$
     'CrossROIsz', 60., 'CrossVol', 0.0)
+  ;Removed: unifcorr NM pointsource: 'distCorr',385.0,'attCoeff',2.2,'detThick',9.5,
   userinfo=get_login_info()
   commonConfig=CREATE_STRUCT('defConfigNo',1,'saveBlocked',1,'saveStamp',systime(/SECONDS),'username',userinfo.user_name,'autoUnBlock',8);NB if changed check on remBlock in settings.pro
   configSdefault=CREATE_STRUCT('commonConfig',commonConfig,'configDefault',configDefault)
@@ -215,16 +217,16 @@ function updateConfigS, file
             configTemp=CREATE_STRUCT(configTemp, defaultTags(j),configDefault.(j))
           ENDELSE
         ENDFOR
-        
+
         ;convert old tags to new tags
         IF oldTags.HasValue('OFFXY') THEN BEGIN; offxy for MTF split to CT and Xray and more added hence naming different
           ff=WHERE(oldTags EQ 'OFFXY')
           configTemp.OFFXYMTF=oldConfigS.(i).(ff)
           configTemp.OFFXYMTF_X=oldConfigS.(i).(ff)
         ENDIF
-        
+
         newConfigS=CREATE_STRUCT(newConfigS,restoreTagsS(i),configTemp)
-      ENDFOR   
+      ENDFOR
 
     ENDIF ELSE sv=DIALOG_MESSAGE('Found no valid config structure.', DIALOG_PARENT=0)
 
@@ -286,14 +288,14 @@ function updateQuickT, file, mOpt, TEMPPA=temppa
               IF adr(0) NE '' THEN BEGIN
                 fi=FILE_INFO(FILE_DIRNAME(adr))
                 IF fi.write THEN FILE_COPY, file, adr ELSE BEGIN
-                   IF N_ELEMENTS(temppa) GT 0 THEN BEGIN
-                      adr=temppa+FILE_BASENAME(adr)+'.dat'
-                      fi=FILE_INFO(temppa)
-                      IF fi.write THEN BEGIN
-                        FILE_COPY, file, adr
-                        sv=DIALOG_MESSAGE('Failed to save backup in selected folder. Backup can be found in '+temppa+' instead.')
-                      ENDIF ELSE sv=DIALOG_MESSAGE('Failed to save backup. No write permission on selected folder nor in '+temppa+'.',/ERROR)
-                    ENDIF ELSE sv=DIALOG_MESSAGE('Failed to save backup in selected folder. No write permission.',/ERROR)
+                  IF N_ELEMENTS(temppa) GT 0 THEN BEGIN
+                    adr=temppa+FILE_BASENAME(adr)+'.dat'
+                    fi=FILE_INFO(temppa)
+                    IF fi.write THEN BEGIN
+                      FILE_COPY, file, adr
+                      sv=DIALOG_MESSAGE('Failed to save backup in selected folder. Backup can be found in '+temppa+' instead.')
+                    ENDIF ELSE sv=DIALOG_MESSAGE('Failed to save backup. No write permission on selected folder nor in '+temppa+'.',/ERROR)
+                  ENDIF ELSE sv=DIALOG_MESSAGE('Failed to save backup in selected folder. No write permission.',/ERROR)
                 ENDELSE
               ENDIF
             ENDIF
@@ -412,7 +414,7 @@ function updateQuickTout, file, analyseStrAll
                     oldTags=TAG_NAMES(oldQuickTout.(ii).(j).(k).(l))
 
                     paramsThis=CREATE_STRUCT('popit',0)
-                    
+
                     IF oldQuickTout.(ii).(j).(k).(l).(0) EQ -1 THEN BEGIN ; alt=-1
                       IF ~ARRAY_EQUAL(oldTags, tagNewestDCM) THEN BEGIN
                         FOR m=0, N_ELEMENTS(tagNewestDCM)-1 DO BEGIN
@@ -435,9 +437,9 @@ function updateQuickTout, file, analyseStrAll
                             paramsThis=CREATE_STRUCT(paramsThis, tagNewest(m), oldQuickTout.(ii).(j).(k).(l).(ff))
                           ENDIF ELSE paramsThis=CREATE_STRUCT(paramsThis, tagNewest(j),quickToutThisVersion.(m))
                         ENDFOR
-  
+
                         paramsThis=removeIDstructstruct(paramsThis, 0);pop off first dummy element
-  
+
                       ENDIF ELSE paramsThis=oldQuickTout.(ii).(j).(k).(l)
                     ENDELSE
                     outputsThisTest=CREATE_STRUCT(outputsThisTest,outPutNames(l), paramsThis)
@@ -811,7 +813,7 @@ function addTagOutputTempMinOne, oldMinOneTemp, tagdescr, groupElem, formatStr
   b=string(a,FORMAT='('+formatStr+')');cause error?
   formatStr='('+formatStr+')'
 
-  IF SIZE(oldMinOneTemp, /TNAME) EQ 'STRUCT' THEN newtagformats=CREATE_STRUCT(oldMinOneTemp.tagformats,tagdescr,formatStr) ELSE newtagformats=CREATE_STRUCT(tagdescr,formatStr) 
+  IF SIZE(oldMinOneTemp, /TNAME) EQ 'STRUCT' THEN newtagformats=CREATE_STRUCT(oldMinOneTemp.tagformats,tagdescr,formatStr) ELSE newtagformats=CREATE_STRUCT(tagdescr,formatStr)
 
   newTemp=CREATE_STRUCT('ALT', -1, 'tags', newtags, 'tagformats', newtagformats)
 
@@ -827,19 +829,19 @@ function changeTagOutputTempMinOne, oldMinOneTemp, tagdescr, groupElem, formatSt
     GrEl=[UINT(0),UINT(0)]
     READS, groupElem, GrEl, FORMAT='(z)'
   ENDIF ELSE GrEl=groupElem
-  
+
   oldStruct=oldMinOneTemp.tags.(nmbChange)
   names=TAG_NAMES(oldMinOneTemp.tags)
   oldDesc=names(nmbChange)
-  
+
   IF tagdescr NE oldDesc THEN BEGIN
-   idEq=WHERE(names EQ tagdescr)
-   IF idEq(0) NE -1 THEN BEGIN
-    tagdescr=oldDesc
-    warnings=[warnings,'Tagname already exist. Could not change name.']
-   ENDIF
+    idEq=WHERE(names EQ tagdescr)
+    IF idEq(0) NE -1 THEN BEGIN
+      tagdescr=oldDesc
+      warnings=[warnings,'Tagname already exist. Could not change name.']
+    ENDIF
   ENDIF
-  
+
   newtags=replaceStructStruct(oldMinOneTemp.tags, GrEl, nmbChange, NEW_TAG_NAME=tagdescr)
 
   ;verify formatStr or set to a0
@@ -864,7 +866,7 @@ end
 function getOutNumbMinOne, tempStructIn, testname
   outputNmbMin1=-1
   expTestNo=-1
-  IF SIZE(tempStructIn, /TNAME) EQ 'STRUCT' THEN BEGIN 
+  IF SIZE(tempStructIn, /TNAME) EQ 'STRUCT' THEN BEGIN
     availTests=TAG_NAMES(tempStructIn)
     expTestNo=WHERE(availTests EQ testname); find test number where DICOM output is
     IF expTestNo(0) NE -1 THEN BEGIN
@@ -892,7 +894,7 @@ function imgStructUpdate, struc, pathNow
     currStruct=CREATE_STRUCT('filename',pathNow,'studydatetime','','acqDate', '', 'imgDate', '', 'institution','','manufacturer','','modality', '', 'modelName','','stationName','','SWversion','','detectorID','',$
       'patientName','', 'patientID', '', 'patientWeight', '-', 'imageType','','presType','','studyDescr','','seriesName','', 'protocolname', '',$
       'seriesNmb',-1,'seriesTime','','seriesUID','','acqNmb',-1, 'acqtime','','sliceThick',-1., 'pix', [-1.,-1.],'imageSize',[-1,-1],'kVp',-1.,'FOV',-1.,'rekonFOV',-1.,'mA',-1.,'mAs',-1.,'ExpTime',-1.,'coll',[-1.,-1.],'pitch',-1.,$
-      'ExModType','','CTDIvol',-1.,'spotSize',-1.,'DAP',-1.,'EI',-1.,'sensitivity',-1.,'sdd',-1.,'filterAddOn','-','kernel','-',$
+      'ExModType','','CTDIvol',-1.,'focalSpotSz',-1.,'DAP',-1.,'EI',-1.,'sensitivity',-1.,'sdd',-1.,'filterAddOn','-','kernel','-',$
       'zpos', -999., 'imgNo',-1,'nFrames',0,'wCenter',-1,'wWidth',-1,$
       'collType','-','nEWindows',-1,'EWindowName','-','zoomFactor','-','radius1',-1.,'radius2',-1.,'detectorVector','-','angle',-999.,'acqFrameDuration',-1.,'acqTerminationCond','-',$
       'units','-','radiopharmaca','-','admDose','-','admDoseTime','-','reconMethod','-','attCorrMethod','-','scaCorrMethod','-', 'scatterFrac','-',$
@@ -1051,7 +1053,7 @@ end
 function formatCodeType, val, type
   nVal=N_ELEMENTS(val)
   CASE type Of
-    'BOOL':IF val EQ 0 THEN strFormatCode='("false ", i0)' ELSE strFormatCode='("true ", i0)'
+    'BOOL': IF val EQ 0 THEN strFormatCode='("false ", i0)' ELSE strFormatCode='("true ", i0)'
     'STRING':strFormatCode='(a0)'
     'INT':BEGIN
       IF nVal GT 1 THEN BEGIN
@@ -1134,8 +1136,8 @@ function getListOpenFiles, struc, full, marked, mMulti
 
       endStr=''
       IF struc.(i).nFrames GT 1 THEN BEGIN
-        IF struc.(i).zpos NE -999. AND struc.(i).slicethick GT 0. THEN endStr='  zpos '+STRING(struc.(i).zpos,FORMAT='(f0.3)')
-        IF struc.(i).angle NE -999. THEN endStr='  angle '+STRING(struc.(i).zpos,FORMAT='(f0.3)')
+        IF struc.(i).zpos[0] NE -999. AND struc.(i).slicethick GT 0. THEN endStr='  zpos '+STRING(struc.(i).zpos,FORMAT='(f0.3)')
+        IF struc.(i).angle[0] NE -999. THEN endStr='  angle '+STRING(struc.(i).zpos,FORMAT='(f0.3)')
         IF endStr EQ '' THEN endStr='  frame '+STRING(struc.(i).frameNo,FORMAT='(i0)')
       ENDIF
 
@@ -1201,7 +1203,7 @@ function getFormatedDICOMtags, imgPath, tagStruct
     IF ~ARRAY_EQUAL(TAG_NAMES(tagStruct),['ALT','TAGS','TAGFORMATS']) THEN proceed=0
   ENDIF
   proceed=QUERY_DICOM(imgPath);readable DICOM?
-  
+
   IF proceed THEN BEGIN
     o=obj_new('idlffdicom')
     t=o->read(imgpath)
@@ -1212,11 +1214,11 @@ function getFormatedDICOMtags, imgPath, tagStruct
       test=o->GetReference(thisTag(0),thisTag(1))
       IF test(0) NE -1 THEN BEGIN
         test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
-  
+
         stest=size(test_peker, /TNAME)
         IF stest EQ 'POINTER' THEN BEGIN
           strPart=*(test_peker[0])
-  
+
           strParts=STRSPLIT(strPart(0),'\',/EXTRACT)
           formats=STRSPLIT(STRMID(tagStruct.TAGFORMATS.(i), 1, strlen(tagStruct.TAGFORMATS.(i))-2),'\',/EXTRACT)
           nP=N_ELEMENTS(strParts)
@@ -1387,6 +1389,7 @@ function smoothIrreg, X, Y, w
   IF w GT 0 THEN BEGIN
     nY=N_ELEMENTS(Y)
     smoothedY=0.0*Y
+    
     FOR i=0, nY-1 DO BEGIN
       tempX=ABS(X-X(i))
       idx=WHERE(tempX LE w, nidx)
@@ -1394,6 +1397,7 @@ function smoothIrreg, X, Y, w
       fac=fac/TOTAL(fac)
       smoothedY(i)=TOTAL(fac*Y(idx))
     ENDFOR
+    
   ENDIF ELSE smoothedY=Y
   return, smoothedY
 end
@@ -1569,34 +1573,116 @@ end
 
 ;***************** all others ***********************
 
-;correction matrix based on input image with inverse square law when point source flooding planar detektor
-function corrDistPointSource, img, sid, pix, thick, attcoeff
-  ;center of imager
-  szImg=SIZE(img, /DIMENSIONS)
-  distCenter=FLTARR(szImg/2);pixel distance from center
-  FOR i=0, szImg(0)/2-1 DO BEGIN
-    FOR j=0, szImg(1)/2-1 DO distCenter(i,j)=SQRT((i+0.5)^2+(j+0.5)^2)
+;img = 2d array with values to fit
+;roiMatrix = 2d array with nonzero where part of img should be fit
+;pix = pixelsize in mm
+function fitDistPointSource, img, roiMatrix, pix, radi, posfit, radfit
+
+  ;find ROI part
+  temp=TOTAL(roiMatrix,2)
+  temp2=WHERE(temp GT 0)
+  firstX=temp2(0)
+  lastX=temp2(-1)
+  temp=TOTAL(roiMatrix,1)
+  temp2=WHERE(temp GT 0)
+  firstY=temp2(0)
+  lastY=temp2(-1)
+
+  imgSz=SIZE(img,/DIMENSIONS)
+
+  ;estimate centerposition (max) in image?
+  IF posfit(0) EQ 0 THEN BEGIN;x dir  
+    profX=TOTAL(img[firstX:lastX,firstY:lastY],2)
+    xx=FINDGEN(lastX-firstX+1)
+    cc=POLY_FIT(xx,profX,2)
+    topPos=-.5*cc(1)/cc(2); x=-b/2a
+    fitX=topPos+firstX+0.5;zero starting at border
+  ENDIF ELSE fitX=imgSz(0)/2
+
+  IF posfit(1) EQ 0 THEN BEGIN;y dir
+    profY=TOTAL(img[firstX:lastX,firstY:lastY],1)
+    xx=FINDGEN(lastY-firstY+1)
+    cc=POLY_FIT(xx,profY,2)
+    topPos=-.5*cc(1)/cc(2); x=-b/2a)
+    fitY=topPos+firstY+0.5
+  ENDIF ELSE fitY=imgSz(1)/2
+
+  fitPos=ROUND([fitX,fitY])
+  centerVal=MEAN(img[fitPos(0)-3:fitPos(0)+3,fitPos(1)-3:fitPos(1)+3]);mean of center pixel and its neighbours
+  fitPos=[fitX,fitY]
+  
+  ;calculate distance from center in image plane within ROI, sort pixels by distance and fit
+  roiSz=[lastX-firstX+1, lastY-firstY+1]
+  distCenter=FLTARR(imgSz);pixel distance from center
+
+  FOR i=0, imgSz(0)-1 DO BEGIN
+    FOR j=0, imgSz(1)-1  DO distCenter(i,j)=SQRT(((i+0.5)-fitPos(0))^2+((j+0.5)-fitPos(1))^2)
   ENDFOR
   distCenter=pix*distCenter
+  distsInROI=distCenter[firstX:lastX,firstY:lastY]
+  sortDist=SORT(distsInROI)
+  dists=distsInROI(sortDist)
+  smImg=SMOOTH(img,3)
+  imgInROI=smImg[firstX:lastX,firstY:lastY];smooth before interpolating and fitting data
+  sortImg=imgInROI(sortDist)
+  newDists=FINDGEN((lastX-firstX+1)/2)*pix;resample to pixelsize
+  newSortImg=INTERPOL(sortImg,dists,newDists)
+  newSortImg(0)=newSortImg(1);avoid Inf
 
+  A=[centerVal*(MEAN(radi)^2),MEAN(radi)];firstGuess I0, R0
+  fita=[1,1]
+  IF radfit GT 0 THEN BEGIN
+    A=[centerVal*(MEAN(radfit)^2),MEAN(radfit)];firstGuess I0, R0
+    fita=[1,0]
+  ENDIF
+  
   ;equation A6 from https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3966082/#x0 (doi:  10.1118/1.3125642)
-  ;corrMatrix = f central relativ to f periferral excluding N
-  ds=distCenter^2+sid^2
-  fCentral =  1. / (sid^2)
-  IF thick GT 0. AND attcoeff GT 0. THEN BEGIN
-    euT=EXP(-attcoeff*thick)
-    fPerif = ((1-euT^(SQRT(ds)/sid))/(1-euT))*(sid/(ds^1.5))
-  ENDIF ELSE fPerif=(sid/(ds^1.5))
+  yfit = CURVEFIT(newDists, newSortImg, newDists*0+1., A, FITA=fita, FUNCTION_NAME='pointSourceFit', ITER=iter, CHISQ=chisq);pointSourceFit in a3_fitFunctions.pro
 
-  corrMatrix=img*0.0
-  corrQuad=fCentral/fPerif
-  corrMatrix[0:szImg(0)/2-1,0:szImg(1)/2-1]=ROTATE(corrQuad,2)
-  corrMatrix[0:szImg(0)/2-1,szImg(1)/2:szImg(1)-1]=ROTATE(corrQuad,5)
-  corrMatrix[szImg(0)/2:szImg(0)-1,0:szImg(1)/2-1]=ROTATE(corrQuad,7)
-  corrMatrix[szImg(0)/2:szImg(0)-1,szImg(1)/2:szImg(1)-1]=corrQuad
+  fitData=CREATE_STRUCT('x',newDists,'y',newSortImg,'yfit',yfit)
 
-  return, corrMatrix
+  ;corr=(distCenter^2+A[1]^2)^(1.5)
+  ;corr=(1./min(corr))*corr; matrix to multiply by
+  
+  fitM=A(0)*A(1)/[(distCenter^2+A[1]^2)^(1.5)]
+  corrSub=fitM-yfit(0);matrix to subtract
+  corr=(1./max(fitM))*fitM
+  corr=1./corr; matrix to multiply by
+  
+  fitDist=A[1]
+  fitPos=pix*(fitPos-imgSz/2);mm from center
+
+  return, CREATE_STRUCT('corr',corr, 'corrSub',corrSub,'fitDist',fitDist, 'fitPos', fitPos,'fitData',fitData)
 end
+
+;correction matrix based on input image with inverse square law when point source flooding planar detektor
+;function corrDistPointSource, img, sid, pix, thick, attcoeff
+;  ;center of imager
+;  szImg=SIZE(img, /DIMENSIONS)
+;  distCenter=FLTARR(szImg/2);pixel distance from center
+;  FOR i=0, szImg(0)/2-1 DO BEGIN
+;    FOR j=0, szImg(1)/2-1 DO distCenter(i,j)=SQRT((i+0.5)^2+(j+0.5)^2)
+;  ENDFOR
+;  distCenter=pix*distCenter
+;
+;  ;equation A6 from https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3966082/#x0 (doi:  10.1118/1.3125642)
+;  ;corrMatrix = f central relativ to f periferral excluding N
+;  ds=distCenter^2+sid^2
+;  fCentral =  1. / (sid^2)
+;  IF thick GT 0. AND attcoeff GT 0. THEN BEGIN
+;    euT=EXP(-attcoeff*thick)
+;    fPerif = ((1-euT^(SQRT(ds)/sid))/(1-euT))*(sid/(ds^1.5))
+;  ENDIF ELSE fPerif=(sid/(ds^1.5))
+;
+;  corrMatrix=img*0.0
+;  corrQuad=fCentral/fPerif
+;  corrMatrix[0:szImg(0)/2-1,0:szImg(1)/2-1]=ROTATE(corrQuad,2)
+;  corrMatrix[0:szImg(0)/2-1,szImg(1)/2:szImg(1)-1]=ROTATE(corrQuad,5)
+;  corrMatrix[szImg(0)/2:szImg(0)-1,0:szImg(1)/2-1]=ROTATE(corrQuad,7)
+;  corrMatrix[szImg(0)/2:szImg(0)-1,szImg(1)/2:szImg(1)-1]=corrQuad
+;
+;  return, corrMatrix
+;end
 
 ;combine 2x2 pixels to get matrix size from 2^n to 2^(n-1)
 function sum2x2pix, img, repeats
@@ -1623,9 +1709,9 @@ function upscaleImg, img, nZoom
   nZoom=LONG(nZoom)
   upscaledImg=FLTARR(szImg*nZoom)
   FOR i=0, szImg(0)-1 DO BEGIN
-      FOR j=0, szImg(1)-1 DO BEGIN
-        upscaledImg[i*nZoom:i*nZoom+nZoom-1,j*nZoom:j*nZoom+nZoom-1]=img(i,j)
-      ENDFOR
+    FOR j=0, szImg(1)-1 DO BEGIN
+      upscaledImg[i*nZoom:i*nZoom+nZoom-1,j*nZoom:j*nZoom+nZoom-1]=img(i,j)
+    ENDFOR
   ENDFOR
   return, upscaledImg
 end

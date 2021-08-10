@@ -140,7 +140,7 @@ pro getDCM_MR; get DICOM info for MR images
     nI=MIN([nImg,N_ELEMENTS(markedArr)])
     FOR i=0, nI-1 DO BEGIN
       IF markedArr(i) THEN BEGIN
-        resArr[0,i]=STRING(structImgs.(i).imgFreq, FORMAT=formatCode(structImgs.(i).imgFreq))
+        resArr[0,i]=STRING(structImgs.(i).imgFreq, FORMAT='(f0.6)')
         resArr[1,i]=structImgs.(i).recCoilName
         resArr[2,i]=structImgs.(i).traCoilName
       ENDIF
@@ -903,12 +903,6 @@ pro uniformityNM
   WIDGET_CONTROL, /HOURGLASS
   nImg=N_TAGS(structImgs)
 
-  WIDGET_CONTROL, txtUnifDistCorr, GET_VALUE=distSource
-  distSource=FLOAT(distSource(0))
-  WIDGET_CONTROL, txtUnifThickCorr, GET_VALUE=detThick
-  detThick=FLOAT(detThick(0))
-  WIDGET_CONTROL, txtUnifAttCorr, GET_VALUE=detAtt
-  detAtt=FLOAT(detAtt(0))
   WIDGET_CONTROL, txtUnifAreaRatio, GET_VALUE=areaRatio
   areaRatio=FLOAT(areaRatio(0))
 
@@ -922,7 +916,7 @@ pro uniformityNM
 
   IF TOTAL(markedArr) GT 0 THEN BEGIN
 
-    resArr=FLTARR(4,nImg)-1
+    resArr=FLTARR(7,nImg)-1
     errLogg=''
     adrToSave=!Null
     corrMatrix=!Null
@@ -944,44 +938,24 @@ pro uniformityNM
         curPix=structImgs.(i).pix(0)
         curImgSize=SIZE(tempImg, /DIMENSIONS)
 
-        ;correct for point source at distance shorter than 5 x UFOV
+        res=!Null
+        ;correct for point source if at short distance
         IF WIDGET_INFO(btnUnifCorr, /BUTTON_SET) THEN BEGIN
-          IF curPix NE prevCurPix OR ~ARRAY_EQUAL(curImgSize, prevImgSize) THEN BEGIN
-            corrMatrix=corrDistPointSource(tempImg, distSource, curPix, detThick, detAtt/10) ; functionsMini
-          ENDIF
+          WIDGET_CONTROL, cw_posfitUnifCorr, GET_VALUE= corrPos
+          IF WIDGET_INFO(btnLockRadUnifCorr, /BUTTON_SET) THEN WIDGET_CONTROL, txtLockRadUnifCorr, GET_VALUE=corrRadStr ELSE corrRadStr=''
+          IF corrRadStr EQ '' THEN corrRad=-1 ELSE corrRad=FLOAT(corrRadStr)
+          
+          res=fitDistPointSource(tempImg, unifROI, curPix, [structImgs.(i).radius1,structImgs.(i).radius2],corrPos,corrRad)
+          zeros=WHERE(tempImg EQ 0)
+          tempImg=tempImg-res.corrSub
+          tempImg(zeros)=0.
+          resArr[4:5,i]=res.fitPos
+          resArr[6,i]=res.fitDist
 
-          tempImg=tempImg*corrMatrix;.corrSID*corrMatrix.corrThick
-
-          ;save corrected image as dat and upload as last image
-          IF WIDGET_INFO(btnSaveUnifCorr, /BUTTON_SET) THEN BEGIN
-            fi=FILE_INFO(FILE_DIRNAME(adr))
-            IF fi.write THEN BEGIN
-              IF  structImgs.(i).nFrames GT 1 THEN ftxt='_frame'+STRING(structImgs.(i).frameNo,FORMAT='(i0)') ELSE ftxt=''
-              adr=STRMID(structImgs.(i).filename, 0, STRLEN(structImgs.(i).filename)-4)+ ftxt +'_corrected.dat';assuming three letters as suffix eg .dcm or .dat
-              fi=FILE_INFO(adr)
-              IF fi.exists THEN BEGIN
-                c=0
-                WHILE fi.exists AND c LT 10 DO BEGIN
-                  adr=STRMID(structImgs.(i).filename, 0, STRLEN(structImgs.(i).filename)-4)+'_corrected'+STRING(c, FORMAT='(i0)')+'.dat'
-                  fi=FILE_INFO(adr)
-                  c=c+1
-                  IF c EQ 10 THEN BEGIN
-                    errLogg=errLogg+'Failed to save more than 10 corrected files with same filepath. Restricted to avoid endless loop.'+newline
-                    adr=''
-                  ENDIF
-                ENDWHILE
-              ENDIF
-              IF STRLEN(adr) NE 0 THEN BEGIN
-                adrToSave=[adrToSave,adr]
-                imageQCmatrix=CREATE_STRUCT(structImgs.(i),'matrix', tempImg)
-                imageQCmatrix.filename=adr; changed when opened so that renaming/moving file is possible
-                SAVE, imageQCmatrix, FILENAME=adr
-              ENDIF
-            ENDIF ELSE errLogg=errLogg+'Saving corrected image failed due to missing write permissions on path'+FILE_DIRNAME(adr)+newline
-          ENDIF   ;save?
         ENDIF; correct?
-        uR=calcUniformityNM(tempImg, unifROI, curPix)
-        resArr[*,i]=uR.table
+        uR=calcUniformityNM(tempImg, unifROI, curPix,WIDGET_INFO(btnUnifCorr, /BUTTON_SET))
+        IF SIZE(res, /TNAME) EQ 'STRUCT' THEN uR=CREATE_STRUCT(uR, 'fitData',res.fitData)
+        resArr[0:3,i]=uR.table
         IF i EQ 0 THEN unifRes=CREATE_STRUCT('U0',uR) ELSE unifRes=CREATE_STRUCT(unifRes, 'U'+STRING(i, FORMAT='(i0)'), uR)
       ENDIF
       WIDGET_CONTROL, lblProgress, SET_VALUE='Uniformity progress: '+STRING(i*100./nIMG, FORMAT='(i0)')+' %'
@@ -1000,14 +974,7 @@ pro sni
   COMMON VARI
   WIDGET_CONTROL, /HOURGLASS
   nImg=N_TAGS(structImgs)
-  ;IF N_ELEMENTS(SNIroi) LE 1 THEN updateROI, ANA='SNI'
 
-  WIDGET_CONTROL, txtSNIDistCorr, GET_VALUE=distSource
-  distSource=FLOAT(distSource(0))
-  WIDGET_CONTROL, txtSNIThickCorr, GET_VALUE=detThick
-  detThick=FLOAT(detThick(0))
-  WIDGET_CONTROL, txtSNIAttCorr, GET_VALUE=detAtt
-  detAtt=FLOAT(detAtt(0))
   WIDGET_CONTROL, txtSNIAreaRatio, GET_VALUE=areaRatio
   areaRatio=FLOAT(areaRatio(0))
   WIDGET_CONTROL, txtSNI_f, GET_VALUE=f
@@ -1017,8 +984,7 @@ pro sni
   WIDGET_CONTROL, txtSmoothNPS_SNI, GET_VALUE=sm
   WIDGET_CONTROL, txtfreqNPS_SNI, GET_VALUE=fr
 
-  ;IF N_ELEMENTS(SNIroi) GT 1 THEN BEGIN
-  resArr=FLTARR(2,nImg)-1; mean, stdev all circles
+  resArr=FLTARR(3,nImg)-1; mean, stdev all circles
   testNmb=getResNmb(modality,'SNI',analyseStringsAll)
   markedArr=INTARR(nImg)
   IF marked(0) EQ -1 THEN BEGIN
@@ -1054,38 +1020,16 @@ pro sni
 
         ;correct for point source at distance shorter than 5 x UFOV
         IF WIDGET_INFO(btnSNICorr, /BUTTON_SET) THEN BEGIN
-          IF curPix NE prevCurPix OR ~ARRAY_EQUAL(curImgSize, prevImgSize) THEN BEGIN
-            corrMatrix=corrDistPointSource(tempImg, distSource, curPix, detThick, detAtt/10) ; functionsMini
-          ENDIF
+          WIDGET_CONTROL, cw_posfitSNICorr, GET_VALUE= corrPos
+          IF WIDGET_INFO(btnLockRadSNICorr, /BUTTON_SET) THEN WIDGET_CONTROL,txtLockRadSNICorr, GET_VALUE=corrRadStr ELSE corrRadStr=''
+          IF corrRadStr EQ '' THEN corrRad=-1 ELSE corrRad=FLOAT(corrRadStr)
+    
+          res=fitDistPointSource(tempImg, TOTAL(SNIroi,3), curPix, [structImgs.(i).radius1,structImgs.(i).radius2],corrPos,corrRad)
 
-          ;tempImg=tempImg*corrMatrix;
+          corrMatrix=res.corrSub
+          resArr[0:1,i]=res.fitPos
+          resArr[2,i]=res.fitDist
 
-          ;save corrected image as dat and upload as last image
-          IF WIDGET_INFO(btnSaveSNICorr, /BUTTON_SET) THEN BEGIN
-
-            IF  structImgs.(i).nFrames GT 1 THEN ftxt='_frame'+STRING(structImgs.(i).frameNo,FORMAT='(i0)') ELSE ftxt=''
-            adr=STRMID(structImgs.(i).filename, 0, STRLEN(structImgs.(i).filename)-4)+ ftxt +'_corrected.dat';assuming three letters as suffix eg .dcm or .dat
-            fi=FILE_INFO(adr)
-            IF fi.exists THEN BEGIN
-              c=0
-              WHILE fi.exists AND c LT 10 DO BEGIN
-                adr=STRMID(structImgs.(i).filename, 0, STRLEN(structImgs.(i).filename)-4)+'_corrected'+STRING(c, FORMAT='(i0)')+'.dat'
-                fi=FILE_INFO(adr)
-                c=c+1
-                IF c EQ 10 THEN BEGIN
-                  errLogg=errLogg+'Restricted to save more than 10 corrected files with same original filepath.'+newline
-                  adr=''
-                ENDIF
-              ENDWHILE
-            ENDIF
-            IF STRLEN(adr) NE 0 THEN BEGIN
-              adrToSave=[adrToSave,adr]
-              imageQCmatrix=CREATE_STRUCT(structImgs.(i),'matrix', tempImg*corrMatrix)
-              imageQCmatrix.filename=adr; changed when opened so that renaming/moving file is possible
-              SAVE, imageQCmatrix, FILENAME=adr
-            ENDIF
-
-          ENDIF   ;save?
         ENDIF; correct?
         IF N_ELEMENTS(SNIroi) GT 1 THEN BEGIN
           SNIthis=calculateSNI(tempImg, corrMatrix, SNIroi[*,*,0], curPix, humVis_fcd, FLOAT(sm(0)), FLOAT(fr(0)))
@@ -1101,7 +1045,7 @@ pro sni
     ENDFOR
     WIDGET_CONTROL, lblProgress, SET_VALUE=''
     If errLogg NE '' THEN sv=DIALOG_MESSAGE(errLogg, DIALOG_PARENT=evTop)
-
+    SNIsupTab=resArr
     results(testNmb)=1
   ENDIF
   ;ENDIF ELSE sv=DIALOG_MESSAGE('ROI for SNI not found for active image. Not in expected shape/signal.', DIALOG_PARENT=evTop)
@@ -1134,12 +1078,12 @@ pro barNM
     nI=MIN([nImg,N_ELEMENTS(markedArr)])
     FOR i=0, nI-1 DO BEGIN
       IF markedArr(i) THEN BEGIN
-        ;check if same size
+        
+        ;update barROI
         tempImg=readImg(structImgs.(i).filename, structImgs.(i).frameNo)
         sz=SIZE(tempImg, /DIMENSIONS)
-
         curPix=structImgs.(i).pix(0)
-        updateROI, ANA='BAR', SEL=i
+        updateROI, ANA='BAR', SEL=i, IMG=tempImg
 
         IF TOTAL(barROI) GT 4 THEN BEGIN
           resArr[0:3,i]=calculateBarNM(tempImg, barROI, curPix);MTF

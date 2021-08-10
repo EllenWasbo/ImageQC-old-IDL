@@ -281,7 +281,7 @@ pro updateTable
             nCols=4
             headers=tableHeaders.NM.UNIF.Alt1;['IU_UFOV %', 'DU_UFOV %', 'IU_CFOV %', 'DU_CFOV %']
             resArrString=STRARR(nCols,nRows)
-            FOR i=0, nRows-1 DO resArrString[*,i]=STRING(unifRes.table[*,markedTemp(i)], FORMAT='(F0.2)')
+            FOR i=0, nRows-1 DO resArrString[*,i]=STRING(unifRes.table[0:3,markedTemp(i)], FORMAT='(F0.2)')
           END
 
           'SNI':BEGIN
@@ -302,7 +302,7 @@ pro updateTable
             nCols=8
             headers=tableHeaders.NM.BAR.Alt1;['MTF_1','MTF_2','MTF_3','MTF_4','FWHM1','FWHM2','FWHM3','FWHM4']
             resArrString=STRARR(nCols, nRows)
-            FOR i=0, nRows-1 DO resArrString[*,i]=STRING(barRes[*,i], FORMAT='(F0.3)')
+            FOR i=0, nRows-1 DO resArrString[*,i]=STRING(barRes[*,markedTemp(i)], FORMAT='(F0.3)')
           END
 
           'ENERGYSPEC': BEGIN

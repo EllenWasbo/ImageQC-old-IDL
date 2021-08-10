@@ -68,7 +68,7 @@ pro redrawImg, viewpl, newActive
     IF annot THEN BEGIN
 
       fileList=getListOpenFiles(structImgs,0,marked, markedMulti)
-      IF tempStruct.zpos NE -999. AND tempStruct.sliceThick GT 0. THEN textZpos='z = '+ STRING(tempStruct.zpos,FORMAT='(f0.3)') ELSE textZpos = ''
+      IF tempStruct.zpos(0) NE -999. AND tempStruct.sliceThick GT 0. THEN textZpos='z = '+ STRING(tempStruct.zpos,FORMAT='(f0.3)') ELSE textZpos = ''
 
       oTextZ = OBJ_NEW('IDLgrText', textZpos, LOCATIONS = [2,10], COLOR = 255*([1,0,0]));[2,20] when above oTextAdr
       oModel->Add, oTextZ

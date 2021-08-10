@@ -82,11 +82,12 @@ pro getParam, configTemp
   WIDGET_CONTROL, txtNAvgSpeedNM, GET_VALUE=scanSpeedAvg
   WIDGET_CONTROL, txtSpeedROIheight, GET_VALUE=scanSpeedHeight
   WIDGET_CONTROL, txtScanSpeedMedian, GET_VALUE=scanSpeedFiltW
-  WIDGET_CONTROL, txtUnifDistCorr, GET_VALUE=distCorr
-  WIDGET_CONTROL, txtUnifThickCorr, GET_VALUE=thickCorr
-  WIDGET_CONTROL, txtUnifAttCorr, GET_VALUE=attCorr
   WIDGET_CONTROL, txtUnifAreaRatio, GET_VALUE=unifAreaRatio
+  WIDGET_CONTROL, cw_posfitUnifCorr, GET_VALUE=unifCorrPos
+  IF WIDGET_INFO(btnLockRadUnifCorr,/BUTTON_SET) THEN WIDGET_CONTROL, txtLockRadUnifCorr, GET_VALUE=unifCorrRad ELSE unifCorrRad=-1.
   WIDGET_CONTROL, txtSNIAreaRatio, GET_VALUE=SNIAreaRatio
+  WIDGET_CONTROL, cw_posfitSNICorr, GET_VALUE=SNIcorrPos
+  IF WIDGET_INFO(btnLockRadSNICorr,/BUTTON_SET) THEN WIDGET_CONTROL, txtLockRadSNICorr, GET_VALUE=SNIcorrRad ELSE SNIcorrRad=-1.
   WIDGET_CONTROL, txtSNI_f, GET_VALUE=SNI_f
   WIDGET_CONTROL, txtSNI_c, GET_VALUE=SNI_c
   WIDGET_CONTROL, txtSNI_d, GET_VALUE=SNI_d
@@ -109,7 +110,7 @@ pro getParam, configTemp
   WIDGET_CONTROL, txtHomogROIszPET, GET_VALUE=homogROIszPET
   WIDGET_CONTROL, txtHomogROIdistPET, GET_VALUE=homogROIdistPET
 
-  configTemp=CREATE_STRUCT('copyHeader', copyHeader, 'transposeTable', transposeTable, 'deciMark', deciMark, 'includeFilename', WIDGET_INFO(btnIncFilename,/BUTTON_SET),'append', WIDGET_INFO(btnAppend, /BUTTON_SET),'autoImportPath','', 'qtOutTemps',['DEFAULT','DEFAULT','DEFAULT','DEFAULT','DEFAULT','DEFAULT'],$
+  configTemp=CREATE_STRUCT('copyHeader', copyHeader, 'transposeTable', transposeTable, 'deciMark', deciMark, 'includeFilename', WIDGET_INFO(btnIncFilename,/BUTTON_SET),'append', WIDGET_INFO(btnAppend, /BUTTON_SET),'autoImportPath','', 'autoContinue',0,'qtOutTemps',['DEFAULT','DEFAULT','DEFAULT','DEFAULT','DEFAULT','DEFAULT'],$
     'MTFtype',typeMTF,'MTFtypeX', typeMTFX, 'MTFtypeNM', typeMTFNM,'MTFtypeSPECT', typeMTFSPECT, 'plotMTF',plotWhich,'plotMTFX',plotWhichX,'plotMTFNM', plotWhichNM,'plotMTFSPECT', plotWhichSPECT,$
     'tableMTF',tableWhich,'cyclMTF',MTFcyclWhich,'tableMTFX', tableWhichX, $
     'MTFroiSz',FLOAT(MTFroiSz(0)),'MTFroiSzX',[FLOAT(MTFroiSzX(0)),FLOAT(MTFroiSzY(0))],'MTFroiSzNM',[FLOAT(MTFroiSzXNM(0)),FLOAT(MTFroiSzYNM(0))],'MTFroiSzSPECT',FLOAT(MTFroiSzSPECT(0)),'MTF3dSPECT',WIDGET_INFO(MTF3dSPECT, /BUTTON_SET),$
@@ -123,13 +124,13 @@ pro getParam, configTemp
     'typeROIX',ROIXtype,'ROIXrad',FLOAT(ROIXrad(0)),'ROIXx',FLOAT(ROIXx(0)),'ROIXy',FLOAT(ROIXy(0)),'ROIXa',FLOAT(ROIXa(0)),'offxyROIX', offxyROIX,'offxyROIX_unit',offxyROIX_unit,$
     'NPSroiSz', LONG(NPSroiSz(0)), 'NPSroiDist', FLOAT(NPSroiDist(0)),'NPSsubNN', LONG(NPSsubNN(0)), 'NPSroiSzX', LONG(NPSroiSzX(0)), 'NPSsubSzX', LONG(NPSsubSzX(0)), 'NPSavg',WIDGET_INFO(btnNPSavg, /BUTTON_SET),$
     'STProiSz', FLOAT(STProiSz(0)), $
-    'unifAreaRatio', FLOAT(unifAreaRatio(0)),'SNIAreaRatio', FLOAT(SNIAreaRatio(0)),'unifCorr',WIDGET_INFO(btnUnifCorr,/BUTTON_SET),'SNIcorr',WIDGET_INFO(btnSNICorr,/BUTTON_SET),'distCorr',FLOAT(distCorr(0)),'attCoeff',FLOAT(attCorr(0)),'detThick',FLOAT(thickCorr(0)), $
+    'unifAreaRatio', FLOAT(unifAreaRatio(0)),'SNIAreaRatio', FLOAT(SNIAreaRatio(0)),'unifCorr',WIDGET_INFO(btnUnifCorr,/BUTTON_SET),'unifCorrPos',unifCorrPos,'unifCorrRad',unifCorrRad,'SNIcorr',WIDGET_INFO(btnSNICorr,/BUTTON_SET), 'SNIcorrPos',SNIcorrPos,'SNIcorrRad',SNIcorrRad,$
     'SNI_fcd',FLOAT([SNI_f(0),SNI_c(0),SNI_d(0)]),'plotSNI',plotSNI,$
     'barROIsz', FLOAT(barROIsz(0)),'barWidths',barWidths,$
     'scanSpeedAvg',LONG(scanSpeedAvg(0)), 'scanSpeedHeight', FLOAT(scanSpeedHeight(0)), 'scanSpeedFiltW', LONG(scanSpeedFiltW(0)), $
     'contrastRad1', FLOAT(contrastRad1(0)), 'contrastRad2', FLOAT(contrastRad2(0)),$
     'CrossROIsz', FLOAT(crossROIsz(0)), 'CrossVol', FLOAT(crossVol(0)) )
-
+;'distCorr',FLOAT(distCorr(0)),'attCoeff',FLOAT(attCorr(0)),'detThick',FLOAT(thickCorr(0)),
   RETURN
 end
 
@@ -163,6 +164,7 @@ pro saveParam, overWriteNo, newName
     
     configS=replaceStructStruct(configS, config, overWriteNo)
     configS.(overWriteNo).AUTOIMPORTPATH=configS.(1).AUTOIMPORTPATH;all same
+    configS.(overWriteNo).AUTOCONTINUE=configS.(1).AUTOCONTINUE;all same
     SAVEIF, saveOK, configS, quickTemp, quickTout, loadTemp, renameTemp, FILENAME=configPath
     selConfig=overWriteNo
     ;current parameterset is active - just change name of parameter set label

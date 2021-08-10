@@ -51,8 +51,8 @@ pro ImageQC,  GROUP_LEADER=bMain
     varImgRes,txtVarImageROIsz, lblProgressVarX, $
     contrastRes, conROIs, txtConR1SPECT, txtConR2SPECT,$
     radialRes, txtRadialMedian, $
-    unifRes, unifROI, txtUnifAreaRatio, txtUnifDistCorr, txtUnifThickCorr, txtUnifAttCorr, btnUnifCorr, btnSaveUnifCorr,cw_plotUnif,cw_imgUnif,$
-    SNIres, SNIroi, txtSNIAreaRatio, txtSNIDistCorr, txtSNIThickCorr, txtSNIAttCorr, btnSNICorr, btnSaveSNICorr, txtSNI_f, txtSNI_c,txtSNI_d,cw_plotSNI,cw_imgSNI, txtSmoothNPS_SNI, txtfreqNPS_SNI,$
+    unifRes, unifROI, txtUnifAreaRatio, btnUnifCorr,cw_plotUnif,cw_imgUnif, cw_posfitUnifCorr, btnLockRadUnifCorr,txtLockRadUnifCorr,$
+    SNIres, SNIsupTab, SNIroi, txtSNIAreaRatio, btnSNICorr, cw_posfitSNICorr,btnLockRadSNICorr,txtLockRadSNICorr, txtSNI_f, txtSNI_c,txtSNI_d,cw_plotSNI,cw_imgSNI, txtSmoothNPS_SNI, txtfreqNPS_SNI,$
     acqRes, barRes, barROI, txtBarROIsize,txtBar1,txtBar2,txtBar3,txtBar4,$
     crossRes, crossROI, txtCrossROIsz, txtCrossMeasAct,txtCrossMeasActT, txtCrossMeasRest, txtCrossMeasRT, txtCrossScanAct, txtCrossScanStart,$
     txtCrossVol, txtCrossConc, txtCrossFactorPrev, txtCrossFactor,$
@@ -60,7 +60,7 @@ pro ImageQC,  GROUP_LEADER=bMain
     MRposRes
 
   !EXCEPT=0;2 to see all errors
-  currVersion='1.89.1'
+  currVersion='1.89.5'
   thisPath=FILE_DIRNAME(ROUTINE_FILEPATH('ImageQC'))+'\'
   xoffset=100
   yoffset=50
@@ -244,8 +244,10 @@ pro ImageQC,  GROUP_LEADER=bMain
     'MTF',CREATE_STRUCT('Alt1',['MTF @ 0.5/mm','MTF @ 1.0/mm','MTF @ 1.5/mm','MTF @ 2.0/mm','MTF @ 2.5/mm','Freq @ MTF 0.5']),$
     'ROI',CREATE_STRUCT('Alt1',['Pixel mean','Pixel stdev']))
   NM_headers=CREATE_STRUCT($
-    'UNIF',CREATE_STRUCT('Alt1',['IU_UFOV %', 'DU_UFOV %', 'IU_CFOV %', 'DU_CFOV %']),$
-    'SNI',CREATE_STRUCT('Alt1',['SNI max','SNI L1','SNI L2','SNI S1','SNI S2','SNI S3','SNI S4','SNI S5','SNI S6']),$
+    'UNIF',CREATE_STRUCT('Alt1',['IU_UFOV %', 'DU_UFOV %', 'IU_CFOV %', 'DU_CFOV %'],$
+    'AltSup',['FitX (mm from center)','FitY (mm from center)','Fit distance (mm)']),$
+    'SNI',CREATE_STRUCT('Alt1',['SNI max','SNI L1','SNI L2','SNI S1','SNI S2','SNI S3','SNI S4','SNI S5','SNI S6'],$
+    'AltSup',['FitX (mm from center)','FitY (mm from center)','Fit distance (mm)']),$
     'ACQ',CREATE_STRUCT('Alt1',['Total Count','Frame Duration (ms)']),$
     'BAR',CREATE_STRUCT('Alt1',['MTF @ F1','MTF @ F2','MTF @ F3','MTF @ F4','FWHM1','FWHM2','FWHM3','FWHM4']))
   MR_headers=CREATE_STRUCT($
@@ -254,7 +256,7 @@ pro ImageQC,  GROUP_LEADER=bMain
 
   tableHeaders=CREATE_STRUCT('CT',CT_headers,'Xray',Xray_headers,'NM',NM_headers,'MR', MR_headers)
   CT_headers=!Null & Xray_headers=!Null & NM_headers=!Null & MR_headers=!Null
-  currentHeaderAlt=INTARR(9); Alt1=0, Alt2=1... set in updateTable pr test
+  currentHeaderAlt=INTARR(9); Alt1=0, Alt2=1... set in updateTable pr test, altsup always one option and last option
 
   structImgs=CREATE_STRUCT('empty',0); images with attributes in memory
   activeImg=0 ; active (selected image)
@@ -463,7 +465,7 @@ pro ImageQC,  GROUP_LEADER=bMain
   btnAx = WIDGET_BUTTON(toolBarDraw, VALUE=thisPath+'images\ax.bmp', /BITMAP, UVALUE='ax', TOOLTIP='Send active image to iImage window')
   btnCor = WIDGET_BUTTON(toolBarDraw, VALUE=thisPath+'images\cor.bmp', /BITMAP, UVALUE='cor', TOOLTIP='Send coronal image found from image stack at defined center to iImage window')
   btnSag = WIDGET_BUTTON(toolBarDraw, VALUE=thisPath+'images\sag.bmp', /BITMAP, UVALUE='sag', TOOLTIP='Send sagittal image found from image stack at defined center to iImage window')
-  lblML2=WIDGET_LABEL(toolBarDraw, VALUE='', XSIZE=5, FONT=font1)
+  btnSurface = WIDGET_BUTTON(toolBarDraw, VALUE=thisPath+'images\surface.bmp', /BITMAP, UVALUE='surf', TOOLTIP='View active image as surface plot in iImage window')
   btnSumAx = WIDGET_BUTTON(toolBarDraw, VALUE=thisPath+'images\sum.bmp', /BITMAP, UVALUE='sumax', TOOLTIP='Sum all or marked (X) images and send to iImage window')
   btn3dVol  = WIDGET_BUTTON(toolBarDraw, VALUE='3D', UVALUE='3d', TOOLTIP='Visualize in IDL 3d Slicer3')
   btnMovie=WIDGET_BUTTON(toolBarDraw, VALUE=thisPath+'images\play.bmp',/BITMAP,UVALUE='movie',TOOLTIP='Show images as movie')
@@ -931,11 +933,10 @@ pro ImageQC,  GROUP_LEADER=bMain
   ;bTimeActCurve=WIDGET_BASE(wtabAnalysisNM, TITLE='TimeAct',/Column)
 
   ;----------------Uniformity------------------
-  lblunifMl0=WIDGET_LABEL(bUniformity, VALUE='', SCR_YSIZE=5)
+  lbl=WIDGET_LABEL(bUniformity, VALUE='', SCR_YSIZE=5,/NO_COPY)
+  lbl=WIDGET_LABEL(bUniformity, VALUE='Based on NEMA NU-1 2007',FONT=font1, /ALIGN_LEFT,/NO_COPY)
+  lbl=WIDGET_LABEL(bUniformity, VALUE='', SCR_YSIZE=5)
   
-  lblunif2=WIDGET_LABEL(bUniformity, VALUE='Based on NEMA NU-1 2007',FONT=font1, /ALIGN_LEFT)
-  lblunifMl2=WIDGET_LABEL(bUniformity, VALUE='', SCR_YSIZE=5)
-
   bUniformity_row=WIDGET_BASE(bUniformity,/ROW)
   bUniformity_lft=WIDGET_BASE(bUniformity_row,/COLUMN)
 
@@ -944,34 +945,25 @@ pro ImageQC,  GROUP_LEADER=bMain
   txtUnifAreaRatio=WIDGET_TEXT(bUnifAreaRatio, VALUE='', XSIZE=5, /EDITABLE, /KBRD_FOCUS_EVENTS, FONT=font1)
   
   ;distance correction
-  bUnifDistCorr=WIDGET_BASE(bUniformity_lft, /COLUMN)
+  bUnifDistCorr=WIDGET_BASE(bUniformity_lft, /COLUMN, /FRAME)
   bSetUnifCorr=WIDGET_BASE(bUnifDistCorr, /NONEXCLUSIVE, /COLUMN, YSIZE=22)
   btnUnifCorr=WIDGET_BUTTON(bSetUnifCorr, VALUE='Correct for point-source curvature', UVALUE='unifCorrSet', FONT=font1)
-  bUnifCorrParam=WIDGET_BASE(bUnifDistCorr, /ROW)
-  lblCP=WIDGET_LABEL(bUnifCorrParam, VALUE='', XSIZE=20)
-  bUnifCorrParams=WIDGET_BASE(bUnifCorrParam, /COLUMN)
-
-  bUnifDistCorrVal=WIDGET_BASE(bUnifCorrParams, /ROW, YSIZE=22)
-  lblUnifDistCorr=WIDGET_LABEL(bUnifDistCorrVal, VALUE='Source - detector distance', FONT=font1, XSIZE=160)
-  txtUnifDistCorr=WIDGET_TEXT(bUnifDistCorrVal, VALUE='', /EDITABLE, XSIZE=7, SCR_YSIZE=20, /KBRD_FOCUS_EVENTS, FONT=font1)
-  lblUnifDistCorr2=WIDGET_LABEL(bUnifDistCorrVal, VALUE='mm', FONT=font1)
-  bUnifThickCorrVal=WIDGET_BASE(bUnifCorrParams, /ROW, YSIZE=20)
-  lblUnifThickCorr=WIDGET_LABEL(bUnifThickCorrVal, VALUE='Detector thickness', FONT=font1, XSIZE=160)
-  txtUnifThickCorr=WIDGET_TEXT(bUnifThickCorrVal, VALUE='', /EDITABLE, XSIZE=5, SCR_YSIZE=20, /KBRD_FOCUS_EVENTS, FONT=font1)
-  lblUnifThickCorr2=WIDGET_LABEL(bUnifThickCorrVal, VALUE='mm', FONT=font1)
-  bUnifAttCorrVal=WIDGET_BASE(bUnifCorrParams, /ROW, YSIZE=20)
-  lblUnifAttCorr=WIDGET_LABEL(bUnifAttCorrVal, VALUE='Att. coefficient of detector', FONT=font1, XSIZE=160)
-  txtUnifAttCorr=WIDGET_TEXT(bUnifAttCorrVal, VALUE='', /EDITABLE, XSIZE=5, SCR_YSIZE=20, /KBRD_FOCUS_EVENTS, FONT=font1)
-  lblUnifAttCorr2=WIDGET_LABEL(bUnifAttCorrVal, VALUE='1/cm', FONT=font1)
-  bSaveUnifCorr=WIDGET_BASE(bUnifCorrParams, /NONEXCLUSIVE, /COLUMN, YSIZE=22)
-  btnSaveUnifCorr=WIDGET_BUTTON(bSaveUnifCorr, VALUE='Save corrected image as .dat-file', TOOLTIP='This .dat file can be opened in ImageQC just as any DICOM image',UVALUE='saveUnifCorrSet', FONT=font1)
+  bposfitUnifCorr=WIDGET_BASE(bUnifDistCorr, /ROW)
+  lbl=WIDGET_LABEL(bposfitUnifCorr, VALUE='', XSIZE=20, /NO_COPY) 
+  cw_posfitUnifCorr=CW_BGROUP(bposfitUnifCorr, ['x','y'],/NONEXCLUSIVE, UVALUE='cw_posfitUnifCorr', SET_VALUE=[0,0],  LABEL_LEFT='Avoid fitting source position in', /FRAME, FONT=font1, COLUMN=2, SPACE=-2, YPAD=0)
+  bradfitUnifCorr=WIDGET_BASE(bUnifDistCorr, /ROW)
+  lbl=WIDGET_LABEL(bradfitUnifCorr, VALUE='', XSIZE=20, /NO_COPY)
+  bLockRadUnifCorr=WIDGET_BASE(bradfitUnifCorr, /NONEXCLUSIVE, /COLUMN)
+  btnLockRadUnifCorr=WIDGET_BUTTON(bLockRadUnifCorr,VALUE='Lock radius',UVALUE='unifCorrLockRad',FONT=font1)
+  lbl=WIDGET_LABEL(bradfitUnifCorr, VALUE=' to ', /NO_COPY)
+  txtLockRadUnifCorr=WIDGET_TEXT(bradfitUnifCorr, VALUE='', XSIZE=5, SCR_YSIZE=20, /EDITABLE, /KBRD_FOCUS_EVENTS, FONT=font1)
+  lbl=WIDGET_LABEL(bradfitUnifCorr, VALUE='mm', /NO_COPY)
 
   bUniformity_rgt=WIDGET_BASE(bUniformity_row,/COLUMN)
-  cw_plotUnif=CW_BGROUP(bUniformity_rgt, ['Uniformity result for all images','Curvature correction check'],/EXCLUSIVE, UVALUE='cw_plotUnif', SET_VALUE=0,  LABEL_TOP='Plot result', /FRAME, FONT=font1, COLUMN=1, SPACE=-2, YPAD=0)
+  cw_plotUnif=CW_BGROUP(bUniformity_rgt, ['Uniformity result for all images','Curvature fit','Curvature correction check'],/EXCLUSIVE, UVALUE='cw_plotUnif', SET_VALUE=0,  LABEL_TOP='Plot result', /FRAME, FONT=font1, COLUMN=1, SPACE=-2, YPAD=0)
   cw_imgUnif=CW_BGROUP(bUniformity_rgt, ['Curvature corr. image','Processed image (pix 6.4mm, smoothed, corrected)'],/EXCLUSIVE, UVALUE='cw_imgUnif', SET_VALUE=0, LABEL_TOP='Image result', /FRAME, FONT=font1, COLUMN=1, SPACE=-2, YPAD=0)
 
-
-  btnUnif=WIDGET_BUTTON(bUniformity, VALUE='Calculate Uniformity', UVALUE='uniformityNM',FONT=font1)
+  btnUnif=WIDGET_BUTTON(bUniformity_lft, VALUE='Calculate Uniformity', UVALUE='uniformityNM',FONT=font1)
 
   ;----------------SNI------------------
   lblsniMl0=WIDGET_LABEL(bSNI, VALUE='', SCR_YSIZE=5)
@@ -991,22 +983,15 @@ pro ImageQC,  GROUP_LEADER=bMain
   btnSNICorr=WIDGET_BUTTON(bSetSNICorr, VALUE='Correct for point-source curvature', UVALUE='SNICorrSet', FONT=font1)
   bSNICorrParam=WIDGET_BASE(bSNIDistCorr, /ROW)
   lblCP=WIDGET_LABEL(bSNICorrParam, VALUE='', XSIZE=20)
-  bSNICorrParams=WIDGET_BASE(bSNICorrParam, /COLUMN)
+  cw_posfitSNICorr=CW_BGROUP(bSNICorrParam, ['x','y'],/NONEXCLUSIVE, UVALUE='cw_posfitSNICorr', SET_VALUE=[0,0],  LABEL_LEFT='Avoid fitting source position in', /FRAME, FONT=font1, COLUMN=2, SPACE=-2, YPAD=0)
 
-  bSNIDistCorrVal=WIDGET_BASE(bSNICorrParams, /ROW, YSIZE=22)
-  lbl=WIDGET_LABEL(bSNIDistCorrVal, VALUE='Source - detector distance', FONT=font1, XSIZE=160, /NO_COPY)
-  txtSNIDistCorr=WIDGET_TEXT(bSNIDistCorrVal, VALUE='', /EDITABLE, XSIZE=7, SCR_YSIZE=20, /KBRD_FOCUS_EVENTS, FONT=font1)
-  lbl=WIDGET_LABEL(bSNIDistCorrVal, VALUE='mm', FONT=font1,/NO_COPY)
-  bSNIThickCorrVal=WIDGET_BASE(bSNICorrParams, /ROW, YSIZE=20)
-  lbl=WIDGET_LABEL(bSNIThickCorrVal, VALUE='Detector thickness', FONT=font1, XSIZE=160,/NO_COPY)
-  txtSNIThickCorr=WIDGET_TEXT(bSNIThickCorrVal, VALUE='', /EDITABLE, XSIZE=5, SCR_YSIZE=20, /KBRD_FOCUS_EVENTS, FONT=font1)
-  lbl=WIDGET_LABEL(bSNIThickCorrVal, VALUE='mm', FONT=font1,/NO_COPY)
-  bSNIAttCorrVal=WIDGET_BASE(bSNICorrParams, /ROW, YSIZE=20)
-  lbl=WIDGET_LABEL(bSNIAttCorrVal, VALUE='Att. coefficient of detector', FONT=font1, XSIZE=160,/NO_COPY)
-  txtSNIAttCorr=WIDGET_TEXT(bSNIAttCorrVal, VALUE='', /EDITABLE, XSIZE=5, SCR_YSIZE=20, /KBRD_FOCUS_EVENTS, FONT=font1)
-  lbl=WIDGET_LABEL(bSNIAttCorrVal, VALUE='1/cm', FONT=font1,/NO_COPY)
-  bSaveSNICorr=WIDGET_BASE(bSNICorrParams, /NONEXCLUSIVE, /COLUMN, YSIZE=22)
-  btnSaveSNICorr=WIDGET_BUTTON(bSaveSNICorr, VALUE='Save corrected image as .dat-file', TOOLTIP='This .dat file can be opened in ImageQC just as any DICOM image', UVALUE='saveSNICorrSet', FONT=font1)
+  bradfitSNICorr=WIDGET_BASE(bSNIDistCorr, /ROW)
+  lbl=WIDGET_LABEL(bradfitSNICorr, VALUE='', XSIZE=20, /NO_COPY)
+  bLockRadSNICorr=WIDGET_BASE(bradfitSNICorr, /NONEXCLUSIVE, /ROW)
+  btnLockRadSNICorr=WIDGET_BUTTON(bLockRadSNICorr,VALUE='Lock radius',UVALUE='SNICorrLockRad',FONT=font1)
+  lbl=WIDGET_LABEL(bradfitSNICorr, VALUE=' to ', /NO_COPY)
+  txtLockRadSNICorr=WIDGET_TEXT(bradfitSNICorr, VALUE='', XSIZE=5, SCR_YSIZE=20,/EDITABLE, /KBRD_FOCUS_EVENTS, FONT=font1)
+  lbl=WIDGET_LABEL(bradfitSNICorr, VALUE='mm', /NO_COPY)
 
   bSNI_Rgt=WIDGET_BASE(bSNI2,/COLUMN)
   bHumVis=WIDGET_BASE(bSNI_Rgt, /COLUMN, FRAME=1)

@@ -78,7 +78,10 @@ pro closeImgs, imgIds
               'CONTRAST': contrastRes=contrastRes[*,remain]
               'RADIAL': clearRes, 'RADIAL';less could be done, but - no time right no - fix later to keep remaining results
               'UNIF': clearRes, 'UNIF';less could be done, but - no time right no - fix later to keep remaining results
-              'SNI': SNIres=removeIDstructstruct(SNIres,sel)
+              'SNI': BEGIN
+                SNIres=removeIDstructstruct(SNIres,sel)
+                SNIsupTab=SNIsupTab[*,remain]
+                END
               'BAR': barRes=barRes[*,remain]
               'CROSSCALIB': clearRes, 'CROSSCALIB'
               'RC': clearRes, 'RC';probably less could be done, but - just in case some trouble

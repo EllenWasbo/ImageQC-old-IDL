@@ -134,20 +134,24 @@ pro updateImageRes
                 CASE imgWhich OF
                   0: BEGIN;curvature corrected
                     IF WIDGET_INFO(btnUnifCorr, /BUTTON_SET) THEN BEGIN
-                      tempImg=readImg(structImgs.(sel).filename, structImgs.(sel).frameNo)
-                      WIDGET_CONTROL, txtUnifDistCorr, GET_VALUE=distSource
-                      WIDGET_CONTROL, txtUnifThickCorr, GET_VALUE=detThick
-                      WIDGET_CONTROL, txtUnifAttCorr, GET_VALUE=detAtt
-                      corrM=corrDistPointSource(tempImg, FLOAT(distSource(0)), pix, FLOAT(detThick(0)), 0.1*FLOAT(detAtt(0))) ; functionsMini
-                      activeResImg=tempImg*corrM
-                      szX=450
-                      szImg=SIZE(activeResImg, /DIMENSIONS)
-                      szY=ROUND(szX*(szImg(1)*1./szImg(0)))
-                      WIDGET_CONTROL, txtMinWL, GET_VALUE=lower
-                      WIDGET_CONTROL, txtMaxWL, GET_VALUE=upper
-                      rangeWL=LONG([lower,upper])
-                      TVSCL,congrid(adjustWindowLevel(activeResImg, rangeWL), szX, szY, /INTERP)
-                      XYOUTS, 0.05,0.05,'Curvature corrected image', CHARSIZE=1.5, COLOR=255
+                      tnames= TAG_NAMES(unifRes.(sel+1))
+                      IF tnames.HasValue('CORRMATRIX') THEN BEGIN
+                        activeResImg=unifRes.(sel+1).corrMatrix
+;                        WIDGET_CONTROL, txtUnifDistCorr, GET_VALUE=distSource
+;                        WIDGET_CONTROL, txtUnifThickCorr, GET_VALUE=detThick
+;                        WIDGET_CONTROL, txtUnifAttCorr, GET_VALUE=detAtt
+;                        corrM=corrDistPointSource(tempImg, FLOAT(distSource(0)), pix, FLOAT(detThick(0)), 0.1*FLOAT(detAtt(0))) ; functionsMini
+;                        activeResImg=tempImg*corrM
+                        szX=450
+                        szImg=SIZE(activeResImg, /DIMENSIONS)
+                        szY=ROUND(szX*(szImg(1)*1./szImg(0)))
+                        WIDGET_CONTROL, txtMinWL, GET_VALUE=lower
+                        WIDGET_CONTROL, txtMaxWL, GET_VALUE=upper
+                        rangeWL=LONG([lower,upper])
+                        TVSCL,congrid(adjustWindowLevel(activeResImg, rangeWL), szX, szY, /INTERP)
+                        XYOUTS, 0.05,0.05,'Curvature corrected image', CHARSIZE=1.5, COLOR=255
+                      ENDIF ELSE XYOUTS, 0.05,0.05,'No correction applied', CHARSIZE=1.5, COLOR=255
+
                     ENDIF ELSE XYOUTS, 0.05,0.05,'No correction applied', CHARSIZE=1.5, COLOR=255
                     END
                   1: BEGIN;all processing finished
@@ -188,20 +192,24 @@ pro updateImageRes
                    END
                    1: BEGIN; curvature corrected image
                      IF WIDGET_INFO(btnSNICorr, /BUTTON_SET) THEN BEGIN
-                      tempImg=readImg(structImgs.(sel).filename, structImgs.(sel).frameNo)
-                      WIDGET_CONTROL, txtSNIDistCorr, GET_VALUE=distSource
-                      WIDGET_CONTROL, txtSNIThickCorr, GET_VALUE=detThick     
-                      WIDGET_CONTROL, txtSNIAttCorr, GET_VALUE=detAtt
-                      corrM=corrDistPointSource(tempImg, FLOAT(distSource(0)), pix, FLOAT(detThick(0)), 0.1*FLOAT(detAtt(0))) ; functionsMini
-                      activeResImg=tempImg*corrM
-                      szX=450
-                      szImg=SIZE(activeResImg, /DIMENSIONS)
-                      szY=ROUND(szX*(szImg(1)*1./szImg(0)))
-                      WIDGET_CONTROL, txtMinWL, GET_VALUE=lower
-                      WIDGET_CONTROL, txtMaxWL, GET_VALUE=upper
-                      rangeWL=LONG([lower,upper])
-                      TVSCL,congrid(adjustWindowLevel(activeResImg, rangeWL), szX, szY, /INTERP)
-                      XYOUTS, 0.05,0.05,'Curvature corrected image', CHARSIZE=1.5, COLOR=255
+                      tnames=TAG_NAMES(SNIres.(sel))
+                      IF tnames.HasValue('CORRMATRIX') THEN BEGIN
+;                        tempImg=readImg(structImgs.(sel).filename, structImgs.(sel).frameNo)
+;                        WIDGET_CONTROL, txtSNIDistCorr, GET_VALUE=distSource
+;                        WIDGET_CONTROL, txtSNIThickCorr, GET_VALUE=detThick     
+;                        WIDGET_CONTROL, txtSNIAttCorr, GET_VALUE=detAtt
+;                        corrM=corrDistPointSource(tempImg, FLOAT(distSource(0)), pix, FLOAT(detThick(0)), 0.1*FLOAT(detAtt(0))) ; functionsMini
+;                        activeResImg=tempImg*corrM
+                        activeResImg=SNIres.(sel).corrMatrix
+                        szX=450
+                        szImg=SIZE(activeResImg, /DIMENSIONS)
+                        szY=ROUND(szX*(szImg(1)*1./szImg(0)))
+                        WIDGET_CONTROL, txtMinWL, GET_VALUE=lower
+                        WIDGET_CONTROL, txtMaxWL, GET_VALUE=upper
+                        rangeWL=LONG([lower,upper])
+                        TVSCL,congrid(adjustWindowLevel(activeResImg, rangeWL), szX, szY, /INTERP)
+                        XYOUTS, 0.05,0.05,'Curvature corrected image', CHARSIZE=1.5, COLOR=255
+                      ENDIF ELSE XYOUTS, 0.05,0.05,'No correction applied', CHARSIZE=1.5, COLOR=255
                      ENDIF ELSE XYOUTS, 0.05,0.05,'No correction applied', CHARSIZE=1.5, COLOR=255
                     END
                    ELSE:

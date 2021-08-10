@@ -48,7 +48,7 @@ pro calculateQuickTest
       FOR m=0, N_ELEMENTS(allMod)-1 DO IF availMod.HasValue(allMod(m)) THEN availModNmb=[availModNmb, m]
       defModality=WHERE(modality EQ availModNmb); modality number in available list
       IF defModality(0) EQ -1 THEN defModality=0
-      
+
       qtOutName=configS.(selConfig).qtOutTemps(modality)
       qtOutNames=TAG_NAMES(quickTout.(defModality))
       tempNmb=WHERE(qtOutNames EQ qtOutName)
@@ -64,17 +64,17 @@ pro calculateQuickTest
       IF N_ELEMENTS(szM) EQ 2 THEN nI=MIN([nImg,szM(1)]) ELSE nI=1
       ;incFilenames=WIDGET_INFO(btnIncFilename, /BUTTON_SET)
       ;IF incFilenames THEN BEGIN
-        multiExpTable=STRARR(2, nTested+1)
-        multiExpTable[*,0]=['Date',formatDMY(structImgs.(imgWithMark(0)).acqDate)] 
-        
-        cc=1
-        FOR im=0, nI-1 DO BEGIN
-          IF TOTAL(markedMulti[*,im]) GT 0 THEN BEGIN
-            multiExpTable[*,cc]=['Img'+STRING(im+1, FORMAT='(i0)'),structImgs.(im).filename]
-            cc=cc+1
-          ENDIF
-        ENDFOR
-      
+      multiExpTable=STRARR(2, nTested+1)
+      multiExpTable[*,0]=['Date',formatDMY(structImgs.(imgWithMark(0)).acqDate)]
+
+      cc=1
+      FOR im=0, nI-1 DO BEGIN
+        IF TOTAL(markedMulti[*,im]) GT 0 THEN BEGIN
+          multiExpTable[*,cc]=['Img'+STRING(im+1, FORMAT='(i0)'),structImgs.(im).filename]
+          cc=cc+1
+        ENDIF
+      ENDFOR
+
       ;ENDIF ELSE multiExpTable=['Date',formatDMY(structImgs.(imgWithMark(0)).acqDate)]
 
       analyseStrings=analyseStringsAll.(modality)
@@ -155,15 +155,17 @@ pro calculateQuickTest
                 ELSE:
               ENDCASE
             END
-            
+
             ELSE:
           ENDCASE
 
           updateTable; update currentHeaderAlt+get tables
           WIDGET_CONTROL, resTab, GET_VALUE=resultsTable
-          resultsTableString=resultsTable
-          ;resultsTable=FLOAT(resultsTable)
-          
+          ;resultsTableString=resultsTable
+          updateTableSup;
+          WIDGET_CONTROL, resTabSup, GET_VALUE=resultsTableSup
+          ;resultsTableSupString=resultsTableSup
+
           err=0
 
           If results(test-1) EQ 1 THEN BEGIN
@@ -176,8 +178,8 @@ pro calculateQuickTest
 
                 alt=currQTout.(testPos).(iii).ALT
                 IF alt EQ -1 THEN BEGIN; additional dicom output ALT=-1
-                  nCols=N_TAGS(currQTout.(testPos).(iii).TAGS) 
-                  tagNames=TAG_NAMES(currQTout.(testPos).(iii).TAGS)        
+                  nCols=N_TAGS(currQTout.(testPos).(iii).TAGS)
+                  tagNames=TAG_NAMES(currQTout.(testPos).(iii).TAGS)
 
                   FOR im=0, nI-1 DO BEGIN
                     IF markedMulti(tt,im) THEN BEGIN
@@ -193,103 +195,118 @@ pro calculateQuickTest
                   ENDFOR
 
                 ENDIF ELSE BEGIN
-                
-                IF currentHeaderAlt(test-1) EQ alt THEN BEGIN
-                  cols=currQTout.(testPos).(iii).COLUMNS                 
-                  calc=currQTout.(testPos).(iii).CALC
 
-                  szRes=SIZE(resultsTable, /DIMENSIONS)
-                  IF cols(0) EQ -1 THEN cols=INDGEN(szRes(0))
-                  IF MAX(cols) GT szRes(0)-1 THEN BEGIN
-                    err=1
-                    lowEnoughID=WHERE(cols LT szRes(0))
-                    IF lowEnoughID(0) NE -1 THEN cols=cols(lowEnoughID) ELSE cols=INDGEN(szRes(0))
+                  sup=0
+                  IF alt GT 0 THEN BEGIN
+                    altNames=TAG_NAMES(tableHeaders.(defmodality).(testPos))
+                    IF alt EQ N_ELEMENTS(altNames)-1 AND altNames(-1) EQ 'ALTSUP' THEN sup=1
                   ENDIF
-                  
-                  IF nImg EQ 1 THEN resUse=resultsTable(cols) ELSE BEGIN
-                    resUse=resultsTable[cols(0),*]
-                    IF N_ELEMENTS(cols) GT 1 THEN BEGIN
-                        FOR r=1, N_ELEMENTS(cols)-1 DO resUse=[resUse, resultsTable[cols(r),*]]
+
+                  IF currentHeaderAlt(test-1) EQ alt OR sup THEN BEGIN
+                    cols=currQTout.(testPos).(iii).COLUMNS
+                    calc=currQTout.(testPos).(iii).CALC                 
+
+                    IF sup EQ 0 THEN szRes=SIZE(resultsTable, /DIMENSIONS) ELSE szRes=SIZE(resultsTableSup, /DIMENSIONS)
+                    IF cols(0) EQ -1 THEN cols=INDGEN(szRes(0))
+                    IF MAX(cols) GT szRes(0)-1 THEN BEGIN
+                      err=1
+                      lowEnoughID=WHERE(cols LT szRes(0))
+                      IF lowEnoughID(0) NE -1 THEN cols=cols(lowEnoughID) ELSE cols=INDGEN(szRes(0))
                     ENDIF
-                    IF N_ELEMENTS(szRes) EQ 1 THEN res3d=1
-                  ENDELSE
-                  resUseString=resUse
-                  resUse=FLOAT(resUse)
 
-                  IF currQTout.(testPos).(iii).PER_SERIES AND calc GT 0 AND res3d EQ 0 THEN BEGIN
-                    serUniq=!Null
-                    acqserNmbs=!Null
-                    gect=0
-                    IF structImgs.(0).modality EQ 'CT' AND STRMID(structImgs.(0).manufacturer,0,2) EQ 'GE' THEN gect=1
-                    FOR im=0, nImg-1 DO BEGIN
-                      IF gect THEN BEGIN
-                      serUniq=[serUniq,STRING(structImgs.(im).acqNmb,FORMAT='(i0)')+'_'+STRING(structImgs.(im).seriesNmb,FORMAT='(i0)')+'_'+STRING(structImgs.(im).seriesUID,FORMAT='(a0)')]
-                      acqserNmbs=[acqserNmbs,STRING(structImgs.(im).acqNmb,FORMAT='(i0)')+'_'+STRING(structImgs.(im).seriesNmb,FORMAT='(i0)')]
-                      strAcqSer='_Acq/Series'
-                      ENDIF ELSE BEGIN
-                        serUniq=[serUniq,STRING(structImgs.(im).seriesUID,FORMAT='(a0)')]
-                        acqserNmbs=[acqserNmbs,STRING(structImgs.(im).seriesNmb,FORMAT='(i0)')]
-                        strAcqSer='_Series_'
-                      ENDELSE
-                    ENDFOR
-                    ;serUniq=[serUniq,STRING(structImgs.(im).acqDate,FORMAT='(i0)')+' '+STRING(structImgs.(im).seriesNmb,FORMAT='(i0)')+' '+STRING(structImgs.(im).seriesTime,FORMAT='(i06)')]
-
-                    ;find number of series
-                    nActIm=N_ELEMENTS(serUniq)
-                    uniqSerNo=uniq(serUniq)
-                    nSeries=N_ELEMENTS(uniqSerNo)
-                    ;loop through series
-                    FOR se=0, nSeries-1 DO BEGIN
-                      imInSeries=WHERE(serUniq EQ serUniq(uniqSerNo(se)), nIm)
-                      mmThis=markedMulti[tt,*]
-                      IF TOTAL(mmThis(imInSeries)) GT 0 THEN BEGIN
-                        ;nActInSer=TOTAL(mmThis(imInSeries)) 
-                        idAct=WHERE(mmThis(imInSeries) EQ 1,nActInSer)
-                        actTable=FLTARR(N_ELEMENTS(cols),nActInSer)
-                        FOR im=0, nActInSer-1 DO actTable[*,im]=resUse[*,imInSeries(idAct(im))]
-                        imgTxt=strAcqSer+acqserNmbs(uniqSerNo(se))
-                        imgHead=outpNames(iii)
-                        imgVal=getValString(actTable, calc)
-                        multiExpTable=[[multiExpTable],[imgHead+imgTxt,imgVal]]
-                      ENDIF
-                    ENDFOR
-
-                  ENDIF ELSE BEGIN
-                    ;pr image or calc EQ 0 or nImg in series=1 or 3d (one row results independent on number of images)
-                    nCols=1
-                    IF calc EQ 0 THEN nCols=N_ELEMENTS(cols)
-                    IF res3d THEN BEGIN
-                      imgTxt='_AllSelected'
-                      imgHead=outpNames(iii)
-                      imgVal=getValString(resUse, calc)
-                      multiExpTable=[[multiExpTable],[imgHead+imgTxt,imgVal]]
+                    IF nImg EQ 1 THEN BEGIN
+                      IF sup EQ 0 THEN resUse=resultsTable(cols) ELSE resUse=resultsTableSup(cols)
                     ENDIF ELSE BEGIN
-                      FOR im=0, nI-1 DO BEGIN
-                        IF markedMulti(tt,im) THEN BEGIN
-                          addTable=STRARR(2,nCols)
-                          addTable[*,*]='_'
-                          ;addTable[0,0]=STRING(im+1, FORMAT='(i0)')
-                          IF calc GT 0 THEN BEGIN;calculation=one result value, not all values directly
-                            addTable(0)=outpNames(iii)+'_Img'+STRING(im+1, FORMAT='(i0)')
-                            IF N_ELEMENTS(cols) EQ 1 THEN addTable(1)=getValString(resUse(im), calc) ELSE addTable(1)=getValString(resUse[*,im], calc)
-                          ENDIF ELSE BEGIN
-                            heads=tableHeaders.(defModality).(tt).(alt)
-                            IF N_ELEMENTS(cols) EQ 1 THEN BEGIN
-                              addTable(0)=heads(cols)+'_Img'+STRING(im+1, FORMAT='(i0)')
-                              addTable(1)=resUseString(im);STRING(resUseString(im), FORMAT=formatCode(resUse(im)))
-                            ENDIF ELSE BEGIN
-                              addTable[0,*]=TRANSPOSE(heads(cols))+'_Img'+STRING(im+1, FORMAT='(i0)')
-                              FOR c=0, nCols-1 DO addTable[1,c]=resUseString[c,im];STRING(resUseString[c,im], FORMAT=formatCode(resUse[c,im]))
-                            ENDELSE
+                      IF sup EQ 0 THEN BEGIN
+                        resUse=resultsTable[cols(0),*]
+                        IF N_ELEMENTS(cols) GT 1 THEN BEGIN
+                          FOR r=1, N_ELEMENTS(cols)-1 DO resUse=[resUse, resultsTable[cols(r),*]]
+                        ENDIF
+                      ENDIF ELSE BEGIN
+                        resUse=resultsTableSup[cols(0),*]
+                        IF N_ELEMENTS(cols) GT 1 THEN BEGIN
+                          FOR r=1, N_ELEMENTS(cols)-1 DO resUse=[resUse, resultsTableSup[cols(r),*]]
+                        ENDIF
+                      ENDELSE
+                      IF N_ELEMENTS(szRes) EQ 1 THEN res3d=1
+                    ENDELSE
+                    resUseString=resUse
+                    resUse=FLOAT(resUse)
 
-                          ENDELSE
-                          multiExpTable=[[multiExpTable],[addTable]]
+                    IF currQTout.(testPos).(iii).PER_SERIES AND calc GT 0 AND res3d EQ 0 THEN BEGIN
+                      serUniq=!Null
+                      acqserNmbs=!Null
+                      gect=0
+                      IF structImgs.(0).modality EQ 'CT' AND STRMID(structImgs.(0).manufacturer,0,2) EQ 'GE' THEN gect=1
+                      FOR im=0, nImg-1 DO BEGIN
+                        IF gect THEN BEGIN
+                          serUniq=[serUniq,STRING(structImgs.(im).acqNmb,FORMAT='(i0)')+'_'+STRING(structImgs.(im).seriesNmb,FORMAT='(i0)')+'_'+STRING(structImgs.(im).seriesUID,FORMAT='(a0)')]
+                          acqserNmbs=[acqserNmbs,STRING(structImgs.(im).acqNmb,FORMAT='(i0)')+'_'+STRING(structImgs.(im).seriesNmb,FORMAT='(i0)')]
+                          strAcqSer='_Acq/Series'
+                        ENDIF ELSE BEGIN
+                          serUniq=[serUniq,STRING(structImgs.(im).seriesUID,FORMAT='(a0)')]
+                          acqserNmbs=[acqserNmbs,STRING(structImgs.(im).seriesNmb,FORMAT='(i0)')]
+                          strAcqSer='_Series_'
+                        ENDELSE
+                      ENDFOR
+                      ;serUniq=[serUniq,STRING(structImgs.(im).acqDate,FORMAT='(i0)')+' '+STRING(structImgs.(im).seriesNmb,FORMAT='(i0)')+' '+STRING(structImgs.(im).seriesTime,FORMAT='(i06)')]
+
+                      ;find number of series
+                      nActIm=N_ELEMENTS(serUniq)
+                      uniqSerNo=uniq(serUniq)
+                      nSeries=N_ELEMENTS(uniqSerNo)
+                      ;loop through series
+                      FOR se=0, nSeries-1 DO BEGIN
+                        imInSeries=WHERE(serUniq EQ serUniq(uniqSerNo(se)), nIm)
+                        mmThis=markedMulti[tt,*]
+                        IF TOTAL(mmThis(imInSeries)) GT 0 THEN BEGIN
+                          ;nActInSer=TOTAL(mmThis(imInSeries))
+                          idAct=WHERE(mmThis(imInSeries) EQ 1,nActInSer)
+                          actTable=FLTARR(N_ELEMENTS(cols),nActInSer)
+                          FOR im=0, nActInSer-1 DO actTable[*,im]=resUse[*,imInSeries(idAct(im))]
+                          imgTxt=strAcqSer+acqserNmbs(uniqSerNo(se))
+                          imgHead=outpNames(iii)
+                          imgVal=getValString(actTable, calc)
+                          multiExpTable=[[multiExpTable],[imgHead+imgTxt,imgVal]]
                         ENDIF
                       ENDFOR
-                    ENDELSE
 
-                  ENDELSE; PER_image
-                ENDIF;No specified output for current test alternative
+                    ENDIF ELSE BEGIN
+                      ;pr image or calc EQ 0 or nImg in series=1 or 3d (one row results independent on number of images)
+                      nCols=1
+                      IF calc EQ 0 THEN nCols=N_ELEMENTS(cols)
+                      IF res3d THEN BEGIN
+                        imgTxt='_AllSelected'
+                        imgHead=outpNames(iii)
+                        imgVal=getValString(resUse, calc)
+                        multiExpTable=[[multiExpTable],[imgHead+imgTxt,imgVal]]
+                      ENDIF ELSE BEGIN
+                        FOR im=0, nI-1 DO BEGIN
+                          IF markedMulti(tt,im) THEN BEGIN
+                            addTable=STRARR(2,nCols)
+                            addTable[*,*]='_'
+                            ;addTable[0,0]=STRING(im+1, FORMAT='(i0)')
+                            IF calc GT 0 THEN BEGIN;calculation=one result value, not all values directly
+                              addTable(0)=outpNames(iii)+'_Img'+STRING(im+1, FORMAT='(i0)')
+                              IF N_ELEMENTS(cols) EQ 1 THEN addTable(1)=getValString(resUse(im), calc) ELSE addTable(1)=getValString(resUse[*,im], calc)
+                            ENDIF ELSE BEGIN
+                              heads=tableHeaders.(defModality).(tt).(alt)
+                              IF N_ELEMENTS(cols) EQ 1 THEN BEGIN
+                                addTable(0)=heads(cols)+'_Img'+STRING(im+1, FORMAT='(i0)')
+                                addTable(1)=resUseString(im);STRING(resUseString(im), FORMAT=formatCode(resUse(im)))
+                              ENDIF ELSE BEGIN
+                                addTable[0,*]=TRANSPOSE(heads(cols))+'_Img'+STRING(im+1, FORMAT='(i0)')
+                                FOR c=0, nCols-1 DO addTable[1,c]=resUseString[c,im];STRING(resUseString[c,im], FORMAT=formatCode(resUse[c,im]))
+                              ENDELSE
+
+                            ENDELSE
+                            multiExpTable=[[multiExpTable],[addTable]]
+                          ENDIF
+                        ENDFOR
+                      ENDELSE
+
+                    ENDELSE; PER_image
+                  ENDIF;No specified output for current test alternative
                 ENDELSE; ALT NE -1
               ENDFOR;nOutp
 
@@ -311,13 +328,13 @@ pro calculateQuickTest
               ENDFOR
 
             ENDELSE; outp=-1
-            
+
             IF err THEN sv=DIALOG_MESSAGE('Some tables have less columns now than when the template was created. Check the templatemanager and your results. CT Number test especially prone to this issue.', DIALOG_PARENT=evTop)
 
-        ENDIF; results NE=0
-        
-       ENDIF; none marked
-        
+          ENDIF; results NE=0
+
+        ENDIF; none marked
+
       ENDFOR; tests
 
       ;updateTable

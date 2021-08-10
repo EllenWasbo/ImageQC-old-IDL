@@ -20,9 +20,9 @@ function updStamp, un, sec
   timediff=systime(/SECONDS)-sec
   m=timediff/60
   h=m/60
-  IF h GT 1 THEN stamped=stamped+' ~'+STRING(h,format='(i0)')+' hours ago' ELSE BEGIN
-    IF m GT 1 THEN stamped=stamped+' ~'+STRING(m,format='(i0)')+' minutes ago' ELSE BEGIN
-      stamped=stamped+' ~'+STRING(timediff,format='(i0)')+' seconds ago'
+  IF h GT 1 THEN stamped=stamped+' ~'+STRING(h,format='(i0)')+' h ago' ELSE BEGIN
+    IF m GT 1 THEN stamped=stamped+' ~'+STRING(m,format='(i0)')+' min ago' ELSE BEGIN
+      stamped=stamped+' ~'+STRING(timediff,format='(i0)')+' sec ago'
     ENDELSE
   ENDELSE
   RETURN, stamped
@@ -35,7 +35,7 @@ pro settings, GROUP_LEADER = mainbase, xoff, yoff, tabString;tabString = 'PARAM'
     lstModality_QT, QTnames, lstTempQT, lstQT, lstQTusedAuto, autoNames_qt, lstTest_qt,txtNimgTest_qt,$
     lstModality_qto, lstTemplates_qto, tblQTout, lstTest, lstAlt, lstCols, lstCalc, lstPer, txtDescr, lstQTOusedParam, setNames_qto, autoNames_qto, listTagAdded_qto, btnAddTag, btnEditTag, btnDelTag, lblTagContent_qto,lblTagFormat_qto,$
     qto_currMod, qto_currTemp, qto_currTest, qto_currOutp, qto_currSel, $
-    txtAutoImpPath, lstModality_a, listTemp_a, txtBrowse_a, txtStatName_a, txtDCMcritGroup, txtDCMcritElem, btnDCMcritLookup, txtDCMcrit, listSets_a, listQT_a, listElem, listSort, txtBrowseApp, btnMoveFiles, btnDeleteFiles,btnDeleteFilesEnd,$
+    txtAutoImpPath, btnAutoCont, lstModality_a, listTemp_a, txtBrowse_a, txtStatName_a, txtDCMcritGroup, txtDCMcritElem, btnDCMcritLookup, txtDCMcrit, listSets_a, listQT_a, listElem, listSort, txtBrowseApp, btnMoveFiles, btnDeleteFiles,btnDeleteFilesEnd,$
     selecTemp_a,a_currMod,tempnames_a,paramSetNames,quickTempNames, tags_imgStruct, sortElem, ascElem, auto_warningBox, warningTxt1, warningTxt2,warningTxt3,autoChanged, $
     tbl_rde, lstTemp_rdt, txtCat_rdt, txtFile_rdt, rdt_names, txtInputTest,txtFormatTest,txtOutputTest,$
     btnAdd_s,btnSave_s,btnDupliTemp_s,btnRenameTemp_s,btnUpTemp_s,btnDownTemp_s,btnDelete_s,btnSetDef,btnImport_s,btnRefreshQT,$
@@ -50,17 +50,6 @@ pro settings, GROUP_LEADER = mainbase, xoff, yoff, tabString;tabString = 'PARAM'
   IF saveOK EQ 0 THEN sv=DIALOG_MESSAGE('ImageQC is already in use. All changes to config-file (user settings) are blocked. (This block can be removed - see lower left button in Settings window if the block exist due to previous crash.)',/INFORMATION, DIALOG_PARENT=mainbase)
   autoChanged=0; =1 if any change to the automation template
 
-  settingsbox = WIDGET_BASE(TITLE='User settings',  $
-    /COLUMN, XSIZE=950, YSIZE=860, XOFFSET=xoff, YOFFSET=yoff,GROUP_LEADER=mainbase, /TLB_KILL_REQUEST_EVENTS, /MODAL)
-
-  wtabSett=WIDGET_TAB(settingsbox, XSIZE=890, YSIZE=730, UVALUE='tabSettings')
-  bParamSet=WIDGET_BASE(wtabSett, TITLE='Parameter sets', /COLUMN, UVALUE='tabParam')
-  bQTsetup=WIDGET_BASE(wtabSett, TITLE='QuickTest templates', /COLUMN, UVALUE='tabQTsetup')
-  bQTout=WIDGET_BASE(wtabSett, TITLE='QuickTest output templates', /COLUMN, UVALUE='tabQTout')
-  bAuto=WIDGET_BASE(wtabSett, TITLE='Automation templates', /ROW, UVALUE='tabAuto')
-  bRename=WIDGET_BASE(wtabSett, TITLE='RenameDICOM settings', /COLUMN, UVALUE='tabRename')
-  bInfo=WIDGET_BASE(wtabSett, TITLE='Info', /COLUMN, UVALUE='tabInfo')
-
   IF FILE_TEST(configPath, /READ) THEN RESTORE, configPath ELSE sv=DIALOG_MESSAGE('Lost connection to config file '+configPath, /ERROR)
   configTemp=!Null
   getParam, configTemp
@@ -70,6 +59,51 @@ pro settings, GROUP_LEADER = mainbase, xoff, yoff, tabString;tabString = 'PARAM'
   FOR m=0, N_ELEMENTS(allMod)-1 DO IF availMod.HasValue(allMod(m)) THEN availModNmb=[availModNmb, m]
   defModality=WHERE(modality EQ availModNmb); modality number in available list
   IF defModality(0) EQ -1 THEN defModality=0
+
+  settingsbox = WIDGET_BASE(TITLE='User settings',  $
+    /ROW, XSIZE=160+850+100, YSIZE=750, XOFFSET=xoff, YOFFSET=yoff,GROUP_LEADER=mainbase, /TLB_KILL_REQUEST_EVENTS, /MODAL)
+    
+  ;*************
+
+  settingsboxLft=WIDGET_BASE(settingsbox,/COLUMN, /ALIGN_LEFT)
+  lbl=WIDGET_LABEL(settingsboxLft, VALUE='', YSIZE=10,/NO_COPY)
+  lbl=WIDGET_LABEL(settingsboxLft, VALUE='Timestamp ', FONT=font0, /NO_COPY)
+  lbl=WIDGET_LABEL(settingsboxLft, VALUE='', YSIZE=10,/NO_COPY)
+  bBtmButt=WIDGET_BASE(settingsboxLft, /COLUMN, /ALIGN_LEFT)
+  
+  btnCleanBlock=WIDGET_BUTTON(bBtmButt, VALUE='Reset timestamp', TOOLTIP='When a session starts saving will be blocked by this user until session ends. An abnormal program shutdown (crash) might fail to delete the timestamp. Reset timestamp to restore ability to save to the current session.', UVALUE='remBlock', FONT=font1)
+  stamped='-'
+  IF N_TAGS(configS.(0)) GT 3 THEN stamped=updStamp(configS.(0).USERNAME, configS.(0).SAVESTAMP) ;function updStamp at top of settings.pro
+  lblSaveStamp=WIDGET_LABEL(bBtmButt, VALUE=stamped, XSIZE=160, FONT=font1)
+  lbl=WIDGET_LABEL(bBtmButt, VALUE='', YSIZE=20,/NO_COPY)
+
+  bBtmButt2=WIDGET_BASE(bBtmButt, /COLUMN, /ALIGN_LEFT)
+  btnAutoClear=WIDGET_BUTTON(bBtmButt2, VALUE='Reset after...', TOOLTIP='Change time before a timestamp is reset.', UVALUE='setAutoUnBlock', FONT=font1, SENSITIVE=saveOK)
+  bAutoClear=WIDGET_BASE(bBtmButt2, /ROW)
+  lbl=WIDGET_LABEL(bAutoClear, VALUE='Reset after ', FONT=font1,/NO_COPY)
+  IF configS.(0).AUTOUNBLOCK EQ 0 THEN timeStr='-' ELSE timeStr=STRING(configS.(0).AUTOUNBLOCK,FORMAT='(i0)')
+  lblAutoClear=WIDGET_LABEL(bAutoClear, VALUE=timeStr, xsize=10, FONT=font1)
+  lbl=WIDGET_LABEL(bAutoClear, VALUE=' hours ', FONT=font1,/NO_COPY)
+
+  lbl=WIDGET_LABEL(settingsboxLft, VALUE='', YSIZE=30,/NO_COPY)
+  lbl=WIDGET_LABEL(settingsboxLft, VALUE='Config file actions ', FONT=font0, /NO_COPY)
+  lbl=WIDGET_LABEL(settingsboxLft, VALUE='', YSIZE=10,/NO_COPY)
+  bBtmButt=WIDGET_BASE(settingsboxLft, /COLUMN)
+  ;lbl=WIDGET_LABEL(bBtmButt, VALUE='', XSIZE=300,/NO_COPY)
+  btnSaveConfigBackup=WIDGET_BUTTON(bBtmButt, VALUE='Backup', TOOLTIP='Backup config file', UVALUE='backupConfig', FONT=font1)
+  btnRestoreConfig=WIDGET_BUTTON(bBtmButt, VALUE='Restore', TOOLTIP='Restore and replace config file with backup config file', UVALUE='restoreConfig', FONT=font1)
+  btnExpXMLConfig=WIDGET_BUTTON(bBtmButt, VALUE='Export to XML', TOOLTIP='Export config structures to XML file', UVALUE='expXML', FONT=font1)
+  ;btnInfoS=WIDGET_BUTTON(bBtmButt, VALUE=thisPath+'images\info.bmp',/BITMAP, UVALUE='s_info')
+  ;btnCancelSett=WIDGET_BUTTON(bBtmButt, VALUE='Close', UVALUE='cancel', FONT=font1)
+  
+;*************
+  wtabSett=WIDGET_TAB(settingsbox, XSIZE=850+90, YSIZE=730, UVALUE='tabSettings')
+  bParamSet=WIDGET_BASE(wtabSett, TITLE='Parameter sets', /COLUMN, UVALUE='tabParam')
+  bQTsetup=WIDGET_BASE(wtabSett, TITLE='QuickTest templates', /COLUMN, UVALUE='tabQTsetup')
+  bQTout=WIDGET_BASE(wtabSett, TITLE='QuickTest output templates', /COLUMN, UVALUE='tabQTout')
+  bAuto=WIDGET_BASE(wtabSett, TITLE='Automation templates', /ROW, UVALUE='tabAuto')
+  bRename=WIDGET_BASE(wtabSett, TITLE='RenameDICOM settings', /COLUMN, UVALUE='tabRename')
+  bInfo=WIDGET_BASE(wtabSett, TITLE='Info', /COLUMN, UVALUE='tabInfo')
 
   dummyImgStruct=imgStructUpdate('','')
   allTags=TAG_NAMES(dummyImgStruct)
@@ -320,6 +354,9 @@ pro settings, GROUP_LEADER = mainbase, xoff, yoff, tabString;tabString = 'PARAM'
   txtAutoImpPath=WIDGET_TEXT(bAutoImportPath, VALUE=configS.(1).AUTOIMPORTPATH, XSIZE=70,/EDITABLE, FONT=font1)
   btnAutoImpPath=WIDGET_BUTTON(bAutoImportPath, VALUE='Browse', UVALUE='aimp_Browse',  FONT=font1)
   btnSaveImpPath=WIDGET_BUTTON(bAutoImportPath, VALUE=thisPath+'images\save.bmp',/BITMAP, UVALUE='aimp_Save',  FONT=font1)
+  bAutoCont=WIDGET_BASE(autobox1, /NONEXCLUSIVE)
+  btnAutoCont=WIDGET_BUTTON(bAutoCont, VALUE='By default, pause between each template while looping to allow for stop or continue.', FONT=font1, UVALUE='btnAutoCont')
+  WIDGET_CONTROL, btnAutoCont, SET_BUTTON=ABS(configS.(1).AUTOCONTINUE-1)
 
   lbl=WIDGET_LABEL(autobox1, VALUE='', YSIZE=20, /NO_COPY)
 
@@ -602,32 +639,6 @@ pro settings, GROUP_LEADER = mainbase, xoff, yoff, tabString;tabString = 'PARAM'
   lbl=WIDGET_LABEL(rename_infobox, VALUE='Rename Dicom Templates:', /ALIGN_LEFT, FONT=font0,/NO_COPY)
   lbl=WIDGET_LABEL(rename_infobox, VALUE='DICOM files often have names that do not reflect the content. Rename the DICOM files based on information in the DICOM header.', /ALIGN_LEFT, FONT=font1,/NO_COPY)
   lbl=WIDGET_LABEL(rename_infobox, VALUE='Specify DICOM tags that should be available for building reasonable names and create templates for automatic renaming (within Rename DICOM).', /ALIGN_LEFT, FONT=font1,/NO_COPY)
-  ;*************
-
-  lbl=WIDGET_LABEL(settingsbox, VALUE='', YSIZE=10,/NO_COPY)
-  bBtmButt=WIDGET_BASE(settingsbox, /ROW)
-  btnCleanBlock=WIDGET_BUTTON(bBtmButt, VALUE='Claim permission to save to config', TOOLTIP='After a program crash permission to save is locked to that session. Reset this to restore ability to save to the current session.', UVALUE='remBlock', FONT=font1)
-  stamped='-'
-  IF N_TAGS(configS.(0)) GT 3 THEN stamped=updStamp(configS.(0).USERNAME, configS.(0).SAVESTAMP) ;function updStamp at top of settings.pro
-  lblSaveStamp=WIDGET_LABEL(bBtmButt, VALUE=stamped, XSIZE=180, FONT=font1)
-  lbl=WIDGET_LABEL(bBtmButt, VALUE='', XSIZE=50,/NO_COPY)
-
-  bBtmButt2=WIDGET_BASE(bBtmButt, /ROW)
-  btnAutoClear=WIDGET_BUTTON(bBtmButt2, VALUE='Set', TOOLTIP='Change time before a timestamp is cleared.', UVALUE='setAutoUnBlock', FONT=font1, SENSITIVE=saveOK)
-  lbl=WIDGET_LABEL(bBtmButt2, VALUE='timestamp to be cleared automatically after ', FONT=font1,/NO_COPY)
-  IF configS.(0).AUTOUNBLOCK EQ 0 THEN timeStr='-' ELSE timeStr=STRING(configS.(0).AUTOUNBLOCK,FORMAT='(i0)')
-  lblAutoClear=WIDGET_LABEL(bBtmButt2, VALUE=timeStr, xsize=10, FONT=font1)
-  lbl=WIDGET_LABEL(bBtmButt2, VALUE=' hours ', FONT=font1,/NO_COPY)
-
-
-  lbl=WIDGET_LABEL(settingsbox, VALUE='', YSIZE=10,/NO_COPY)
-  bBtmButt=WIDGET_BASE(settingsbox, /ROW)
-  lbl=WIDGET_LABEL(bBtmButt, VALUE='', XSIZE=300,/NO_COPY)
-  btnSaveConfigBackup=WIDGET_BUTTON(bBtmButt, VALUE='Backup', TOOLTIP='Backup config file', UVALUE='backupConfig', FONT=font1)
-  btnRestoreConfig=WIDGET_BUTTON(bBtmButt, VALUE='Restore', TOOLTIP='Restore and replace config file with backup config file', UVALUE='restoreConfig', FONT=font1)
-  btnExpXMLConfig=WIDGET_BUTTON(bBtmButt, VALUE='Export to XML', TOOLTIP='Export config structures to XML file', UVALUE='expXML', FONT=font1)
-  btnInfoS=WIDGET_BUTTON(bBtmButt, VALUE=thisPath+'images\info.bmp',/BITMAP, UVALUE='s_info')
-  btnCancelSett=WIDGET_BUTTON(bBtmButt, VALUE='Close', UVALUE='cancel', FONT=font1)
 
   s_upd, selConfig-1, 1
 
@@ -660,19 +671,19 @@ pro settings_event, event
   IF N_ELEMENTS(uval) GT 0 AND SIZE(uval, /TNAME) EQ 'STRING' THEN BEGIN
     CASE uval OF
 
-      'cancel': BEGIN
-        sv='Yes'
-        IF autoChanged THEN sv=DIALOG_MESSAGE('Possible unsaved changed for the automation template not saved. Continue without saving?', /QUESTION, DIALOG_PARENT=event.top)
-        IF sv EQ 'Yes' THEN BEGIN
-          IF FILE_TEST(configPath, /READ) THEN RESTORE, configPath ELSE sv=DIALOG_MESSAGE('Lost connection to config file '+configPath, /ERROR)
-          IF N_ELEMENTS(quickTemp) NE 0 THEN BEGIN
-            IF SIZE(quickTemp, /TNAME) EQ 'STRUCT' THEN BEGIN
-              IF SIZE(quickTemp.(modality), /TNAME) EQ 'STRUCT' THEN fillQuickTempList, quickTemp.(modality) ELSE fillQuickTempList, -1
-            ENDIF ELSE fillQuickTempList, -1
-          ENDIF ELSE fillQuickTempList, -1
-          WIDGET_CONTROL, Event.top, /DESTROY
-        ENDIF
-      END
+;      'cancel': BEGIN
+;        sv='Yes'
+;        IF autoChanged THEN sv=DIALOG_MESSAGE('Possible unsaved changed for the automation template not saved. Continue without saving?', /QUESTION, DIALOG_PARENT=event.top)
+;        IF sv EQ 'Yes' THEN BEGIN
+;          IF FILE_TEST(configPath, /READ) THEN RESTORE, configPath ELSE sv=DIALOG_MESSAGE('Lost connection to config file '+configPath, /ERROR)
+;          IF N_ELEMENTS(quickTemp) NE 0 THEN BEGIN
+;            IF SIZE(quickTemp, /TNAME) EQ 'STRUCT' THEN BEGIN
+;              IF SIZE(quickTemp.(modality), /TNAME) EQ 'STRUCT' THEN fillQuickTempList, quickTemp.(modality) ELSE fillQuickTempList, -1
+;            ENDIF ELSE fillQuickTempList, -1
+;          ENDIF ELSE fillQuickTempList, -1
+;          WIDGET_CONTROL, Event.top, /DESTROY
+;        ENDIF
+;      END
       'remBlock': BEGIN
         IF saveOK NE 1 THEN BEGIN;not needed change
           IF saveOK EQ -1 THEN BEGIN
@@ -774,7 +785,7 @@ pro settings_event, event
           ENDIF
         ENDIF
       END
-      's_info': WIDGET_CONTROL, wtabSett, SET_TAB_CURRENT=4
+      ;'s_info': WIDGET_CONTROL, wtabSett, SET_TAB_CURRENT=4
       'backupConfig':BEGIN
         adr=DIALOG_PICKFILE(TITLE='Backup config file', /WRITE, FILTER='*.dat', /FIX_FILTER, DIALOG_PARENT=event.Top, /OVERWRITE_PROMPT, DEFAULT_EXTENSION='.dat', PATH='C:\')
         IF adr(0) NE '' THEN BEGIN
@@ -1516,7 +1527,8 @@ pro settings_event, event
           IF proceed THEN BEGIN
 
             newStruct=CREATE_STRUCT('ALT',WIDGET_INFO(lstAlt, /DROPLIST_SELECT),'COLUMNS',WIDGET_INFO(lstCols, /LIST_SELECT),'CALC',WIDGET_INFO(lstCalc, /DROPLIST_SELECT),'PER_SERIES',WIDGET_INFO(lstPer, /DROPLIST_SELECT))
-            IF SIZE(currStruct, /TNAME) EQ 'STRUCT' THEN tempstructTest=CREATE_STRUCT(currStruct, testDescr, newStruct) ELSE tempstructTest=CREATE_STRUCT(testDescr, newStruct)
+            IF SIZE(currStruct, /TNAME) EQ 'STRUCT' THEN tempstructTest=CREATE_STRUCT(currStruct, testDescr, newStruct) $
+              ELSE tempstructTest=CREATE_STRUCT('ALL',CREATE_STRUCT('ALT',0,'COLUMNS',-1,'CALC',0,'PER_SERIES',0),testDescr, newStruct)
             quickToutTemp=replaceStructStruct(quickTout.(qto_currMod).(qto_currTemp), tempstructTest, testno)
             quickToutMod=replaceStructStruct(quickTout.(qto_currMod), quickToutTemp, qto_currTemp)
             quickTout=replaceStructStruct(quickTout, quickToutMod, qto_currMod)
@@ -1844,11 +1856,24 @@ pro settings_event, event
       'aimp_Save':BEGIN
         WIDGET_CONTROL, txtAutoImpPath, GET_VALUE=adr
         ;for each config update adr
-        IF FILE_TEST(configPath, /READ) THEN RESTORE, configPath ELSE sv=DIALOG_MESSAGE('Lost connection to config file '+configPath, /ERROR)
-        psets=TAG_NAMES(configS)
-        FOR i=1, N_ELEMENTS(psets)-1 DO configS.(i).AUTOIMPORTPATH=adr(0)
-        SAVEIF, saveOK, configS, quickTemp, quickTout, loadTemp, renameTemp, FILENAME=configPath
+        IF FILE_TEST(configPath, /READ) THEN BEGIN
+          RESTORE, configPath
+          psets=TAG_NAMES(configS)
+          FOR i=1, N_ELEMENTS(psets)-1 DO configS.(i).AUTOIMPORTPATH=adr(0)
+          SAVEIF, saveOK, configS, quickTemp, quickTout, loadTemp, renameTemp, FILENAME=configPath
+        ENDIF ELSE sv=DIALOG_MESSAGE('Lost connection to config file '+configPath, /ERROR)      
       END
+      
+      'btnAutoCont':BEGIN
+        IF FILE_TEST(configPath, /READ) THEN BEGIN
+          RESTORE, configPath 
+          psets=TAG_NAMES(configS)
+          autoCo=ABS(WIDGET_INFO(btnAutoCont, /BUTTON_SET)-1)
+          FOR i=1, N_ELEMENTS(psets)-1 DO configS.(i).AUTOCONTINUE=autoCo
+          SAVEIF, saveOK, configS, quickTemp, quickTout, loadTemp, renameTemp, FILENAME=configPath
+          sv=DIALOG_MESSAGE('Saved new default option to config file.', /INFORMATION)
+        ENDIF ELSE sv=DIALOG_MESSAGE('Lost connection to config file '+configPath, /ERROR)
+        END
 
       'a_Browse':BEGIN
         adr=dialog_pickfile(PATH=defPath, GET_PATH=defPath, /DIRECTORY, /READ, TITLE='Select folder', DIALOG_PARENT=event.top)
@@ -3169,6 +3194,7 @@ pro auto_upd, selT, first
       paramSetNames=paramSetNames[1:-1]
       WIDGET_CONTROL, listSets_a, SET_VALUE=paramSetNames, SET_LIST_SELECT=0
       WIDGET_CONTROL, txtAutoImpPath, SET_VALUE=configS.(1).AUTOIMPORTPATH
+      WIDGET_CONTROL, btnAutoCont, SET_BUTTON=ABS(configS.(1).AUTOCONTINUE-1)
     ENDIF
 
     tempnames_a=''

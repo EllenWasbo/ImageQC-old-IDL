@@ -753,33 +753,57 @@ pro updatePlot, setRangeMinMaxX, setRangeMinMaxY, optionSet
                         resPlot[0].refresh
                       ENDIF
                     END
-                    1: BEGIN
+                    1: BEGIN;curvature fit
+                      IF WIDGET_INFO(btnUnifCorr, /BUTTON_SET) THEN BEGIN
+                        tnames= TAG_NAMES(unifRes.(sel+1))
+                        uR=unifRes.(sel+1)
+                        IF tnames.HasValue('FITDATA') THEN BEGIN
+                          
+                          IF setRangeMinMaxX THEN rangeX=[0, max(uR.fitData.x)]
+                          IF setRangeMinMaxY THEN rangeY=[0,max(uR.fitData.y)]
+                          IF optionSet NE 3 THEN BEGIN
+                            resPlot=PLOT(uR.fitData.x,uR.fitData.y, '', SYMBOL='.', NAME='Values from image', XTITLE='Distance from center [mm]',YTITLE='Counts',TITLE='Curvature correction fit',$
+                              XRANGE=rangeX, YRANGE=rangeY, XSTYLE=1, YSTYLE=1, MARGIN=resPlotMargin, FONT_NAME=foName, FONT_SIZE=foSize, CURRENT=currWin)
+                            fitPlot=PLOT(uR.fitData.x,uR.fitData.yfit, '-', NAME='Fitted curve', /OVERPLOT)
+                            resLeg=LEGEND(TARGET=[resPlot, fitPlot], FONT_NAME=foName, FONT_SIZE=foSize, POSITION=legPos)
+
+                            valuesPlot=CREATE_STRUCT('dx',uR.fitData.x,'Counts', uR.fitData.y, 'Fit', uR.fitData.yfit)
+                          ENDIF
+                        ENDIF ELSE t=TEXT(0.1, 0.2,'No curvature fit to display')
+                      ENDIF ELSE t=TEXT(0.1, 0.2,'No curvature correction applied')
+                      END
+                    2: BEGIN
                       tempImg=readImg(structImgs.(sel).filename, structImgs.(sel).frameNo)
                       IF WIDGET_INFO(btnUnifCorr, /BUTTON_SET) THEN BEGIN
-                        
-                        WIDGET_CONTROL, txtUnifDistCorr, GET_VALUE=distSource
-                        WIDGET_CONTROL, txtUnifThickCorr, GET_VALUE=detThick
-                        WIDGET_CONTROL, txtUnifAttCorr, GET_VALUE=detAtt
-                        corrM=corrDistPointSource(tempImg, FLOAT(distSource(0)), pix, FLOAT(detThick(0)), 0.1*FLOAT(detAtt(0))) ; functionsMini
-                        tempImg=tempImg*corrM
-                      ENDIF 
+                          tnames= TAG_NAMES(unifRes.(sel+1))
+                          IF tnames.HasValue('CORRMATRIX') THEN tempImgCorr=unifRes.(sel+1).corrMatrix
+                          
+                      ENDIF ELSE tempImgCorr=tempImg
   
-                      sumRows=TOTAL(tempImg, 1)
-                      sumCols=TOTAL(tempImg, 2)
-                      pixNmb=INDGEN(N_ELEMENTS(sumRows))
+                      szImg=SIZE(tempImg, /DIMENSIONS)
+                      nCent2=ROUND(0.1*szImg)/2
+                      fac=1./(2*nCent2)
+                      sumColsOrig=fac(0)*TOTAL(tempImg[szImg(0)/2-nCent2(0):szImg(0)/2+nCent2(0)-1,*], 1)
+                      sumRowsOrig=fac(1)*TOTAL(tempImg[*,szImg(1)/2-nCent2(1):szImg(1)/2+nCent2(1)-1], 2)
+                      pixNmb=INDGEN(N_ELEMENTS(sumRowsOrig))             
+                      ;tempImg=tempImg*unifROI
+                      sumCols=fac(0)*TOTAL(tempImgCorr[szImg(0)/2-nCent2(0):szImg(0)/2+nCent2(0)-1,*], 1)
+                      sumRows=fac(1)*TOTAL(tempImgCorr[*,szImg(1)/2-nCent2(1):szImg(1)/2+nCent2(1)-1], 2)
                       
                       IF setRangeMinMaxX THEN rangeX=[0,N_ELEMENTS(sumRows)]
                       IF setRangeMinMaxY THEN rangeY=[0.,1.05*max([max(sumRows),max(sumCols)])]
 
                       IF optionSet NE 3 THEN BEGIN
-                        valuesPlot=CREATE_STRUCT('pixelNumber', pixNmb, 'SumOfEachRow', sumRows, 'COPYpixelNumber', pixNmb, 'SumOfEachcolumn', sumCols)
+                        valuesPlot=CREATE_STRUCT('pixelNumber', pixNmb, 'SumOfRowsCorr', sumRows, 'COPYpixelNumber', pixNmb,'SumOfRowsOrig',sumRowsOrig,'COPY2pixelNumber', pixNmb, 'SumOfColumnsCorr', sumCols,'COPY3pixelNumber', pixNmb,'SumOfColumnsOrig', sumColsOrig)
 
-                        resPlot=OBJARR(2)
-                        resPlot[0]=PLOT(pixNmb, sumRows, '-r', NAME='Sum of each row', XTITLE='pixel number', YTITLE='Total' , TITLE='', $
+                        resPlot=OBJARR(4)
+                        resPlot[0]=PLOT(pixNmb, sumRows, '-r', NAME='Mean of central 10% rows corrected', XTITLE='pixel number', YTITLE='Total' , TITLE='', $
                           XRANGE=rangeX, YRANGE=rangeY, XSTYLE=1, YSTYLE=1, MARGIN=resPlotMargin, FONT_NAME=foName, FONT_SIZE=foSize, CURRENT=currWin)
                         resPlot[0].refresh, /DISABLE
-                        resPlot[1]=PLOT(pixNmb, sumCols, '-b',  NAME='Sum of each column', /OVERPLOT)
-                        resPlotLeg=LEGEND(TARGET=resPlot[0:1], FONT_NAME=foName, FONT_SIZE=foSize, POSITION=legPos)
+                        resPlot[1]=PLOT(pixNmb, sumRowsOrig, ':r',  NAME='Mean of central 10% rows original', /OVERPLOT)
+                        resPlot[2]=PLOT(pixNmb, sumCols, '-b',  NAME='Mean of central 10% columns corrected', /OVERPLOT)
+                        resPlot[3]=PLOT(pixNmb, sumColsOrig, ':b',  NAME='Mean of central 10% columns original', /OVERPLOT)
+                        resPlotLeg=LEGEND(TARGET=resPlot[0:3], FONT_NAME=foName, FONT_SIZE=foSize, POSITION=legPos)
                         resPlot[0].refresh
                         
                         IF WIDGET_INFO(btnUnifCorr, /BUTTON_SET) EQ 0 THEN t=TEXT(0.1, 0.2,'No curvature correction applied')
@@ -1486,16 +1510,17 @@ pro updatePlot, setRangeMinMaxX, setRangeMinMaxY, optionSet
                   val18=transpose(resArr[3,*])
                   val21=transpose(resArr[4,*])
                   valuesPlot=CREATE_STRUCT('zPos', zPosMarked, 'Center', valCenter, 'at12', val12, 'at15', val15,'at18', val18, 'at21', val21)
-                  resPlot=OBJARR(6)
-                  resPlot[0]=PLOT(zPosMarked, val12, '-r', NAME='at 12', XTITLE='zPos (mm)', YTITLE='Difference (%)' , TITLE='Difference from mean of all (marked) images', $
+                  resPlot=OBJARR(7)
+                  resPlot[0]=PLOT(zPosMarked, valCenter, '-', NAME='Center', XTITLE='zPos (mm)', YTITLE='Difference (%)' , TITLE='Difference from mean of all (marked) images', $
                     XRANGE=rangeX, YRANGE=rangeY, XSTYLE=1, YSTYLE=1, MARGIN=resPlotMargin, FONT_NAME=foName, FONT_SIZE=foSize, CURRENT=currWin)
                   resPlot[0].refresh, /DISABLE
-                  resPlot[1]=PLOT(zPosMarked, val15, '-b',  NAME='at 15', /OVERPLOT)
-                  resPlot[2]=PLOT(zPosMarked, val18, '-g',  NAME='at 18', /OVERPLOT)
-                  resPlot[3]=PLOT(zPosMarked, val21, '-c',  NAME='at 21', /OVERPLOT)
-                  resPlot[4]=PLOT(rangeX, [5,5],':', NAME='tolerance 5%', /OVERPLOT)
-                  resPlot[5]=PLOT(rangeX, [-5,-5],':', /OVERPLOT)
-                  resPlotLeg=LEGEND(TARGET=resPlot[0:4], FONT_NAME=foName, FONT_SIZE=foSize, POSITION=legPos)
+                  resPlot[1]=PLOT(zPosMarked, val12, '-r',  NAME='at 12', /OVERPLOT)
+                  resPlot[2]=PLOT(zPosMarked, val15, '-b',  NAME='at 15', /OVERPLOT)
+                  resPlot[3]=PLOT(zPosMarked, val18, '-g',  NAME='at 18', /OVERPLOT)
+                  resPlot[4]=PLOT(zPosMarked, val21, '-c',  NAME='at 21', /OVERPLOT)
+                  resPlot[5]=PLOT(rangeX, [5,5],':', NAME='tolerance 5%', /OVERPLOT)
+                  resPlot[6]=PLOT(rangeX, [-5,-5],':', /OVERPLOT)
+                  resPlotLeg=LEGEND(TARGET=resPlot[0:5], FONT_NAME=foName, FONT_SIZE=foSize, POSITION=legPos)
                   resPlot[0].refresh
                 ENDIF
               END

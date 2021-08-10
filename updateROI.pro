@@ -16,7 +16,7 @@
 ;Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 ;update ROI
-pro updateROI, Ana=ana, SEL=presel
+pro updateROI, Ana=ana, SEL=presel, IMG=preImg
 
   COMMON VARI
 
@@ -32,7 +32,7 @@ pro updateROI, Ana=ana, SEL=presel
       sel=sel(0)
     ENDIF ELSE sel=presel
 
-    tempImg=activeImg
+    IF N_ELEMENTS(preImg) EQ 0 THEN tempImg=activeImg ELSE tempImg=preImg
     szImg=SIZE(tempImg,/DIMENSIONS)
     pix=structImgs.(sel).pix;IF nFrames EQ 0 THEN pix=structImgs.(sel).pix ELSE pix=structImgs.(0).pix
 
@@ -45,7 +45,7 @@ pro updateROI, Ana=ana, SEL=presel
       'STP': BEGIN
         WIDGET_CONTROL, txtStpROIsz, GET_VALUE=ROIsz
         ROIsz=ROUND(FLOAT(ROIsz(0))/pix(0)) ; assume x,y pix equal ! = normal
-        stpROI=getROIcircle(szImg, center, ROIsz)
+        stpROI=getROIcircle(szImg, center, ROIsz) ;in a1_getROIs.pro
       END
 
       'HOMOG': BEGIN
@@ -72,7 +72,7 @@ pro updateROI, Ana=ana, SEL=presel
           ELSE:
         ENDCASE
 
-        homogROIs=getHomogRois(szImg, imgCenterOffset, ROIsz, ROIdist, modality)
+        homogROIs=getHomogRois(szImg, imgCenterOffset, ROIsz, ROIdist, modality);in a1_getROIs.pro
       END; homog
 
       'NOISE': BEGIN
@@ -81,7 +81,7 @@ pro updateROI, Ana=ana, SEL=presel
           0:BEGIN
             WIDGET_CONTROL, txtNoiseROIsz, GET_VALUE=ROIsz
             ROIsz=ROUND(FLOAT(ROIsz(0))/pix(0)) ; assume x,y pix equal ! = normal
-            noiseROI=getROIcircle(szImg, center, ROIsz)
+            noiseROI=getROIcircle(szImg, center, ROIsz);in a1_getROIs.pro
           END
           1:BEGIN
             noiseROI=INTARR(szImg)
@@ -96,7 +96,7 @@ pro updateROI, Ana=ana, SEL=presel
       'HUWATER': BEGIN
         WIDGET_CONTROL, txtHUwaterROIsz, GET_VALUE=ROIsz
         ROIsz=ROUND(FLOAT(ROIsz(0))/pix(0)) ; assume x,y pix equal ! = normal
-        HUwaterROI=getROIcircle(szImg, center, ROIsz)
+        HUwaterROI=getROIcircle(szImg, center, ROIsz);in a1_getROIs.pro
       END
 
       'ROI': BEGIN
@@ -120,7 +120,7 @@ pro updateROI, Ana=ana, SEL=presel
               1: WIDGET_CONTROL, txtROIXrad, GET_VALUE=ROIrad
             ENDCASE
             ROIsz=ROUND(FLOAT(ROIrad(0))/pix(0)) ; assume x,y pix equal ! = normal
-            ROIroi=getROIcircle(szImg, centerOff, ROIsz)
+            ROIroi=getROIcircle(szImg, centerOff, ROIsz);in a1_getROIs.pro
           END
           1:BEGIN
             CASE modality OF
@@ -214,23 +214,23 @@ pro updateROI, Ana=ana, SEL=presel
         radS=ROUND(FLOAT(radS(0))/pix(0)); assume x,y pix equal ! = normal
         posTab=FLOAT(linTable[1:2,*])
         posTab[0,*]=ROUND(posTab[0,*]/pix(0)) & posTab[1,*]=ROUND(posTab[1,*]/pix(1))
-        CTlinROIs=getSampleRois(szImg, imgCenterOffset, radS, posTab)
+        CTlinROIs=getSampleRois(szImg, imgCenterOffset, radS, posTab) ;in a1_getROIs.pro
         ;IF max(CTlinROIs) EQ 1 THEN ana='CTLIN' ELSE ana='NONE'
       END
 
       'SNI': BEGIN
         WIDGET_CONTROL, txtSNIAreaRatio, GET_VALUE=rat
-        SNIroi=getSNIroi(tempImg, FLOAT(rat))
+        SNIroi=getSNIroi(tempImg, FLOAT(rat)) ;in a1_getROIs.pro
       END
 
       'UNIF': BEGIN
         WIDGET_CONTROL, txtUnifAreaRatio, GET_VALUE=rat
-        unifROI=getUnifRoi(tempImg, FLOAT(rat))
+        unifROI=getUnifRoi(tempImg, FLOAT(rat)) ;in a1_getROIs.pro
       END
 
       'BAR': BEGIN
         WIDGET_CONTROL, txtBarROIsize, GET_VALUE=barROIsizeMM
-        barROI=getBarROIs(tempImg, imgCenterOffset, FLOAT(barROIsizeMM(0))/pix(0)); assume x,y pix equal ! = normal
+        barROI=getBarROIs(tempImg, imgCenterOffset, FLOAT(barROIsizeMM(0))/pix(0)); assume x,y pix equal ! = normal ;in a1_getROIs.pro
       END
 
       'CONTRAST': BEGIN

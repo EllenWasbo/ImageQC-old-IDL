@@ -35,6 +35,36 @@ function findTxtHeader, tags,vals,tagen,defValue, IDno=idno
   return, val
 end
 
+function validRef, testPtr, DEFAULT_VAL=dval, VR=valRep
+  val=dval
+  IF SIZE(testPtr[0],/TNAME) EQ 'POINTER' THEN BEGIN
+    IF PTR_VALID(testPtr[0]) THEN val=*(testPtr[0])
+    
+    IF N_ELEMENTS(valRep) GT 0 THEN BEGIN
+      ty='STRING'
+    ENDIF ELSE ty=SIZE(dval, /TNAME)
+    
+    CASE ty OF
+      'FLOAT':BEGIN
+        nEl=N_ELEMENTS(val)
+        CASE nEl OF
+          8: val=FIX(val, 0,1, type=5);8 byte (64 bit) double precision floating number
+          4: val=FIX(val, 0, 1, type=4)
+          1:
+          ELSE: val=FIX(val, type=7)
+        ENDCASE
+        val=FLOAT(val(0))
+        END
+      'INT': val=LONG(val)
+      'STRING': BEGIN
+        IF N_ELEMENTS(val) GT 1 THEN val=fix(val, type=7)
+        END
+      ELSE:
+    ENDCASE
+  ENDIF
+  return, val
+end
+
 ;***********************************************
 ;read DICOM file header (or txt file from ImageJ)
 ;adr = file path
@@ -143,273 +173,149 @@ function readImgInfo, adr, dialog_par, silentValue
 
         ;multiframe?
         test=o->GetReference('0028'x,'0008'x)
-        test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
-        IF test(0) NE -1 THEN nFrames=LONG(*(test_peker[0])) ELSE nFrames=0
-        IF nFrames EQ 1 THEN nFrames=0
-
-        ;****************parameters where and when
+        IF test(0) NE -1 THEN nFrames=validRef(o->GetValue(REFERENCE=test[0],/NO_COPY),DEFAULT_VAL=0) ELSE nFrames=0
+        
+        ;****************parameters where and when, equipment
         test=o->GetReference('0008'x,'0020'x)
-        test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
-        IF test(0) NE -1 THEN studyDate=*(test_peker[0]) ELSE studyDate=''
+        IF test(0) NE -1 THEN studyDate=validRef(o->GetValue(REFERENCE=test[0],/NO_COPY),DEFAULT_VAL='') ELSE studyDate=''
         test=o->GetReference('0008'x,'0030'x)
-        test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
-        IF test(0) NE -1 THEN studyTime=*(test_peker[0]) ELSE studyTime=''
-
+        IF test(0) NE -1 THEN studyTime=validRef(o->GetValue(REFERENCE=test[0],/NO_COPY),DEFAULT_VAL='') ELSE studyTime=''
         test=o->GetReference('0008'x,'0031'x)
-        test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
-        IF test(0) NE -1 THEN seriesTime=*(test_peker[0]) ELSE seriesTime=''
-
+        IF test(0) NE -1 THEN seriesTime=validRef(o->GetValue(REFERENCE=test[0],/NO_COPY),DEFAULT_VAL='') ELSE seriesTime=''
         test=o->GetReference('0020'x,'000E'x)
-        test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
-        IF test(0) NE -1 THEN seriesUID=*(test_peker[0]) ELSE seriesUID=''
-
+        IF test(0) NE -1 THEN seriesUID=validRef(o->GetValue(REFERENCE=test[0],/NO_COPY),DEFAULT_VAL='') ELSE seriesUID=''
         test=o->GetReference('0008'x,'0022'x)
-        test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
-        IF test(0) NE -1 THEN acqDate=*(test_peker[0]) ELSE acqDate=''
-
-        ; acquisition time
+        IF test(0) NE -1 THEN acqDate=validRef(o->GetValue(REFERENCE=test[0],/NO_COPY),DEFAULT_VAL='') ELSE acqDate=''
         test=o->GetReference('0008'x,'0032'x)
-        test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
-        IF test(0) NE -1 THEN acqTime=*(test_peker[0]) ELSE acqTime=''
-
+        IF test(0) NE -1 THEN acqTime=validRef(o->GetValue(REFERENCE=test[0],/NO_COPY),DEFAULT_VAL='') ELSE acqTime=''
         test=o->GetReference('0008'x,'0023'x)
-        test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
-        IF test(0) NE -1 THEN imgDate=*(test_peker[0]) ELSE imgDate=''
-
+        IF test(0) NE -1 THEN imgDate=validRef(o->GetValue(REFERENCE=test[0],/NO_COPY),DEFAULT_VAL='') ELSE imgDate=''
         test=o->GetReference('0008'x,'0080'x)
-        test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
-        IF test(0) NE -1 THEN institution=*(test_peker[0]) ELSE institution=''
-
+        IF test(0) NE -1 THEN institution=validRef(o->GetValue(REFERENCE=test[0],/NO_COPY),DEFAULT_VAL='') ELSE institution=''
         test=o->GetReference('0008'x,'0070'x)
-        test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
-        IF test(0) NE -1 THEN manufacturer=*(test_peker[0]) ELSE manufacturer=''
-
+        IF test(0) NE -1 THEN manufacturer=validRef(o->GetValue(REFERENCE=test[0],/NO_COPY),DEFAULT_VAL='') ELSE manufacturer=''
         test=o->GetReference('0008'x,'1090'x)
-        test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
-        IF test(0) NE -1 THEN modelName=*(test_peker[0]) ELSE modelName=''
-
+        IF test(0) NE -1 THEN modelName=validRef(o->GetValue(REFERENCE=test[0],/NO_COPY),DEFAULT_VAL='') ELSE modelName=''
         test=o->GetReference('0008'x,'1010'x);
-        test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
-        IF test(0) NE -1 THEN stationName=*(test_peker[0]) ELSE stationName=''
-
+        IF test(0) NE -1 THEN stationName=validRef(o->GetValue(REFERENCE=test[0],/NO_COPY),DEFAULT_VAL='') ELSE stationName=''
         test=o->GetReference('0018'x,'1020'x);
-        test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
-        IF test(0) NE -1 THEN SWversion=*(test_peker[0]) ELSE SWversion=''
-
+        IF test(0) NE -1 THEN SWversion=validRef(o->GetValue(REFERENCE=test[0],/NO_COPY),DEFAULT_VAL='') ELSE SWversion=''
         test=o->GetReference('0018'x,'700A'x);
-        test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
-        IF test(0) NE -1 THEN detectorID=*(test_peker[0]) ELSE detectorID=''
+        IF test(0) NE -1 THEN detectorID=validRef(o->GetValue(REFERENCE=test[0],/NO_COPY),DEFAULT_VAL='') ELSE detectorID=''
 
         test=o->GetReference('0010'x,'0010'x)
-        test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
-        patientName=*(test_peker[0])
-
+        IF test(0) NE -1 THEN patientName=validRef(o->GetValue(REFERENCE=test[0],/NO_COPY),DEFAULT_VAL='') ELSE patientName=''
         test=o->GetReference('0010'x,'0020'x)
-        test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
-        patientID=*(test_peker[0])
+        IF test(0) NE -1 THEN patientID=validRef(o->GetValue(REFERENCE=test[0],/NO_COPY),DEFAULT_VAL='') ELSE patientID=''
 
         ;***************parameters what
         test=o->GetReference('0008'x,'0008'x)
-        test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
-        IF test(0) NE -1 THEN imageType=*(test_peker[0]) ELSE imageType=''
-
-        ;presentation Type
-        test=o->GetReference('0008'x,'0068'x)
-        test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
-        IF test(0) NE -1 THEN BEGIN
-          presType=*(test_peker[0])
-        ENDIF ELSE presType=''
-
-        ;study description
-        test=o->GetReference('0008'x,'1030'x)
-        test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
-        IF test(0) NE -1 THEN studyDescr=*(test_peker[0]) ELSE studyDescr=''
-
-        ;series description
-        test=o->GetReference('0008'x,'103E'x)
-        test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
-        IF test(0) NE -1 THEN seriesName=*(test_peker[0]) ELSE seriesName=''
-
-        ; protocolName 0018 1030
-        test=o->GetReference('0018'x,'1030'x)
-        test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
-        IF test(0) NE -1 THEN BEGIN
-          protocolName=*(test_peker[0])
-        ENDIF ELSE protocolName=''
-
+        IF test(0) NE -1 THEN imageType=validRef(o->GetValue(REFERENCE=test[0],/NO_COPY),DEFAULT_VAL='') ELSE imageType=''
+        test=o->GetReference('0008'x,'0068'x);presentation Type
+        IF test(0) NE -1 THEN presType=validRef(o->GetValue(REFERENCE=test[0],/NO_COPY),DEFAULT_VAL='') ELSE presType=''
+        test=o->GetReference('0008'x,'1030'x);study description
+        IF test(0) NE -1 THEN studyDescr=validRef(o->GetValue(REFERENCE=test[0],/NO_COPY),DEFAULT_VAL='') ELSE studyDescr=''
+        test=o->GetReference('0008'x,'103E'x);series description
+        IF test(0) NE -1 THEN seriesName=validRef(o->GetValue(REFERENCE=test[0],/NO_COPY),DEFAULT_VAL='') ELSE seriesName=''
+        test=o->GetReference('0018'x,'1030'x); protocolName
+        IF test(0) NE -1 THEN protocolName=validRef(o->GetValue(REFERENCE=test[0],/NO_COPY),DEFAULT_VAL='') ELSE protocolName=''
         test=o->GetReference('0020'x,'0011'x)
-        test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
-        seriesNmb=LONG(*(test_peker[0]))
-
+        IF test(0) NE -1 THEN seriesNmb=validRef(o->GetValue(REFERENCE=test[0],/NO_COPY),DEFAULT_VAL=-1) ELSE seriesNmb=-1
         test=o->GetReference('0020'x,'0012'x)
-        test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
-        IF test(0) NE -1 THEN acqNmb=LONG(*(test_peker[0])) ELSE acqNmb=-1
+        IF test(0) NE -1 THEN acqNmb=validRef(o->GetValue(REFERENCE=test[0],/NO_COPY),DEFAULT_VAL=-1) ELSE acqNmb=-1
 
         ;***************parameters how
-        test=o->GetReference('0018'x,'0050'x)
-        test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
-        IF test(0) NE -1 THEN sliceThick=FLOAT(*(test_peker[0])) ELSE sliceThick=-1.
-
-        test=o->GetReference('0028'x,'0030'x)
-        test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
-        IF test(0) NE -1 THEN BEGIN
-          pixStr=*(test_peker[0])
-          pix=FLOAT(STRSPLIT(pixStr,'\',/EXTRACT))
-        ENDIF ELSE pix=[-1.,-1.]
+        test=o->GetReference('0018'x,'0050'x); slice thickness
+        IF test(0) NE -1 THEN sliceThick=validRef(o->GetValue(REFERENCE=test[0],/NO_COPY),DEFAULT_VAL=-1.) ELSE sliceThick=-1.
+        test=o->GetReference('0028'x,'0030'x); pixel size
+        IF test(0) NE -1 THEN pixStr=validRef(o->GetValue(REFERENCE=test[0],/NO_COPY),DEFAULT_VAL='') ELSE pixStr=''
+        IF pixStr EQ '' THEN pix=[-1.,-1.] ELSE pix=FLOAT(STRSPLIT(pixStr,'\',/EXTRACT))
         IF pix(0) EQ -1. THEN BEGIN
           test=o->GetReference('0018'x,'1164'x)
-          test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
-          IF test(0) NE -1 THEN BEGIN
-            pixStr=*(test_peker[0])
-            pix=FLOAT(STRSPLIT(pixStr,'\',/EXTRACT))
-          ENDIF
+          IF test(0) NE -1 THEN pixStr=validRef(o->GetValue(REFERENCE=test[0],/NO_COPY),DEFAULT_VAL='') ELSE pixStr=''
+          IF pixStr NE '' THEN pix=FLOAT(STRSPLIT(pixStr,'\',/EXTRACT))
         ENDIF
 
         imageSize=[-1,-1]
         test=o->GetReference('0028'x,'0011'x)
-        test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
-        IF test(0) NE -1 THEN imageSize(0)=*(test_peker[0])
+        IF test(0) NE -1 THEN imageSize(0)=validRef(o->GetValue(REFERENCE=test[0],/NO_COPY),DEFAULT_VAL=-1)
         test=o->GetReference('0028'x,'0010'x)
-        test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
-        IF test(0) NE -1 THEN imageSize(1)=*(test_peker[0])
+        IF test(0) NE -1 THEN imageSize(1)=validRef(o->GetValue(REFERENCE=test[0],/NO_COPY),DEFAULT_VAL=-1)
 
         test=o->GetReference('0018'x,'0060'x)
-        test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
-        IF test(0) NE -1 THEN kVp=*(test_peker[0]) ELSE kVp=-1.
-        IF N_ELEMENTS(kVp) GT 1 THEN kVp=FLOAT(fix(kVp, type=7))
-        IF SIZE(kVp, /TNAME) NE 'FLOAT' THEN kVp=FLOAT(kVp)
-
+        IF test(0) NE -1 THEN kVp=validRef(o->GetValue(REFERENCE=test[0],/NO_COPY),DEFAULT_VAL=-1.)  ELSE kVp=-1.        
         test=o->GetReference('0018'x,'0090'x)
-        test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
-        IF test(0) NE -1 THEN dFOV=*(test_peker[0]) ELSE dFOV=-1.
-        IF N_ELEMENTS(dFOV) GT 1 THEN dFOV=FLOAT(fix(dFOV, type=7))
-
+        IF test(0) NE -1 THEN dFOV=validRef(o->GetValue(REFERENCE=test[0],/NO_COPY),DEFAULT_VAL=-1.) ELSE dFOV=-1.       
         test=o->GetReference('0018'x,'1100'x)
-        test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
-        IF test(0) NE -1 THEN rekonFOV=*(test_peker[0]) ELSE rekonFOV=-1.
-        IF N_ELEMENTS(rekonFOV) GT 1 THEN rekonFOV=FLOAT(fix(rekonFOV, type=7))
+        IF test(0) NE -1 THEN rekonFOV=validRef(o->GetValue(REFERENCE=test[0],/NO_COPY),DEFAULT_VAL=-1.) ELSE rekonFOV=-1.
 
-        mA=-1.
         test=o->GetReference('0018'x,'8151'x); mikroA
-        test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
-        IF test(0) NE -1 THEN BEGIN
-          mA=*(test_peker[0])
-          IF N_ELEMENTS(mA) GT 1 THEN mA=fix(mA,type=7)
-          mA=0.001*FLOAT(mA)
-        ENDIF ELSE BEGIN
+        IF test(0) NE -1 THEN mA=validRef(o->GetValue(REFERENCE=test[0],/NO_COPY),DEFAULT_VAL=-1.) ELSE mA=-1.
+        IF mA LE 0 THEN BEGIN 
           test=o->GetReference('0018'x,'1151'x); milliA
-          test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
-          IF test(0) NE -1 THEN mA=*(test_peker[0]) ELSE BEGIN
+          IF test(0) NE -1 THEN mA=validRef(o->GetValue(REFERENCE=test[0],/NO_COPY),DEFAULT_VAL=-1.) ELSE mA=-1.
+          IF mA LT 0 THEN BEGIN
             test=o->GetReference('0018'x,'9330'x)
-            test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
-            IF test(0) NE -1 THEN mA=*(test_peker[0])
-          ENDELSE
-        ENDELSE
+            IF test(0) NE -1 THEN mA=validRef(o->GetValue(REFERENCE=test[0],/NO_COPY),DEFAULT_VAL=-1.) ELSE mA=-1.
+          ENDIF
+        ENDIF ELSE mA=0.001*mA;micro to milli
 
         test=o->GetReference('0018'x,'1153'x); mikroAs
-        test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
-        IF test(0) NE -1 THEN mAs=*(test_peker[0]) ELSE mAs=-1.
-        IF N_ELEMENTS(mAs) GT 1 THEN mAs=float(fix(mAs,type=7))
+        IF test(0) NE -1 THEN mAs=validRef(o->GetValue(REFERENCE=test[0],/NO_COPY),DEFAULT_VAL=-1., VR='STRING') ELSE mAs=-1.
         IF mAs LE 0 THEN BEGIN
           test=o->GetReference('0018'x,'1152'x); milliAs
-          test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
-          IF test(0) NE -1 THEN mAs=*(test_peker[0]) ELSE mAs=-1.
-          IF N_ELEMENTS(mAs) GT 1 THEN mAs=float(fix(mAs,type=7))
-        ENDIF ELSE mAs=0.001*mAs
+          IF test(0) NE -1 THEN mAs=validRef(o->GetValue(REFERENCE=test[0],/NO_COPY),DEFAULT_VAL=-1.) ELSE mAs=-1.
+        ENDIF ELSE mAs=0.001*mAs;micro to milli
 
         IF modality EQ 'PT' THEN time=-1. ELSE BEGIN
           test=o->GetReference('0018'x,'1150'x)
-          test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
-          IF test(0) NE -1 THEN BEGIN
-            time=*(test_peker[0])
-          ENDIF ELSE time=-1
+          IF test(0) NE -1 THEN time=validRef(o->GetValue(REFERENCE=test[0],/NO_COPY),DEFAULT_VAL=-1.) ELSE time=-1.
         ENDELSE
         IF mAs LE 0 THEN BEGIN
           IF mA GT 0 AND time GT 0 THEN mAs=FLOAT(mA)*FLOAT(time)*.001
         ENDIF
 
-        ;IF modality EQ 'DX' OR modality EQ 'CR' THEN BEGIN
-        ;  mAs=FLOAT(mA)*FLOAT(time)/1000.
-        ;ENDIF
-
         ;AEC
         IF modality EQ 'CT' THEN BEGIN
           test=o->GetReference('0018'x,'9323'x)
-          test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
-          IF test(0) NE -1 THEN BEGIN
-            ExModType=*(test_peker[0])
-            IF N_ELEMENTS(ExModType) GT 1 THEN ExModType=fix(ExModType, type=7)
-          ENDIF ELSE ExModType='-'
+          IF test(0) NE -1 THEN ExModType=validRef(o->GetValue(REFERENCE=test[0],/NO_COPY),DEFAULT_VAL='-') ELSE ExModType='-'
         ENDIF ELSE ExModType='-'
         IF modality EQ 'DX' OR modality EQ 'CR' THEN BEGIN
           test=o->GetReference('0018'x,'7060'x);MAN/AUT
-          test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
-          IF test(0) NE -1 THEN BEGIN
-            ExModType=*(test_peker[0])
-            IF N_ELEMENTS(ExModType) GT 1 THEN ExModType=fix(ExModType, type=7)
-          ENDIF
+          IF test(0) NE -1 THEN ExModType=validRef(o->GetValue(REFERENCE=test[0],/NO_COPY),DEFAULT_VAL='-') ELSE ExModType='-'
           test=o->GetReference('0018'x,'7062'x);AEC descr
-          test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
-          IF test(0) NE -1 THEN BEGIN
-            ExModType2=*(test_peker[0])
-            IF N_ELEMENTS(ExModType2) GT 1 THEN ExModType2=fix(ExModType2, type=7)
-            IF ExModType NE '' THEN ExModType=ExModType+' | '+ExModType2
-          ENDIF
+          IF test(0) NE -1 THEN ExModType2=validRef(o->GetValue(REFERENCE=test[0],/NO_COPY),DEFAULT_VAL='-') ELSE ExModType2='-'
+          ExModType=ExModType+' | '+ExModType2
         ENDIF
 
         test=o->GetReference('0018'x,'9306'x)
-        IF test(0) NE -1 THEN BEGIN
-          test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
-          singleCollW=*(test_peker[0])
-        ENDIF ELSE singleCollW=-1.
-        IF N_ELEMENTS(singleCollW) EQ 8 THEN singleCollW=fix(singleCollW, 0,1, type=5); 8 byte (64 bit) double precision floating number
-
+        IF test(0) NE -1 THEN singleCollW=validRef(o->GetValue(REFERENCE=test[0],/NO_COPY),DEFAULT_VAL=-1.) ELSE singleCollW=-1.
         test=o->GetReference('0018'x,'9307'x)
-        IF test(0) NE -1 THEN BEGIN
-          test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
-          totalCollW=*(test_peker[0])
-        ENDIF ELSE totalCollW=-1.
-        IF N_ELEMENTS(totalCollW) EQ 8 THEN totalCollW=fix(totalCollW, 0,1, type=5); 8 byte (64 bit) double precision floating number
-
+        IF test(0) NE -1 THEN totalCollW=validRef(o->GetValue(REFERENCE=test[0],/NO_COPY),DEFAULT_VAL=-1.) ELSE totalCollW=-1.
         coll=[singleCollW,totalCollW]
 
         test=o->GetReference('0018'x,'9311'x)
-        IF test(0) NE -1 THEN BEGIN
-          test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
-          pitch=*(test_peker[0])
-        ENDIF ELSE pitch=-1.
-        IF N_ELEMENTS(pitch) EQ 8 THEN pitch=fix(pitch, 0,1, type=5); 8 byte (64 bit) double precision floating number
+        IF test(0) NE -1 THEN pitch=validRef(o->GetValue(REFERENCE=test[0],/NO_COPY),DEFAULT_VAL=-1.) ELSE pitch=-1.
 
         test=o->GetReference('0018'x,'1142'x)
+        radPos1=-1. &  radPos2=-1.
         IF test(0) NE -1 THEN BEGIN
-          test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
-          radposString=*(test_peker[0])
-          radPos1=FLOAT(STRSPLIT(radposString,'\',/EXTRACT))
+          radposString=validRef(o->GetValue(REFERENCE=test[0],/NO_COPY),DEFAULT_VAL='')
+          IF radposString NE '' THEN radPos1=FLOAT(STRSPLIT(radposString,'\',/EXTRACT))       
           IF N_ELEMENTS(test) EQ 2 THEN BEGIN
-            test_peker=o->GetValue(REFERENCE=test[1],/NO_COPY)
-            radposString=*(test_peker[0])
-            radPos2=FLOAT(STRSPLIT(radposString,'\',/EXTRACT))
-          ENDIF ELSE radPos2=-1.
-        ENDIF ELSE BEGIN
-          radPos1=-1. &  radPos2=-1.
-        ENDELSE
+            radposString=validRef(o->GetValue(REFERENCE=test[1],/NO_COPY),DEFAULT_VAL='')
+            IF radposString NE '' THEN radPos2=FLOAT(STRSPLIT(radposString,'\',/EXTRACT))
+          ENDIF       
+        ENDIF
               
         test=o->GetReference('0054'x,'0020'x)
         IF test(0) NE -1 THEN BEGIN
-          test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
-          detString=*(test_peker[0])
+          detString=validRef(o->GetValue(REFERENCE=test[0],/NO_COPY),DEFAULT_VAL='-')
           detectorVector=STRSPLIT(detString,'\',/EXTRACT)
         ENDIF ELSE detectorVector='-'
 
         test=o->GetReference('0018'x,'9345'x)
-        test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
-        IF test(0) NE -1 THEN BEGIN
-          CTDIvol=*(test_peker[0])
-          IF N_ELEMENTS(CTDIvol) EQ 8 THEN BEGIN
-            CTDIvol=FIX(CTDIvol, 0, 1, type=5)
-            CTDIvol=CTDIvol(0)
-          ENDIF
-        ENDIF ELSE CTDIvol=-1.
+        IF test(0) NE -1 THEN CTDIvol=validRef(o->GetValue(REFERENCE=test[0],/NO_COPY),DEFAULT_VAL=-1.) ELSE CTDIvol=-1.
 
         test=o->GetReference('0018'x,'1190'x)
         test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
@@ -417,70 +323,51 @@ function readImgInfo, adr, dialog_par, silentValue
         IF SIZE(focalSpotSz, /TNAME) NE 'STRING' THEN focalSpotSz=STRTRIM(STRING(focalSpotSz))
 
         test=o->GetReference('0018'x,'115E'x)
-        test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
-        IF test(0) NE -1 THEN DAP=*(test_peker[0]) ELSE BEGIN
+        IF test(0) NE -1 THEN DAP=validRef(o->GetValue(REFERENCE=test[0],/NO_COPY),DEFAULT_VAL=-1.) ELSE DAP=-1.
+        IF DAP LT 0 THEN BEGIN
           test=o->GetReference('0018'x,'9473'x);Acquired Image Area Dose Product
-          test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
-          IF test(0) NE -1 THEN DAP=*(test_peker[0]) ELSE DAP=-1.
-        ENDELSE
-        IF N_ELEMENTS(DAP) EQ 4 THEN BEGIN
-          DAP=FIX(DAP, 0, 1, type=4)
-          DAP=DAP(0)
+          IF test(0) NE -1 THEN DAP=validRef(o->GetValue(REFERENCE=test[0],/NO_COPY),DEFAULT_VAL=-1.)
         ENDIF
 
         test=o->GetReference('0018'x,'1411'x)
-        test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
-        IF test(0) NE -1 THEN EI=*(test_peker[0]) ELSE EI=-1.
-        IF N_ELEMENTS(EI) NE 1 THEN EI=fix(EI, type=7)
-
+        IF test(0) NE -1 THEN EI=validRef(o->GetValue(REFERENCE=test[0],/NO_COPY),DEFAULT_VAL=-1.,VR='STRING') ELSE EI=-1.
         test=o->GetReference('0018'x,'6000'x)
-        test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
-        IF test(0) NE -1 THEN sensitivity=*(test_peker[0]) ELSE sensitivity=-1.
-
+        IF test(0) NE -1 THEN sensitivity=validRef(o->GetValue(REFERENCE=test[0],/NO_COPY),DEFAULT_VAL=-1.) ELSE sensitivity=-1.
         test=o->GetReference('0018'x,'1110'x)
-        test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
-        IF test(0) NE -1 THEN sdd=*(test_peker[0]) ELSE sdd=-1.
+        IF test(0) NE -1 THEN sdd=validRef(o->GetValue(REFERENCE=test[0],/NO_COPY),DEFAULT_VAL=-1.) ELSE sdd=-1.
 
         ;filterAddOn
         test=o->GetReference('0018'x,'1160'x); NONE/MULTIPLE....
-        test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
-        IF test(0) NE -1 THEN filterAddOn=*(test_peker[0]) ELSE filterAddOn='-'
-        IF filterAddOn NE 'NONE' AND filterAddOn NE '-' THEN BEGIN
-          test=o->GetReference('0018'x,'7050'x)
-          test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
-          IF test(0) NE -1 THEN BEGIN
-            filterAddOn2=*(test_peker[0])
-            IF N_ELEMENTS(filterAddOn2) GT 1 THEN filterAddOn2=fix(filterAddOn2, type=7)
-            filterAddOn=filterAddOn+' | '+filterAddOn2
-          ENDIF
-          test=o->GetReference('0018'x,'7052'x)
-          test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
-          IF test(0) NE -1 THEN BEGIN
-            filterAddOn2=*(test_peker[0])
-            IF N_ELEMENTS(filterAddOn2) GT 1 THEN filterAddOn2=fix(filterAddOn2, type=7)
-            filterAddOn=filterAddOn+' | '+filterAddOn2
-          ENDIF
-          test=o->GetReference('0018'x,'7054'x)
-          test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
-          IF test(0) NE -1 THEN BEGIN
-            filterAddOn2=*(test_peker[0])
-            IF N_ELEMENTS(filterAddOn2) GT 1 THEN filterAddOn2=fix(filterAddOn2, type=7)
-            filterAddOn=filterAddOn+' | '+filterAddOn2
+        filterAddOn='-'
+        IF test(0) NE -1 THEN BEGIN
+          filterAddOn=validRef(o->GetValue(REFERENCE=test[0],/NO_COPY),DEFAULT_VAL='-')
+          IF filterAddOn NE 'NONE' AND filterAddOn NE '-' THEN BEGIN
+            test=o->GetReference('0018'x,'7050'x)
+            IF test(0) NE -1 THEN filterAddOn2=validRef(o->GetValue(REFERENCE=test[0],/NO_COPY),DEFAULT_VAL='-') ELSE filterAddOn2='-'
+            IF filterAddOn2 NE '-' THEN filterAddOn=filterAddOn+' | '+filterAddOn2
+            test=o->GetReference('0018'x,'7052'x)
+            IF test(0) NE -1 THEN filterAddOn2=validRef(o->GetValue(REFERENCE=test[0],/NO_COPY),DEFAULT_VAL='-') ELSE filterAddOn2='-'
+            IF filterAddOn2 NE '-' THEN filterAddOn=filterAddOn+' | '+filterAddOn2
+            test=o->GetReference('0018'x,'7054'x)
+            IF test(0) NE -1 THEN filterAddOn2=validRef(o->GetValue(REFERENCE=test[0],/NO_COPY),DEFAULT_VAL='-') ELSE filterAddOn2='-'
+            IF filterAddOn2 NE '-' THEN filterAddOn=filterAddOn+' | '+filterAddOn2
           ENDIF
         ENDIF
 
         ;kernel
         test=o->GetReference('0018'x,'1210'x);more than one possible...
-        test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
-        IF test(0) NE -1 THEN kernel=*(test_peker[0]) ELSE kernel='-'
-        IF STRMID(manufacturer,0,2) EQ 'GE' THEN BEGIN
-          test=o->GetReference('0053'x,'1042'x);IR or AI grade
+        IF test(0) NE -1 THEN BEGIN
           test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
-          IF test(0) NE -1 THEN BEGIN
-            IF N_ELEMENTS(*(test_peker[0])) EQ 1 THEN kernel2=', '+*(test_peker[0]) ELSE kernel2=''; bytarr 10 for older GE - something else than IR/AI info
-          ENDIF ELSE kernel2=''
-          kernel=kernel+kernel2
-        ENDIF
+          kernel=*(test_peker[0])
+          IF STRMID(manufacturer,0,2) EQ 'GE' THEN BEGIN
+            test=o->GetReference('0053'x,'1042'x);IR or AI grade
+            test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
+            IF test(0) NE -1 THEN BEGIN
+              IF N_ELEMENTS(*(test_peker[0])) EQ 1 THEN kernel2=', '+*(test_peker[0]) ELSE kernel2=''; bytarr 10 for older GE - something else than IR/AI info
+            ENDIF ELSE kernel2=''
+            kernel=kernel+kernel2
+          ENDIF
+        ENDIF ELSE kernel='-'
 
         IF nFrames EQ 0 THEN BEGIN
           test=o->GetReference('0020'x,'1041'x)
@@ -502,33 +389,23 @@ function readImgInfo, adr, dialog_par, silentValue
           ENDIF ELSE zPos=FLTARR(nFrames)-999.
         ENDELSE
 
-        test=o->GetReference('0020'x,'0013'x)
-        test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
-        IF test(0) NE -1 THEN imgNo=LONG(*(test_peker[0])) ELSE imgNo=-1
-
-        test=o->GetReference('0028'x,'1050'x)
-        test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
-        IF test(0) NE -1 THEN wCenter=*(test_peker[0]) ELSE wCenter=-1
-
-        test=o->GetReference('0028'x,'1051'x)
-        test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
-        IF test(0) NE -1 THEN wWidth=*(test_peker[0]) ELSE wWidth=-1
-
-        ; Nuclear Medicine
-        test=o->GetReference('0018'x,'1181'x)
-        test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
-        IF test(0) NE -1 THEN collType=*(test_peker[0]) ELSE colltype='-'
-
-        test=o->GetReference('0054'x,'0011'x)
-        test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
-        IF test(0) NE -1 THEN nEWindows=*(test_peker[0]) ELSE nEWindows=-1
-
         test=o->GetReference('0054'x,'1001'x)
-        test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
-        IF test(0) NE -1 THEN units=*(test_peker[0]) ELSE units='-'
-
+        IF test(0) NE -1 THEN units=validRef(o->GetValue(REFERENCE=test[0],/NO_COPY),DEFAULT_VAL='-') ELSE units='-'
+        test=o->GetReference('0020'x,'0013'x)
+        IF test(0) NE -1 THEN imgNo=validRef(o->GetValue(REFERENCE=test[0],/NO_COPY),DEFAULT_VAL=-1) ELSE imgNo=-1
+        test=o->GetReference('0028'x,'1050'x)
+        IF test(0) NE -1 THEN wCenter=validRef(o->GetValue(REFERENCE=test[0],/NO_COPY),DEFAULT_VAL=-1) ELSE wCenter=-1
+        test=o->GetReference('0028'x,'1051'x)
+        IF test(0) NE -1 THEN wWidth=validRef(o->GetValue(REFERENCE=test[0],/NO_COPY),DEFAULT_VAL=-1) ELSE wWidth=-1
+        test=o->GetReference('0018'x,'1181'x); gamma camera collimator type
+        IF test(0) NE -1 THEN collType=validRef(o->GetValue(REFERENCE=test[0],/NO_COPY),DEFAULT_VAL='-') ELSE collType='-'
+        test=o->GetReference('0018'x,'0017'x);
+        IF test(0) NE -1 THEN acqTerminationCond=validRef(o->GetValue(REFERENCE=test[0],/NO_COPY),DEFAULT_VAL='-') ELSE acqTerminationCond='-'
+        test=o->GetReference('0018'x,'0031'x);
+        IF test(0) NE -1 THEN radiopharmaca=validRef(o->GetValue(REFERENCE=test[0],/NO_COPY),DEFAULT_VAL='-') ELSE radiopharmaca='-'
+        test=o->GetReference('0054'x,'0011'x); number of energy windows NM
+        IF test(0) NE -1 THEN nEWindows=validRef(o->GetValue(REFERENCE=test[0],/NO_COPY),DEFAULT_VAL=-1) ELSE nEWindows=-1
         test=o->GetReference('0054'x,'0018'x)
-
         IF test(0) NE -1 THEN BEGIN
           EWindowName=''
           FOR n=0, nEWindows-1 DO BEGIN
@@ -539,26 +416,16 @@ function readImgInfo, adr, dialog_par, silentValue
         ENDIF ELSE EWindowName='-'
 
         test=o->GetReference('0028'x,'0031'x); 1\1
-        test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
-        IF test(0) NE -1 THEN zoomFactor=*(test_peker[0]) ELSE zoomFactor='-'
-
+        IF test(0) NE -1 THEN zoomFactor=validRef(o->GetValue(REFERENCE=test[0],/NO_COPY),DEFAULT_VAL='-') ELSE zoomFactor='-'
         test=o->GetReference('0010'x,'1030'x);
-        test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
-        IF test(0) NE -1 THEN patientWeight=*(test_peker[0]) ELSE patientWeight='-'
+        IF test(0) NE -1 THEN patientWeight=validRef(o->GetValue(REFERENCE=test[0],/NO_COPY),DEFAULT_VAL='-') ELSE patientWeight='-'
 
         ;acqFrameDuration (msec)
         test=o->GetReference('0018'x,'1242'x);
-        test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
-        IF test(0) NE -1 THEN acqFrameDuration=DOUBLE(*(test_peker[0])) ELSE acqFrameDuration=-1.
-
-        test=o->GetReference('0018'x,'0017'x);
-        test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
-        IF test(0) NE -1 THEN acqTerminationCond=*(test_peker[0]) ELSE acqTerminationCond='-'
-
-        ; PET only
-        test=o->GetReference('0018'x,'0031'x);
-        test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
-        IF test(0) NE -1 THEN radiopharmaca=*(test_peker[0]) ELSE radiopharmaca='-'
+        IF test(0) NE -1 THEN BEGIN
+          test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
+          acqFrameDuration=DOUBLE(*(test_peker[0]))
+        ENDIF ELSE acqFrameDuration=-1.
 
         test=o->GetReference('0018'x,'1074'x);
         test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY);siemens PET, two instances and first emtpy...
@@ -573,24 +440,15 @@ function readImgInfo, adr, dialog_par, silentValue
         ENDIF ELSE admDose='-'
 
         test=o->GetReference('0018'x,'1072'x);
-        test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
-        IF test(0) NE -1 THEN admDoseTime=*(test_peker[0]) ELSE admDoseTime='-'
-
+        IF test(0) NE -1 THEN admDoseTime=validRef(o->GetValue(REFERENCE=test[0],/NO_COPY),DEFAULT_VAL='-') ELSE admDoseTime='-'
         test=o->GetReference('0054'x,'1103'x);
-        test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
-        IF test(0) NE -1 THEN reconMethod=*(test_peker[0]) ELSE reconMethod='-'
-
+        IF test(0) NE -1 THEN reconMethod=validRef(o->GetValue(REFERENCE=test[0],/NO_COPY),DEFAULT_VAL='-') ELSE reconMethod='-'
         test=o->GetReference('0054'x,'1101'x);
-        test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
-        IF test(0) NE -1 THEN attCorrMethod=*(test_peker[0]) ELSE attCorrMethod='-'
-
+        IF test(0) NE -1 THEN attCorrMethod=validRef(o->GetValue(REFERENCE=test[0],/NO_COPY),DEFAULT_VAL='-') ELSE attCorrMethod='-'
         test=o->GetReference('0054'x,'1105'x);
-        test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
-        IF test(0) NE -1 THEN scaCorrMethod=*(test_peker[0]) ELSE scaCorrMethod='-'
-
+        IF test(0) NE -1 THEN scaCorrMethod=validRef(o->GetValue(REFERENCE=test[0],/NO_COPY),DEFAULT_VAL='-') ELSE scaCorrMethod='-'
         test=o->GetReference('0054'x,'1323'x);
-        test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
-        IF test(0) NE -1 THEN scatterFrac=*(test_peker[0]) ELSE scatterFrac='-'
+        IF test(0) NE -1 THEN scatterFrac=validRef(o->GetValue(REFERENCE=test[0],/NO_COPY),DEFAULT_VAL='-') ELSE scatterFrac='-'
 
         test=o->GetReference('0054'x,'0090'x);
         IF nFrames EQ 0 THEN angle = -999. ELSE angle=FLTARR(nFrames)-999.
@@ -605,48 +463,27 @@ function readImgInfo, adr, dialog_par, silentValue
 
         ;MR
         test=o->GetReference('0018'x,'0084'x);
-        test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
-        IF test(0) NE -1 THEN imgFreq=*(test_peker[0]) ELSE imgFreq=-1.
-
+        IF test(0) NE -1 THEN imgFreq=validRef(o->GetValue(REFERENCE=test[0],/NO_COPY),DEFAULT_VAL=-1.) ELSE imgFreq=-1.
         test=o->GetReference('0018'x,'0023'x);
-        test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
-        IF test(0) NE -1 THEN MRacqType=*(test_peker[0]) ELSE MRacqType='-'
-
+        IF test(0) NE -1 THEN MRacqType=validRef(o->GetValue(REFERENCE=test[0],/NO_COPY),DEFAULT_VAL='-') ELSE MRacqType='-'
         test=o->GetReference('0018'x,'0020'x);
-        test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
-        IF test(0) NE -1 THEN MRscanSeq=*(test_peker[0]) ELSE MRscanSeq='-'
-
+        IF test(0) NE -1 THEN MRscanSeq=validRef(o->GetValue(REFERENCE=test[0],/NO_COPY),DEFAULT_VAL='-') ELSE MRscanSeq='-'
         test=o->GetReference('0018'x,'0021'x);
-        test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
-        IF test(0) NE -1 THEN MRseqVariant=*(test_peker[0]) ELSE MRseqVariant='-'
-
+        IF test(0) NE -1 THEN MRseqVariant=validRef(o->GetValue(REFERENCE=test[0],/NO_COPY),DEFAULT_VAL='-') ELSE MRseqVariant='-'
         test=o->GetReference('0018'x,'0080'x);repetition time
-        test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
-        IF test(0) NE -1 THEN TR=*(test_peker[0]) ELSE TR=-1.
-
+        IF test(0) NE -1 THEN TR=validRef(o->GetValue(REFERENCE=test[0],/NO_COPY),DEFAULT_VAL=-1.) ELSE TR=-1.
         test=o->GetReference('0018'x,'0081'x);echo time
-        test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
-        IF test(0) NE -1 THEN TE=*(test_peker[0]) ELSE TE=-1.
-
+        IF test(0) NE -1 THEN TE=validRef(o->GetValue(REFERENCE=test[0],/NO_COPY),DEFAULT_VAL=-1.) ELSE TE=-1.
         test=o->GetReference('0018'x,'0083'x);number of averages
-        test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
-        IF test(0) NE -1 THEN NSA=*(test_peker[0]) ELSE NSA=-1.
-
+        IF test(0) NE -1 THEN NSA=validRef(o->GetValue(REFERENCE=test[0],/NO_COPY),DEFAULT_VAL=-1.) ELSE NSA=-1.
         test=o->GetReference('0018'x,'1314'x);flip angle
-        test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
-        IF test(0) NE -1 THEN flipAng=*(test_peker[0]) ELSE flipAng=-1.
-
+        IF test(0) NE -1 THEN flipAng=validRef(o->GetValue(REFERENCE=test[0],/NO_COPY),DEFAULT_VAL=-1.) ELSE flipAng=-1.
         test=o->GetReference('0018'x,'0088'x);space between slices
-        test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
-        IF test(0) NE -1 THEN spaceSlice=*(test_peker[0]) ELSE spaceSlice=-1.
-        
+        IF test(0) NE -1 THEN spaceSlice=validRef(o->GetValue(REFERENCE=test[0],/NO_COPY),DEFAULT_VAL=-1.) ELSE spaceSlice=-1.
         test=o->GetReference('0018'x,'1250'x);receive coil name
-        test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
-        IF test(0) NE -1 THEN recCoilName=*(test_peker[0]) ELSE recCoilName='-'
-
+        IF test(0) NE -1 THEN recCoilName=validRef(o->GetValue(REFERENCE=test[0],/NO_COPY),DEFAULT_VAL='-') ELSE recCoilName='-'
         test=o->GetReference('0018'x,'1251'x);transmit coil name
-        test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
-        IF test(0) NE -1 THEN traCoilName=*(test_peker[0]) ELSE traCoilName='-'
+         IF test(0) NE -1 THEN traCoilName=validRef(o->GetValue(REFERENCE=test[0],/NO_COPY),DEFAULT_VAL='-') ELSE traCoilName='-'
 
         ;ENDIF;directoryfile
 
@@ -785,7 +622,7 @@ function readImgInfo, adr, dialog_par, silentValue
           radPos2=FLOAT(STRSPLIT(radposString,'\',/EXTRACT))
         ENDIF ELSE radPos2=-1.
         detNmbString=findTxtHeader(tagStr,valStr,'0054,0020','')
-        IF detNmbString NE '' THEN detectorVector=STRSPLIT(detNmbStrin,'\',/EXTRACT) ELSE detectorVector='-'
+        IF detNmbString NE '' THEN detectorVector=STRSPLIT(detNmbString,'\',/EXTRACT) ELSE detectorVector='-'
         CTDIvol=findTxtHeader(tagStr,valStr,'0018,9345',-1.)
         focalSpotSz=findTxtHeader(tagStr,valStr,'0018,1190','-')
         DAP=findTxtHeader(tagStr,valStr,'0018,115E',-1.)
