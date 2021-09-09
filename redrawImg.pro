@@ -21,6 +21,7 @@ pro redrawImg, viewpl, newActive
 
   WIDGET_CONTROL, /HOURGLASS
   WIDGET_CONTROL, drawLarge, GET_VALUE = iDrawLarge
+  WIDGET_CONTROL, zoomSlider, GET_VALUE=zoomFactor
   oModel=OBJ_NEW('IDLgrModel')
 
   tags=TAG_NAMES(structImgs)
@@ -39,9 +40,18 @@ pro redrawImg, viewpl, newActive
     nImg=N_TAGS(structImgs)
     sizeAct=SIZE(activeImg, /DIMENSIONS)
     tempAct=activeImg
+    
+    markedArr=INTARR(nImg)
+    IF marked(0) EQ -1 THEN markedArr=markedArr+1 ELSE markedArr(marked)=1
 
     maxSz=max(sizeAct[0:1])
-    IF N_ELEMENTS(viewpl) EQ 1 THEN viewpl=[0.,0.,maxSz,maxSz];[0.,0.,sizeAct[0:1]]
+    IF N_ELEMENTS(viewpl) EQ 1 THEN BEGIN
+      ;viewpl=[0.,0.,maxSz,maxSz];[0.,0.,sizeAct[0:1]]
+      center=sizeAct/2
+      out=ROUND(maxSz/2./zoomFactor)
+      IF zoomFactor GT 1. THEN center=center+dxya[0:1]       
+      viewpl=[center-out,maxSz/zoomFactor,maxSz/zoomFactor];x,y,width,height
+    ENDIF
     oView=OBJ_NEW('IDLgrView', VIEWPLANE_RECT =viewpl)
 
     imgCenterOffset=[0,0,0,0]
@@ -67,7 +77,7 @@ pro redrawImg, viewpl, newActive
 
     IF annot THEN BEGIN
 
-      fileList=getListOpenFiles(structImgs,0,marked, markedMulti)
+      ;fileList=getListOpenFiles(structImgs,0,marked, markedMulti)
       IF tempStruct.zpos(0) NE -999. AND tempStruct.sliceThick GT 0. THEN textZpos='z = '+ STRING(tempStruct.zpos,FORMAT='(f0.3)') ELSE textZpos = ''
 
       oTextZ = OBJ_NEW('IDLgrText', textZpos, LOCATIONS = [2,10], COLOR = 255*([1,0,0]));[2,20] when above oTextAdr
@@ -81,7 +91,7 @@ pro redrawImg, viewpl, newActive
 ;        oModel->Add, thisROI
 ;      ENDIF
 
-      analyseArr=['HOMOG', 'NOISE','HUWATER','ROI','STP','UNIF','SNI','BAR','CONTRAST','CROSSCALIB','RC']
+      analyseArr=['HOMOG', 'NOISE','HUWATER','ROI','STP','UNIF','SNI','BAR','CONTRAST','CROSSCALIB','RC','SNR','PUI','GHOST']
       IF analyseArr.HasValue(analyse) THEN BEGIN
         CASE analyse OF
           'HOMOG': ROIs=homogROIs
@@ -95,6 +105,9 @@ pro redrawImg, viewpl, newActive
           'BAR': ROIs=barROI
           'CONTRAST': ROIs=conROIs
           'RC': ROIs=rcROIs
+          'SNR': ROIs=SNR_ROI
+          'PUI': ROIs=PUI_ROI
+          'GHOST': ROIs=ghostMR_ROI
           ELSE:
         ENDCASE
         
@@ -113,12 +126,12 @@ pro redrawImg, viewpl, newActive
             colors[*,7]= [255,255,255]
             colors[*,8]= [125,125,255]
           ENDIF ELSE colors[0,*]=255
-          IF analyse NE 'SNI' OR analyse EQ 'ROI' THEN BEGIN
+          IF analyse NE 'SNI' OR analyse EQ 'ROI' OR analyse EQ 'GHOST' THEN BEGIN
             contour0=OBJ_NEW('IDLgrContour',ROIs[*,*,0],COLOR=colors[*,0], C_VALUE=0.5, N_LEVELS=1)
             oModel->Add, Contour0
           ENDIF
 
-          IF analyse EQ 'HOMOG' OR analyse EQ 'CONTRAST' OR analyse EQ 'RC' OR analyse EQ 'SNI' OR analyse EQ 'BAR' THEN BEGIN
+          IF analyse EQ 'HOMOG' OR analyse EQ 'CONTRAST' OR analyse EQ 'RC' OR analyse EQ 'SNI' OR analyse EQ 'BAR' OR analyse EQ 'GHOST' THEN BEGIN
             contour1=OBJ_NEW('IDLgrContour',ROIs[*,*,1],COLOR=colors[*,1], C_VALUE=0.5, N_LEVELS=1) & oModel->Add, Contour1
             contour2=OBJ_NEW('IDLgrContour',ROIs[*,*,2],COLOR=colors[*,2], C_VALUE=0.5, N_LEVELS=1) & oModel->Add, Contour2
             contour3=OBJ_NEW('IDLgrContour',ROIs[*,*,3],COLOR=colors[*,3], C_VALUE=0.5, N_LEVELS=1) & oModel->Add, Contour3
@@ -220,51 +233,59 @@ pro redrawImg, viewpl, newActive
       ENDIF
 
       IF analyse EQ 'SLICETHICK' THEN BEGIN; slice thickness ramps
+        CASE modality OF
+          0: BEGIN;CT
+            WIDGET_CONTROL, txtRampDist, GET_VALUE=rampDist
+            rampDist=ROUND(FLOAT(rampDist(0))/tempStruct.pix(0)) ; assume x,y pix equal ! = normal
+            WIDGET_CONTROL, txtRampLen, GET_VALUE=len
+            len=ROUND(FLOAT(len(0))/tempStruct.pix(0)) ; assume x,y pix equal ! = normal
+            WIDGET_CONTROL, cw_ramptype, GET_VALUE=ramptype
 
-        WIDGET_CONTROL, txtRampDist, GET_VALUE=rampDist
-        rampDist=ROUND(FLOAT(rampDist(0))/tempStruct.pix(0)) ; assume x,y pix equal ! = normal
-        WIDGET_CONTROL, txtRampLen, GET_VALUE=len
-        len=ROUND(FLOAT(len(0))/tempStruct.pix(0)) ; assume x,y pix equal ! = normal
-        WIDGET_CONTROL, cw_ramptype, GET_VALUE=ramptype
+            Case ramptype OF
+              0: ramps=getRamps(sizeAct, imgCenterOffset, rampDist, len)
+              1: BEGIN
+                ramps=getRamps(sizeAct, imgCenterOffset, 45./tempStruct.pix(0), len)
+                ramps2=getRamps(sizeAct, imgCenterOffset, 25./tempStruct.pix(0), len)
+              END
+              2: BEGIN
+                ramps=getRamps(sizeAct, imgCenterOffset, rampDist, len)
+                ramps[*,0:1]=0
+              END
+            Endcase
 
-        Case ramptype OF
-          0: ramps=getRamps(sizeAct, imgCenterOffset, rampDist, len)
-          1: BEGIN
-            ramps=getRamps(sizeAct, imgCenterOffset, 45./tempStruct.pix(0), len)
-            ramps2=getRamps(sizeAct, imgCenterOffset, 25./tempStruct.pix(0), len)
-          END
-          2: BEGIN
-            ramps=getRamps(sizeAct, imgCenterOffset, rampDist, len)
-            ramps[*,0:1]=0
-          END
-        Endcase
+            WIDGET_CONTROL, txtRampSearch, GET_VALUE=nRamps
+            nRamps=LONG(nRamps(0))
 
-        WIDGET_CONTROL, txtRampSearch, GET_VALUE=nRamps
-        nRamps=LONG(nRamps(0))
-
-        IF TOTAL(ramps[*,0:1]) NE 0 THEN BEGIN
-          H1=OBJ_NEW('IDLgrPolyline', [ramps[0,0],ramps[2,0]],[ramps[1,0]+nRamps,ramps[3,0]+nRamps], COLOR = 255*([0,0,0]), LINESTYLE=0)
-          H1_1=OBJ_NEW('IDLgrPolyline', [ramps[0,0],ramps[2,0]],[ramps[1,0]-nRamps,ramps[3,0]-nRamps], COLOR = 255*([0,0,0]), LINESTYLE=0)
-          H2=OBJ_NEW('IDLgrPolyline', [ramps[0,1],ramps[2,1]],[ramps[1,1]+nRamps,ramps[3,1]+nRamps], COLOR = 255*([0,1,0]), LINESTYLE=0)
-          H2_1=OBJ_NEW('IDLgrPolyline', [ramps[0,1],ramps[2,1]],[ramps[1,1]-nRamps,ramps[3,1]-nRamps], COLOR = 255*([0,1,0]), LINESTYLE=0)
-          oModel->Add, H1 & oModel->Add, H1_1 & oModel->Add, H2 & oModel->Add, H2_1
-        ENDIF
-        V1=OBJ_NEW('IDLgrPolyline', [ramps[0,2]+nRamps,ramps[2,2]+nRamps],[ramps[1,2],ramps[3,2]], COLOR = 255*([0,0,1]), LINESTYLE=0)
-        V1_1=OBJ_NEW('IDLgrPolyline', [ramps[0,2]-nRamps,ramps[2,2]-nRamps],[ramps[1,2],ramps[3,2]], COLOR = 255*([0,0,1]), LINESTYLE=0)
-        V2=OBJ_NEW('IDLgrPolyline', [ramps[0,3]+nRamps,ramps[2,3]+nRamps],[ramps[1,3],ramps[3,3]], COLOR = 255*([1,0,0]), LINESTYLE=0)
-        V2_1=OBJ_NEW('IDLgrPolyline', [ramps[0,3]-nRamps,ramps[2,3]-nRamps],[ramps[1,3],ramps[3,3]], COLOR = 255*([1,0,0]), LINESTYLE=0)
-        oModel->Add, V1 & oModel->Add, V1_1 & oModel->Add, V2 & oModel->Add, V2_1
-        IF  ramptype EQ 1 THEN BEGIN
-          V3=OBJ_NEW('IDLgrPolyline', [ramps2[0,2]+nRamps,ramps2[2,2]+nRamps],[ramps2[1,2],ramps2[3,2]], COLOR = 255*([1,0,1]), LINESTYLE=0)
-          V3_1=OBJ_NEW('IDLgrPolyline', [ramps2[0,2]-nRamps,ramps2[2,2]-nRamps],[ramps2[1,2],ramps2[3,2]], COLOR = 255*([1,0,1]), LINESTYLE=0)
-          V4=OBJ_NEW('IDLgrPolyline', [ramps2[0,3]+nRamps,ramps2[2,3]+nRamps],[ramps2[1,3],ramps2[3,3]], COLOR = 255*([0,1,1]), LINESTYLE=0)
-          V4_1=OBJ_NEW('IDLgrPolyline', [ramps2[0,3]-nRamps,ramps2[2,3]-nRamps],[ramps2[1,3],ramps2[3,3]], COLOR = 255*([0,1,1]), LINESTYLE=0)
-          oModel->Add, V3 & oModel->Add, V3_1 & oModel->Add, V4 & oModel->Add, V4_1
-        ENDIF
+            IF TOTAL(ramps[*,0:1]) NE 0 THEN BEGIN
+              H1=OBJ_NEW('IDLgrPolyline', [ramps[0,0],ramps[2,0]],[ramps[1,0]+nRamps,ramps[3,0]+nRamps], COLOR = 255*([0,0,0]), LINESTYLE=0)
+              H1_1=OBJ_NEW('IDLgrPolyline', [ramps[0,0],ramps[2,0]],[ramps[1,0]-nRamps,ramps[3,0]-nRamps], COLOR = 255*([0,0,0]), LINESTYLE=0)
+              H2=OBJ_NEW('IDLgrPolyline', [ramps[0,1],ramps[2,1]],[ramps[1,1]+nRamps,ramps[3,1]+nRamps], COLOR = 255*([0,1,0]), LINESTYLE=0)
+              H2_1=OBJ_NEW('IDLgrPolyline', [ramps[0,1],ramps[2,1]],[ramps[1,1]-nRamps,ramps[3,1]-nRamps], COLOR = 255*([0,1,0]), LINESTYLE=0)
+              oModel->Add, H1 & oModel->Add, H1_1 & oModel->Add, H2 & oModel->Add, H2_1
+            ENDIF
+            V1=OBJ_NEW('IDLgrPolyline', [ramps[0,2]+nRamps,ramps[2,2]+nRamps],[ramps[1,2],ramps[3,2]], COLOR = 255*([0,0,1]), LINESTYLE=0)
+            V1_1=OBJ_NEW('IDLgrPolyline', [ramps[0,2]-nRamps,ramps[2,2]-nRamps],[ramps[1,2],ramps[3,2]], COLOR = 255*([0,0,1]), LINESTYLE=0)
+            V2=OBJ_NEW('IDLgrPolyline', [ramps[0,3]+nRamps,ramps[2,3]+nRamps],[ramps[1,3],ramps[3,3]], COLOR = 255*([1,0,0]), LINESTYLE=0)
+            V2_1=OBJ_NEW('IDLgrPolyline', [ramps[0,3]-nRamps,ramps[2,3]-nRamps],[ramps[1,3],ramps[3,3]], COLOR = 255*([1,0,0]), LINESTYLE=0)
+            oModel->Add, V1 & oModel->Add, V1_1 & oModel->Add, V2 & oModel->Add, V2_1
+            IF  ramptype EQ 1 THEN BEGIN
+              V3=OBJ_NEW('IDLgrPolyline', [ramps2[0,2]+nRamps,ramps2[2,2]+nRamps],[ramps2[1,2],ramps2[3,2]], COLOR = 255*([1,0,1]), LINESTYLE=0)
+              V3_1=OBJ_NEW('IDLgrPolyline', [ramps2[0,2]-nRamps,ramps2[2,2]-nRamps],[ramps2[1,2],ramps2[3,2]], COLOR = 255*([1,0,1]), LINESTYLE=0)
+              V4=OBJ_NEW('IDLgrPolyline', [ramps2[0,3]+nRamps,ramps2[2,3]+nRamps],[ramps2[1,3],ramps2[3,3]], COLOR = 255*([0,1,1]), LINESTYLE=0)
+              V4_1=OBJ_NEW('IDLgrPolyline', [ramps2[0,3]-nRamps,ramps2[2,3]-nRamps],[ramps2[1,3],ramps2[3,3]], COLOR = 255*([0,1,1]), LINESTYLE=0)
+              oModel->Add, V3 & oModel->Add, V3_1 & oModel->Add, V4 & oModel->Add, V4_1
+            ENDIF
+            END
+          5: BEGIN; MR
+            contour0=OBJ_NEW('IDLgrContour',sliceMR_ROI[*,*,0],COLOR=255*([1,0,0]), C_VALUE=0.5, N_LEVELS=1)
+            contour1=OBJ_NEW('IDLgrContour',sliceMR_ROI[*,*,1],COLOR=255*([1,0,0]), C_VALUE=0.5, N_LEVELS=1)
+            oModel->Add, Contour0 & oModel->Add, Contour1
+            END
+          ELSE:
+        ENDCASE
+        
       ENDIF
 
-      markedArr=INTARR(nImg)
-      IF marked(0) EQ -1 THEN markedArr=markedArr+1 ELSE markedArr(marked)=1
       IF analyse EQ 'DIM' AND N_ELEMENTS(dimRes) GT 1 AND markedArr(sel) EQ 1 THEN BEGIN; linear dimensions - rod positions
         posX=dimRes[6:9, sel]+sizeAct(0)/2+imgCenterOffset(0)
         posY=dimRes[10:13, sel]+sizeAct(1)/2+imgCenterOffset(1)
@@ -307,15 +328,15 @@ pro redrawImg, viewpl, newActive
       ENDIF
       
       halfSz=sizeAct/2
-      IF analyse EQ 'POS' THEN BEGIN;phantom pos MR      
-        IF N_ELEMENTS(MRposRes) GT 0 THEN BEGIN
-          szPos=SIZE(MRposRes,/DIMENSIONS)
-          IF N_ELEMENTS(szPos) EQ 1 THEN posRes=MRposRes ELSE posRes=MRposRes[*,sel]
-          posLineX=OBJ_NEW('IDLgrPolyline', [[0,halfSz(1)+posRes(1)],[sizeAct(0),halfSz(1)+posRes(1)]], COLOR = 255*([0,1,0]), /DOUBLE, LINESTYLE=0)
-          posLineY=OBJ_NEW('IDLgrPolyline', [[halfSz(0)+posRes(0),0],[halfSz(0)+posRes(0),sizeAct(1)]], COLOR = 255*([0,1,0]), /DOUBLE, LINESTYLE=0)
-          oModel->Add, posLineX & oModel->Add, posLineY
-        ENDIF
-      ENDIF
+;      IF analyse EQ 'POS' THEN BEGIN;phantom pos MR      
+;        IF N_ELEMENTS(MRposRes) GT 0 THEN BEGIN
+;          szPos=SIZE(MRposRes,/DIMENSIONS)
+;          IF N_ELEMENTS(szPos) EQ 1 THEN posRes=MRposRes ELSE posRes=MRposRes[*,sel]
+;          posLineX=OBJ_NEW('IDLgrPolyline', [[0,halfSz(1)+posRes(1)],[sizeAct(0),halfSz(1)+posRes(1)]], COLOR = 255*([0,1,0]), /DOUBLE, LINESTYLE=0)
+;          posLineY=OBJ_NEW('IDLgrPolyline', [[halfSz(0)+posRes(0),0],[halfSz(0)+posRes(0),sizeAct(1)]], COLOR = 255*([0,1,0]), /DOUBLE, LINESTYLE=0)
+;          oModel->Add, posLineX & oModel->Add, posLineY
+;        ENDIF
+;      ENDIF
    
       IF dxya(3) EQ 1 THEN BEGIN
         tana=TAN(dxya(2)*!DtoR)
@@ -442,6 +463,42 @@ pro redrawImg, viewpl, newActive
           ENDCASE
 
         ENDIF
+        
+        IF analyse EQ 'PUI' THEN BEGIN
+            IF N_ELEMENTS(PUIres) GT 0 THEN BEGIN
+              szROI2=ROUND(5./tempStruct.pix(0));1cm^2 ROIs to evaluate
+              pos=PUIres[3:4,sel]
+              x1=pos(0)-szROI2 & x2=pos(0)+szROI2
+              y1=pos(1)-szROI2 & y2=pos(1)+szROI2
+              lineROI = OBJ_NEW('IDLgrPolyline', [[x1,y1],[x2,y1],[x2,y2],[x1,y2],[x1,y1]], COLOR = 255*([1,0,0]), LINESTYLE=0)
+              oModel->Add, lineROI
+              oTextL1= OBJ_NEW('IDLgrText', 'min', LOCATIONS=[x2+2,y2], COLOR = 255*([1,0,0]))
+              oModel->Add, oTextL1
+              pos=PUIres[5:6,sel]
+              x1=pos(0)-szROI2 & x2=pos(0)+szROI2
+              y1=pos(1)-szROI2 & y2=pos(1)+szROI2
+              lineROI2 = OBJ_NEW('IDLgrPolyline', [[x1,y1],[x2,y1],[x2,y2],[x1,y2],[x1,y1]], COLOR = 255*([1,0,0]), LINESTYLE=0)
+              oModel->Add, lineROI2
+              oTextL2= OBJ_NEW('IDLgrText', 'max', LOCATIONS=[x2+2,y2], COLOR = 255*([1,0,0]))
+              oModel->Add, oTextL2
+            ENDIF
+        ENDIF
+        
+        IF analyse EQ 'GEOMDIST' THEN BEGIN
+          IF N_ELEMENTS(GeomDistRes) GT 0 THEN BEGIN
+            cent=GeomDistRes[8:9,sel]
+            IF ~ARRAY_EQUAL([-1.,-1.],cent) THEN BEGIN
+              V1=OBJ_NEW('IDLgrPolyline', [[0,cent(1)],[sizeAct(0)-1,cent(1)]], COLOR = 255*([1,0,0]), LINESTYLE=0)
+              V1_1=OBJ_NEW('IDLgrPolyline',[[cent(0),0],[cent(0),sizeAct(1)-1]], COLOR = 255*([1,0,0]), LINESTYLE=0)
+              nPixXfwhm=GeomDistRes[0,sel]/tempStruct.pix(0)
+              nPixDiag2=CEIL(nPixXfwhm/2*1.1)
+              V2=OBJ_NEW('IDLgrPolyline',[[cent(0)-nPixDiag2,cent(1)-nPixDiag2],[cent(0)+nPixDiag2,cent(1)+nPixDiag2]], COLOR = 255*([1,0,0]), LINESTYLE=0)
+              V2_1=OBJ_NEW('IDLgrPolyline',[[cent(0)-nPixDiag2,cent(1)+nPixDiag2],[cent(0)+nPixDiag2,cent(1)-nPixDiag2]], COLOR = 255*([1,0,0]), LINESTYLE=0)
+              oModel->Add, V1 & oModel->Add, V1_1 & oModel->Add, V2 & oModel->Add, V2_1
+            ENDIF
+          ENDIF
+        ENDIF
+        
       ENDIF ELSE BEGIN
         lineX->SetProperty, DATA=[[0,halfSz(1)],[sizeAct(0)-1,halfSz(1)]]
         lineY->SetProperty, DATA=[[halfSz(0),0],[halfSz(0),sizeAct(1)-1]]
@@ -489,7 +546,10 @@ pro redrawImg, viewpl, newActive
       ENDIF
 
       IF OBJ_VALID(oTextL1) THEN BEGIN
-        OBJ_DESTROY, oTextL1 & OBJ_DESTROY, oTextL2 & OBJ_DESTROY, oTextS1 & OBJ_DESTROY, oTextS2 & OBJ_DESTROY, oTextS
+        OBJ_DESTROY, oTextL1 & OBJ_DESTROY, oTextL2 
+        IF OBJ_VALID(oTextS1) THEN BEGIN
+          OBJ_DESTROY, oTextS1 & OBJ_DESTROY, oTextS2 & OBJ_DESTROY, oTextS
+        ENDIF
       ENDIF
 
       IF OBJ_VALID(dimLine) THEN OBJ_DESTROY, dimLine

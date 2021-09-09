@@ -45,7 +45,8 @@ pro closeImgs, imgIds
 
     stillEmpty=WHERE(TAG_NAMES(structImgs) EQ 'EMPTY')
     IF stillEmpty(0) EQ -1 THEN BEGIN
-      fileList=getListOpenFiles(structImgs,0,marked, markedMulti)
+      IF WIDGET_INFO(lstShowFile, /DROPLIST_SELECT) EQ 0 THEN RDtemp='' ELSE RDtemp=modalityName
+      fileList=getListOpenFiles(structImgs,0,marked,markedMulti,RENAMEDICOM=RDtemp, CONFIGPATH=configPath, PARENT=evTop)
 
       WIDGET_CONTROL, listFiles, YSIZE=n_elements(fileList), SET_VALUE=fileList, SET_LIST_SELECT=0, SET_LIST_TOP=0
       WIDGET_CONTROL, listFiles, SCR_YSIZE=170
@@ -85,7 +86,9 @@ pro closeImgs, imgIds
               'BAR': barRes=barRes[*,remain]
               'CROSSCALIB': clearRes, 'CROSSCALIB'
               'RC': clearRes, 'RC';probably less could be done, but - just in case some trouble
-              'POS': clearRes, 'POS'
+              'SNR': clearRes, 'SNR'
+              'PUI': PUIres=PUIres[*,remain]
+              'GHOST': ghostMRres=ghostMRres[*,remain]
             ENDCASE
           ENDIF
         ENDFOR

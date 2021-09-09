@@ -437,3 +437,20 @@ function getNPSrois, imgSize, imgCenter, ROIsz, ROIdistPix, subNN
 
   return, roiAll
 end
+
+;get center and width from max profiles (avoiding ACR phantom structures at top)
+;circular ROI radius based on % area, radius = sqrt(ROI%) * phantom radius
+function getROIcircMR, imgIn, ROIperc, RADPIX=radpix
+  sz=SIZE(imgIn, /DIMENSIONS)
+  xMax=FLTARR(sz(0))
+  yMAx=FLTARR(sz(1))
+  FOR i=0, sz(0)-1 DO xMax[i]=MAX(imgIn[i,*])
+  FOR i=0, sz(1)-1 DO yMax[i]=MAX(imgIn[*,i])
+  halfmax=0.5*(MAX(imgIn)-MIN(imgIn))
+  widthX=getWidthAtThreshold(xMax, halfmax)
+  widthY=getWidthAtThreshold(yMax, halfmax)
+  IF N_ELEMENTS(radpix) NE 0 THEN radROI=radpix ELSE radROI=0.5*MEAN([widthX[0],widthY[0]])*SQRT(0.01*ROIperc)
+  roiCircMR=getROIcircle(sz, [widthX[1],widthY[1]], radROI)
+
+  return, roiCircMR
+end

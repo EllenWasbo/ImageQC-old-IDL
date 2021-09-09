@@ -60,9 +60,7 @@ function sortImages, struct2sort
     imgsInStudy=WHERE(studydatetimeArr EQ studiesInList(d), nImgStudy)
     seriesArr=!Null
 
-    ;FOR i=0, nImgStudy-1 DO seriesArr=[seriesArr,STRING(struct2sort.(imgsInStudy(i)).acqDate, FORMAT='(i0)') + '_' + STRING(struct2sort.(imgsInStudy(i)).seriesTime, FORMAT='(i0)') + '_' + STRING(struct2sort.(imgsInStudy(i)).seriesNmb, FORMAT='(i0)')]
     FOR i=0, nImgStudy-1 DO seriesArr=[seriesArr,STRING(struct2sort.(imgsInStudy(i)).acqDate, FORMAT='(i0)') + '_' + STRING(struct2sort.(imgsInStudy(i)).seriesNmb, FORMAT='(i04)')+ '_' +struct2sort.(imgsInStudy(i)).seriesUID]
-
 
     seriesInList=seriesArr(UNIQ(seriesArr,BSORT(seriesArr)))
     FOR s=0, N_ELEMENTS(seriesInList)-1 DO BEGIN
@@ -72,10 +70,11 @@ function sortImages, struct2sort
         ;sort by imgNo
         imgArr=!Null
         FOR i=0, nImgSer-1 DO imgArr=[imgArr,struct2sort.(imgsInStudy(imgsInSer(i))).imgNo]
-        imgSorted=UNIQ(imgArr,BSORT(LONG(imgArr)))
-        sortedImg=imgsInSer(imgSorted)
+        imgSorted=UNIQ(imgArr,BSORT(LONG(imgArr)))      
+        IF N_ELEMENTS(imgSorted) EQ nImgSer THEN sortedImg=imgsInSer(imgSorted) ELSE sortedImg=imgsInSer;avoid sorting if imgNo all 0 (seen for some cases)
 
         seriesStruct=CREATE_STRUCT('I0',struct2sort.(imgsInStudy(sortedImg(0))))
+        
         IF nImgSer GT 1 THEN BEGIN
           FOR j=1, nImgSer-1 DO seriesStruct=CREATE_STRUCT(seriesStruct,'I'+STRING(j,FORMAT='(i0)'),struct2sort.(imgsInStudy((sortedImg(j)))))
         ENDIF
@@ -260,14 +259,37 @@ pro selectImages_event, event
             FOR i=0, nFiles-1 DO BEGIN
               WIDGET_CONTROL, lblProgressSelIm, SET_VALUE='Loading file info: '+STRING(i*100./nFiles, FORMAT='(i0)')+' %'
               structNew=readImgInfo(dcmAdr(i), evTop, silent)
+              
               IF SIZE(structNew, /TNAME) EQ 'STRUCT' THEN BEGIN
+                
+                tagn=TAG_NAMES(structNew)
+                multiFrame=1
+                IF tagn.HasValue('FILENAME') THEN multiFrame=0
+
                 IF counter EQ 0 THEN BEGIN
-                  structImgsAll=CREATE_STRUCT('S0',structNew)
-                  counter=counter+1
+                  IF multiFrame EQ 0 THEN BEGIN
+                    structImgsAll=CREATE_STRUCT('S0',structNew)
+                    counter=counter+1
+                  ENDIF ELSE BEGIN
+                    structImgsAll=CREATE_STRUCT('S0',structNew.(0))
+                    counter=1
+                    FOR mf=1, structNew.(0).nFrames-1 DO BEGIN
+                      structImgsAll=CREATE_STRUCT(structImgsAll,'S'+STRING(counter,FORMAT='(i0)'),structNew.(mf))
+                      counter=counter+1
+                    ENDFOR
+                  ENDELSE
                 ENDIF ELSE BEGIN
-                  structImgsAll=CREATE_STRUCT(structImgsAll,'S'+STRING(counter,FORMAT='(i0)'),structNew)
-                  counter=counter+1
+                  IF multiFrame EQ 0 THEN BEGIN
+                    structImgsAll=CREATE_STRUCT(structImgsAll,'S'+STRING(counter,FORMAT='(i0)'),structNew)
+                    counter=counter+1
+                  ENDIF ELSE BEGIN
+                    FOR mf=0, structNew.(0).nFrames-1 DO BEGIN
+                      structImgsAll=CREATE_STRUCT(structImgsAll,'S'+STRING(counter,FORMAT='(i0)'),structNew.(mf))
+                      counter=counter+1
+                    ENDFOR
+                  ENDELSE
                 ENDELSE
+                
               ENDIF
             ENDFOR
 

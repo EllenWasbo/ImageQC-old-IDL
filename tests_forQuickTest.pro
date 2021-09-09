@@ -99,7 +99,7 @@ pro getExposure; Xray
   WIDGET_CONTROL, /HOURGLASS
   nImg=N_TAGS(structImgs)
   resArr=STRARR(6,nImg); kVp,mAs, EI, DAP, SDD, detector id
-  
+
   testNmb=getResNmb(modality,'EXP',analyseStringsAll)
   markedArr=INTARR(nImg)
   IF marked(0) EQ -1 THEN BEGIN
@@ -157,7 +157,7 @@ pro noise
   WIDGET_CONTROL, /HOURGLASS
 
   nImg=N_TAGS(structImgs)
-  
+
   resArr=FLTARR(2,nImg)-1; mean, stdev all circles
   testNmb=getResNmb(modality,'NOISE',analyseStringsAll)
   markedArr=INTARR(nImg)
@@ -199,7 +199,7 @@ pro noise
       0: BEGIN
         noiseRes=FLTARR(4,nImg)
         noiseRes[0:1,*]=resArr
-        
+
         ;find and sort by series (same seriesNmb)
         serNo=!Null
         FOR im=0, nImg-1 DO serNo=[serNo,structImgs.(im).seriesNmb]
@@ -219,7 +219,7 @@ pro noise
             noiseRes[2,ids]=100.0*(resArr[1,ids]-noiseRes[3,ids(0)])/noiseRes[3,ids(0)]
           ENDIF
         ENDFOR
-            
+
         ;noiseRes[3,0]=avgNoise
         ;noiseRes[2,*]=100.0*(resArr[1,*]-avgNoise)/avgNoise
       END
@@ -277,7 +277,7 @@ pro HUwater
     results(testNmb)=1
     redrawImg,0,1;active back to original selected
   ENDIF
-  
+
 end
 
 pro homog
@@ -944,7 +944,7 @@ pro uniformityNM
           WIDGET_CONTROL, cw_posfitUnifCorr, GET_VALUE= corrPos
           IF WIDGET_INFO(btnLockRadUnifCorr, /BUTTON_SET) THEN WIDGET_CONTROL, txtLockRadUnifCorr, GET_VALUE=corrRadStr ELSE corrRadStr=''
           IF corrRadStr EQ '' THEN corrRad=-1 ELSE corrRad=FLOAT(corrRadStr)
-          
+
           res=fitDistPointSource(tempImg, unifROI, curPix, [structImgs.(i).radius1,structImgs.(i).radius2],corrPos,corrRad)
           zeros=WHERE(tempImg EQ 0)
           tempImg=tempImg-res.corrSub
@@ -1023,7 +1023,7 @@ pro sni
           WIDGET_CONTROL, cw_posfitSNICorr, GET_VALUE= corrPos
           IF WIDGET_INFO(btnLockRadSNICorr, /BUTTON_SET) THEN WIDGET_CONTROL,txtLockRadSNICorr, GET_VALUE=corrRadStr ELSE corrRadStr=''
           IF corrRadStr EQ '' THEN corrRad=-1 ELSE corrRad=FLOAT(corrRadStr)
-    
+
           res=fitDistPointSource(tempImg, TOTAL(SNIroi,3), curPix, [structImgs.(i).radius1,structImgs.(i).radius2],corrPos,corrRad)
 
           corrMatrix=res.corrSub
@@ -1078,7 +1078,7 @@ pro barNM
     nI=MIN([nImg,N_ELEMENTS(markedArr)])
     FOR i=0, nI-1 DO BEGIN
       IF markedArr(i) THEN BEGIN
-        
+
         ;update barROI
         tempImg=readImg(structImgs.(i).filename, structImgs.(i).frameNo)
         sz=SIZE(tempImg, /DIMENSIONS)
@@ -1132,42 +1132,380 @@ pro getAcqNM
   ENDIF
 end
 
-pro getPos_MR; get phantom position for MR images (geometric mass)
+pro SNR_MR
   COMPILE_OPT hidden
   COMMON VARI
-
   WIDGET_CONTROL, /HOURGLASS
-  nImg=N_TAGS(structImgs)
-  resArr=STRARR(2,nImg)
 
-  testNmb=getResNmb(modality,'POS',analyseStringsAll)
+  nImg=N_TAGS(structImgs)
+
+  resArr=FLTARR(5,nImg)-1; ['S img 1','S img 2','S mean','stdev diff','SNR']
+  testNmb=getResNmb(modality,'SNR',analyseStringsAll)
   markedArr=INTARR(nImg)
   IF marked(0) EQ -1 THEN BEGIN
     IF markedMulti(0) EQ -1 THEN markedArr=markedArr+1 ELSE markedArr=markedMulti[testNmb,*]
   ENDIF ELSE markedArr(marked)=1
-  IF TOTAL(markedArr) GT 0 THEN BEGIN
-    nI=MIN([nImg,N_ELEMENTS(markedArr)])
-    errs=INTARR(nI)
-    FOR i=0, nI-1 DO BEGIN
-      IF markedArr(i) THEN BEGIN
-        tempImg=readImg(structImgs.(i).filename, structImgs.(i).frameNo)
-        threshold=MIN(tempImg)+0.25*(MAX(tempImg)-MIN(tempImg));25% above minimum value relative to max value in image
-        above=WHERE(tempImg GT threshold)
-        tempImg=0.*tempImg
-        tempImg(above)=threshold
-        centerThis=centroid(tempImg, .5*threshold)
-        imsz=SIZE(tempImg, /DIMENSION)
 
-          IF MIN(centerThis) EQ -1 THEN BEGIN
-            errs(i)=1
-            centerThis=0.*centerThis
-          ENDIF 
+  IF TOTAL(markedArr) GT 1 THEN BEGIN;minimum 2 images to analyse
+    anaImg=WHERE(markedArr EQ 1, nAnaImg)
+    firstImages=anaImg(0)
+    secondImages=anaImg(1)
+    IF nAnaImg GT 2 THEN BEGIN
+      FOR i=2, nAnaImg-1 DO BEGIN
+        IF i mod 2 EQ 0 THEN firstImages=[firstImages, anaImg(i)] ELSE secondImages=[secondImages,anaImg(i)]
+      ENDFOR
+    ENDIF
+    nSets=N_ELEMENTS(secondImages)
 
-        resArr[*,i]=centerThis-0.5*imsz
-      ENDIF
+    FOR i=0, nSets-1 DO BEGIN
+      first=firstImages(i)
+      second=secondImages(i)
+      activeImg=readImg(structImgs.(first).filename, structImgs.(first).frameNo)
+      updateROI, ANA='SNR', SEL=first
+      szROI=SIZE(SNR_ROI, /DIMENSIONS)
+      ;check if same size
+      secImg=readImg(structImgs.(second).filename, structImgs.(second).frameNo)
+      szSec=SIZE(secImg, /DIMENSIONS)
+      IF ~ARRAY_EQUAL(szSec, szROI) THEN BEGIN
+        sv=DIALOG_MESSAGE('Image '+STRING(first,FORMAT='(i0)')+' and '+STRING(second,FORMAT='(i0)')+' assumed to be pair of images, but these have different size and a subtraction image cannot be calculated.', DIALOG_PARENT=evTop)
+      ENDIF ELSE BEGIN
+        maske=SNR_ROI
+        IMAGE_STATISTICS, activeImg, MEAN=meanS1, MASK=maske
+        resArr(0,firstImages(i))=meanS1
+        IMAGE_STATISTICS, secImg, MEAN=meanS2, MASK=maske
+        resArr(1,firstImages(i))=meanS2
+        meanS=0.5*(meanS1+meanS2)
+        resArr(2,firstImages(i))=meanS
+        diffImg=activeImg-secImg
+        IMAGE_STATISTICS, diffImg, STDDEV=stddev, MASK=maske
+        resArr(3,firstImages(i))=stddev
+        resArr(4,firstImages(i))=meanS*SQRT(2)/stddev
+      ENDELSE
+      WIDGET_CONTROL, lblProgress, SET_VALUE='Calculating SNR: '+STRING(i*100./nSets, FORMAT='(i0)')+' %'
     ENDFOR
     WIDGET_CONTROL, lblProgress, SET_VALUE=''
-    MRposRes=resArr
+
+    SNRres=resArr
     results(testNmb)=1
+    redrawImg,0,1;active back to original selected
   ENDIF
+
 end
+
+pro PUI_MR
+  COMPILE_OPT hidden
+  COMMON VARI
+  WIDGET_CONTROL, /HOURGLASS
+
+  nImg=N_TAGS(structImgs)
+
+  resArr=FLTARR(7,nImg)-1; ['min','max','PIU','X min','Y min','X max','Y max']
+  testNmb=getResNmb(modality,'PUI',analyseStringsAll)
+  markedArr=INTARR(nImg)
+  IF marked(0) EQ -1 THEN BEGIN
+    IF markedMulti(0) EQ -1 THEN markedArr=markedArr+1 ELSE markedArr=markedMulti[testNmb,*]
+  ENDIF ELSE markedArr(marked)=1
+
+  IF TOTAL(markedArr) GT 0 THEN BEGIN
+    anaImg=WHERE(markedArr EQ 1)
+    first=anaImg(0)
+    activeImg=readImg(structImgs.(first).filename, structImgs.(first).frameNo)
+    updateROI, ANA='PUI', SEL=first
+    szROI=SIZE(PUI_ROI, /DIMENSIONS)
+
+    nI=MIN([nImg,N_ELEMENTS(markedArr)])
+    FOR i=0, nI-1 DO BEGIN
+      IF markedArr(i) THEN BEGIN
+        ;check if same size
+        activeImg=readImg(structImgs.(i).filename, structImgs.(i).frameNo)
+        updateROI, ANA='PUI', SEL=i;always update pr image
+
+        pix=structImgs.(i).pix
+        szROI=ROUND(10./pix(0));1cm^2 ROIs to evaluate
+        IF szROI LT 3 THEN szROI=3
+        ;code adapted from: https://www.imageeprocessing.com/2015/10/edge-detection-using-local-variance.html
+        kernelSmooth=FLTARR(szROI,szROI)+(1./szROI^2)
+        smoothTemp=CONVOL(activeImg,kernelSmooth,CENTER=0)
+
+        maske=PUI_ROI
+        IMAGE_STATISTICS, smoothTemp, MAXIMUM=maxVal, MINIMUM=minVal, MASK=maske
+        resArr(0,i)=minVal
+        resArr(1,i)=maxVal
+        resArr(2,i)=100.*(1-(maxVal-minVal)/(maxVal+minVal))
+        ;maskedSmoothTemp=smoothTemp*0-1000.
+        maskedSmoothTemp=maske*smoothTemp
+        idMin=WHERE(maskedSmoothTemp EQ minVal)
+        idMax=WHERE(maskedSmoothTemp EQ maxVal)
+        indMin = ARRAY_INDICES(maskedSmoothTemp, idMin(0))
+        indMax = ARRAY_INDICES(maskedSmoothTemp, idMax(0))
+        resArr(3,i)=indMin(0)
+        resArr(4,i)=indMin(1)
+        resArr(5,i)=indMax(0)
+        resArr(6,i)=indMax(1)
+      ENDIF
+      WIDGET_CONTROL, lblProgress, SET_VALUE='Calculating PUI: '+STRING(i*100./nI, FORMAT='(i0)')+' %'
+    ENDFOR
+    WIDGET_CONTROL, lblProgress, SET_VALUE=''
+
+    PUIres=resArr
+    results(testNmb)=1
+    redrawImg,0,1;active back to original selected
+  ENDIF
+
+end
+
+pro Ghost_MR
+  COMPILE_OPT hidden
+  COMMON VARI
+  WIDGET_CONTROL, /HOURGLASS
+
+  nImg=N_TAGS(structImgs)
+
+  resArr=FLTARR(6,nImg)-1; ['Center','top','bottom','left','right','GR']
+  testNmb=getResNmb(modality,'GHOST',analyseStringsAll)
+  markedArr=INTARR(nImg)
+  IF marked(0) EQ -1 THEN BEGIN
+    IF markedMulti(0) EQ -1 THEN markedArr=markedArr+1 ELSE markedArr=markedMulti[testNmb,*]
+  ENDIF ELSE markedArr(marked)=1
+
+  IF TOTAL(markedArr) GT 0 THEN BEGIN
+    anaImg=WHERE(markedArr EQ 1)
+    first=anaImg(0)
+    activeImg=readImg(structImgs.(first).filename, structImgs.(first).frameNo)
+    pix=structImgs.(first).pix
+    updateROI, ANA='GHOST', SEL=first
+    szROI=SIZE(ghostMR_ROI, /DIMENSIONS)
+
+    nI=MIN([nImg,N_ELEMENTS(markedArr)])
+    FOR i=0, nI-1 DO BEGIN
+      IF markedArr(i) THEN BEGIN
+        ;check if same size
+        activeImg=readImg(structImgs.(i).filename, structImgs.(i).frameNo)
+        szAct=SIZE(activeImg, /DIMENSION)
+        IF pix(0) NE structImgs.(i).pix(0) OR ~ARRAY_EQUAL(szROI,szAct) THEN BEGIN
+          pix=structImgs.(i).pix
+          updateROI, ANA='GHOST', SEL=i;always update pr image
+          szROI=SIZE(ghostMR_ROI, /DIMENSIONS)
+        ENDIF
+
+        maske=ghostMR_ROI[*,*,0]
+        IMAGE_STATISTICS, activeImg, MEAN=cMean, MASK=maske
+        resArr(0,i)=cMean
+        maske=ghostMR_ROI[*,*,1]
+        IMAGE_STATISTICS, activeImg, MEAN=bMean, MASK=maske
+        resArr(1,i)=bMean
+        maske=ghostMR_ROI[*,*,3]
+        IMAGE_STATISTICS, activeImg, MEAN=tMean, MASK=maske
+        resArr(2,i)=tMean
+        maske=ghostMR_ROI[*,*,2]
+        IMAGE_STATISTICS, activeImg, MEAN=lMean, MASK=maske
+        resArr(3,i)=lMean
+        maske=ghostMR_ROI[*,*,4]
+        IMAGE_STATISTICS, activeImg, MEAN=rMean, MASK=maske
+        resArr(4,i)=rMean
+
+        resArr(5,i)=ABS(0.5*((lMean+rMean)-(tMean+bMean))/cMean)
+
+      ENDIF
+      WIDGET_CONTROL, lblProgress, SET_VALUE='Calculating Ghosting Ratio: '+STRING(i*100./nI, FORMAT='(i0)')+' %'
+    ENDFOR
+    WIDGET_CONTROL, lblProgress, SET_VALUE=''
+
+    ghostMRres=resArr
+    results(testNmb)=1
+    redrawImg,0,1;active back to original selected
+  ENDIF
+
+end
+
+pro GD_MR;geometric distortion
+  COMPILE_OPT hidden
+  COMMON VARI
+  WIDGET_CONTROL, /HOURGLASS
+  WIDGET_CONTROL, txtGD_MR_act, GET_VALUE=wAct
+  wAct=FLOAT(wAct(0))
+  nImg=N_TAGS(structImgs)
+
+  resArr=FLTARR(10,nImg)-1; ['width_0','width_90','width_45','width_135','GD_0','GD_90','GD_45','GD_135'] + centX,centY
+  testNmb=getResNmb(modality,'GEOMDIST',analyseStringsAll)
+  markedArr=INTARR(nImg)
+  IF marked(0) EQ -1 THEN BEGIN
+    IF markedMulti(0) EQ -1 THEN markedArr=markedArr+1 ELSE markedArr=markedMulti[testNmb,*]
+  ENDIF ELSE markedArr(marked)=1
+
+  IF TOTAL(markedArr) GT 0 THEN BEGIN
+    nI=MIN([nImg,N_ELEMENTS(markedArr)])
+    FOR i=0, nI-1 DO BEGIN
+      IF markedArr(i) THEN BEGIN
+        activeImg=readImg(structImgs.(i).filename, structImgs.(i).frameNo)
+        sz=SIZE(activeImg, /DIMENSION)
+        pix=structImgs.(i).pix(0)
+
+        xMax=FLTARR(sz(0))
+        yMAx=FLTARR(sz(1))
+        FOR c=0, sz(0)-1 DO xMax[c]=MAX(activeImg[c,*])
+        FOR c=0, sz(1)-1 DO yMax[c]=MAX(activeImg[*,c])
+        halfmax=0.5*(MAX(activeImg)-MIN(activeImg))
+        widthX=getWidthAtThreshold(xMax, halfmax)
+        widthY=getWidthAtThreshold(yMax, halfmax)
+        resArr[0:1,i]=[widthX(0),widthY(0)]*pix
+        resArr[8:9,i]=[widthX(1),widthY(1)]
+        cent=ROUND([widthX(1),widthY(1)])
+
+        nPixXfwhm=widthX(0)
+        nPixDiag2=CEIL(nPixXfwhm/2*1.1)
+        prof45=FLTARR(nPixDiag2*2+1)
+        prof45[nPixDiag2]=activeImg[cent[0],cent[1]]
+        prof135=prof45
+        FOR nn=1,nPixDiag2 DO BEGIN
+          prof45[nPixDiag2+nn]=activeImg[cent[0]+nn,cent[1]+nn]
+          prof45[nPixDiag2-nn]=activeImg[cent[0]-nn,cent[1]-nn]
+          prof135[nPixDiag2+nn]=activeImg[cent[0]+nn,cent[1]-nn]
+          prof135[nPixDiag2-nn]=activeImg[cent[0]-nn,cent[1]+nn]
+        ENDFOR
+        width45=getWidthAtThreshold(prof45, halfmax)
+        width135=getWidthAtThreshold(prof135, halfmax)
+        resArr[2:3,i]=[width45(0),width135(0)]*SQRT(2)*pix(0)
+        resArr[4:7,i]=100.*(wAct-resArr[0:3,i])/resArr[0:3,i]
+      ENDIF
+      WIDGET_CONTROL, lblProgress, SET_VALUE='Calculating Geometric Distortion: '+STRING(i*100./nI, FORMAT='(i0)')+' %'
+    ENDFOR
+    WIDGET_CONTROL, lblProgress, SET_VALUE=''
+
+    GeomDistRes=resArr
+    results(testNmb)=1
+    redrawImg,0,1;active back to original selected
+  ENDIF
+
+end
+
+pro Slice_MR
+  COMPILE_OPT hidden
+  COMMON VARI
+  WIDGET_CONTROL, /HOURGLASS
+
+  nImg=N_TAGS(structImgs)
+
+  resArr=FLTARR(6,nImg)-1; ['Nominal (mm)','Measured (mm)','Diff (mm)','Diff (%)'],'AltSup',['FWHMupper','FWHMlower']
+  testNmb=getResNmb(modality,'SLICETHICK',analyseStringsAll)
+  markedArr=INTARR(nImg)
+  IF marked(0) EQ -1 THEN BEGIN
+    IF markedMulti(0) EQ -1 THEN markedArr=markedArr+1 ELSE markedArr=markedMulti[testNmb,*]
+  ENDIF ELSE markedArr(marked)=1
+
+  IF TOTAL(markedArr) GT 0 THEN BEGIN
+    anaImg=WHERE(markedArr EQ 1)
+    first=anaImg(0)
+    activeImg=readImg(structImgs.(first).filename, structImgs.(first).frameNo)
+    pix=structImgs.(first).pix
+    updateROI, ANA='SLICETHICK', SEL=first
+    szROI=SIZE(sliceMR_ROI, /DIMENSIONS)
+    lineStruct=!Null
+    nI=MIN([nImg,N_ELEMENTS(markedArr)])
+    sliceThickRes=!Null
+    FOR i=0, nI-1 DO BEGIN
+      IF markedArr(i) THEN BEGIN
+        ;check if same size
+        activeImg=readImg(structImgs.(i).filename, structImgs.(i).frameNo)
+        resArr[0,i]=structImgs.(i).sliceThick
+        szAct=SIZE(activeImg, /DIMENSION)
+        IF pix(0) NE structImgs.(i).pix(0) OR ~ARRAY_EQUAL(szROI,szAct) THEN BEGIN
+          pix=structImgs.(i).pix
+          updateROI, ANA='SLICETHICK', SEL=i;always update pr image
+          szROI=SIZE(sliceMR_ROI, /DIMENSIONS)
+        ENDIF
+        ;find profiles
+        temp=TOTAL(sliceMR_ROI[*,*,0],2) & temp2=WHERE(temp GT 0) & firstX=temp2(0) & lastX=temp2(-1)
+        temp=TOTAL(sliceMR_ROI[*,*,0],1) & temp2=WHERE(temp GT 0) & firstY=temp2(0) & lastY=temp2(-1)
+        rows=lastY-firstY+1
+        subUpper=activeImg[firstX:lastX,firstY:lastY]
+        temp=TOTAL(sliceMR_ROI[*,*,1],1) & temp2=WHERE(temp GT 0) & firstY=temp2(0) & lastY=temp2(-1)
+        subLower=activeImg[firstX:lastX,firstY:lastY]
+        nPix=lastX-firstX+1
+        IF rows EQ 1 THEN profUpper = subUpper ELSE profUpper=(1./rows)*TOTAL(subUpper,2)
+        IF rows EQ 1 THEN profLower = subLower ELSE profLower=(1./rows)*TOTAL(subLower,2)
+        ;halfMax=0.5*(MIN(profUpper)+MAX(profUpper))
+        ;widthFirst=ROUND(getWidthAtThreshold(profUpper, halfmax))
+        ;maxUpper=MEAN(subUpper[nPix/2-widthFirst(0)/2:nPix/2-widthFirst(0)/2,*])
+        ;maxLower=MEAN(subLower[nPix/2-widthFirst(0)/2:nPix/2-widthFirst(0)/2,*])
+        maxUpper=MAX(MEDIAN(profUpper,5))
+        maxLower=MAX(MEDIAN(profLower,5))
+        bg=0.5*(MEAN(subUpper[0:4,*])+MEAN(subLower[0:4,*]))
+        halfmaxU=0.5*(maxUpper+bg)
+        halfmaxL=0.5*(maxLower+bg)
+        ;nLines=lastY-firstY+1
+        ;res=FLTARR(4,nLines)
+        ;FOR p=0, nLines-1 DO BEGIN
+        ;  res[0:1,p]=getWidthAtThreshold(subUpper[*,p], halfmaxU)
+        ;  res[2:3,p]=getWidthAtThreshold(subLower[*,p], halfmaxL)
+        ;ENDFOR
+        ;wU=[MEAN(res[0,*]),MEAN(res[1,*])]
+        ;wL=[MEAN(res[2,*]),MEAN(res[3,*])]
+        
+        wU=getWidthAtThreshold(profUpper, halfmaxU)
+        wL=getWidthAtThreshold(profLower, halfmaxL)
+
+        structTemp=CREATE_STRUCT('background',bg,'maxVal',[maxUpper,maxLower],'subUpper',subUpper,'subLower',subLower,$
+          'firstLast',[[wU(1)-wU(0)/2.,wU(1)+wU(0)/2.],[wL(1)-wL(0)/2.,wL(1)+wL(0)/2.]])
+        sliceThickRes=CREATE_STRUCT(sliceThickRes,'L'+STRING(i, FORMAT='(i0)'),structTemp)
+        fwhmU=wU(0)*pix(0)
+        fwhmL=wL(0)*pix(0)
+        resArr[1,i]=0.2*fwhmU*fwhmL/(fwhmU+fwhmL)
+        resArr[2,i]=resArr[1,i]-resArr[0,i]
+        resArr[3,i]=100.*resArr[2,i]/resArr[0,i]
+        resArr[4,i]=fwhmU
+        resArr[5,i]=fwhmL
+
+      ENDIF ELSE sliceThickRes=CREATE_STRUCT(sliceThickRes,'L'+STRING(i, FORMAT='(i0)'),CREATE_STRUCT('empty',0))
+
+      WIDGET_CONTROL, lblProgress, SET_VALUE='Slice thickness progress: '+STRING(i*100./nI, FORMAT='(i0)')+' %'
+    ENDFOR
+    WIDGET_CONTROL, lblProgress, SET_VALUE=''
+    sliceThickRes=CREATE_STRUCT(sliceThickRes,'resArr',resArr)
+
+    sliceThickResTab=resArr
+
+    results(testNmb)=1
+    redrawImg,0,1;active back to original selected
+  ENDIF
+
+end
+;pro getPos_MR; get phantom position for MR images (geometric mass)
+;  COMPILE_OPT hidden
+;  COMMON VARI
+;
+;  WIDGET_CONTROL, /HOURGLASS
+;  nImg=N_TAGS(structImgs)
+;  resArr=STRARR(2,nImg)
+;
+;  testNmb=getResNmb(modality,'POS',analyseStringsAll)
+;  markedArr=INTARR(nImg)
+;  IF marked(0) EQ -1 THEN BEGIN
+;    IF markedMulti(0) EQ -1 THEN markedArr=markedArr+1 ELSE markedArr=markedMulti[testNmb,*]
+;  ENDIF ELSE markedArr(marked)=1
+;  IF TOTAL(markedArr) GT 0 THEN BEGIN
+;    nI=MIN([nImg,N_ELEMENTS(markedArr)])
+;    errs=INTARR(nI)
+;    FOR i=0, nI-1 DO BEGIN
+;      IF markedArr(i) THEN BEGIN
+;        tempImg=readImg(structImgs.(i).filename, structImgs.(i).frameNo)
+;        threshold=MIN(tempImg)+0.25*(MAX(tempImg)-MIN(tempImg));25% above minimum value relative to max value in image
+;        above=WHERE(tempImg GT threshold)
+;        tempImg=0.*tempImg
+;        tempImg(above)=threshold
+;        centerThis=centroid(tempImg, .5*threshold)
+;        imsz=SIZE(tempImg, /DIMENSION)
+;
+;          IF MIN(centerThis) EQ -1 THEN BEGIN
+;            errs(i)=1
+;            centerThis=0.*centerThis
+;          ENDIF
+;
+;        resArr[*,i]=centerThis-0.5*imsz
+;      ENDIF
+;    ENDFOR
+;    WIDGET_CONTROL, lblProgress, SET_VALUE=''
+;    MRposRes=resArr
+;    results(testNmb)=1
+;  ENDIF
+;end

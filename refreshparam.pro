@@ -51,7 +51,8 @@ pro fillQuickTempList, qT, SELECT_NAME=select_name
   
   If structImgs NE !Null THEN tags=TAG_NAMES(structImgs) ELSE tags='EMPTY'
   IF tags(0) NE 'EMPTY' THEN BEGIN
-    fileList=getListOpenFiles(structImgs,0,marked,markedMulti)
+    IF WIDGET_INFO(lstShowFile, /DROPLIST_SELECT) EQ 0 THEN RDtemp='' ELSE RDtemp=modalityName
+    fileList=getListOpenFiles(structImgs,0,marked,markedMulti,RENAMEDICOM=RDtemp, CONFIGPATH=configPath, PARENT=evTop)
     sel=WIDGET_INFO(listFiles, /LIST_SELECT)
     oldTop=WIDGET_INFO(listFiles, /LIST_TOP)
     WIDGET_CONTROL, listFiles, SET_VALUE=fileList, SET_LIST_SELECT=sel(N_ELEMENTS(sel)-1), SET_LIST_TOP=oldTop
@@ -86,10 +87,12 @@ pro refreshParam, paramSet, paramSetName
   offxyMTF_X=paramSet.offxyMTF_X
   offxyROI=paramSet.offxyROI
   offxyROIX=paramSet.offxyROIX
+  offxyROIMR=paramSet.offxyROIMR
   WIDGET_CONTROL, unitDeltaO_MTF_CT, SET_VALUE=paramSet.OFFXYMTF_UNIT
   WIDGET_CONTROL, unitDeltaO_MTF_X, SET_VALUE=paramSet.OFFXYMTF_X_UNIT
   WIDGET_CONTROL, unitDeltaO_ROI_CT, SET_VALUE=paramSet.OFFXYROI_UNIT
   WIDGET_CONTROL, unitDeltaO_ROI_X, SET_VALUE=paramSet.OFFXYROIX_UNIT
+  WIDGET_CONTROL, unitDeltaO_ROI_MR, SET_VALUE=paramSet.OFFXYROIMR_UNIT
   strOff=STRING(paramSet.OFFXYMTF(0), FORMAT='(i0)')+','+STRING(paramSet.OFFXYMTF(1), FORMAT='(i0)')
   WIDGET_CONTROL, lblDeltaO, SET_VALUE=strOff
   strOff=STRING(paramSet.OFFXYMTF_X(0), FORMAT='(i0)')+','+STRING(paramSet.OFFXYMTF_X(1), FORMAT='(i0)')
@@ -98,6 +101,8 @@ pro refreshParam, paramSet, paramSetName
   WIDGET_CONTROL, lblDeltaO_ROI, SET_VALUE=strOff
   strOff=STRING(paramSet.OFFXYROIX(0), FORMAT='(i0)')+','+STRING(paramSet.OFFXYROIX(1), FORMAT='(i0)')
   WIDGET_CONTROL, lblDeltaO_ROIX, SET_VALUE=strOff
+  strOff=STRING(paramSet.OFFXYROIMR(0), FORMAT='(i0)')+','+STRING(paramSet.OFFXYROIMR(1), FORMAT='(i0)')
+  WIDGET_CONTROL, lblDeltaO_ROIMR, SET_VALUE=strOff
 
   ;CT tests
   WIDGET_CONTROL, cw_typeMTF, SET_VALUE=paramSet.MTFTYPE
@@ -211,5 +216,25 @@ pro refreshParam, paramSet, paramSetName
   WIDGET_CONTROL, txtCrossVol, SET_VALUE=STRING(paramSet.crossVol, FORMAT='(f0.1)')
   WIDGET_CONTROL, txtHomogROIszPET, SET_VALUE=STRING(paramSet.HomogROIszPET, FORMAT='(f0.1)')
   WIDGET_CONTROL, txtHomogROIdistPET, SET_VALUE=STRING(paramSet.HomogROIdistPET, FORMAT='(f0.1)')
+  ;MR tests
+  WIDGET_CONTROL, txtSNR_MR_ROI, SET_VALUE=STRING(paramSet.SNR_MR_ROI, FORMAT='(f0.1)')
+  WIDGET_CONTROL, txtPUI_MR_ROI, SET_VALUE=STRING(paramSet.PUI_MR_ROI, FORMAT='(f0.1)')
+  WIDGET_CONTROL, ghost_MR_optC, SET_BUTTON=ROUND(paramSet.GHOST_MR_ROI(4))
+  WIDGET_CONTROL, txtGhost_MR_ROIszC, SET_VALUE=STRING(paramSet.GHOST_MR_ROI(0), FORMAT='(f0.1)')
+  WIDGET_CONTROL, txtGhost_MR_ROIszW, SET_VALUE=STRING(paramSet.GHOST_MR_ROI(1), FORMAT='(f0.1)')
+  WIDGET_CONTROL, txtGhost_MR_ROIszH, SET_VALUE=STRING(paramSet.GHOST_MR_ROI(2), FORMAT='(f0.1)')
+  WIDGET_CONTROL, txtGhost_MR_ROIszD, SET_VALUE=STRING(paramSet.GHOST_MR_ROI(3), FORMAT='(f0.1)')
+  WIDGET_CONTROL, txtGD_MR_act, SET_VALUE=STRING(paramSet.GD_MR_ACT, FORMAT='(f0.1)')
+  WIDGET_CONTROL, slice_MR_optC, SET_BUTTON=ROUND(paramSet.SLICE_MR_ROI(5))
+  WIDGET_CONTROL, txtSlice_MR_TANA, SET_VALUE=STRING(paramSet.SLICE_MR_ROI(0), FORMAT='(f0.3)')
+  WIDGET_CONTROL, txtSlice_MR_ROIszW, SET_VALUE=STRING(paramSet.SLICE_MR_ROI(1), FORMAT='(f0.1)')
+  WIDGET_CONTROL, txtSlice_MR_ROIszH, SET_VALUE=STRING(paramSet.SLICE_MR_ROI(2), FORMAT='(f0.1)')
+  WIDGET_CONTROL, txtSlice_MR_ROIszD, SET_VALUE=STRING(paramSet.SLICE_MR_ROI(3), FORMAT='(f0.1)')
+  WIDGET_CONTROL, txtSlice_MR_ROIszD2, SET_VALUE=STRING(paramSet.SLICE_MR_ROI(4), FORMAT='(f0.1)')
+  WIDGET_CONTROL, typeROIMR, SET_VALUE=paramSet.TYPEROIMR
+  WIDGET_CONTROL, txtROIMRrad, SET_VALUE=STRING(paramSet.ROIMRRAD, FORMAT='(f0.1)')
+  WIDGET_CONTROL, txtROIMRx, SET_VALUE=STRING(paramSet.ROIMRX, FORMAT='(f0.1)')
+  WIDGET_CONTROL, txtROIMRy, SET_VALUE=STRING(paramSet.ROIMRY, FORMAT='(f0.1)')
+  WIDGET_CONTROL, txtROIMRa, SET_VALUE=STRING(paramSet.ROIMRA, FORMAT='(f0.1)')
 
 end

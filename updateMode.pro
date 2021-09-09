@@ -33,7 +33,14 @@ pro updateMode
   analyseStrings=analyseStringsAll.(selTab)
   analyse=analyseStrings(selTest)
 
+  modNames=TAG_NAMES(multiOpt)
+  modalityName=modNames(modality)
+
   RESTORE, configPath; getting the quickTemp-structure
+  
+  oldSelShow=WIDGET_INFO(lstShowFile, /DROPLIST_SELECT)
+  WIDGET_CONTROL, lstShowFile, SET_VALUE=['Filename','Rename template '+modNames(modality)], SET_DROPLIST_SELECT=oldSelShow
+  
   IF N_ELEMENTS(quickTemp) NE 0 THEN BEGIN
     IF SIZE(quickTemp, /TNAME) EQ 'STRUCT' THEN BEGIN
       IF SIZE(quickTemp.(modality), /TNAME) EQ 'STRUCT' THEN fillQuickTempList, quickTemp.(modality) ELSE fillQuickTempList, -1; fillQuickTempList in refreshparam.pro

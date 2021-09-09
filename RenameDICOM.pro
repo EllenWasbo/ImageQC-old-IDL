@@ -56,6 +56,7 @@ pro RenameDICOM, GROUP_LEADER = mainbase, xoff, yoff, inputAdr
   lbl=WIDGET_LABEL(bTemplate, VALUE='Select template:', FONT=font1, /NO_COPY)
   lstTemplate=WIDGET_DROPLIST(bTemplate, VALUE='', UVALUE='lstTemplate', XSIZE=100, FONT=font1)
   btnSaveTemplate=WIDGET_BUTTON(bTemplate, VALUE=thisPath+'images\save.bmp', /BITMAP, TOOLTIP='Save current Name formats as template', UVALUE='saveTemp')
+  btnAddTemplate=WIDGET_BUTTON(bTemplate, VALUE=thisPath+'images\plus.bmp', /BITMAP, TOOLTIP='Add new template', UVALUE='addTemp')
   btnDelTemplate=WIDGET_BUTTON(bTemplate, VALUE=thisPath+'images\delete.bmp', /BITMAP, TOOLTIP='Delete selected template', UVALUE='delTemp')
   btnSettRD=WIDGET_BUTTON(bTemplate, VALUE=thisPath+'images\gears.bmp', /BITMAP, TOOLTIP='RenameDICOM settings and template manager', UVALUE='settingsRD')
 
@@ -70,8 +71,10 @@ pro RenameDICOM, GROUP_LEADER = mainbase, xoff, yoff, inputAdr
   catTemplate=WIDGET_TEXT(bStringsCat, VALUE='', SCR_XSIZE=450, XSIZE=200, FONT=font1)
   fileTemplate=WIDGET_TEXT(bStringsFile, VALUE='', SCR_XSIZE=450, XSIZE=200, FONT=font1)
   btnCatEmpty=WIDGET_BUTTON(bStringsCat, VALUE='<<', UVALUE='catPop', TOOLTIP='Remove last element from name format', FONT=font1)
+  btnCatClear=WIDGET_BUTTON(bStringsCat, VALUE=thisPath+'images\delete.bmp', /BITMAP, UVALUE='catClear', TOOLTIP='Clear name template')
   btnCatEdit=WIDGET_BUTTON(bStringsCat, VALUE=thisPath+'images\edit.bmp', /BITMAP, UVALUE='catEdit', TOOLTIP='Remove specific elements from name template')
   btnFileEmpty=WIDGET_BUTTON(bStringsFile, VALUE='<<', UVALUE='filePop', TOOLTIP='Remove last element from name format', FONT=font1)
+  btnFileClear=WIDGET_BUTTON(bStringsFile, VALUE=thisPath+'images\delete.bmp', /BITMAP, UVALUE='fileClear', TOOLTIP='Clear name template')
   btnFileEdit=WIDGET_BUTTON(bStringsFile, VALUE=thisPath+'images\edit.bmp', /BITMAP, UVALUE='fileEdit', TOOLTIP='Remove specific elements from name template')
 
   lbl=WIDGET_LABEL(bNCcol, VALUE='', /NO_COPY)
@@ -156,35 +159,67 @@ pro RenameDICOM_event, event
       'lstTemplate': updTemp, WIDGET_INFO(lstTemplate, /DROPLIST_SELECT),0
       'saveTemp': BEGIN
         IF saveOK THEN BEGIN
+          IF catTemp(0) EQ '' OR fileTemp(0) EQ '' THEN BEGIN
+            sv=DIALOG_MESSAGE('Neither subfolder name or file name template should be empty. Please add a tag. Could not save template.', DIALOG_PARENT=event.top)
+          ENDIF ELSE BEGIN
+            newTemp=1
+            selNo=WIDGET_INFO(lstTemplate, /DROPLIST_SELECT)
+  
+            box=[$
+              '1, BASE,, /ROW', $
+              '2, LABEL, Overwrite selected template or create new?', $
+              '1, BASE,, /ROW', $
+              '0, BUTTON, Overwrite, QUIT, TAG=Overwrite',$
+              '2, BUTTON, New, QUIT, TAG=New']
+            res=CW_FORM_2(box, /COLUMN, TAB_MODE=1, TITLE='Owerwrite or new?', XSIZE=260, YSIZE=100, FOCUSNO=1, XOFFSET=xoffset+200, YOFFSET=yoffset+200)
+  
+            IF res.Overwrite THEN BEGIN
+              newTemp=0
+              RESTORE, configPath
+              temptemp=CREATE_STRUCT('cat',catTemp,'file',fileTemp,'formats',formatCurr)
+              temps=replaceStructStruct(renameTemp.temp,temptemp,selNo)
+              renameTemp=replaceStructStruct(renameTemp,temps,2)
+              SAVEIF, saveOK, configS, quickTemp, quickTout, loadTemp, renameTemp, FILENAME=configPath
+            ENDIF
+  
+            IF newTemp THEN BEGIN
+              box=[$
+                '1, BASE,, /ROW', $
+                '2, TEXT, , LABEL_LEFT=New template name:, WIDTH=12, TAG=tempname', $
+                '1, BASE,, /ROW', $
+                '0, BUTTON, Cancel, QUIT, TAG=Cancel',$
+                '2, BUTTON, Save, QUIT, TAG=Save']
+              res=CW_FORM_2(box, /COLUMN, TAB_MODE=1, TITLE='New template name', XSIZE=200, YSIZE=100, FOCUSNO=1, XOFFSET=xoffset+200, YOFFSET=yoffset+200)
+              IF res.Save THEN BEGIN
+                IF res.tempname NE '' THEN BEGIN
+                  RESTORE, configPath
+                  tempname=STRUPCASE(IDL_VALIDNAME(res.tempname, /CONVERT_ALL))
+                  alrNames=TAG_NAMES(renameTemp.temp)
+                  IF alrNames.HasValue(tempname) THEN BEGIN
+                    sv=DIALOG_MESSAGE('Template name '+tempname+' already exist.', DIALOG_PARENT=event.Top)
+                  ENDIF ELSE BEGIN
+                    newT=CREATE_STRUCT('cat',catTemp,'file',fileTemp,'formats',formatCurr)
+                    temps=CREATE_STRUCT(renameTemp.temp,tempname,newT)
+                    renameTemp=replaceStructStruct(renameTemp,temps,2)
+                    SAVEIF, saveOK, configS, quickTemp, quickTout, loadTemp, renameTemp, FILENAME=configPath
+                    updTemp, N_ELEMENTS(alrNames), 1
+                  ENDELSE
+                ENDIF ELSE sv=DIALOG_MESSAGE('No new name entered. Could not save template.', DIALOG_PARENT=event.top)
+              ENDIF
+            ENDIF
+          ENDELSE
+        ENDIF ELSE sv=DIALOG_MESSAGE('Save blocked by another user session. Go to settings and remove blocking if this is due to a previous program crash.', DIALOG_PARENT=event.Top)
+      END
+      'addTemp': BEGIN
+        IF saveOK THEN BEGIN
 
-          newTemp=1
-          selNo=WIDGET_INFO(lstTemplate, /DROPLIST_SELECT)
-
-          box=[$
-            '1, BASE,, /ROW', $
-            '2, LABEL, Overwrite selected template or create new?', $
-            '1, BASE,, /ROW', $
-            '0, BUTTON, Overwrite, QUIT, TAG=Overwrite',$
-            '2, BUTTON, New, QUIT, TAG=New']
-          res=CW_FORM_2(box, /COLUMN, TAB_MODE=1, TITLE='Owerwrite or new?', XSIZE=260, YSIZE=100, FOCUSNO=1, XOFFSET=xoffset+200, YOFFSET=yoffset+200)
-
-          IF res.Overwrite THEN BEGIN
-            newTemp=0
-            RESTORE, configPath
-            temptemp=CREATE_STRUCT('cat',catTemp,'file',fileTemp,'formats',formatCurr)
-            temps=replaceStructStruct(renameTemp.temp,temptemp,selNo)
-            renameTemp=replaceStructStruct(renameTemp,temps,2)
-            SAVEIF, saveOK, configS, quickTemp, quickTout, loadTemp, renameTemp, FILENAME=configPath
-          ENDIF
-
-          IF newTemp THEN BEGIN
             box=[$
               '1, BASE,, /ROW', $
               '2, TEXT, , LABEL_LEFT=New template name:, WIDTH=12, TAG=tempname', $
               '1, BASE,, /ROW', $
               '0, BUTTON, Cancel, QUIT, TAG=Cancel',$
               '2, BUTTON, Save, QUIT, TAG=Save']
-            res=CW_FORM_2(box, /COLUMN, TAB_MODE=1, TITLE='Owerwrite or new?', XSIZE=200, YSIZE=100, FOCUSNO=1, XOFFSET=xoffset+200, YOFFSET=yoffset+200)
+            res=CW_FORM_2(box, /COLUMN, TAB_MODE=1, TITLE='New template name', XSIZE=200, YSIZE=100, FOCUSNO=1, XOFFSET=xoffset+200, YOFFSET=yoffset+200)
             IF res.Save THEN BEGIN
               IF res.tempname NE '' THEN BEGIN
                 RESTORE, configPath
@@ -201,7 +236,7 @@ pro RenameDICOM_event, event
                 ENDELSE
               ENDIF ELSE sv=DIALOG_MESSAGE('No new name entered. Could not save template.', DIALOG_PARENT=event.top)
             ENDIF
-          ENDIF
+
         ENDIF ELSE sv=DIALOG_MESSAGE('Save blocked by another user session. Go to settings and remove blocking if this is due to a previous program crash.', DIALOG_PARENT=event.Top)
       END
       'delTemp': BEGIN
@@ -223,9 +258,13 @@ pro RenameDICOM_event, event
           catTemp=catTemp[0:n-2]
           WIDGET_CONTROL, catTemplate, SET_VALUE=STRUPCASE(STRJOIN(catTemp,'  |  '))
         ENDIF ELSE BEGIN
-          catTemp=!NULL
+          catTemp=''
           WIDGET_CONTROL, catTemplate, SET_VALUE=''
         ENDELSE
+      END
+      'catClear': BEGIN;remove all elements
+        catTemp=''
+        WIDGET_CONTROL, catTemplate, SET_VALUE=''
       END
       'catEdit':BEGIN
         n=N_ELEMENTS(catTemp)
@@ -239,9 +278,13 @@ pro RenameDICOM_event, event
           fileTemp=fileTemp[0:n-2]
           WIDGET_CONTROL, fileTemplate, SET_VALUE=STRUPCASE(STRJOIN(fileTemp,'  |  '))
         ENDIF ELSE BEGIN
-          fileTemp=!NULL
+          fileTemp=''
           WIDGET_CONTROL, fileTemplate, SET_VALUE=''
         ENDELSE
+      END
+      'fileClear': BEGIN;remove all elements
+        fileTemp=''
+        WIDGET_CONTROL, fileTemplate, SET_VALUE=''
       END
       'fileEdit':BEGIN
         n=N_ELEMENTS(fileTemp)
@@ -531,7 +574,7 @@ pro RenameDICOM_event, event
         pathType=1; default assume catalogues not single files
         IF res(0) NE '' THEN BEGIN
 
-          IF N_ELEMENTS(catTemp) GT 0 THEN BEGIN
+          IF catTemp(0) NE '' THEN BEGIN
             newPaths=origPaths & newPaths[*]=''
 
             IF update EQ 10 THEN ncats=MIN([10,n_elements(origPaths)]) ELSE ncats=n_elements(origPaths)
@@ -563,7 +606,7 @@ pro RenameDICOM_event, event
       IF res(0) EQ '' OR pathType EQ 2 THEN BEGIN; no catalogues (or only catalogues with no DICOM content) search for files
         pathType=2
 
-        IF N_ELEMENTS(fileTemp) GT 0 THEN BEGIN
+        IF fileTemp(0) NE '' THEN BEGIN
           IF adr(0) NE '' THEN BEGIN; find dicom files within path in txtCat field
             Spawn, 'dir '  + '"'+adr(0)+'\"' + '*'+ '/b /a-d', res
             IF res(0) EQ '' THEN origPaths='' ELSE origPaths=adr(0)+res(sort(res))
@@ -637,37 +680,39 @@ pro RenameDICOM_event, event
         IF pathType EQ 1 THEN BEGIN
           sv=DIALOG_MESSAGE('Also rename files?',/QUESTION, DIALOG_PARENT=event.top)
           IF sv EQ 'Yes' THEN BEGIN
-            WIDGET_CONTROL, /HOURGLASS
-            pathType=2
-            dirNames=newPaths
-            nDirs=n_elements(dirNames)
-            FOR i=0, nDirs-1 DO BEGIN
-              Spawn, 'dir '  + '"'+dirNames(i)+'"' + '*'+ '/b /a-d', res; files only,may not work in standalone version (makeRT)
-              origPaths=dirNames(i)+res(sort(res))
-              IF origPaths(0) NE '' THEN BEGIN
-                nFiles=N_ELEMENTS(origPaths)
-                WIDGET_CONTROL, lblStatus, SET_VALUE='Renaming '+STRING(nFiles,FORMAT='(i0)')+' files in directory '+STRING(i+1, FORMAT='(i0)')+'/'+STRING(nDirs, FORMAT='(i0)')
-                newPaths=origPaths & newPaths[*]=''
-                RESTORE, configPath
-                for j=0, nFiles-1 do newPaths(j)=newFileName(origPaths(j), 0, fileTemp, renameTemp.tags, formatCurr)
-                modPaths=getUniqPaths(origPaths,newPaths,pathType)
-                origPaths=modPaths.origPaths & newPaths=modPaths.newPaths
-                u=UNIQ(newPaths)
-                IF N_ELEMENTS(u) EQ N_ELEMENTS(newPaths) THEN BEGIN
-
-                  for k=0, n_elements(newPaths)-1 do begin
-                    IF newPaths(k) NE '' AND origPaths(k) NE newPaths(k) THEN file_move, origPaths(k), newPaths(k)
-                  endfor
-                ENDIF ELSE BEGIN
-                  sv=DIALOG_MESSAGE('Names are not unique using the selected name template. Only first unique file is renamed.', DIALOG_PARENT=event.top)
-                  origPathsMod=origPaths(u)
-                  newPathsMod=newPaths(u)
-                  for k=0, n_elements(newPathsMod)-1 do begin
-                    IF newPathsMod(k) NE '' AND newPaths(i) NE origPaths(i) THEN file_move, origPathsMod(k), newPathsMod(k)
-                  endfor
-                ENDELSE
-              ENDIF
-            ENDFOR
+            IF fileTemp(0) NE '' THEN BEGIN
+              WIDGET_CONTROL, /HOURGLASS
+              pathType=2
+              dirNames=newPaths
+              nDirs=n_elements(dirNames)
+              FOR i=0, nDirs-1 DO BEGIN
+                Spawn, 'dir '  + '"'+dirNames(i)+'"' + '*'+ '/b /a-d', res; files only,may not work in standalone version (makeRT)
+                origPaths=dirNames(i)+res(sort(res))
+                IF origPaths(0) NE '' THEN BEGIN
+                  nFiles=N_ELEMENTS(origPaths)
+                  WIDGET_CONTROL, lblStatus, SET_VALUE='Renaming '+STRING(nFiles,FORMAT='(i0)')+' files in directory '+STRING(i+1, FORMAT='(i0)')+'/'+STRING(nDirs, FORMAT='(i0)')
+                  newPaths=origPaths & newPaths[*]=''
+                  RESTORE, configPath
+                  for j=0, nFiles-1 do newPaths(j)=newFileName(origPaths(j), 0, fileTemp, renameTemp.tags, formatCurr)
+                  modPaths=getUniqPaths(origPaths,newPaths,pathType)
+                  origPaths=modPaths.origPaths & newPaths=modPaths.newPaths
+                  u=UNIQ(newPaths)
+                  IF N_ELEMENTS(u) EQ N_ELEMENTS(newPaths) THEN BEGIN
+  
+                    for k=0, n_elements(newPaths)-1 do begin
+                      IF newPaths(k) NE '' AND origPaths(k) NE newPaths(k) THEN file_move, origPaths(k), newPaths(k)
+                    endfor
+                  ENDIF ELSE BEGIN
+                    sv=DIALOG_MESSAGE('Names are not unique using the selected name template. Only first unique file is renamed.', DIALOG_PARENT=event.top)
+                    origPathsMod=origPaths(u)
+                    newPathsMod=newPaths(u)
+                    for k=0, n_elements(newPathsMod)-1 do begin
+                      IF newPathsMod(k) NE '' AND newPaths(i) NE origPaths(i) THEN file_move, origPathsMod(k), newPathsMod(k)
+                    endfor
+                  ENDELSE
+                ENDIF
+              ENDFOR
+            ENDIF ELSE  sv=DIALOG_MESSAGE('Filename template cannot be empty.', DIALOG_PARENT=event.top)
           ENDIF
         ENDIF
 
@@ -727,7 +772,7 @@ pro addTag
   WIDGET_CONTROL, defCatOrFile, GET_VALUE=defa
   ;add element to numbered list and element to string
   IF defa EQ 0 THEN BEGIN; folder
-    IF N_ELEMENTS(catTemp) GT 0 THEN BEGIN
+    IF catTemp(0) NE '' THEN BEGIN
       IF catTemp.HasValue(tagDesc(selT)) THEN sv=DIALOG_MESSAGE('This element is already included.', DIALOG_PARENT=event.top) ELSE BEGIN
         catTemp=[catTemp,tagDesc(selT)]
         WIDGET_CONTROL, catTemplate, SET_VALUE=STRUPCASE(STRJOIN(catTemp,'  |  '))
@@ -737,7 +782,7 @@ pro addTag
       WIDGET_CONTROL, catTemplate, SET_VALUE=STRUPCASE(catTemp)
     ENDELSE
   ENDIF ELSE BEGIN; file
-    IF N_ELEMENTS(fileTemp) GT 0 THEN BEGIN
+    IF fileTemp(0) NE '' THEN BEGIN
       IF fileTemp.HasValue(tagDesc(selT)) THEN sv=DIALOG_MESSAGE('This element is already included.', DIALOG_PARENT=event.top) ELSE BEGIN
         fileTemp=[fileTemp,tagDesc(selT)]
         WIDGET_CONTROL, fileTemplate, SET_VALUE=STRUPCASE(STRJOIN(fileTemp,'  |  '))

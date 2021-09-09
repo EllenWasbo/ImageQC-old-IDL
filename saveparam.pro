@@ -24,6 +24,7 @@ pro getParam, configTemp
   WIDGET_CONTROL, unitDeltaO_MTF_X, GET_VALUE=offxyMTF_X_unit
   WIDGET_CONTROL, unitDeltaO_ROI_CT, GET_VALUE=offxyROI_unit
   WIDGET_CONTROL, unitDeltaO_ROI_X, GET_VALUE=offxyROIX_unit
+  WIDGET_CONTROL, unitDeltaO_ROI_MR, GET_VALUE=offxyROIMR_unit
 
   ;CT tests
   WIDGET_CONTROL, cw_typeMTF, GET_VALUE=typeMTF
@@ -109,8 +110,26 @@ pro getParam, configTemp
   WIDGET_CONTROL, txtCrossVol, GET_VALUE=crossVol
   WIDGET_CONTROL, txtHomogROIszPET, GET_VALUE=homogROIszPET
   WIDGET_CONTROL, txtHomogROIdistPET, GET_VALUE=homogROIdistPET
+  ;MR tests
+  WIDGET_CONTROL, txtSNR_MR_ROI, GET_VALUE=SNR_MR_ROI
+  WIDGET_CONTROL, txtPUI_MR_ROI, GET_VALUE=PUI_MR_ROI
+  WIDGET_CONTROL, txtGhost_MR_ROIszC, GET_VALUE=GHOST_MR_ROI_C
+  WIDGET_CONTROL, txtGhost_MR_ROIszW, GET_VALUE=GHOST_MR_ROI_W
+  WIDGET_CONTROL, txtGhost_MR_ROIszH, GET_VALUE=GHOST_MR_ROI_H
+  WIDGET_CONTROL, txtGhost_MR_ROIszD, GET_VALUE=GHOST_MR_ROI_D
+  WIDGET_CONTROL, txtGD_MR_act, GET_VALUE=GD_MR_act
+  WIDGET_CONTROL, txtSlice_MR_TANA, GET_VALUE=Slice_MR_TANA
+  WIDGET_CONTROL, txtSlice_MR_ROIszW, GET_VALUE=Slice_MR_ROI_W
+  WIDGET_CONTROL, txtSlice_MR_ROIszH, GET_VALUE=Slice_MR_ROI_H
+  WIDGET_CONTROL, txtSlice_MR_ROIszD, GET_VALUE=Slice_MR_ROI_D
+  WIDGET_CONTROL, txtSlice_MR_ROIszD2, GET_VALUE=Slice_MR_ROI_D2
+  WIDGET_CONTROL, typeROIMR, GET_VALUE=ROIMRtype
+  WIDGET_CONTROL, txtROIMRrad, GET_VALUE=ROIMRrad
+  WIDGET_CONTROL, txtROIMRx, GET_VALUE=ROIMRx
+  WIDGET_CONTROL, txtROIMRy, GET_VALUE=ROIMRy
+  WIDGET_CONTROL, txtROIMRa, GET_VALUE=ROIMRa
 
-  configTemp=CREATE_STRUCT('copyHeader', copyHeader, 'transposeTable', transposeTable, 'deciMark', deciMark, 'includeFilename', WIDGET_INFO(btnIncFilename,/BUTTON_SET),'append', WIDGET_INFO(btnAppend, /BUTTON_SET),'autoImportPath','', 'autoContinue',0,'qtOutTemps',['DEFAULT','DEFAULT','DEFAULT','DEFAULT','DEFAULT','DEFAULT'],$
+  configTemp=CREATE_STRUCT('copyHeader', copyHeader, 'transposeTable', transposeTable, 'deciMark', deciMark, 'includeFilename', WIDGET_INFO(btnIncFilename,/BUTTON_SET),'append', WIDGET_INFO(btnAppend, /BUTTON_SET),'autoImportPath','', 'autoContinue',0,'wait',[5,2],'qtOutTemps',['DEFAULT','DEFAULT','DEFAULT','DEFAULT','DEFAULT','DEFAULT'],$
     'MTFtype',typeMTF,'MTFtypeX', typeMTFX, 'MTFtypeNM', typeMTFNM,'MTFtypeSPECT', typeMTFSPECT, 'plotMTF',plotWhich,'plotMTFX',plotWhichX,'plotMTFNM', plotWhichNM,'plotMTFSPECT', plotWhichSPECT,$
     'tableMTF',tableWhich,'cyclMTF',MTFcyclWhich,'tableMTFX', tableWhichX, $
     'MTFroiSz',FLOAT(MTFroiSz(0)),'MTFroiSzX',[FLOAT(MTFroiSzX(0)),FLOAT(MTFroiSzY(0))],'MTFroiSzNM',[FLOAT(MTFroiSzXNM(0)),FLOAT(MTFroiSzYNM(0))],'MTFroiSzSPECT',FLOAT(MTFroiSzSPECT(0)),'MTF3dSPECT',WIDGET_INFO(MTF3dSPECT, /BUTTON_SET),$
@@ -122,6 +141,7 @@ pro getParam, configTemp
     'NoiseROIsz',FLOAT(noiseROIsz(0)), 'NoiseXpercent',FLOAT(NoiseXpercent(0)), 'HUwaterROIsz', FLOAT(HUwaterROIsz(0)),$
     'typeROI',ROItype,'ROIrad',FLOAT(ROIrad(0)),'ROIx',FLOAT(ROIx(0)),'ROIy',FLOAT(ROIy(0)),'ROIa',FLOAT(ROIa(0)),'offxyROI', offxyROI,'offxyROI_unit',offxyROI_unit,$
     'typeROIX',ROIXtype,'ROIXrad',FLOAT(ROIXrad(0)),'ROIXx',FLOAT(ROIXx(0)),'ROIXy',FLOAT(ROIXy(0)),'ROIXa',FLOAT(ROIXa(0)),'offxyROIX', offxyROIX,'offxyROIX_unit',offxyROIX_unit,$
+    'typeROIMR',ROIMRtype,'ROIMRrad',FLOAT(ROIMRrad(0)),'ROIMRx',FLOAT(ROIMRx(0)),'ROIMRy',FLOAT(ROIMRy(0)),'ROIMRa',FLOAT(ROIMRa(0)),'offxyROIMR', offxyROIMR, 'offxyROIMR_unit', offxyROIMR_unit,$
     'NPSroiSz', LONG(NPSroiSz(0)), 'NPSroiDist', FLOAT(NPSroiDist(0)),'NPSsubNN', LONG(NPSsubNN(0)), 'NPSroiSzX', LONG(NPSroiSzX(0)), 'NPSsubSzX', LONG(NPSsubSzX(0)), 'NPSavg',WIDGET_INFO(btnNPSavg, /BUTTON_SET),$
     'STProiSz', FLOAT(STProiSz(0)), $
     'unifAreaRatio', FLOAT(unifAreaRatio(0)),'SNIAreaRatio', FLOAT(SNIAreaRatio(0)),'unifCorr',WIDGET_INFO(btnUnifCorr,/BUTTON_SET),'unifCorrPos',unifCorrPos,'unifCorrRad',unifCorrRad,'SNIcorr',WIDGET_INFO(btnSNICorr,/BUTTON_SET), 'SNIcorrPos',SNIcorrPos,'SNIcorrRad',SNIcorrRad,$
@@ -129,7 +149,11 @@ pro getParam, configTemp
     'barROIsz', FLOAT(barROIsz(0)),'barWidths',barWidths,$
     'scanSpeedAvg',LONG(scanSpeedAvg(0)), 'scanSpeedHeight', FLOAT(scanSpeedHeight(0)), 'scanSpeedFiltW', LONG(scanSpeedFiltW(0)), $
     'contrastRad1', FLOAT(contrastRad1(0)), 'contrastRad2', FLOAT(contrastRad2(0)),$
-    'CrossROIsz', FLOAT(crossROIsz(0)), 'CrossVol', FLOAT(crossVol(0)) )
+    'CrossROIsz', FLOAT(crossROIsz(0)), 'CrossVol', FLOAT(crossVol(0)),$
+    'SNR_MR_ROI', FLOAT(SNR_MR_ROI(0)), 'PUI_MR_ROI', FLOAT(PUI_MR_ROI(0)), $
+    'Ghost_MR_ROI', [FLOAT(GHOST_MR_ROI_C(0)),FLOAT(GHOST_MR_ROI_W(0)),FLOAT(GHOST_MR_ROI_H(0)),FLOAT(GHOST_MR_ROI_D(0)),WIDGET_INFO(ghost_MR_optC, /BUTTON_SET)],$
+    'GD_MR_act', FLOAT(GD_MR_act(0)),$
+    'Slice_MR_ROI', [FLOAT(Slice_MR_TANA(0)),FLOAT(Slice_MR_ROI_W(0)),FLOAT(Slice_MR_ROI_H(0)),FLOAT(Slice_MR_ROI_D(0)),FLOAT(Slice_MR_ROI_D2(0)),WIDGET_INFO(slice_MR_optC, /BUTTON_SET)])
 ;'distCorr',FLOAT(distCorr(0)),'attCoeff',FLOAT(attCorr(0)),'detThick',FLOAT(thickCorr(0)),
   RETURN
 end

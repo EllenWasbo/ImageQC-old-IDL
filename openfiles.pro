@@ -168,6 +168,8 @@ pro openFiles, adrFilesToOpen, SILENT=silent
           ENDIF
           IF newModa NE modality THEN BEGIN
             modality=newModa
+            modNames=TAG_NAMES(multiOpt)
+            modalityName=modNames(modality)
             clearRes
             clearMulti
             ;updateMode; later
@@ -182,7 +184,8 @@ pro openFiles, adrFilesToOpen, SILENT=silent
           infoFile=FILE_INFO(structImgs.(0).filename)
           IF infoFile.size GT 15000000 THEN sv=DIALOG_MESSAGE('Warning: large files (>15MB) loaded. Consider storing the files locally first to ensure smooth workflow.', DIALOG_PARENT=evTop)
         ENDIF
-        fileList=getListOpenFiles(structImgs,0,marked, markedMulti)
+        
+        fileList=getListOpenFiles(structImgs,0,marked, markedMulti);temporary without RenameDICOM temp option to speed up - updateMode calls fillQuickTemplist where this happens
   
         WIDGET_CONTROL, lblProgress, SET_VALUE=' '
   

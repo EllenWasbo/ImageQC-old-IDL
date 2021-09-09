@@ -33,7 +33,6 @@ pro updatePlot, setRangeMinMaxX, setRangeMinMaxY, optionSet
   plotHintTxt='';text to show above plot to give a hint on how to change plot based on results tab selections
 
   IF results(getResNmb(curMode,analyse,analyseStringsAll)) THEN BEGIN
-
     valuesPlot=CREATE_STRUCT('empty',0); structure of plot values to be copied to clipboard (optionSet = 1) or sent to iPlot (optionSet =2), x/y pairs of vectors, tagname 'COPYXXX...' means that the vector (x values) is not included when optionSet=1
 
     rowNo=-1
@@ -1538,6 +1537,86 @@ pro updatePlot, setRangeMinMaxX, setRangeMinMaxY, optionSet
                 ENDIF
               END
 
+              ELSE:
+            ENDCASE
+          ENDIF ELSE iDrawPlot.erase
+        END
+        ;******************************** MR *************************************************
+        5: BEGIN
+          curTab=WIDGET_INFO(wtabAnalysisMR, /TAB_CURRENT)
+          IF results(curTab) EQ 1 THEN BEGIN
+
+            CASE analyse OF
+              
+              'SLICETHICK': BEGIN
+                tn=TAG_NAMES(sliceThickRes.(sel))
+                IF tn.HasValue('EMPTY') THEN iDrawPlot.ERASE ELSE BEGIN
+                  tabSel=WIDGET_INFO(resTab,/TABLE_SELECT)
+                  colNo=tabSel(0)
+                  colors=255*[[0,0,1],[1,0,0]];blue,red
+
+                  lines=['H1','H2','V1','V2','iV1','iV2']
+
+                  ;structTemp=CREATE_STRUCT('background',bg,'maxVal',[maxUpper,maxLower],'subUpper',subUpper,'subLower',subLower,'firstLast',[[wU(1)-wU(0)/2.,wU(1)+wU(0)/2.],[wL(1)-wL(0)/2.,wL(1)+wL(0)/2.])
+                  subUpper=sliceThickRes.(sel).subUpper
+                  subLower=sliceThickRes.(sel).subLower
+                  szSub=SIZE(subUpper, /DIMENSIONS)
+                  IF setRangeMinMaxX THEN rangeX=[0,szSub(0)*pix(0)]
+                  IF setRangeMinMaxY THEN rangeY=[0,MAX(sliceThickRes.(sel).maxVal)*1.1]
+                  IF optionSet NE 3 THEN BEGIN
+                      
+                      backGround=sliceThickRes.(sel).background
+                      halfMax=0.5*(sliceThickRes.(sel).maxVal+backGround)
+                      xVals=INDGEN(szSub(0))*pix(0)
+                    
+                      ;vect=subUpper[*,0]
+                      valuesPlot=CREATE_STRUCT('pix',xVals,'ProfileUpper', subUpper); vect) 
+                      
+                      resPlot=objarr(7);szSub(1)*2+5)
+                      resPlot[0]=PLOT(xVals,subUpper, NAME='Profile Upper', COLOR=colors[*,0], TITLE='Profiles to find slice thickness', YTITLE='Pixel value', XTITLE='pos (mm)', $
+                        XRANGE=rangeX, YRANGE=rangeY, XSTYLE=1, YSTYLE=1, MARGIN=resPlotMargin, FONT_NAME=foName, FONT_SIZE=foSize, CURRENT=currWin)
+                      
+                      ;FOR line=1,szSub(1)-1 DO BEGIN
+                      ;  vect=subUpper[*,line]
+                      ;  valuesPlot=CREATE_STRUCT(valuesPlot, 'ProfileUpper_'+STRING(line,FORMAT='(i0)'), vect)
+                      ;  resPlot[line]=PLOT(xVals,vect, '-', NAME='Profile', COLOR=colors[*,0], /OVERPLOT)
+                      ;ENDFOR
+                      
+                      ;vect=subLower[*,0]
+                      valuesPlot=CREATE_STRUCT(valuesPlot,'ProfileLower', subLower);vect)
+                      resPlot[1]=PLOT(xVals, subLower, '-', NAME='Profile Lower', COLOR=colors[*,1], /OVERPLOT)
+                      ;FOR line=1,szSub(1)-1 DO BEGIN
+                      ;  vect=subLower[*,line]
+                      ;  valuesPlot=CREATE_STRUCT(valuesPlot, 'ProfileLower_'+STRING(line,FORMAT='(i0)'), vect)
+                      ;  resPlot[line+szSub(1)]=PLOT(xVals,vect, '-', NAME='Profile', COLOR=colors[*,1], /OVERPLOT)
+                      ;ENDFOR
+                      
+                      resPlot[2]=PLOT(xVals, FLTARR(szSub(0))+backGround, '-2', NAME='Background', COLOR=[0,0,0], /OVERPLOT)
+                      resPlot[3]=PLOT(sliceThickRes.(sel).firstLast[*,0]*pix,[halfMax(0),halfMax(0)], '-.2', NAME='Half Max Upper', COLOR=colors[*,0], /OVERPLOT)
+                      resPlot[4]=PLOT(sliceThickRes.(sel).firstLast[*,1]*pix,[halfMax(1),halfMax(1)], '-.2', NAME='Half Max Lower', COLOR=colors[*,1], /OVERPLOT)
+                      resPlot[5]=PLOT([0,szSub(0)],[sliceThickRes.(sel).maxVal(0),sliceThickRes.(sel).maxVal(0)], ':', NAME='MaxVal Upper', COLOR=colors[*,0], /OVERPLOT)
+                      resPlot[6]=PLOT([0,szSub(0)],[sliceThickRes.(sel).maxVal(1),sliceThickRes.(sel).maxVal(1)], ':', NAME='MaxVal Lower', COLOR=colors[*,1], /OVERPLOT)
+                      resLeg=LEGEND(TARGET=resPlot[0:6], FONT_NAME=foName, FONT_SIZE=foSize, POSITION=legPos)
+
+                  ENDIF
+                ENDELSE
+              END
+              
+              'ROI': BEGIN
+                WIDGET_CONTROL, resTab, GET_VALUE=resArr
+                zPosMarked=getZposMarked(structImgs, markedTemp)
+                yValues = FLOAT(resArr[0,*])
+                IF setRangeMinMaxX THEN rangeX=[min(zPosMarked),max(zPosMarked)]
+                IF setRangeMinMaxY THEN rangeY=[FLOOR(min(yValues)),CEIL(max(yValues))]
+                IF optionSet NE 3 THEN BEGIN
+                  resPlot=plot(zPosMarked, FLOAT(resArr[0,*]), XTITLE='zPos (mm)', YTITLE='Pixel value' , NAME='Mean pixel value', TITLE='Mean pixel value for all (marked) images', $
+                    XRANGE=rangeX, YRANGE=rangeY, XSTYLE=1, YSTYLE=1, MARGIN=resPlotMargin, FONT_NAME=foName, FONT_SIZE=foSize, CURRENT=currWin)
+                  resPlotStd=PLOT(zPosMarked, FLOAT(resArr[1,*]), NAME='Stdev', /OVERPLOT)
+                  resLeg=LEGEND(TARGET=resPlotStd, FONT_NAME=foName, FONT_SIZE=foSize, POSITION=legPos)
+                  valuesPlot=CREATE_STRUCT('zPos', zPosMarked, 'PixelValue', yValues)
+                ENDIF
+              END
+              
               ELSE:
             ENDCASE
           ENDIF ELSE iDrawPlot.erase

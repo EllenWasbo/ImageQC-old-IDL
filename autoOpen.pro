@@ -17,11 +17,12 @@
 
 pro autoOpen, GROUP_LEADER = mainbase, xoff, yoff
 
-  COMMON AUTOVAR, listAuto, modArr,tempnames,tempIDarr,statnames,loadAdr,dcmCritarr, lblAutoProgress, btnAutoCont
+  COMMON AUTOVAR, listAuto, modArr,tempnames,tempsPDF, tempIDarr,statnames,loadAdr,dcmCritarr, lblAutoProgress, btnAutoPause
   COMMON VARI
   COMPILE_OPT hidden
 
   tempnames=!Null; array of available template names
+  tempsPDF=!Null; intarr with 1 if template is of type read pdf
   modArr=!Null; array of modality for the available template names
   tempIDarr=!Null; id for the available templates within its respective modality
   statNames=!Null; station names defined for the available templates
@@ -62,7 +63,7 @@ pro autoOpen, GROUP_LEADER = mainbase, xoff, yoff
   btnRunPickFiles=WIDGET_BUTTON(bRgtButt, VALUE='Run for selected files...', UVALUE='autoRunPicked',TOOLTIP='Run selected template on specified files',  FONT=font1)
 
   bAutoCont=WIDGET_BASE(bAutoRgt, /NONEXCLUSIVE)
-  btnAutoCont=WIDGET_BUTTON(bAutoCont, VALUE='Pause between each template.', FONT=font1)
+  btnAutoPause=WIDGET_BUTTON(bAutoCont, VALUE='Pause between each template.', FONT=font1)
 
   bBtmButt=WIDGET_BASE(autobox, /ROW)
   lbl = WIDGET_LABEL(bBtmButt, VALUE='', XSIZE=350, /NO_COPY)
@@ -353,7 +354,6 @@ pro autoOpen_event, event
                     FOR i=0, nNoImg-1 DO BEGIN
                       fi=FILE_INFO(adrNoImg(i))
                       IF fi.write THEN FILE_DELETE, adrNoImg(i), /QUIET
-                      print, 'Del: ', adrNoImg(i)
                     ENDFOR
                   ENDIF
                 ENDIF
@@ -531,44 +531,53 @@ pro autoOpen_event, event
   IF proceed GT 0 THEN BEGIN
     autoStopFlag=0
     selTemp=WIDGET_INFO(listAuto, /LIST_SELECT)
-    autoPause=WIDGET_INFO(btnAutoCont, /BUTTON_SET)
+    autoPause=WIDGET_INFO(btnAutoPause, /BUTTON_SET)
+    IF total(tempsPDF(selTemp)) GT 0 THEN BEGIN
+      sv=DIALOG_MESSAGE('One or more of the selected templates will read pdf using an Excel macro and autostarting Acrobat Reader and shortkeys (Ctrl+C, Ctrl+A). '+$
+        'Make sure Acrobat Reader is closed down and press OK to start the process. Keep hands off mouse/keyboard (unless prompted otherwise) until the summary confirm that these processes are finished.', /INFORMATION, DIALOG_PARENT=evTop)
+    ENDIF
     WIDGET_CONTROL, event.top, /DESTROY
     WIDGET_CONTROL, /HOURGLASS
     RESTORE, configPath
-    ;tempIDnotFoundImg=!Null
+
     testLog=''
-    CASE proceed of
+    CASE proceed OF
       1: BEGIN; run selected
         loop=1
-        FOR i=0, N_ELEMENTS(selTemp)-1 DO BEGIN
+        FOR i=0, N_ELEMENTS(selTemp)-1 DO BEGIN        
           thisTempName=tempnames(selTemp(i))
+          WIDGET_CONTROL, lblProgress0, SET_VALUE=thisTempName+' Template '+STRING(i+1, FORMAT='(i0)')+'/'+STRING(N_ELEMENTS(selTemp), FORMAT='(i0)')
           IF i EQ N_ELEMENTS(selTemp)-1 THEN BEGIN; last selected
             loop=-1
             autoTempRun, loadTemp.(modArr(selTemp(i))).(tempIDarr(selTemp(i))), modArr(selTemp(i)), LOOP=loop, TEMPNAME=thisTempName, TESTLOG=testLog, AUTOPAUSE=0
           ENDIF ELSE autoTempRun, loadTemp.(modArr(selTemp(i))).(tempIDarr(selTemp(i))), modArr(selTemp(i)), LOOP=loop, TEMPNAME=thisTempName, TESTLOG=testLog, AUTOPAUSE=autopause
 
-          If loop NE 1 THEN break
+          IF loop NE 1 THEN BREAK
         ENDFOR
       END
       2: BEGIN;run all
         loop=1
         FOR i=0, N_ELEMENTS(tempnames)-1 DO BEGIN
           thisTempName=tempnames(i)
+          WIDGET_CONTROL, lblProgress0, SET_VALUE=thisTempName+' Template '+STRING(i+1, FORMAT='(i0)')+'/'+STRING(N_ELEMENTS(selTemp), FORMAT='(i0)')
           IF i EQ N_ELEMENTS(tempnames)-1 THEN BEGIN
             loop=-1
             autoTempRun, loadTemp.(modArr(i)).(tempIDarr(i)), modArr(i), LOOP=loop, TEMPNAME=thisTempName, TESTLOG=testLog, AUTOPAUSE=0
           ENDIF ELSE autoTempRun, loadTemp.(modArr(i)).(tempIDarr(i)), modArr(i), LOOP=loop, TEMPNAME=thisTempName, TESTLOG=testLog, AUTOPAUSE=autopause
-          print, 'thisTempName: ',thisTempName, '   loop= ',loop
           If loop NE 1 THEN break
         ENDFOR
       END
       3: BEGIN
         thisTempName=tempnames(selTemp(0))
+        WIDGET_CONTROL, lblProgress0, SET_VALUE=thisTempName
         autoTempRun, loadTemp.(modArr(selTemp(0))).(tempIDarr(selTemp(0))), modArr(selTemp(0)), PICKFILES=1, TEMPNAME=thisTempName, TESTLOG=testLog, AUTOPAUSE=0
       END
 
       ELSE:
     ENDCASE
+    WIDGET_CONTROL, lblProgress0, SET_VALUE=''
+    updatePlot,1,1,0
+    switchMode='No'
 
     IF testLog NE '' THEN BEGIN
 
@@ -601,9 +610,10 @@ pro upd_AutoList, countFiles
 
   WIDGET_CONTROL, /HOURGLASS
   RESTORE, configPath
-  IF configS.(1).AUTOCONTINUE EQ 1 THEN WIDGET_CONTROL,btnAutoCont, SET_BUTTON=0 ELSE WIDGET_CONTROL,btnAutoCont, SET_BUTTON=1
+  IF configS.(1).AUTOCONTINUE EQ 1 THEN WIDGET_CONTROL,btnAutoPause, SET_BUTTON=0 ELSE WIDGET_CONTROL,btnAutoPause, SET_BUTTON=1
 
   tempnames=!Null
+  tempsPDF=!Null
   modArr=!Null
   tempIDarr=!Null
   statNames=!Null
@@ -617,12 +627,15 @@ pro upd_AutoList, countFiles
     FOR m=0, N_TAGS(multiOpt)-1 DO BEGIN
       IF SIZE(loadTemp.(m), /TNAME) EQ 'STRUCT' THEN BEGIN
         namesThis=modNames(m)+' / '+ TAG_NAMES(loadTemp.(m))
+        pdfThis=INTARR(N_ELEMENTS(namesThis))
         IF countFiles THEN BEGIN
           WIDGET_CONTROL, lblAutoProgress, SET_VALUE='Searching for new files in ' + modNames(m)
-          ;search for new files (outside Archive)
+          ;search for new files (outside Archive)         
           FOR i=0, N_ELEMENTS(namesThis)-1 DO BEGIN
             statNames=[statNames, loadTemp.(m).(i).statName]
             adr=loadTemp.(m).(i).path
+            alt=loadTemp.(m).(i).alternative
+            IF STRMID(alt,0,3) EQ 'PDF' THEN pdfThis(i)=1
             loadAdr=[loadAdr, adr]
             dcmCritarr=[[dcmCritarr],[loadTemp.(m).(i).dcmCrit]]
             adrTempTemp=''
@@ -631,11 +644,14 @@ pro upd_AutoList, countFiles
               IF STRMID(adr(0), 0, /REVERSE_OFFSET) NE pathsep THEN adr=adr(0)+pathsep
               ft=FILE_TEST(adr, /DIRECTORY)
               IF ft THEN BEGIN
-                Spawn, 'dir '  + '"'+adr(0)+'"' + '*'+ '/b /a-D', adrTempTemp
+                CASE alt OF
+                  'GE_QAP': adrTempTemp=findNewGE_QAP_files(adr(0)); findNewGE_QAP_files  defined in a0_functionsMini.pro
+                  ELSE: Spawn, 'dir '  + '"'+adr(0)+'"' + '*'+ '/b /a-D', adrTempTemp       
+                ENDCASE
                 IF adrTempTemp(0) NE '' THEN namesThis(i)=namesThis(i)+' ('+STRING(N_ELEMENTS(adrTempTemp),FORMAT='(i0)')+')'
               ENDIF ELSE BEGIN
-                IF errLogg EQ '' THEN sv=DIALOG_MESSAGE('Path not found '+adr+newline+newline+'Continue searching for files on other templates?', /QUESTION, DIALOG_PARENT=evTop)
-                errLogg=errLogg+'Path not found '+adr+newline
+                IF errLogg EQ '' THEN sv=DIALOG_MESSAGE('Path not found '+adr+newline+'Template: '+namesThis(i)+newline+'Continue searching for files on other templates?', /QUESTION, DIALOG_PARENT=evTop)
+                errLogg=errLogg+'Path not found '+namesThis(i) + '  '+ adr+newline
                 IF sv EQ 'No' THEN BEGIN
                   breakFlag=1
                   errLogg=''
@@ -645,8 +661,14 @@ pro upd_AutoList, countFiles
             ENDIF
           ENDFOR
           IF breakFlag THEN BREAK
-        ENDIF
+        ENDIF ELSE BEGIN; not countfiles
+          FOR i=0, N_ELEMENTS(namesThis)-1 DO BEGIN
+            alt=loadTemp.(m).(i).alternative
+            IF STRMID(alt,0,3) EQ 'PDF' THEN pdfThis(i)=1
+          ENDFOR
+        ENDELSE
         tempnames=[tempnames, namesThis]
+        tempsPDF=[tempsPDF, pdfThis]
         modArr=[modArr,INTARR(N_ELEMENTS(namesThis))+m]
         tempIDarr=[tempIDarr,INDGEN(N_ELEMENTS(namesThis))]
       ENDIF

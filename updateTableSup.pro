@@ -387,6 +387,29 @@ pro updateTableSup
   ;
   ;        ENDIF
   ;      END; PET
+  ;***********************************MR ****************************************************
+  5: BEGIN
+    curTab=WIDGET_INFO(wtabAnalysisMR, /TAB_CURRENT)
+      IF results(curTab) EQ 1 THEN BEGIN
+    
+        CASE analyse OF
+          'PUI':BEGIN
+            headers=tableHeaders.MR.PUI.AltSup
+            nCols=4
+            resArrString=STRARR(nCols,nRows)
+            FOR i=0, nRows-1 DO resArrString[*,i]=STRING(PUIres[3:6,markedTemp(i)], FORMAT='(i0)')
+            END
+            
+          'SLICETHICK':BEGIN
+            headers=tableHeaders.MR.SLICETHICK.AltSup
+            nCols=2
+            resArrString=STRARR(nCols,nRows)
+            FOR i=0, nRows-1 DO resArrString[*,i]=STRING(sliceThickResTab[4:5,markedTemp(i)], FORMAT='(f0.1)')
+            END
+        ELSE:
+        ENDCASE
+     ENDIF
+    END;MR
 
 ENDCASE
 

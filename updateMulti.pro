@@ -106,8 +106,8 @@ pro updateMulti, AUTOACTIVE=autoactive, NIMGTEMP=nImgTemp
             markedMulti=markedMultiNew
 
           ENDIF
-
-          fileList=getListOpenFiles(structImgs,0,marked,markedMulti)
+          IF WIDGET_INFO(lstShowFile, /DROPLIST_SELECT) EQ 0 THEN RDtemp='' ELSE RDtemp=modalityName
+          fileList=getListOpenFiles(structImgs,0,marked,markedMulti,RENAMEDICOM=RDtemp, CONFIGPATH=configPath, PARENT=evTop)
           sel=WIDGET_INFO(listFiles, /LIST_SELECT)
           oldTop=WIDGET_INFO(listFiles, /LIST_TOP)
           WIDGET_CONTROL, listFiles, SET_VALUE=fileList, SET_LIST_SELECT=sel(N_ELEMENTS(sel)-1), SET_LIST_TOP=oldTop
@@ -116,7 +116,8 @@ pro updateMulti, AUTOACTIVE=autoactive, NIMGTEMP=nImgTemp
 
     ENDIF ELSE BEGIN;multi turned off
       clearMulti
-      fileList=getListOpenFiles(structImgs,0,marked,markedMulti)
+      IF WIDGET_INFO(lstShowFile, /DROPLIST_SELECT) EQ 0 THEN RDtemp='' ELSE RDtemp=modalityName
+      fileList=getListOpenFiles(structImgs,0,marked,markedMulti,RENAMEDICOM=RDtemp, CONFIGPATH=configPath, PARENT=evTop)
       sel=WIDGET_INFO(listFiles, /LIST_SELECT)
       oldTop=WIDGET_INFO(listFiles, /LIST_TOP)
       WIDGET_CONTROL, listFiles, SET_VALUE=fileList, SET_LIST_SELECT=sel(N_ELEMENTS(sel)-1), SET_LIST_TOP=oldTop

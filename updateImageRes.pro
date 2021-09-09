@@ -271,6 +271,56 @@ pro updateImageRes
 ;          ENDIF
 ;        END
 
+        ;******************************** MR *************************************************
+        5:BEGIN
+          curTab=WIDGET_INFO(wtabAnalysisMR, /TAB_CURRENT)
+          ;IF results(curTab) EQ 1 THEN BEGIN
+
+            CASE analyse OF
+              'SNR':BEGIN
+                testNmb=getResNmb(modality,'SNR',analyseStringsAll)
+                markedArr=INTARR(nImg)
+                IF marked(0) EQ -1 THEN BEGIN
+                  IF markedMulti(0) EQ -1 THEN markedArr=markedArr+1 ELSE markedArr=markedMulti[testNmb,*]
+                ENDIF ELSE markedArr(marked)=1
+                
+                IF TOTAL(markedArr) GT 1 THEN BEGIN;minimum 2 images to analyse
+                  anaImg=WHERE(markedArr EQ 1, nAnaImg)
+                  firstImages=anaImg(0)
+                  secondImages=anaImg(1)
+                  IF nAnaImg GT 2 THEN BEGIN
+                    FOR i=2, nAnaImg-1 DO BEGIN
+                      IF i mod 2 EQ 0 THEN firstImages=[firstImages, anaImg(i)] ELSE secondImages=[secondImages,anaImg(i)]
+                    ENDFOR
+                  ENDIF
+                  nSets=N_ELEMENTS(secondImages)
+                  
+                  idIsFirst=WHERE(firstImages EQ sel)
+                  IF idIsFirst(0) NE -1 AND idIsFirst(0) NE nSets THEN BEGIN
+                      i=firstImages(idIsFirst(0))
+                      img1=readImg(structImgs.(i).filename, structImgs.(i).frameNo)
+                      szImg1=SIZE(img1, /DIMENSIONS)
+                      i2=secondImages(idIsFirst(0))
+                      img2=readImg(structImgs.(i2).filename, structImgs.(i2).frameNo)
+                      szImg2=SIZE(img2, /DIMENSIONS)
+                      IF ARRAY_EQUAL(szImg1, szImg2) THEN BEGIN
+                        activeResImg=img1-img2
+                        tvRes=activeResImg
+                        szX=450
+                        szY=ROUND(szX*(szImg1(1)*1./szImg1(0)))
+                        rangeWL=LONG([MIN(activeResImg),MAX(activeResImg)])
+                        TVSCL,congrid(adjustWindowLevel(tvRes, rangeWL), szX, szY, /INTERP)
+                        XYOUTS, 0.05,0.05, 'img'+STRING(i+1,FORMAT='(i0)')+'-img'+STRING(i2+1,FORMAT='(i0)')+' Window Level = [min,max] of diff', CHARSIZE=1.5, COLOR=255
+                      ENDIF
+                  ENDIF
+                ENDIF
+                END
+
+              ELSE:
+            ENDCASE
+          ;ENDIF
+        END
+
         ELSE:
 
       ENDCASE; modes

@@ -1,96 +1,7 @@
 ;FUNCTIONS for Rename DICOM
 
-;path = file or folder address
-;foler = 1 if path is a folder or 0 if path is a file, -1 if file and output is strarray, not filename
-;elemArr = string array with elements to pick from tagStruct
-;tagStruct = structure with dicom elements [group, element]
-;formatsArr = string array with format strings without () e.g. ['a0','f0.3']
-function newFileName, path, folder, elemArr, tagStruct, formatsArr
-  newpath=''
-  
-  IF folder EQ 1 THEN BEGIN
-    Spawn, 'dir '  + '"'+path+'"' + '*'+ '/b /a-d', res; files only
 
-    IF res(0) NE '' THEN BEGIN;find first dcm file and extract info from this header
-      res=path+res(sort(res))
-      nn=N_ELEMENTS(res)
-      dcm=-1
-      counter=0
-      FOR n=0, nn-1 DO BEGIN
-        dcm=QUERY_DICOM(res(n))
-        IF dcm EQ 1 THEN path=res(n)
-        IF dcm EQ 1 THEN BREAK ELSE counter=counter+1
-      ENDFOR
-    ENDIF ELSE dcm=-1;no files found
-  ENDIF ELSE dcm=QUERY_DICOM(path)
-  
-  IF dcm EQ 1 THEN BEGIN
-    o=obj_new('idlffdicom')
-    t=o->read(path)
-
-    nElem=N_ELEMENTS(elemArr)
-    desc=TAG_NAMES(tagStruct)
-    
-    nameArr=!Null
-    FOR ee=0, nElem-1 DO BEGIN
-      ide=WHERE(desc EQ STRUPCASE(elemArr(ee)))
-      ide=ide(0)
-      thisTag=tagStruct.(ide)
-      test=o->GetReference(thisTag(0),thisTag(1))
-      notFound=1
-      IF test(0) NE -1 THEN BEGIN
-        test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
-
-        stest=size(test_peker, /TNAME)
-        IF stest EQ 'POINTER' THEN BEGIN
-          namePart=*(test_peker[0])
-
-          nameParts=STRSPLIT(namePart(0),'\',/EXTRACT)
-          formats=STRSPLIT(STRMID(formatsArr.(ide), 1, strlen(formatsArr.(ide))-2),'\',/EXTRACT)
-          nP=N_ELEMENTS(nameParts)
-          IF nP EQ N_ELEMENTS(formats) AND nP GT 1 THEN BEGIN
-            namePartArr=!Null
-            FOR p=0, nP-1 DO BEGIN
-              IF formats(p) NE '_' THEN namePartArr=[namePartArr,STRING(nameParts(p), FORMAT='('+formats(p)+')')]
-            ENDFOR
-            namePart=STRJOIN(namePartArr,'_')
-          ENDIF ELSE namePart=STRING(nameParts(0),FORMAT=formatsArr.(ide))
-          
-          nameArr=[nameArr,namePart]
-          notFound=0
-        ENDIF
-
-      ENDIF
-      IF notFound and folder EQ -1 THEN nameArr=[nameArr,'- not found -']
-    ENDFOR
-
-    obj_destroy,o
-    
-    IF N_ELEMENTS(nameArr) GT 0 THEN BEGIN
-      IF folder EQ 1 THEN nameArr=IDL_VALIDNAME(nameArr,/CONVERT_ALL)
-      IF folder EQ -1 THEN BEGIN;array of file elements out if folder =-1
-        newpath=nameArr
-        FOREACH elem, newpath, idx DO newpath(idx)=elem.replace('*','X')
-      ENDIF ELSE BEGIN
-        nameStr=STRJOIN(nameArr,'_')
-        IF folder EQ 1 THEN nameStr=STRJOIN(STRSPLIT(nameStr,'_',/EXTRACT),'_') ;remove all multiple and first _
-  
-        arr=STRSPLIT(path,'\',/EXTRACT)
-        last=n_elements(arr)-1
-        IF folder EQ 1 THEN newpath=STRJOIN(arr[0:last-2],'\')+'\'+nameStr+'\' ELSE BEGIN
-          nameStr=nameStr.replace('*','X');change * to X (format code not ideal return *)
-          nameStr=nameStr.replace(' ','_')
-          nameStr=STRJOIN(STRSPLIT(nameStr,'[-/\?#%&{}`<>$!:@+|=]',/EXTRACT, /REGEX),'_')
-          
-          newpath=STRJOIN(arr[0:last-1],'\')+'\'+nameStr+'.dcm'
-        ENDELSE
-      ENDELSE
-    ENDIF
-    
-  ENDIF
-
-  return, newpath
-end
+;function newFileName moved to a0_functionsMini.pro
 
 function getUniqPaths, origPaths,newPaths,pathType
 
@@ -119,7 +30,7 @@ function getUniqPaths, origPaths,newPaths,pathType
   return, structPaths
 end
 
-;edit name template - string array - delete specific items
+;edit name template in RenameDICOM - string array - delete specific items
 function editTemp, inputStr, xo, yo
   
   strlist=STRJOIN(inputStr,'|')
@@ -139,6 +50,8 @@ function editTemp, inputStr, xo, yo
       IF N_ELEMENTS(selIds) EQ N_ELEMENTS(inputStr) THEN outputStr='' ELSE outputStr=removeIDarr(inputStr, selIds)
     ENDIF
   ENDIF ELSE outputStr=inputStr
+  
+  IF N_ELEMENTS(outputStr) EQ 0 THEN ouputStr=''
 
 RETURN, outputStr
 end

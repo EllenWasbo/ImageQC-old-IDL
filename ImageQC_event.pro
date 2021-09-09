@@ -77,14 +77,14 @@ pro ImageQC_event, ev
         prevMarkedMulti=markedMulti
         prevMarked=marked
         settings, GROUP_LEADER=ev.TOP, xoffset+100, yoffset+100, 'PARAM'
-        ;IF N_ELEMENTS(quickTemp) NE 0 THEN fillQuickTempList, quickTemp.(modality);pro in refreshParam.pro
         IF N_ELEMENTS(prevMarkedMulti) GT 1 THEN BEGIN
           sv=DIALOG_MESSAGE('Restore the marking of images you had before going to Settings?',/QUESTION,DIALOG_PARENT=evTop)
           IF sv EQ 'Yes' THEN BEGIN
             marked=prevMarked
             markedMulti=prevMarkedMulti
             WIDGET_CONTROL, btnUseMulti, SET_BUTTON=1
-            fileList=getListOpenFiles(structImgs,0,marked,markedMulti)
+            IF WIDGET_INFO(lstShowFile, /DROPLIST_SELECT) EQ 0 THEN RDtemp='' ELSE RDtemp=modalityName
+            fileList=getListOpenFiles(structImgs,0,marked,markedMulti,RENAMEDICOM=RDtemp, CONFIGPATH=configPath, PARENT=evTop)
             sel=WIDGET_INFO(listFiles, /LIST_SELECT)
             oldTop=WIDGET_INFO(listFiles, /LIST_TOP)
             WIDGET_CONTROL, listFiles, SET_VALUE=fileList, SET_LIST_SELECT=sel(N_ELEMENTS(sel)-1), SET_LIST_TOP=oldTop
@@ -105,7 +105,8 @@ pro ImageQC_event, ev
             marked=prevMarked
             markedMulti=prevMarkedMulti
             WIDGET_CONTROL, btnUseMulti, SET_BUTTON=1
-            fileList=getListOpenFiles(structImgs,0,marked,markedMulti)
+            IF WIDGET_INFO(lstShowFile, /DROPLIST_SELECT) EQ 0 THEN RDtemp='' ELSE RDtemp=modalityName
+            fileList=getListOpenFiles(structImgs,0,marked,markedMulti,RENAMEDICOM=RDtemp, CONFIGPATH=configPath, PARENT=evTop)
             sel=WIDGET_INFO(listFiles, /LIST_SELECT)
             oldTop=WIDGET_INFO(listFiles, /LIST_TOP)
             WIDGET_CONTROL, listFiles, SET_VALUE=fileList, SET_LIST_SELECT=sel(N_ELEMENTS(sel)-1), SET_LIST_TOP=oldTop
@@ -122,7 +123,8 @@ pro ImageQC_event, ev
             marked=prevMarked
             markedMulti=prevMarkedMulti
             WIDGET_CONTROL, btnUseMulti, SET_BUTTON=1
-            fileList=getListOpenFiles(structImgs,0,marked,markedMulti)
+            IF WIDGET_INFO(lstShowFile, /DROPLIST_SELECT) EQ 0 THEN RDtemp='' ELSE RDtemp=modalityName
+            fileList=getListOpenFiles(structImgs,0,marked,markedMulti,RENAMEDICOM=RDtemp, CONFIGPATH=configPath, PARENT=evTop)
             sel=WIDGET_INFO(listFiles, /LIST_SELECT)
             oldTop=WIDGET_INFO(listFiles, /LIST_TOP)
             WIDGET_CONTROL, listFiles, SET_VALUE=fileList, SET_LIST_SELECT=sel(N_ELEMENTS(sel)-1), SET_LIST_TOP=oldTop
@@ -218,7 +220,8 @@ pro ImageQC_event, ev
           IF tags(0) NE 'EMPTY' THEN alreadyOpenAdr=getListOpenFiles(structImgs,1,-1,-1)
           RenameDICOM, GROUP_LEADER=ev.Top, xoffset+200, yoffset+200, alreadyOpenAdr
           IF alreadyOpenAdr(0) NE '' THEN BEGIN
-            fileList=getListOpenFiles(structImgs,0,marked,markedMulti)
+            IF WIDGET_INFO(lstShowFile, /DROPLIST_SELECT) EQ 0 THEN RDtemp='' ELSE RDtemp=modalityName
+            fileList=getListOpenFiles(structImgs,0,marked,markedMulti,RENAMEDICOM=RDtemp, CONFIGPATH=configPath, PARENT=evTop)
             sel=WIDGET_INFO(listFiles, /LIST_SELECT)
             oldTop=WIDGET_INFO(listFiles, /LIST_TOP)
             WIDGET_CONTROL, listFiles, SET_VALUE=fileList, SET_LIST_SELECT=sel, SET_LIST_TOP=oldTop
@@ -247,6 +250,11 @@ pro ImageQC_event, ev
           ENDELSE
         ENDIF
       END;saveDat
+      
+      ;----------------------zoom----------------------------------------
+      'zoom': BEGIN
+        redrawImg,0,0
+        END
       ;-----button DICOM dump to text-file-----------------------------------------------------------------------------------------------------------
       'dump':BEGIN
         IF tags(0) NE 'EMPTY' THEN BEGIN
@@ -335,7 +343,8 @@ pro ImageQC_event, ev
                   IF marked(0) EQ -1 THEN marked=marked[1:nMark-1]; remove the first -1
                 ENDELSE
 
-                fileList=getListOpenFiles(structImgs,0,marked, markedMulti)
+                IF WIDGET_INFO(lstShowFile, /DROPLIST_SELECT) EQ 0 THEN RDtemp='' ELSE RDtemp=modalityName
+                fileList=getListOpenFiles(structImgs,0,marked,markedMulti,RENAMEDICOM=RDtemp, CONFIGPATH=configPath, PARENT=evTop)
                 nSel=N_ELEMENTS(sel)
                 oldTop=WIDGET_INFO(listFiles, /LIST_TOP)
                 WIDGET_CONTROL, listFiles, SET_VALUE=fileList, SET_LIST_SELECT=sel(nSel-1), SET_LIST_TOP=oldTop
@@ -356,7 +365,8 @@ pro ImageQC_event, ev
                 marked=-1
                 IF markedMulti(0) NE -1 THEN markedMulti=INTARR(N_ELEMENTS(multiOpt.(modality)),nImg)
 
-                fileList=getListOpenFiles(structImgs,0,marked,markedMulti)
+                IF WIDGET_INFO(lstShowFile, /DROPLIST_SELECT) EQ 0 THEN RDtemp='' ELSE RDtemp=modalityName
+                fileList=getListOpenFiles(structImgs,0,marked,markedMulti,RENAMEDICOM=RDtemp, CONFIGPATH=configPath, PARENT=evTop)
                 sel=WIDGET_INFO(listFiles, /LIST_SELECT)
                 oldTop=WIDGET_INFO(listFiles, /LIST_TOP)
                 WIDGET_CONTROL, listFiles, SET_VALUE=fileList, SET_LIST_SELECT=sel, SET_LIST_TOP=oldTop
@@ -377,7 +387,7 @@ pro ImageQC_event, ev
               ENDIF
 
               IF markedMulti(0) EQ -1 THEN BEGIN
-                IF MTFv3d OR N_ELEMENTS(noiseRes) GT 1 OR N_ELEMENTS(stpRes) GT 0 OR N_ELEMENTS(crossRes) GT 0 OR N_ELEMENTS(rcRes) GT 0 THEN BEGIN
+                IF MTFv3d OR N_ELEMENTS(noiseRes) GT 1 OR N_ELEMENTS(stpRes) GT 0 OR N_ELEMENTS(crossRes) GT 0 OR N_ELEMENTS(rcRes) GT 0 OR N_ELEMENTS(SNRres) THEN BEGIN
                   sv=DIALOG_MESSAGE('Continue and lose results?',/QUESTION, DIALOG_PARENT=evTop)
                   IF sv EQ 'No' THEN proceed=0 ELSE BEGIN
                     ;clear all results where total result depend on single-images
@@ -386,6 +396,7 @@ pro ImageQC_event, ev
                     IF N_ELEMENTS(stpRes) GT 0 THEN clearRes, 'STP'
                     IF N_ELEMENTS(crossRes) GT 0 THEN clearRes, 'CROSSCALIB'
                     IF N_ELEMENTS(rcRes) GT 0 THEN clearRes, 'RC'
+                    IF N_ELEMENTS(SNRres) GT 0 THEN clearRes, 'SNR'
                   ENDELSE
                 ENDIF
               ENDIF
@@ -410,7 +421,8 @@ pro ImageQC_event, ev
                   newSel=mm(0)
                 ENDELSE
 
-                fileList=getListOpenFiles(structImgs,0,marked, markedMulti)
+                IF WIDGET_INFO(lstShowFile, /DROPLIST_SELECT) EQ 0 THEN RDtemp='' ELSE RDtemp=modalityName
+                fileList=getListOpenFiles(structImgs,0,marked,markedMulti,RENAMEDICOM=RDtemp, CONFIGPATH=configPath, PARENT=evTop)
 
                 If newSel EQ -1 THEN newSel=0
                 oldTop=WIDGET_INFO(listFiles, /LIST_TOP)
@@ -567,6 +579,24 @@ pro ImageQC_event, ev
         ENDIF
       END
 
+      'lstShowFile':BEGIN
+        IF WIDGET_INFO(lstShowFile, /DROPLIST_SELECT) EQ 0 THEN RDtemp='' ELSE RDtemp=modalityName
+        fileList=getListOpenFiles(structImgs,0,marked,markedMulti,RENAMEDICOM=RDtemp, CONFIGPATH=configPath, PARENT=evTop)
+        sel=WIDGET_INFO(listFiles, /LIST_SELECT)
+        oldTop=WIDGET_INFO(listFiles, /LIST_TOP)
+        WIDGET_CONTROL, listFiles, SET_VALUE=fileList, SET_LIST_SELECT=sel(N_ELEMENTS(sel)-1), SET_LIST_TOP=oldTop
+      END
+
+      'infoList': BEGIN
+        sv=DIALOG_MESSAGE('Right-click in list to find mark/selection options.'+newline+newline+$
+          'The images will be listed with their filename + closest subfolder '+newline+$
+          'or using a RenameDICOM file template (see user settings) with name equal to the'+newline+$
+          'current modality selected.'+newline+$
+          'Using a RenameDICOM template will be a bit slower than showing the filename so'+newline+$
+          'during running automation templates only the filename option will be used.'+newline+newline+$
+          'If the file have multiple frames these will be listed per frame.',/INFORMATION, DIALOG_PARENT=evTop)
+      END
+
       ;------button set min/max WL ----------------------------------------------------------------------------------------------------------------
       'WLminmax': BEGIN
         IF tags(0) NE 'EMPTY' THEN BEGIN
@@ -703,7 +733,7 @@ pro ImageQC_event, ev
       'setCenter':BEGIN;set to last position clicked in image
         tempImg=activeImg
         imsz=SIZE(tempImg, /DIMENSIONS)
-        IF lastXYreleased(0) EQ -1 THEN centerTemp = imsz/2 ELSE centerTemp=lastXYreleased*max(imsz)/drawXY
+        IF lastXYreleased(0) EQ -1 THEN centerTemp = imsz/2 ELSE centerTemp=lastXYreleased;*max(imsz)/drawXY
         dxya[0:1]=centerTemp-imsz/2
         WIDGET_CONTROL, txtDeltaX, SET_VALUE=STRING(dxya(0), FORMAT='(i0)')
         WIDGET_CONTROL, txtDeltaY, SET_VALUE=STRING(dxya(1), FORMAT='(i0)')
@@ -717,7 +747,7 @@ pro ImageQC_event, ev
         IF sel NE -1 THEN BEGIN
           tempImg=activeImg
           imsz=SIZE(tempImg, /DIMENSIONS)
-          IF lastXYreleased(0) EQ -1 THEN centerTemp = imsz/2 ELSE centerTemp=lastXYreleased*max(imsz)/drawXY
+          IF lastXYreleased(0) EQ -1 THEN centerTemp = imsz/2 ELSE centerTemp=lastXYreleased;*max(imsz)/drawXY
           thisOff=centerTemp-imsz/2-dxya[0:1]
           thisOff_mm=thisOff*structImgs.(sel).pix
           CASE modality OF
@@ -745,6 +775,23 @@ pro ImageQC_event, ev
                   IF mm THEN offxyMTF_X=thisOff_mm ELSE offxyMTF_X=thisOff
                   strOff=STRING(offxyMTF_X(0), FORMAT='(i0)')+','+STRING(offxyMTF_X(1), FORMAT='(i0)')
                   WIDGET_CONTROL, lblDeltaOX, SET_VALUE=strOff
+                END
+                'ROI': BEGIN
+                  WIDGET_CONTROL, unitDeltaO_ROI_X, GET_VALUE=mm
+                  IF mm THEN offxyROIX=thisOff_mm ELSE offxyROIX=thisOff
+                  strOff=STRING(offxyROIX(0), FORMAT='(i0)')+','+STRING(offxyROIX(1), FORMAT='(i0)')
+                  WIDGET_CONTROL, lblDeltaO_ROIX, SET_VALUE=strOff
+                END
+                ELSE:
+              ENDCASE
+            END
+            5:BEGIN;MR
+              CASE analyse OF
+                'ROI': BEGIN
+                  WIDGET_CONTROL, unitDeltaO_ROI_MR, GET_VALUE=mm
+                  IF mm THEN offxyROIMR=thisOff_mm ELSE offxyROIMR=thisOff
+                  strOff=STRING(offxyROIMR(0), FORMAT='(i0)')+','+STRING(offxyROIMR(1), FORMAT='(i0)')
+                  WIDGET_CONTROL, lblDeltaO_ROIMR, SET_VALUE=strOff
                 END
                 ELSE:
               ENDCASE
@@ -789,9 +836,26 @@ pro ImageQC_event, ev
                     strOff=STRING(offxyMTF_X(0), FORMAT='(i0)')+','+STRING(offxyMTF_X(1), FORMAT='(i0)')
                     WIDGET_CONTROL, lblDeltaOX, SET_VALUE=strOff
                   END
+                  'ROI': BEGIN
+                    WIDGET_CONTROL, unitDeltaO_ROI_X, GET_VALUE=unit
+                    IF unit THEN offxyROIX=offxyROIX*structImgs.(sel).pix ELSE offxyROIX=offxyROIX/structImgs.(sel).pix
+                    strOff=STRING(offxyROIX(0), FORMAT='(i0)')+','+STRING(offxyROIX(1), FORMAT='(i0)')
+                    WIDGET_CONTROL, lblDeltaO_ROIX, SET_VALUE=strOff
+                  END
                   ELSE:
                 ENDCASE
               END
+              5: BEGIN; MR
+                CASE analyse OF
+                  'ROI': BEGIN
+                    WIDGET_CONTROL, unitDeltaO_ROI_MR, GET_VALUE=unit
+                    IF unit THEN offxyROIMR=offxyROIMR*structImgs.(sel).pix ELSE offxyROIMR=offxyROIMR/structImgs.(sel).pix
+                    strOff=STRING(offxyROIMR(0), FORMAT='(i0)')+','+STRING(offxyROIMR(1), FORMAT='(i0)')
+                    WIDGET_CONTROL, lblDeltaO_ROIMR, SET_VALUE=strOff
+                  END
+                  ELSE:
+                ENDCASE
+                END
               ELSE:
             ENDCASE
 
@@ -940,7 +1004,8 @@ pro ImageQC_event, ev
             marked=prevMarked
             markedMulti=prevMarkedMulti
             WIDGET_CONTROL, btnUseMulti, SET_BUTTON=1
-            fileList=getListOpenFiles(structImgs,0,marked,markedMulti)
+            IF WIDGET_INFO(lstShowFile, /DROPLIST_SELECT) EQ 0 THEN RDtemp='' ELSE RDtemp=modalityName
+            fileList=getListOpenFiles(structImgs,0,marked,markedMulti,RENAMEDICOM=RDtemp, CONFIGPATH=configPath, PARENT=evTop)
             sel=WIDGET_INFO(listFiles, /LIST_SELECT)
             oldTop=WIDGET_INFO(listFiles, /LIST_TOP)
             WIDGET_CONTROL, listFiles, SET_VALUE=fileList, SET_LIST_SELECT=sel(N_ELEMENTS(sel)-1), SET_LIST_TOP=oldTop
@@ -953,7 +1018,10 @@ pro ImageQC_event, ev
       ;***************************************************************************************************************
 
       ;---- Quick Test--------------------------------------------------------------------------------------------------
-      'runMulti': calculateQuickTest
+      'runMulti': BEGIN
+        calculateQuickTest
+        updatePlot,1,1,0
+      END
 
       'expMulti': exportMulti
 
@@ -1182,6 +1250,21 @@ pro ImageQC_event, ev
         ENDIF
       END
 
+      'ROI_MR': BEGIN
+        IF tags(0) NE 'EMPTY' THEN BEGIN
+          ROI; tests_forQuickTest.pro
+          updateTable
+          updatePlot, 1,1,0
+          WIDGET_CONTROL, wtabResult, SET_TAB_CURRENT=0
+        ENDIF
+      END
+
+      'typeROIMR':  BEGIN
+        IF ev.SELECT EQ 1 AND tags(0) NE 'EMPTY' THEN BEGIN
+          redrawImg, 0,0
+        ENDIF
+      END
+
       ;-----analyse-tab header info
       'headerInfoCT':BEGIN
         IF tags(0) NE 'EMPTY' THEN BEGIN
@@ -1210,14 +1293,14 @@ pro ImageQC_event, ev
         ENDIF
       END
 
-      'posMR':BEGIN
-        IF tags(0) NE 'EMPTY' THEN BEGIN
-          getPos_MR; tests_forQuickTest.pro
-          updateTable
-          updatePlot,1,1,0
-          WIDGET_CONTROL, wtabResult, SET_TAB_CURRENT=0
-        ENDIF
-      END
+;      'posMR':BEGIN
+;        IF tags(0) NE 'EMPTY' THEN BEGIN
+;          getPos_MR; tests_forQuickTest.pro
+;          updateTable
+;          updatePlot,1,1,0
+;          WIDGET_CONTROL, wtabResult, SET_TAB_CURRENT=0
+;        ENDIF
+;      END
 
       ;-----analyse-tab MTF --------------------------------------------------------------------------------------------------------------------
       'MTF': BEGIN
@@ -1740,7 +1823,7 @@ pro ImageQC_event, ev
           imsz=SIZE(tempImg, /DIMENSIONS)
           sel=WIDGET_INFO(listFiles, /LIST_SELECT)  & sel=sel(0)
           pix=structImgs.(sel).pix
-          IF lastXYreleased(0) EQ -1 THEN posNew = imsz/2 ELSE posNew=lastXYreleased*max(imsz)/drawXY
+          IF lastXYreleased(0) EQ -1 THEN posNew = imsz/2 ELSE posNew=lastXYreleased;*max(imsz)/drawXY
           posNew=(posNew-dxya[0:1]-imsz/2)*pix; relative to defined centerposition
           ;update table
           WIDGET_CONTROL, tblLin, GET_VALUE=oldTab
@@ -1817,54 +1900,54 @@ pro ImageQC_event, ev
           sv=DIALOG_MESSAGE('Calculate uniformity to update with new setting.', DIALOG_PARENT=evTop)
           clearRes, 'UNIF'
         ENDIF
-        END
+      END
       'cw_posfitUnifCorr':BEGIN
-          IF results(getResNmb(modality,analyse,analyseStringsAll)) EQ 1 THEN BEGIN
-            sv=DIALOG_MESSAGE('Calculate uniformity to update with new setting.', DIALOG_PARENT=evTop)
-            clearRes, 'UNIF'
+        IF results(getResNmb(modality,analyse,analyseStringsAll)) EQ 1 THEN BEGIN
+          sv=DIALOG_MESSAGE('Calculate uniformity to update with new setting.', DIALOG_PARENT=evTop)
+          clearRes, 'UNIF'
+        ENDIF
+      END
+      'unifCorrLockRad':BEGIN
+        IF results(getResNmb(modality,analyse,analyseStringsAll)) EQ 1 THEN BEGIN
+          sv=DIALOG_MESSAGE('Calculate uniformity to update with new setting.', DIALOG_PARENT=evTop)
+          clearRes, 'UNIF'
+        ENDIF
+        IF WIDGET_INFO(btnLockRadUnifCorr, /BUTTON_SET) THEN BEGIN;turned on - if empty fill
+          WIDGET_CONTROL, txtLockRadUnifCorr, GET_VALUE=currRadStr
+          IF currRadStr EQ '' THEN BEGIN
+            nImg=N_TAGS(structImgs)
+            IF nImg GT 0 THEN radDef=MEAN([structImgs.(0).radius1,structImgs.(0).radius2]) ELSE radDef=100.
+            WIDGET_CONTROL, txtLockRadUnifCorr, SET_VALUE=STRING(radDef, FORMAT='(f0.1)')
           ENDIF
-        END  
-     'unifCorrLockRad':BEGIN
-          IF results(getResNmb(modality,analyse,analyseStringsAll)) EQ 1 THEN BEGIN
-            sv=DIALOG_MESSAGE('Calculate uniformity to update with new setting.', DIALOG_PARENT=evTop)
-            clearRes, 'UNIF'
-          ENDIF
-          IF WIDGET_INFO(btnLockRadUnifCorr, /BUTTON_SET) THEN BEGIN;turned on - if empty fill
-            WIDGET_CONTROL, txtLockRadUnifCorr, GET_VALUE=currRadStr
-            IF currRadStr EQ '' THEN BEGIN
-              nImg=N_TAGS(structImgs)
-              IF nImg GT 0 THEN radDef=MEAN([structImgs.(0).radius1,structImgs.(0).radius2]) ELSE radDef=100.
-              WIDGET_CONTROL, txtLockRadUnifCorr, SET_VALUE=STRING(radDef, FORMAT='(f0.1)')
-            ENDIF
-          ENDIF
-        END
+        ENDIF
+      END
 
       'SNICorrSet': BEGIN
-          IF results(getResNmb(modality,analyse,analyseStringsAll)) EQ 1 THEN BEGIN
-            sv=DIALOG_MESSAGE('Calculate uniformity to update with new setting.', DIALOG_PARENT=evTop)
-            clearRes, 'SNI'
-          ENDIF
-        END
+        IF results(getResNmb(modality,analyse,analyseStringsAll)) EQ 1 THEN BEGIN
+          sv=DIALOG_MESSAGE('Calculate uniformity to update with new setting.', DIALOG_PARENT=evTop)
+          clearRes, 'SNI'
+        ENDIF
+      END
       'cw_posfitSNICorr': BEGIN
-          IF results(getResNmb(modality,analyse,analyseStringsAll)) EQ 1 THEN BEGIN
-            sv=DIALOG_MESSAGE('Calculate uniformity to update with new setting.', DIALOG_PARENT=evTop)
-            clearRes, 'SNI'
-          ENDIF
-        END
+        IF results(getResNmb(modality,analyse,analyseStringsAll)) EQ 1 THEN BEGIN
+          sv=DIALOG_MESSAGE('Calculate uniformity to update with new setting.', DIALOG_PARENT=evTop)
+          clearRes, 'SNI'
+        ENDIF
+      END
       'SNICorrLockRad': BEGIN
-          IF results(getResNmb(modality,analyse,analyseStringsAll)) EQ 1 THEN BEGIN
-            sv=DIALOG_MESSAGE('Calculate uniformity to update with new setting.', DIALOG_PARENT=evTop)
-            clearRes, 'SNI'
+        IF results(getResNmb(modality,analyse,analyseStringsAll)) EQ 1 THEN BEGIN
+          sv=DIALOG_MESSAGE('Calculate uniformity to update with new setting.', DIALOG_PARENT=evTop)
+          clearRes, 'SNI'
+        ENDIF
+        IF WIDGET_INFO(btnLockRadSNICorr, /BUTTON_SET) THEN BEGIN;turned on - if empty fill
+          WIDGET_CONTROL, txtLockRadSNICorr, GET_VALUE=currRadStr
+          IF currRadStr EQ '' THEN BEGIN
+            nImg=N_TAGS(structImgs)
+            IF nImg GT 0 THEN radDef=MEAN([structImgs.(0).radius1,structImgs.(0).radius2]) ELSE radDef=100.
+            WIDGET_CONTROL, txtLockRadSNICorr, SET_VALUE=STRING(radDef, FORMAT='(f0.1)')
           ENDIF
-          IF WIDGET_INFO(btnLockRadSNICorr, /BUTTON_SET) THEN BEGIN;turned on - if empty fill
-            WIDGET_CONTROL, txtLockRadSNICorr, GET_VALUE=currRadStr
-            IF currRadStr EQ '' THEN BEGIN
-              nImg=N_TAGS(structImgs)
-              IF nImg GT 0 THEN radDef=MEAN([structImgs.(0).radius1,structImgs.(0).radius2]) ELSE radDef=100.
-              WIDGET_CONTROL, txtLockRadSNICorr, SET_VALUE=STRING(radDef, FORMAT='(f0.1)')
-            ENDIF
-          ENDIF
-        END
+        ENDIF
+      END
 
       'cw_plotUnif':BEGIN
         IF WIDGET_INFO(wTabResult, /TAB_CURRENT) EQ 1 THEN BEGIN
@@ -2397,6 +2480,110 @@ pro ImageQC_event, ev
         ENDIF;tags emtpy
       END;recovCoeff
 
+      ;----analyse SNR MR--------------------------------------------------------------------------------------------------
+      'SNR_MR':BEGIN
+        IF tags(0) NE 'EMPTY' THEN BEGIN
+          SNR_MR; tests_forQuickTest.pro
+          updateTable
+          updatePlot, 1,1,3
+          WIDGET_CONTROL, wtabResult, SET_TAB_CURRENT=0
+        ENDIF
+      END
+      ;----analyse PUI MR--------------------------------------------------------------------------------------------------
+      'PUI_MR':BEGIN
+        IF tags(0) NE 'EMPTY' THEN BEGIN
+          PUI_MR; tests_forQuickTest.pro
+          updateTable
+          updatePlot, 1,1,3
+          WIDGET_CONTROL, wtabResult, SET_TAB_CURRENT=0
+        ENDIF
+      END
+      'PUI_MR_setMinMax':BEGIN
+        resValid=0
+        IF N_ELEMENTS(PUIres) GT 0 THEN BEGIN
+          sel=WIDGET_INFO(listFiles, /LIST_SELECT)  & sel=sel(0)
+          minWL=PUIres[0,sel]
+          maxWL=PUIres[1,sel]
+          IF minWL NE maxWL AND minWL NE -1 THEN BEGIN
+            resValid=1
+            WIDGET_CONTROL, txtMinWL, SET_VALUE=STRING(minWL, FORMAT='(i0)')
+            WIDGET_CONTROL, txtMaxWL, SET_VALUE=STRING(maxWL, FORMAT='(i0)')
+            ;reset center/width
+            centerWL=(minWL+maxWL)/2
+            widthWL=maxWL-minWL
+            WIDGET_CONTROL, txtCenterWL, SET_VALUE=STRING(centerWL, FORMAT='(i0)')
+            WIDGET_CONTROL, txtWidthWL, SET_VALUE=STRING(widthWL, FORMAT='(i0)')
+            redrawImg,0,0
+          ENDIF
+        ENDIF
+        IF resValid EQ 0 THEN BEGIN
+          sv=DIALOG_MESSAGE('No valid PUI results for selected image. Window level could not be set based on the results.',/INFORMATION, DIALOG_PARENT=evTop)
+        ENDIF
+      END
+      ;----analyse Ghosting Ratio MR--------------------------------------------------------------------------------------------------
+      'Ghost_MR':BEGIN
+        IF tags(0) NE 'EMPTY' THEN BEGIN
+          Ghost_MR; tests_forQuickTest.pro
+          updateTable
+          updatePlot, 1,1,3
+          WIDGET_CONTROL, wtabResult, SET_TAB_CURRENT=0
+        ENDIF
+      END
+      'ghost_MR_optC':BEGIN
+        clearRes, 'GHOST' & redrawImg,0,0
+        END
+        
+        ;----analyse Geometric Distortion MR--------------------------------------------------------------------------------------------------
+        'GD_MR':BEGIN
+          IF tags(0) NE 'EMPTY' THEN BEGIN
+            GD_MR; tests_forQuickTest.pro
+            updateTable
+            updatePlot, 1,1,3
+            WIDGET_CONTROL, wtabResult, SET_TAB_CURRENT=0
+          ENDIF
+        END
+        
+        ;----analyse Slice thickness MR--------------------------------------------------------------------------------------------------
+        'Slice_MR':BEGIN
+          IF tags(0) NE 'EMPTY' THEN BEGIN
+            Slice_MR; tests_forQuickTest.pro
+            updateTable
+            updatePlot, 1,1,3
+            WIDGET_CONTROL, wtabResult, SET_TAB_CURRENT=0
+          ENDIF
+        END
+        'slice_MR_optC':BEGIN
+          clearRes, 'SLICETHICK' & redrawImg,0,0
+        END
+      'Slice_MR_WL':BEGIN
+        resValid=0
+        IF N_ELEMENTS(sliceMR_ROI) GT 0 THEN BEGIN
+          sel=WIDGET_INFO(listFiles, /LIST_SELECT)  & sel=sel(0)
+          
+          maske=sliceMR_ROI[*,*,0]
+          IMAGE_STATISTICS, activeImg, MINIMUM=min1, MAXIMUM=max1, MASK=maske
+          maske=sliceMR_ROI[*,*,1]
+          IMAGE_STATISTICS, activeImg, MINIMUM=min2, MAXIMUM=max2, MASK=maske
+          
+          minWL=MIN([min1,min2])
+          maxWL=MAX([max1,max2])
+          IF minWL NE maxWL AND minWL NE -1 THEN BEGIN
+            resValid=1
+            WIDGET_CONTROL, txtMinWL, SET_VALUE=STRING(minWL, FORMAT='(i0)')
+            WIDGET_CONTROL, txtMaxWL, SET_VALUE=STRING(maxWL, FORMAT='(i0)')
+            ;reset center/width
+            centerWL=(minWL+maxWL)/2
+            widthWL=maxWL-minWL
+            WIDGET_CONTROL, txtCenterWL, SET_VALUE=STRING(centerWL, FORMAT='(i0)')
+            WIDGET_CONTROL, txtWidthWL, SET_VALUE=STRING(widthWL, FORMAT='(i0)')
+            redrawImg,0,0
+          ENDIF
+        ENDIF
+        IF resValid EQ 0 THEN BEGIN
+          sv=DIALOG_MESSAGE('Could not find the ROIs. Window level could not be set.',/INFORMATION, DIALOG_PARENT=evTop)
+        ENDIF
+      END
+
       ;**************************************************** Copy to clipboard *******************************************
 
       'copyInfo':BEGIN
@@ -2482,7 +2669,7 @@ pro ImageQC_event, ev
         pix=structImgs.(sel).pix
         iImage, activeImg, TITLE='Axial image', ASPECT_RATIO=pix(1)/pix(0)
       END
-      
+
       'surf': su=SURFACE(activeImg)
 
       'sumax': BEGIN
@@ -2952,6 +3139,31 @@ pro ImageQC_event, ev
           WIDGET_CONTROL, txtROIXa, SET_VALUE=STRING(val, FORMAT='(f0.1)')
           clearRes, 'ROI' & redrawImg,0,0
         END
+        
+        txtROIMRrad:BEGIN
+          WIDGET_CONTROL, txtROIMRrad, GET_VALUE=val
+          val=ABS(FLOAT(comma2pointFloat(val(0))))
+          WIDGET_CONTROL, txtROIMRrad, SET_VALUE=STRING(val, FORMAT='(f0.1)')
+          clearRes, 'ROI' & redrawImg,0,0
+        END
+        txtROIMRx:BEGIN
+          WIDGET_CONTROL, txtROIMRx, GET_VALUE=val
+          val=ABS(FLOAT(comma2pointFloat(val(0))))
+          WIDGET_CONTROL, txtROIMRx, SET_VALUE=STRING(val, FORMAT='(f0.1)')
+          clearRes, 'ROI' & redrawImg,0,0
+        END
+        txtROIMRy:BEGIN
+          WIDGET_CONTROL, txtROIMRy, GET_VALUE=val
+          val=ABS(FLOAT(comma2pointFloat(val(0))))
+          WIDGET_CONTROL, txtROIMRy, SET_VALUE=STRING(val, FORMAT='(f0.1)')
+          clearRes, 'ROI' & redrawImg,0,0
+        END
+        txtROIMRa:BEGIN
+          WIDGET_CONTROL, txtROIMRa, GET_VALUE=val
+          val=ABS(FLOAT(comma2pointFloat(val(0))))
+          WIDGET_CONTROL, txtROIMRa, SET_VALUE=STRING(val, FORMAT='(f0.1)')
+          clearRes, 'ROI' & redrawImg,0,0
+        END
 
         txtNPSroiSz: BEGIN
           WIDGET_CONTROL, txtNPSroiSz, GET_VALUE=val
@@ -3213,7 +3425,82 @@ pro ImageQC_event, ev
           WIDGET_CONTROL, txtCrossFactorPrev, SET_VALUE=STRING(valV, FORMAT='(f0.3)')
           WIDGET_CONTROL, txtCrossFactor, SET_VALUE='-'
         END
-
+        txtSNR_MR_ROI: BEGIN
+          WIDGET_CONTROL, txtSNR_MR_ROI, GET_VALUE=val
+          val=ABS(FLOAT(comma2pointFloat(val(0))))
+          IF val LT 1. THEN val=1.
+          IF val GT 100. THEN val=100.
+          WIDGET_CONTROL, txtSNR_MR_ROI, SET_VALUE=STRING(val, FORMAT='(f0.1)')
+          clearRes, 'SNR' & redrawImg,0,0
+        END
+        txtPUI_MR_ROI: BEGIN
+          WIDGET_CONTROL, txtPUI_MR_ROI, GET_VALUE=val
+          val=ABS(FLOAT(comma2pointFloat(val(0))))
+          IF val LT 1. THEN val=1.
+          IF val GT 100. THEN val=100.
+          WIDGET_CONTROL, txtPUI_MR_ROI, SET_VALUE=STRING(val, FORMAT='(f0.1)')
+          clearRes, 'PUI' & redrawImg,0,0
+        END
+        txtGhost_MR_ROIszC: BEGIN
+          WIDGET_CONTROL, txtGhost_MR_ROIszC, GET_VALUE=val
+          val=ABS(FLOAT(comma2pointFloat(val(0))))
+          WIDGET_CONTROL, txtGhost_MR_ROIszC, SET_VALUE=STRING(val, FORMAT='(f0.1)')
+          clearRes, 'GHOST' & redrawImg,0,0
+        END
+        txtGhost_MR_ROIszW: BEGIN
+          WIDGET_CONTROL, txtGhost_MR_ROIszW, GET_VALUE=val
+          val=ABS(FLOAT(comma2pointFloat(val(0))))
+          WIDGET_CONTROL, txtGhost_MR_ROIszW, SET_VALUE=STRING(val, FORMAT='(f0.1)')
+          clearRes, 'GHOST' & redrawImg,0,0
+        END
+        txtGhost_MR_ROIszH: BEGIN
+          WIDGET_CONTROL, txtGhost_MR_ROIszH, GET_VALUE=val
+          val=ABS(FLOAT(comma2pointFloat(val(0))))
+          WIDGET_CONTROL, txtGhost_MR_ROIszH, SET_VALUE=STRING(val, FORMAT='(f0.1)')
+          clearRes, 'GHOST' & redrawImg,0,0
+        END
+        txtGhost_MR_ROIszD: BEGIN
+          WIDGET_CONTROL, txtGhost_MR_ROIszD, GET_VALUE=val
+          val=ABS(FLOAT(comma2pointFloat(val(0))))
+          WIDGET_CONTROL, txtGhost_MR_ROIszD, SET_VALUE=STRING(val, FORMAT='(f0.1)')
+          clearRes, 'GHOST' & redrawImg,0,0
+        END
+        txtGD_MR_act: BEGIN
+          WIDGET_CONTROL, txtGD_MR_act, GET_VALUE=val
+          val=ABS(FLOAT(comma2pointFloat(val(0))))
+          WIDGET_CONTROL, txtGD_MR_act, SET_VALUE=STRING(val, FORMAT='(f0.1)')
+          clearRes, 'GEOMDIST' & redrawImg,0,0
+        END
+        txtSlice_MR_TANA: BEGIN
+          WIDGET_CONTROL, txtSlice_MR_TANA, GET_VALUE=val
+          val=ABS(FLOAT(comma2pointFloat(val(0))))
+          WIDGET_CONTROL, txtSlice_MR_TANA, SET_VALUE=STRING(val, FORMAT='(f0.3)')
+          clearRes, 'SLICETHICK' & redrawImg,0,0
+        END
+        txtSlice_MR_ROIszW: BEGIN
+          WIDGET_CONTROL, txtSlice_MR_ROIszW, GET_VALUE=val
+          val=ABS(FLOAT(comma2pointFloat(val(0))))
+          WIDGET_CONTROL, txtSlice_MR_ROIszW, SET_VALUE=STRING(val, FORMAT='(f0.1)')
+          clearRes, 'SLICETHICK' & redrawImg,0,0
+        END
+        txtSlice_MR_ROIszH: BEGIN
+          WIDGET_CONTROL, txtSlice_MR_ROIszH, GET_VALUE=val
+          val=ABS(FLOAT(comma2pointFloat(val(0))))
+          WIDGET_CONTROL, txtSlice_MR_ROIszH, SET_VALUE=STRING(val, FORMAT='(f0.1)')
+          clearRes, 'SLICETHICK' & redrawImg,0,0
+        END
+        txtSlice_MR_ROIszD: BEGIN
+          WIDGET_CONTROL, txtSlice_MR_ROIszD, GET_VALUE=val
+          val=FLOAT(comma2pointFloat(val(0)))
+          WIDGET_CONTROL, txtSlice_MR_ROIszD, SET_VALUE=STRING(val, FORMAT='(f0.1)')
+          clearRes, 'SLICETHICK' & redrawImg,0,0
+        END
+        txtSlice_MR_ROIszD2: BEGIN
+          WIDGET_CONTROL, txtSlice_MR_ROIszD2, GET_VALUE=val
+          val=FLOAT(comma2pointFloat(val(0)))
+          WIDGET_CONTROL, txtSlice_MR_ROIszD2, SET_VALUE=STRING(val, FORMAT='(f0.1)')
+          clearRes, 'SLICETHICK' & redrawImg,0,0
+        END
         ELSE:
       ENDCASE
     ENDIF
@@ -3290,15 +3577,18 @@ pro ImageQC_event, ev
     IF N_ELEMENTS(activeImg) GT 1 THEN BEGIN
       imgSz=SIZE(activeImg, /DIMENSIONS)
       maxSz=max(imgSz[0:1])
-      xx=ev.X*maxSz/drawXY & yy = ev.Y*maxSz/drawXY
+      WIDGET_CONTROL, zoomSlider, GET_VALUE=zoomFactor
+      scaleF=maxSz/(drawXY*zoomFactor)
+      IF zoomFactor GT 1 THEN corn0=imgSz/2+dxya[0:1]-ROUND(maxSz/2./zoomFactor) ELSE corn0=imgSz/2-ROUND(maxSz/2./zoomFactor)
+      evX=ev.X*scaleF+corn0(0) & evY = ev.Y*scaleF+corn0(1);pixno in image
 
-      IF xx LT 0 THEN xx=0
-      IF yy LT 0 THEN yy=0
-      IF xx GT imgSz(0)-1 THEN xx=imgSz(0)-1
-      IF yy GT imgSz(1)-1 THEN yy=imgSz(1)-1
-      curVal=activeImg(xx,yy)
+      IF evX LT 0 THEN evX=0
+      IF evY LT 0 THEN evY=0
+      IF evX GT imgSz(0)-1 THEN evX=imgSz(0)-1
+      IF evY GT imgSz(1)-1 THEN evY=imgSz(1)-1
+      curVal=activeImg(evX,evY)
       WIDGET_CONTROL, lblCursorValue, SET_VALUE=STRING(curVal, FORMAT=formatCode(curVal))
-      xx=xx-imgSz(0)/2-dxya(0) & yy=yy-imgSz(1)/2-dxya(1)
+      xx=evX-imgSz(0)/2-dxya(0) & yy=evY-imgSz(1)/2-dxya(1)
       WIDGET_CONTROL, lblCursorPos, SET_VALUE=STRING(xx, FORMAT='(i0)')+','+STRING(yy, FORMAT='(i0)')
 
       sel=WIDGET_INFO(listFiles, /LIST_SELECT)  & sel=sel(0)
@@ -3308,7 +3598,7 @@ pro ImageQC_event, ev
       ENDIF
 
       IF (ev.release EQ 1 AND ev.type LE 1) OR mouseDown EQ 1 THEN BEGIN
-        diffXY=[ev.X,ev.Y]-lastXY
+        diffXY=[evX,evY]-lastXY;diffXY=[ev.X,ev.Y]-lastXY
         WIDGET_CONTROL, txtMinWL, GET_VALUE=lower
         WIDGET_CONTROL, txtMaxWL, GET_VALUE=upper
         newLower=LONG(lower)+diffXY(1)-diffXY(0)
@@ -3322,7 +3612,7 @@ pro ImageQC_event, ev
         WIDGET_CONTROL, txtCenterWL, SET_VALUE=STRING(centerWL, FORMAT='(i0)')
         WIDGET_CONTROL, txtWidthWL, SET_VALUE=STRING(widthWL, FORMAT='(i0)')
 
-        lastXY=[ev.X,ev.Y]
+        lastXY=[evX,evY];[ev.X,ev.Y]
         IF ev.release EQ 1 THEN BEGIN
           nClick=1
           IF lastXYreleased(2) NE -1 THEN timediff=  SYSTIME(/SECONDS)-  lastXYreleased(2) ELSE timediff=-1
@@ -3336,7 +3626,7 @@ pro ImageQC_event, ev
           IF nClick EQ 2 THEN BEGIN ;set senter on doubleclick
             tempImg=activeImg
             imsz=SIZE(tempImg, /DIMENSIONS)
-            IF lastXYreleased(0) EQ -1 THEN centerTemp = imsz/2 ELSE centerTemp=lastXYreleased*max(imsz)/drawXY
+            IF lastXYreleased(0) EQ -1 THEN centerTemp = imsz/2 ELSE centerTemp=lastXYreleased;*max(imsz)/drawXY
             dxya[0:1]=centerTemp-imsz/2
             WIDGET_CONTROL, txtDeltaX, SET_VALUE=STRING(dxya(0), FORMAT='(i0)')
             WIDGET_CONTROL, txtDeltaY, SET_VALUE=STRING(dxya(1), FORMAT='(i0)')
@@ -3348,7 +3638,6 @@ pro ImageQC_event, ev
       ENDIF
 
       IF ev.release EQ 4 AND ev.type EQ 1 AND mouseDownRight EQ 1 THEN BEGIN
-        ;diffXYright=[ev.X,ev.Y]-lastXYright
         WIDGET_CONTROL, txtMinWL, GET_VALUE=lower
         WIDGET_CONTROL, txtMaxWL, GET_VALUE=upper
         xes=[xx, lastXYright(0)]
@@ -3375,7 +3664,7 @@ pro ImageQC_event, ev
       ENDIF
 
       IF ev.press EQ 1 AND ev.type LE 1 THEN BEGIN
-        lastXY=[ev.X,ev.Y]
+        lastXY=[evX,evY];[ev.X,ev.Y]
         mouseDown = 1
       ENDIF
 
@@ -3475,13 +3764,13 @@ pro ImageQC_event, ev
       END
       wtabResult:BEGIN
         ;IF TOTAL(results) GT 0 THEN BEGIN
-          CASE selTab OF
-            0: updateTable
-            1: updatePlot, 0,0,0
-            2: updateImageRes
-            3: updateTableSup
-            ELSE:
-          ENDCASE
+        CASE selTab OF
+          0: updateTable
+          1: updatePlot, 0,0,0
+          2: updateImageRes
+          3: updateTableSup
+          ELSE:
+        ENDCASE
         ;ENDIF
       END
 
@@ -3581,7 +3870,8 @@ pro ImageQC_event, ev
                 markedMulti[p,*]=markedArr(newOrder)
               ENDFOR
             ENDIF
-            fileList=getListOpenFiles(structImgs,0,marked, markedMulti)
+            IF WIDGET_INFO(lstShowFile, /DROPLIST_SELECT) EQ 0 THEN RDtemp='' ELSE RDtemp=modalityName
+            fileList=getListOpenFiles(structImgs,0,marked,markedMulti,RENAMEDICOM=RDtemp, CONFIGPATH=configPath, PARENT=evTop)
             WIDGET_CONTROL, listFiles, YSIZE=n_elements(fileList), SET_VALUE=fileList, SET_LIST_SELECT=newFirstSel, SET_LIST_TOP=0
             WIDGET_CONTROL, listFiles, SCR_YSIZE=170
             clearRes

@@ -1,7 +1,7 @@
 ;procedures for importing templates from another config-path. Used in settings.pro
 
 ;import parameter set(s)
-pro import_s, source_path, target_path, mOpt, xo, yo, parent, NAMED_SETS=named_sets
+pro import_s, source_path, target_path, mOpt, anaStrAll, xo, yo, parent, NAMED_SETS=named_sets
   impConfigS=updateConfigS(source_path)
 
   IF SIZE(impConfigS, /TNAME) EQ 'STRUCT' THEN BEGIN
@@ -37,7 +37,7 @@ pro import_s, source_path, target_path, mOpt, xo, yo, parent, NAMED_SETS=named_s
       updSet=0
 
       qto2imp=!Null
-      qto2def=!Null
+      ;qto2def=!Null
       FOR i=0, N_ELEMENTS(IDs2import)-1 DO BEGIN
         newname=names(IDs2import(i))
         IF currNames.HasValue(newname) THEN BEGIN
@@ -61,14 +61,16 @@ pro import_s, source_path, target_path, mOpt, xo, yo, parent, NAMED_SETS=named_s
             idSource=WHERE(names EQ newname)+1
 
             ;check output-templates connected
-            ots=impConfigS.(impConfigS.(idSource)).QTOUTTEMPS
-            def_ots=WHERE(ots NE 'DEFAULT')
-            IF def_ots(0) NE -1 THEN BEGIN
-              not_def=ots(def_ots)
-              newline = string([13B, 10B])
-              sv=DIALOG_MESSAGE('The parameter set '+newname+' have links to these QuickTest Output templates '+newline+STRJOIN(ots,newline)+newline+'These will all be set to DEFAULT. Consider importing output templates and reconnect the paramater set.', /INFORMATION, DIALOG_PARENT=parent)
-              FOREACH elem, impConfigS.(idSource).QTOUTTEMPS, o DO impConfigS.(idSource).QTOUTTEMPS(o)='DEFAULT'
-            ENDIF
+            IF N_ELEMENTS(qto2imp) EQ 0 THEN qto2imp=STRARR(N_ELEMENTS(IDs2import),N_ELEMENTS(impConfigS.(1).QTOUTTEMPS))
+            qto2imp[i,*]=TRANSPOSE(impConfigS.(idSource).QTOUTTEMPS)
+            ;            ots=impConfigS.(impConfigS.(idSource)).QTOUTTEMPS
+            ;            def_ots=WHERE(ots NE 'DEFAULT')
+            ;            IF def_ots(0) NE -1 THEN BEGIN
+            ;              not_def=ots(def_ots)
+            ;              newline = string([13B, 10B])
+            ;              sv=DIALOG_MESSAGE('The parameter set '+newname+' have links to these QuickTest Output templates '+newline+STRJOIN(ots,newline)+newline+'These will all be set to DEFAULT. Consider importing output templates and reconnect the paramater set.', /INFORMATION, DIALOG_PARENT=parent)
+            ;              FOREACH elem, impConfigS.(idSource).QTOUTTEMPS, o DO impConfigS.(idSource).QTOUTTEMPS(o)='DEFAULT'
+            ;            ENDIF
 
             configS=replaceStructStruct(configS, impConfigS.(idSource), idReplace)
             updSet=1
@@ -80,33 +82,50 @@ pro import_s, source_path, target_path, mOpt, xo, yo, parent, NAMED_SETS=named_s
             sv=DIALOG_MESSAGE('Import failed as parameter set '+newname+' already exist.', DIALOG_PARENT=parent)
           ENDIF ELSE BEGIN
             ;check output-templates connected
-            ots=impConfigS.(IDs2import(i)+1).QTOUTTEMPS
-            def_ots=WHERE(ots NE 'DEFAULT')
-            IF def_ots(0) NE -1 THEN BEGIN
-              ;FOR q=0, N_ELEMENTS(def_ots)-1 DO BEGIN
-              ;  nameExist=TAG_NAMES(quickTout.(def_ots(q)))
-              ;  IF ~nameExist.HasValue(ots(def_ots(q))) THEN BEGIN
-              ;    TODO - implement import of QTO based on linked to paramset
-              ;  ENDIF
-              ;ENDFOR
-              newline = string([13B, 10B])
-              sv=DIALOG_MESSAGE('The parameter set '+newname+' have links to these QuickTest Output templates '+newline+STRJOIN(ots,newline)+newline+'These will all be set to DEFAULT. Consider importing output templates and reconnect the paramater set.', /INFORMATION, DIALOG_PARENT=parent)
-              FOREACH elem, impConfigS.(IDs2import(i)+1).QTOUTTEMPS, o DO impConfigS.(IDs2import(i)+1).QTOUTTEMPS(o)='DEFAULT'
-            ENDIF
+            IF N_ELEMENTS(qto2imp) EQ 0 THEN qto2imp=STRARR(N_ELEMENTS(IDs2import),N_ELEMENTS(impConfigS.(1).QTOUTTEMPS))
+            qto2imp[i,*]=TRANSPOSE(impConfigS.(IDs2import(i)+1).QTOUTTEMPS)
+            ;ots=impConfigS.(IDs2import(i)+1).QTOUTTEMPS
+            ;def_ots=WHERE(ots NE 'DEFAULT')
+            ;IF def_ots(0) NE -1 THEN BEGIN
+            ;FOR q=0, N_ELEMENTS(def_ots)-1 DO BEGIN
+            ;  nameExist=TAG_NAMES(quickTout.(def_ots(q)))
+            ;  IF ~nameExist.HasValue(ots(def_ots(q))) THEN BEGIN
+            ;    TODO - implement import of QTO based on linked to paramset
+            ;  ENDIF
+            ;ENDFOR
+            ;newline = string([13B, 10B])
+            ;sv=DIALOG_MESSAGE('The parameter set '+newname+' have links to these QuickTest Output templates '+newline+STRJOIN(ots,newline)+newline+'These will all be set to DEFAULT. Consider importing output templates and reconnect the paramater set.', /INFORMATION, DIALOG_PARENT=parent)
+            ;FOREACH elem, impConfigS.(IDs2import(i)+1).QTOUTTEMPS, o DO impConfigS.(IDs2import(i)+1).QTOUTTEMPS(o)='DEFAULT'
+            ;ENDIF
             configS=CREATE_STRUCT(configS, newname, impConfigS.(IDs2import(i)+1))
             updSet=1
           ENDELSE
         ENDIF
       ENDFOR
-      
-      ;IF N_ELEMENTS(qto2imp) GT 0 THEN BEGIN
-        ;TODO - not implemented yet - import those QTO temp if accepted
-       ; FOR i=0, N_ELEMENTS(qto2def)-1 DO BEGIN
-       ;   FOREACH elem, configS.(qto2def(i)+1).QTOUTTEMPS, o DO configS.(qto2def(i)+1).QTOUTTEMPS(o)='DEFAULT'
-       ; ENDFOR
-      ;ENDIF
 
-      IF updSet EQ 1 THEN SAVEIF, saveOK, configS, quickTemp, quickTout, loadTemp, renameTemp, FILENAME=target_path
+      IF updSet EQ 1 THEN BEGIN
+        SAVEIF, saveOK, configS, quickTemp, quickTout, loadTemp, renameTemp, FILENAME=target_path
+
+        szOutT=SIZE(qto2imp,/DIMENSIONS)
+        idsDef=WHERE(qto2imp EQ 'DEFAULT')
+        IF N_ELEMENTS(idsDef) NE N_ELEMENTS(qto2imp) THEN BEGIN
+          impquickTout=updateQuickTout(source_path, analyseStrA)
+          allMods=TAG_NAMES(anaStrAll)
+          impMods=TAG_NAMES(impquickTout)
+          qto2imp(idsDef)=''
+          FOR i=0, szOutT(1)-1 DO BEGIN
+            tempsConnected=qto2imp[*,i]
+            idNotDef=WHERE(tempsConnected NE '')
+            IF idNotDef(0) NE -1 THEN BEGIN
+              imptemps=tempsConnected(idNotDef)
+              qtoMod=WHERE(allMods(i) EQ impMods)
+              IF qtoMod(0) NE -1 THEN BEGIN
+                import_qto, source_path, target_path, anaStrAll, qtoMod, xo, yo, parent, NAMED_TEMPS=imptemps
+              ENDIF
+            ENDIF
+          ENDFOR
+        ENDIF
+      ENDIF
     ENDIF
   ENDIF ELSE sv=DIALOG_MESSAGE('File '+string([13B, 10B])+source_path+string([13B, 10B])+' do not contain parameter sets as expected.', DIALOG_PARENT=parent)
 end
@@ -117,91 +136,93 @@ pro import_qt, source_path, target_path, mOpt, modSel, xo, yo, parent, NAMED_TEM
   IF SIZE(impquickTemp, /TNAME) EQ 'STRUCT' THEN BEGIN
     modNames=TAG_NAMES(impquickTemp)
     curimpQT=impquickTemp.(modSel)
-    names=TAG_NAMES(curimpQT)
+    IF SIZE(curimpQT, /TNAME) EQ 'STRUCT' THEN BEGIN
+      names=TAG_NAMES(curimpQT)
 
-    IDs2import=!Null
-    IF N_ELEMENTS(named_temps) GT 0 THEN BEGIN
-      FOR i=0, N_ELEMENTS(named_temps)-1 DO BEGIN
-        id=WHERE(names EQ named_temps(i))
-        IF id(0) NE -1 THEN IDs2import=[IDs2import, id(0)]
-      ENDFOR
-    ENDIF ELSE BEGIN
-      box=[$
-        '1, BASE,, /COLUMN', $
-        '0, LABEL, Templates found in selected config file for '+modNames(modSel), $
-        '0, LABEL, Select template(s) to import', $
-        '0, LABEL, ',$
-        '2, LIST, ' + STRJOIN(names,'|') + ', TAG=templates', $
-        '1, BASE,, /ROW', $
-        '0, BUTTON, Cancel, QUIT, TAG=Cancel',$
-        '2, BUTTON, OK, QUIT, TAG=OK']
-      res=CW_FORM_2(box, /COLUMN, TAB_MODE=1, TITLE='Select template(s) to import', XSIZE=300, YSIZE=300, FOCUSNO=3, XOFFSET=xo+250, YOFFSET=yo+250)
+      IDs2import=!Null
+      IF N_ELEMENTS(named_temps) GT 0 THEN BEGIN
+        FOR i=0, N_ELEMENTS(named_temps)-1 DO BEGIN
+          id=WHERE(names EQ named_temps(i))
+          IF id(0) NE -1 THEN IDs2import=[IDs2import, id(0)]
+        ENDFOR
+      ENDIF ELSE BEGIN
+        box=[$
+          '1, BASE,, /COLUMN', $
+          '0, LABEL, Templates found in selected config file for '+modNames(modSel), $
+          '0, LABEL, Select template(s) to import', $
+          '0, LABEL, ',$
+          '2, LIST, ' + STRJOIN(names,'|') + ', TAG=templates', $
+          '1, BASE,, /ROW', $
+          '0, BUTTON, Cancel, QUIT, TAG=Cancel',$
+          '2, BUTTON, OK, QUIT, TAG=OK']
+        res=CW_FORM_2(box, /COLUMN, TAB_MODE=1, TITLE='Select template(s) to import', XSIZE=300, YSIZE=300, FOCUSNO=3, XOFFSET=xo+250, YOFFSET=yo+250)
 
-      IF res.OK THEN BEGIN
-        IF N_ELEMENTS(res.templates) NE 0 THEN IDs2import=res.templates
-      ENDIF
-    ENDELSE
-
-    IF N_ELEMENTS(IDs2import) GT 0 THEN BEGIN
-      quickTemp=!Null
-      RESTORE, target_path
-      curQT=!Null
-      currNames=!Null
-      updCurQT=0
-      IF SIZE(quickTemp, /TNAME) EQ 'STRUCT' THEN BEGIN
-        IF SIZE(quickTemp.(modSel), /TNAME) EQ 'STRUCT' THEN BEGIN
-          curQT=quickTemp.(modSel)
-          currNames=TAG_NAMES(curQT)
+        IF res.OK THEN BEGIN
+          IF N_ELEMENTS(res.templates) NE 0 THEN IDs2import=res.templates
         ENDIF
-      ENDIF ELSE quickTemp=!Null
+      ENDELSE
 
-      FOR i=0, N_ELEMENTS(IDs2import)-1 DO BEGIN
-        newname=names(IDs2import(i))
-        IF N_ELEMENTS(currNames) GT 0 THEN BEGIN
-          IF currNames.HasValue(newname) THEN BEGIN
-            ;ask for new name
+      IF N_ELEMENTS(IDs2import) GT 0 THEN BEGIN
+        quickTemp=!Null
+        RESTORE, target_path
+        curQT=!Null
+        currNames=!Null
+        updCurQT=0
+        IF SIZE(quickTemp, /TNAME) EQ 'STRUCT' THEN BEGIN
+          IF SIZE(quickTemp.(modSel), /TNAME) EQ 'STRUCT' THEN BEGIN
+            curQT=quickTemp.(modSel)
+            currNames=TAG_NAMES(curQT)
+          ENDIF
+        ENDIF ELSE quickTemp=!Null
 
-            box=[$
-              '1, BASE,, /COLUMN', $
-              '0, LABEL, Template '+newname+' already exist', $
-              '2,  TEXT, , LABEL_LEFT=Rename the imported template:, WIDTH=12, TAG=newname,', $
-              '1, BASE,, /ROW', $
-              '0, BUTTON, OK, QUIT, TAG=Save',$
-              '0, BUTTON, Overwrite, QUIT, TAG=Overwrite',$
-              '2, BUTTON, Cancel/Ignore, QUIT, TAG=Cancel']
-            res=CW_FORM_2(box, /COLUMN, TAB_MODE=1, TITLE='Rename the imported template', XSIZE=300, YSIZE=100, FOCUSNO=1, XOFFSET=xo+250, YOFFSET=yo+250)
+        FOR i=0, N_ELEMENTS(IDs2import)-1 DO BEGIN
+          newname=names(IDs2import(i))
+          IF N_ELEMENTS(currNames) GT 0 THEN BEGIN
+            IF currNames.HasValue(newname) THEN BEGIN
+              ;ask for new name
 
-            IF res.Cancel THEN newname=''
-            IF res.Save THEN BEGIN
-              IF res.newname NE '' THEN newname=STRUPCASE(IDL_VALIDNAME(res.newname, /CONVERT_ALL)) ELSE newname=''
-            ENDIF
-            IF res.Overwrite THEN BEGIN
-              idReplace=WHERE(currNames EQ newname)
-              idSource=WHERE(names EQ newname)
-              curQT=replaceStructStruct(curQT, curimpQT.(idSource), idReplace)
-              updCurQT=1
-              newname=''
+              box=[$
+                '1, BASE,, /COLUMN', $
+                '0, LABEL, Template '+newname+' already exist', $
+                '2,  TEXT, , LABEL_LEFT=Rename the imported template:, WIDTH=12, TAG=newname,', $
+                '1, BASE,, /ROW', $
+                '0, BUTTON, OK, QUIT, TAG=Save',$
+                '0, BUTTON, Overwrite, QUIT, TAG=Overwrite',$
+                '2, BUTTON, Cancel/Ignore, QUIT, TAG=Cancel']
+              res=CW_FORM_2(box, /COLUMN, TAB_MODE=1, TITLE='Rename the imported template', XSIZE=300, YSIZE=100, FOCUSNO=1, XOFFSET=xo+250, YOFFSET=yo+250)
+
+              IF res.Cancel THEN newname=''
+              IF res.Save THEN BEGIN
+                IF res.newname NE '' THEN newname=STRUPCASE(IDL_VALIDNAME(res.newname, /CONVERT_ALL)) ELSE newname=''
+              ENDIF
+              IF res.Overwrite THEN BEGIN
+                idReplace=WHERE(currNames EQ newname)
+                idSource=WHERE(names EQ newname)
+                curQT=replaceStructStruct(curQT, curimpQT.(idSource), idReplace)
+                updCurQT=1
+                newname=''
+              ENDIF
             ENDIF
           ENDIF
-        ENDIF
-        IF newname NE '' THEN BEGIN
-          curQT=CREATE_STRUCT(curQT, newname, curimpQT.(IDs2import(i)))
-          updCurQT=1
+          IF newname NE '' THEN BEGIN
+            curQT=CREATE_STRUCT(curQT, newname, curimpQT.(IDs2import(i)))
+            updCurQT=1
+          ENDIF
+
+        ENDFOR
+
+        IF updCurQT THEN BEGIN
+          IF N_ELEMENTS(quickTemp) EQ 0 THEN BEGIN
+            ms=TAG_NAMES(mOpt)
+            FOR i=0, N_TAGS(mOpt)-1 DO quickTemp=CREATE_STRUCT(quickTemp, ms(i), -1)
+          ENDIF
+          quickTemp=replaceStructStruct(quickTemp, curQT, modSel)
+          SAVEIF, saveOK, configS, quickTemp, quickTout, loadTemp, renameTemp, FILENAME=target_path
         ENDIF
 
-      ENDFOR
-
-      IF updCurQT THEN BEGIN
-        IF N_ELEMENTS(quickTemp) EQ 0 THEN BEGIN
-          ms=TAG_NAMES(mOpt)
-          FOR i=0, N_TAGS(mOpt)-1 DO quickTemp=CREATE_STRUCT(quickTemp, ms(i), -1)
-        ENDIF
-        quickTemp=replaceStructStruct(quickTemp, curQT, modSel)
-        SAVEIF, saveOK, configS, quickTemp, quickTout, loadTemp, renameTemp, FILENAME=target_path
       ENDIF
-
-    ENDIF
-  ENDIF
+    ENDIF ELSE sv=DIALOG_MESSAGE('File '+string([13B, 10B])+source_path+string([13B, 10B])+' do not contain any QuickTest template for modality '+modNames(modSel), DIALOG_PARENT=parent)
+  ENDIF ELSE sv=DIALOG_MESSAGE('Found no QuickTest templates in the selected file.', /INFORMATION, DIALOG_PARENT=parent)
 
 end
 
@@ -211,7 +232,12 @@ pro import_qto, source_path, target_path, analyseStrA, modNmb, xo, yo, parent, N
   modNames=TAG_NAMES(impquickTout)
   curimpQTO=impquickTout.(modNmb)
   names=TAG_NAMES(curimpQTO)
-  
+
+  RESTORE, target_path
+  curQTO=quickTout.(modNmb)
+  currNames=TAG_NAMES(curQTO)
+
+  updcurQTO=0
   IDs2import=!Null
   IF N_ELEMENTS(named_temps) GT 0 THEN BEGIN
     FOR i=0, N_ELEMENTS(named_temps)-1 DO BEGIN
@@ -229,65 +255,61 @@ pro import_qto, source_path, target_path, analyseStrA, modNmb, xo, yo, parent, N
       '0, BUTTON, Cancel, QUIT, TAG=Cancel',$
       '2, BUTTON, OK, QUIT, TAG=OK']
     res=CW_FORM_2(box, /COLUMN, TAB_MODE=1, TITLE='Select template(s) to import', XSIZE=300, YSIZE=300, FOCUSNO=3, XOFFSET=xo+250, YOFFSET=yo+250)
-  
+
     IF res.OK THEN BEGIN
       IF N_ELEMENTS(res.templates) NE 0 THEN BEGIN
-        RESTORE, target_path
-        curQTO=quickTout.(modNmb)
-        currNames=TAG_NAMES(curQTO)
-  
         updcurQTO=0
         IDs2import=res.templates
       ENDIF
     ENDIF
   ENDELSE
- 
+
   IF N_ELEMENTS(IDs2import) GT 0 THEN BEGIN
 
-      FOR i=0, N_ELEMENTS(IDs2import)-1 DO BEGIN
-        newname=names(IDs2import(i))
-        IF currNames.HasValue(newname) THEN BEGIN
-          ;ask for new name
+    FOR i=0, N_ELEMENTS(IDs2import)-1 DO BEGIN
+      newname=names(IDs2import(i))
+      IF currNames.HasValue(newname) THEN BEGIN
+        ;ask for new name
 
-          box=[$
-            '1, BASE,, /COLUMN', $
-            '0, LABEL, Template '+newname+' already exist', $
-            '2,  TEXT, , LABEL_LEFT=Rename the imported template:, WIDTH=12, TAG=newname,', $
-            '1, BASE,, /ROW', $
-            '0, BUTTON, OK, QUIT, TAG=Save',$
-            '0, BUTTON, Overwrite, QUIT, TAG=Overwrite',$
-            '2, BUTTON, Cancel/Ignore, QUIT, TAG=Cancel']
-          res=CW_FORM_2(box, /COLUMN, TAB_MODE=1, TITLE='Rename the imported template', XSIZE=300, YSIZE=100, FOCUSNO=1, XOFFSET=xo+250, YOFFSET=yo+250)
+        box=[$
+          '1, BASE,, /COLUMN', $
+          '0, LABEL, Template '+newname+' already exist', $
+          '2,  TEXT, , LABEL_LEFT=Rename the imported template:, WIDTH=12, TAG=newname,', $
+          '1, BASE,, /ROW', $
+          '0, BUTTON, OK, QUIT, TAG=Save',$
+          '0, BUTTON, Overwrite, QUIT, TAG=Overwrite',$
+          '2, BUTTON, Cancel/Ignore, QUIT, TAG=Cancel']
+        res=CW_FORM_2(box, /COLUMN, TAB_MODE=1, TITLE='Rename the imported template', XSIZE=300, YSIZE=100, FOCUSNO=1, XOFFSET=xo+250, YOFFSET=yo+250)
 
-          IF res.Cancel THEN newname=''
-          IF res.Save THEN BEGIN
-            IF res.newname NE '' THEN newname=STRUPCASE(IDL_VALIDNAME(res.newname, /CONVERT_ALL)) ELSE newname=''
-          ENDIF
-          IF res.Overwrite THEN BEGIN
-            idReplace=WHERE(currNames EQ newname)
-            idSource=IDs2import(i)
-            curQTO=replaceStructStruct(curQTO, curimpQTO.(idSource), idReplace)
-            updcurQTO=1
-            newname=''
-          ENDIF
+        IF res.Cancel THEN newname=''
+        IF res.Save THEN BEGIN
+          IF res.newname NE '' THEN newname=STRUPCASE(IDL_VALIDNAME(res.newname, /CONVERT_ALL)) ELSE newname=''
         ENDIF
-        IF newname NE '' THEN BEGIN
-          curQTO=CREATE_STRUCT(curQTO, newname, curimpQTO.(IDs2import(i)))
+        IF res.Overwrite THEN BEGIN
+          idReplace=WHERE(currNames EQ newname)
+          idSource=IDs2import(i)
+          curQTO=replaceStructStruct(curQTO, curimpQTO.(idSource), idReplace)
           updcurQTO=1
+          newname=''
         ENDIF
-      ENDFOR
-
-      IF updcurQTO THEN BEGIN
-        quickTout=replaceStructStruct(quickTout, curQTO, modNmb)
-        SAVEIF, saveOK, configS, quickTemp, quickTout, loadTemp, renameTemp, FILENAME=target_path
       ENDIF
+      IF newname NE '' THEN BEGIN
+        curQTO=CREATE_STRUCT(curQTO, newname, curimpQTO.(IDs2import(i)))
+        updcurQTO=1
+      ENDIF
+    ENDFOR
+
+    IF updcurQTO THEN BEGIN
+      quickTout=replaceStructStruct(quickTout, curQTO, modNmb)
+      SAVEIF, saveOK, configS, quickTemp, quickTout, loadTemp, renameTemp, FILENAME=target_path
+    ENDIF
 
   ENDIF
 
 end
 
 ;import automation template (loadTemp)
-pro import_a, source_path, target_path, mOpt, modSel, xo, yo, parent
+pro import_a, source_path, target_path, mOpt, anaStrAll, modSel, xo, yo, parent
   imploadTemp=updateLoadT(source_path, mOpt)
   IF SIZE(imploadTemp, /TNAME) EQ 'STRUCT' THEN BEGIN
     modNames=TAG_NAMES(imploadTemp)
@@ -385,15 +407,17 @@ pro import_a, source_path, target_path, mOpt, modSel, xo, yo, parent
                 missingParamSets=[missingParamSets,thisLT.PARAMSET]
                 IDmissingParamSets=[IDmissingParamSets,updIDs(i)]
               ENDIF
-              IF N_ELEMENTS(QuickTempNames) GT 0 THEN BEGIN
-                IF ~QuickTempNames.HasValue(thisLT.QUICKTEMP) THEN BEGIN
+              IF thisLT.QUICKTEMP NE '' THEN BEGIN
+                IF N_ELEMENTS(QuickTempNames) GT 0 THEN BEGIN
+                  IF ~QuickTempNames.HasValue(thisLT.QUICKTEMP) THEN BEGIN
+                    missingQuickTemp=[missingQuickTemp,thisLT.QUICKTEMP]
+                    IDmissingQuickTemp=[IDmissingQuickTemp,updIDs(i)]
+                  ENDIF
+                ENDIF ELSE BEGIN
                   missingQuickTemp=[missingQuickTemp,thisLT.QUICKTEMP]
                   IDmissingQuickTemp=[IDmissingQuickTemp,updIDs(i)]
-                ENDIF
-              ENDIF ELSE BEGIN
-                missingQuickTemp=[missingQuickTemp,thisLT.QUICKTEMP]
-                IDmissingQuickTemp=[IDmissingQuickTemp,updIDs(i)]
-              ENDELSE
+                ENDELSE
+              ENDIF
             ENDFOR
             IF N_ELEMENTS(missingParamSets) + N_ELEMENTS(missingQuickTemp) GT 0 THEN BEGIN
               newline = string([13B, 10B])
@@ -409,7 +433,7 @@ pro import_a, source_path, target_path, mOpt, modSel, xo, yo, parent
             IF N_ELEMENTS(missingParamSets) GT 0 THEN BEGIN
               missingParamSets=missingParamSets(SORT(missingParamSets))
               missingParamSets=missingParamSets(UNIQ(missingParamSets))
-              import_s, source_path, target_path, mOpt, xo, yo, parent, NAMED_SETS=missingParamSets
+              import_s, source_path, target_path, mOpt, anaStrAll, xo, yo, parent, NAMED_SETS=missingParamSets
             ENDIF
             IF N_ELEMENTS(missingQuickTemp) GT 0 THEN BEGIN
               missingQuickTemp=missingQuickTemp(SORT(missingQuickTemp))

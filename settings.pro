@@ -5,7 +5,7 @@
 ;This program is free software; you can redistribute it and/or
 ;modify it under the terms of the GNU General Public License version 2
 ;as published by the Free Software Foundation.
-;
+
 ;This program is distributed in the hope that it will be useful,
 ;but WITHOUT ANY WARRANTY; without even the implied warranty of
 ;MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -31,17 +31,17 @@ end
 pro settings, GROUP_LEADER = mainbase, xoff, yoff, tabString;tabString = 'PARAM','QTSETUP', 'QTOUT' or 'AUTOSETUP'
 
   COMMON SETT, wtabSett, listSets_s, listParamAuto_s,autoNames_s, availModNmb, defModality, allTags,allDesc,$
-    tblOutputSett, tblTestSett, orderTblTestSett, tblCurrMaterials, tblSelMaterials, lstCT_s, lstX_s, lstNM_s,lstMR_s, lblSaveStamp,lblAutoClear,btnAutoClear,$
+    tblOutputSett, tblTestSett, orderTblTestSett, tblCurrMaterials, tblSelMaterials, lstCT_s, lstX_s, lstNM_s,lstPET_s,lstMR_s, lblSaveStamp,lblAutoClear,btnAutoClear,$
     lstModality_QT, QTnames, lstTempQT, lstQT, lstQTusedAuto, autoNames_qt, lstTest_qt,txtNimgTest_qt,$
     lstModality_qto, lstTemplates_qto, tblQTout, lstTest, lstAlt, lstCols, lstCalc, lstPer, txtDescr, lstQTOusedParam, setNames_qto, autoNames_qto, listTagAdded_qto, btnAddTag, btnEditTag, btnDelTag, lblTagContent_qto,lblTagFormat_qto,$
     qto_currMod, qto_currTemp, qto_currTest, qto_currOutp, qto_currSel, $
-    txtAutoImpPath, btnAutoCont, lstModality_a, listTemp_a, txtBrowse_a, txtStatName_a, txtDCMcritGroup, txtDCMcritElem, btnDCMcritLookup, txtDCMcrit, listSets_a, listQT_a, listElem, listSort, txtBrowseApp, btnMoveFiles, btnDeleteFiles,btnDeleteFilesEnd,$
+    txtAutoImpPath, btnSaveImpPath, btnAutoPause, txtWaitPDF0,txtWaitPDF1,btnSaveWait,lstModality_a, listTemp_a, txtBrowse_a, txtStatName_a, txtDCMcritGroup, txtDCMcritElem, btnDCMcritLookup, txtDCMcrit, listSets_a, listQT_a, listElem, listSort, txtBrowseApp, btnMoveFiles, btnDeleteFiles,btnDeleteFilesEnd,$
     selecTemp_a,a_currMod,tempnames_a,paramSetNames,quickTempNames, tags_imgStruct, sortElem, ascElem, auto_warningBox, warningTxt1, warningTxt2,warningTxt3,autoChanged, $
     tbl_rde, lstTemp_rdt, txtCat_rdt, txtFile_rdt, rdt_names, txtInputTest,txtFormatTest,txtOutputTest,$
     btnAdd_s,btnSave_s,btnDupliTemp_s,btnRenameTemp_s,btnUpTemp_s,btnDownTemp_s,btnDelete_s,btnSetDef,btnImport_s,btnRefreshQT,$
     btnAdd_qt, btnEdit_qt, btnDuplicate_qt,btnRename_qt,btnUpTemp_qt,btnDownTemp_qt,btnDelete_qt,btnImport_qt,$
     btnDupliTemp_qto,btnRenameTemp_qto,btnDeleteTemp_qto,btnAddQTO,btnEditQTO,btnDelQTO,btnImport_qto,$
-    btnAddTemp_a,btnOverWriteAuto,btnDupliTemp_a,btnRenameTemp_a,btnUpTemp_a,btnDownTemp_a,btnDelTemp_a,btnImport_a,bAutoParam2, bImportA, bAlt_a,btnAltAuto,lblQTO_a,$
+    btnAddTemp_a,btnOverWriteAuto,btnDupliTemp_a,btnRenameTemp_a,btnUpTemp_a,btnDownTemp_a,btnDelTemp_a,btnImport_a,bDCMcrit,bAutoParam2, bImportA, btnAltAuto,lblQTO_a,$
     btnAdd_rde,btnOverWrite_rde,btnDupli_rde,btnUp_rde,btnDown_rde,btnDel_rde,btnDuplicate_rdt,btnRename_rdt,btnUpTemp_rdt,btnDownTemp_rdt,btnDelete_rdt, btnImport_rdt
   COMMON VARI
   COMPILE_OPT hidden
@@ -62,7 +62,7 @@ pro settings, GROUP_LEADER = mainbase, xoff, yoff, tabString;tabString = 'PARAM'
 
   settingsbox = WIDGET_BASE(TITLE='User settings',  $
     /ROW, XSIZE=160+850+100, YSIZE=750, XOFFSET=xoff, YOFFSET=yoff,GROUP_LEADER=mainbase, /TLB_KILL_REQUEST_EVENTS, /MODAL)
-    
+
   ;*************
 
   settingsboxLft=WIDGET_BASE(settingsbox,/COLUMN, /ALIGN_LEFT)
@@ -70,7 +70,7 @@ pro settings, GROUP_LEADER = mainbase, xoff, yoff, tabString;tabString = 'PARAM'
   lbl=WIDGET_LABEL(settingsboxLft, VALUE='Timestamp ', FONT=font0, /NO_COPY)
   lbl=WIDGET_LABEL(settingsboxLft, VALUE='', YSIZE=10,/NO_COPY)
   bBtmButt=WIDGET_BASE(settingsboxLft, /COLUMN, /ALIGN_LEFT)
-  
+
   btnCleanBlock=WIDGET_BUTTON(bBtmButt, VALUE='Reset timestamp', TOOLTIP='When a session starts saving will be blocked by this user until session ends. An abnormal program shutdown (crash) might fail to delete the timestamp. Reset timestamp to restore ability to save to the current session.', UVALUE='remBlock', FONT=font1)
   stamped='-'
   IF N_TAGS(configS.(0)) GT 3 THEN stamped=updStamp(configS.(0).USERNAME, configS.(0).SAVESTAMP) ;function updStamp at top of settings.pro
@@ -89,18 +89,15 @@ pro settings, GROUP_LEADER = mainbase, xoff, yoff, tabString;tabString = 'PARAM'
   lbl=WIDGET_LABEL(settingsboxLft, VALUE='Config file actions ', FONT=font0, /NO_COPY)
   lbl=WIDGET_LABEL(settingsboxLft, VALUE='', YSIZE=10,/NO_COPY)
   bBtmButt=WIDGET_BASE(settingsboxLft, /COLUMN)
-  ;lbl=WIDGET_LABEL(bBtmButt, VALUE='', XSIZE=300,/NO_COPY)
   btnSaveConfigBackup=WIDGET_BUTTON(bBtmButt, VALUE='Backup', TOOLTIP='Backup config file', UVALUE='backupConfig', FONT=font1)
   btnRestoreConfig=WIDGET_BUTTON(bBtmButt, VALUE='Restore', TOOLTIP='Restore and replace config file with backup config file', UVALUE='restoreConfig', FONT=font1)
   btnExpXMLConfig=WIDGET_BUTTON(bBtmButt, VALUE='Export to XML', TOOLTIP='Export config structures to XML file', UVALUE='expXML', FONT=font1)
-  ;btnInfoS=WIDGET_BUTTON(bBtmButt, VALUE=thisPath+'images\info.bmp',/BITMAP, UVALUE='s_info')
-  ;btnCancelSett=WIDGET_BUTTON(bBtmButt, VALUE='Close', UVALUE='cancel', FONT=font1)
-  
-;*************
+
+  ;*************
   wtabSett=WIDGET_TAB(settingsbox, XSIZE=850+90, YSIZE=730, UVALUE='tabSettings')
   bParamSet=WIDGET_BASE(wtabSett, TITLE='Parameter sets', /COLUMN, UVALUE='tabParam')
   bQTsetup=WIDGET_BASE(wtabSett, TITLE='QuickTest templates', /COLUMN, UVALUE='tabQTsetup')
-  bQTout=WIDGET_BASE(wtabSett, TITLE='QuickTest output templates', /COLUMN, UVALUE='tabQTout')
+  bQTout=WIDGET_BASE(wtabSett, TITLE='QuickTestOutput templates', /COLUMN, UVALUE='tabQTout')
   bAuto=WIDGET_BASE(wtabSett, TITLE='Automation templates', /ROW, UVALUE='tabAuto')
   bRename=WIDGET_BASE(wtabSett, TITLE='RenameDICOM settings', /COLUMN, UVALUE='tabRename')
   bInfo=WIDGET_BASE(wtabSett, TITLE='Info', /COLUMN, UVALUE='tabInfo')
@@ -126,7 +123,7 @@ pro settings, GROUP_LEADER = mainbase, xoff, yoff, tabString;tabString = 'PARAM'
 
   ;list of parameter sets
   lbl=WIDGET_LABEL(bLft, VALUE='Saved parameter sets ', /ALIGN_LEFT, FONT=font0, /NO_COPY)
-  listSets_s=WIDGET_LIST(bLft, VALUE='', XSIZE=230, SCR_YSIZE=160, UVALUE='s_listSets', FONT=font1)
+  listSets_s=WIDGET_LIST(bLft, VALUE='', XSIZE=230, SCR_YSIZE=250, UVALUE='s_listSets', FONT=font1)
   bBtnsLft=WIDGET_BASE(bLft, /ROW)
   btnAdd_s=WIDGET_BUTTON(bBtnsLft, VALUE=thisPath+'images\plus.bmp',/BITMAP, UVALUE='s_add', TOOLTIP='Save new parameter set with current values', SENSITIVE=saveOK)
   btnSave_s=WIDGET_BUTTON(bBtnsLft, VALUE=thisPath+'images\save.bmp',/BITMAP, UVALUE='s_overwrite', TOOLTIP='Overwrite template with current values', SENSITIVE=saveOK); ask wether both quicktest changes (if changed) and current values?
@@ -138,14 +135,7 @@ pro settings, GROUP_LEADER = mainbase, xoff, yoff, tabString;tabString = 'PARAM'
   btnSetDef=WIDGET_BUTTON(bBtnsLft, VALUE=thisPath+'images\star.bmp',/BITMAP, TOOLTIP='Set this parameter as default i.e. to be selected when opening ImageQC', UVALUE='s_setDefault', SENSITIVE=saveOK)
   bBtnsLft2=WIDGET_BASE(bLft, /ROW)
   btnImport_s=WIDGET_BUTTON(bBtnsLft2, VALUE=thisPath+'images\importd.bmp',/BITMAP, UVALUE='s_import', TOOLTIP='Import parameter set from another config-file', SENSITIVE=saveOK)
-  lbl=WIDGET_LABEL(bLft, VALUE='', YSIZE=20, /NO_COPY)
-  bBtnsRow=WIDGET_BASE(bLft, /ROW)
-  bUseCurr=WIDGET_BASE(bLft, /NONEXCLUSIVE)
-
-  lbl=WIDGET_LABEL(bLft, VALUE='', YSIZE=20, /NO_COPY)
-  bBtnsLft2=WIDGET_BASE(bLft, /ROW)
   btnSetCurr=WIDGET_BUTTON(bBtnsLft2, VALUE='Use selected / Close', UVALUE='s_setCurr',FONT=font1)
-
 
   lbl=WIDGET_LABEL(bLft, VALUE='', YSIZE=40, /NO_COPY)
   lbl=WIDGET_LABEL(bLft, VALUE='Selected parameter set is used ', /ALIGN_LEFT, FONT=font0, /NO_COPY)
@@ -154,47 +144,47 @@ pro settings, GROUP_LEADER = mainbase, xoff, yoff, tabString;tabString = 'PARAM'
 
   ;select parameterset values and current values
   bOutputSett=WIDGET_BASE(bRgt, /ROW)
-  bQTOtemp=WIDGET_BASE(bOutputSett, /COLUMN, XSIZE=180)
-  lbl=WIDGET_LABEL(bQTOtemp, VALUE='QuickTest output template ', /ALIGN_LEFT, FONT=font0, /NO_COPY)
-  bTempCT=WIDGET_BASE(bQTOtemp, /ROW)
-  lbl=WIDGET_LABEL(bTempCT, VALUE='CT', FONT=font1, XSIZE=60, /NO_COPY)
-  lstCT_s=WIDGET_DROPLIST(bTempCT, VALUE='NA', FONT=font1, XSIZE=100)
-  bTempX=WIDGET_BASE(bQTOtemp, /ROW)
-  lbl=WIDGET_LABEL(bTempX, VALUE='Xray', FONT=font1, XSIZE=60, /NO_COPY)
-  lstX_s=WIDGET_DROPLIST(bTempX, VALUE='NA', FONT=font1, XSIZE=100)
-  bTempNM=WIDGET_BASE(bQTOtemp, /ROW)
-  lbl=WIDGET_LABEL(bTempNM, VALUE='NM planar', FONT=font1, XSIZE=60, /NO_COPY)
-  lstNM_s=WIDGET_DROPLIST(bTempNM, VALUE='NA', FONT=font1, XSIZE=100)
-  bTempSPECT=WIDGET_BASE(bQTOtemp, /ROW)
-  lbl=WIDGET_LABEL(bTempSPECT, VALUE='SPECT', FONT=font1, XSIZE=60, /NO_COPY)
-  lblSPECTNA=WIDGET_LABEL(bTempSPECT, VALUE='NA', FONT=font1, XSIZE=50)
-  bTempPET=WIDGET_BASE(bQTOtemp, /ROW)
-  lbl=WIDGET_LABEL(bTempPET, VALUE='PET', FONT=font1, XSIZE=60, /NO_COPY)
-  lblPETNA=WIDGET_LABEL(bTempPET, VALUE='NA', FONT=font1, XSIZE=50)
-  bTempMR=WIDGET_BASE(bQTOtemp, /ROW)
-  lbl=WIDGET_LABEL(bTempMR, VALUE='MR', FONT=font1, XSIZE=60, /NO_COPY)
-  lstMR_s=WIDGET_DROPLIST(bTempMR, VALUE='NA', FONT=font1, XSIZE=100)
 
   bOutputSettTable=WIDGET_BASE(bOutputSett, /COLUMN)
   lbl=WIDGET_LABEL(bOutputSettTable, VALUE='Output (export) settings ', /ALIGN_LEFT, FONT=font0, /NO_COPY)
   output_rows=WHERE(configSinfo[2,*] EQ '-1', nOutpRows)
   alignm=INTARR(3,nOutpRows) & alignm[1:2,*]=1
   tblOutputSett=WIDGET_TABLE(bOutputSettTable, XSIZE=3, YSIZE=nOutpRows, COLUMN_LABELS=['Parameter','Saved value','Current value'],$
-    COLUMN_WIDTHS=[250,120,120], SCR_XSIZE=500, SCR_YSIZE=120, /NO_ROW_HEADERS, FONT=font1, ALIGNMENT=alignm)
-  lbl=WIDGET_LABEL(bOutputSett, VALUE='', XSIZE=10, /NO_COPY)
+    COLUMN_WIDTHS=[120,120,120], SCR_XSIZE=370, SCR_YSIZE=120, /NO_ROW_HEADERS, FONT=font1, ALIGNMENT=alignm)
+  lbl=WIDGET_LABEL(bOutputSett, VALUE='', XSIZE=20, /NO_COPY)
+
+  bQTOtemp=WIDGET_BASE(bOutputSett, /COLUMN, XSIZE=250)
+  lbl=WIDGET_LABEL(bQTOtemp, VALUE='Link to QuickTestOutput template: ', /ALIGN_LEFT, FONT=font0, /NO_COPY)
+  bTempCT=WIDGET_BASE(bQTOtemp, /ROW)
+  lbl=WIDGET_LABEL(bTempCT, VALUE='CT', FONT=font1, XSIZE=60, /NO_COPY)
+  lstCT_s=WIDGET_DROPLIST(bTempCT, VALUE='NA', FONT=font1, XSIZE=140)
+  bTempX=WIDGET_BASE(bQTOtemp, /ROW)
+  lbl=WIDGET_LABEL(bTempX, VALUE='Xray', FONT=font1, XSIZE=60, /NO_COPY)
+  lstX_s=WIDGET_DROPLIST(bTempX, VALUE='NA', FONT=font1, XSIZE=140)
+  bTempNM=WIDGET_BASE(bQTOtemp, /ROW)
+  lbl=WIDGET_LABEL(bTempNM, VALUE='NM planar', FONT=font1, XSIZE=60, /NO_COPY)
+  lstNM_s=WIDGET_DROPLIST(bTempNM, VALUE='NA', FONT=font1, XSIZE=140)
+  bTempSPECT=WIDGET_BASE(bQTOtemp, /ROW)
+  lbl=WIDGET_LABEL(bTempSPECT, VALUE='SPECT', FONT=font1, XSIZE=60, /NO_COPY)
+  lblSPECTNA=WIDGET_LABEL(bTempSPECT, VALUE='NA', FONT=font1, XSIZE=50)
+  bTempPET=WIDGET_BASE(bQTOtemp, /ROW)
+  lbl=WIDGET_LABEL(bTempPET, VALUE='PET', FONT=font1, XSIZE=60, /NO_COPY)
+  lstPET_s=WIDGET_DROPLIST(bTempPET, VALUE='NA', FONT=font1, XSIZE=140)
+  bTempMR=WIDGET_BASE(bQTOtemp, /ROW)
+  lbl=WIDGET_LABEL(bTempMR, VALUE='MR', FONT=font1, XSIZE=60, /NO_COPY)
+  lstMR_s=WIDGET_DROPLIST(bTempMR, VALUE='NA', FONT=font1, XSIZE=140)
 
   bTestSettings=WIDGET_BASE(bRgt, /ROW)
-  bTestSettings0=WIDGET_BASE(bTestSettings, XSIZE=180)
   bTestSettings1=WIDGET_BASE(bTestSettings, /COLUMN)
   lblTestsLfRgt=WIDGET_LABEL(bTestSettings1, VALUE='Test settings ', /ALIGN_LEFT, FONT=font0)
   test_rows=WHERE(LONG(configSinfo[2,*]) GE 0, nTestRows)
   alignm=INTARR(4,nTestRows) & alignm[2:3,*]=1
   tblTestSett=WIDGET_TABLE(bTestSettings1, XSIZE=4, YSIZE=nTestRows, COLUMN_LABELS=['Modality/Test','Parameter','Saved value','Current value'],$
-    COLUMN_WIDTHS=[100,150,120,120], /NO_ROW_HEADERS, SCR_XSIZE=500, SCR_YSIZE=220,FONT=font1, ALIGNMENT=alignm)
+    COLUMN_WIDTHS=[120,200,120,120], /NO_ROW_HEADERS, SCR_XSIZE=570, SCR_YSIZE=210,FONT=font1, ALIGNMENT=alignm)
 
   ;material
   lbl=WIDGET_LABEL(bRgt, VALUE='', YSIZE=10, /NO_COPY)
-  lbl=WIDGET_LABEL(bRgt, VALUE='Material tables for CT number ', /ALIGN_LEFT, FONT=font0, /NO_COPY)
+  lbl=WIDGET_LABEL(bRgt, VALUE='Material tables for CT number (create or modify this table within settings for test CT number ', /ALIGN_LEFT, FONT=font0, /NO_COPY)
   bTitleMaterials=WIDGET_BASE(bRgt, /ROW)
   lbl=WIDGET_LABEL(bTitleMaterials, VALUE='',XSIZE=50, /NO_COPY)
   lbl=WIDGET_LABEL(bTitleMaterials, VALUE='Saved material table (selected parameter set)', XSIZe=300, FONt=font1, /NO_COPY)
@@ -265,8 +255,10 @@ pro settings, GROUP_LEADER = mainbase, xoff, yoff, tabString;tabString = 'PARAM'
   ;**************** QT output setup *******************
 
   qto_infobox0=WIDGET_BASE(bQTout, /COLUMN, XSIZE=850, FRAME=1)
-  lbl=WIDGET_LABEL(qto_infobox0, VALUE='QuickTest output templates:', /ALIGN_LEFT, FONT=font0, /NO_COPY)
+  lbl=WIDGET_LABEL(qto_infobox0, VALUE='QuickTestOutput templates:', /ALIGN_LEFT, FONT=font0, /NO_COPY)
   lbl=WIDGET_LABEL(qto_infobox0, VALUE='These templates define for each test what to output to text when using QuickTest.', /ALIGN_LEFT, FONT=font1, /NO_COPY)
+  lbl=WIDGET_LABEL(qto_infobox0, VALUE='To activate the QuickTestOutput template: Go to Parameter sets and link to QuickTestOutput template for the modality and save the parameter set ', /ALIGN_LEFT, FONT=font1, /NO_COPY)
+  lbl=WIDGET_LABEL(qto_infobox0, VALUE='to establish the connection.', /ALIGN_LEFT, FONT=font1, /NO_COPY)
   lbl=WIDGET_LABEL(qto_infobox0, VALUE='The "alternative" column refers to the fact that some tests will have different calculations depending on the test parameters chosen.', /ALIGN_LEFT, FONT=font1, /NO_COPY)
 
   QTsetupBoxTop=WIDGET_BASE(bQTout, /ROW)
@@ -312,7 +304,7 @@ pro settings, GROUP_LEADER = mainbase, xoff, yoff, tabString;tabString = 'PARAM'
 
   bBtmQT=WIDGET_BASE(bQTout, /ROW)
   bParamList=WIDGET_BASE(bBtmQT, /COLUMN)
-  lbl=WIDGET_LABEL(bParamList, VALUE='Selected QuickTest output template is used ', /ALIGN_LEFT,FONT=font0, /NO_COPY)
+  lbl=WIDGET_LABEL(bParamList, VALUE='Selected QuickTestOutput template is used ', /ALIGN_LEFT,FONT=font0, /NO_COPY)
   lbl=WIDGET_LABEL(bParamList, VALUE='in these parameter sets (automation templates in paranthesis) ', /ALIGN_LEFT,FONT=font0, /NO_COPY)
   lstQTOusedParam=WIDGET_LIsT(bParamList, XSIZE=300, SCR_XSIZE=300, YSIZE=1, SCR_YSIZE=200, FONT=font1)
 
@@ -343,22 +335,33 @@ pro settings, GROUP_LEADER = mainbase, xoff, yoff, tabString;tabString = 'PARAM'
 
   lbl=WIDGET_LABEL(bAuto, VALUE='', YSIZE=20, /NO_COPY)
   autobox1=WIDGET_BASE(bAuto, /COLUMN, XSIZE=890)
-  auto_infobox0=WIDGET_BASE(autobox1, /COLUMN, XSIZE=850, FRAME=1)
+  auto_infobox0=WIDGET_BASE(autobox1, /COLUMN, XSIZE=870, FRAME=1)
 
-  lbl=WIDGET_LABEL(auto_infobox0, VALUE='Automation templates can be used for automating analysis combining QuickTest template, parameter set (including QuickTest output link),', /ALIGN_LEFT, FONT=font1, /NO_COPY)
-  lbl=WIDGET_LABEL(auto_infobox0, VALUE='specify path for input and output and specify sorting of the input images.', /ALIGN_LEFT, FONT=font1, /NO_COPY)
-  lbl=WIDGET_LABEL(autobox1, VALUE='', YSIZE=20, /NO_COPY)
+  lbl=WIDGET_LABEL(auto_infobox0, VALUE='Define automation templates to automate analysis combining QuickTest template, parameter set (including QuickTestOutput link),', /ALIGN_LEFT, FONT=font1, /NO_COPY)
+  lbl=WIDGET_LABEL(auto_infobox0, VALUE='specify path for input and output and specify sorting of the input images. Alternatively extract data from PDF/TXT results', /ALIGN_LEFT, FONT=font1, /NO_COPY)
+  lbl=WIDGET_LABEL(autobox1, VALUE='', YSIZE=10, /NO_COPY)
 
-  bAutoImportPath=WIDGET_BASE(autobox1,/ROW)
-  lbl=WIDGET_LABEL(bAutoImportPath, VALUE='Default path incoming files:', FONT=font1, /NO_COPY)
-  txtAutoImpPath=WIDGET_TEXT(bAutoImportPath, VALUE=configS.(1).AUTOIMPORTPATH, XSIZE=70,/EDITABLE, FONT=font1)
-  btnAutoImpPath=WIDGET_BUTTON(bAutoImportPath, VALUE='Browse', UVALUE='aimp_Browse',  FONT=font1)
-  btnSaveImpPath=WIDGET_BUTTON(bAutoImportPath, VALUE=thisPath+'images\save.bmp',/BITMAP, UVALUE='aimp_Save',  FONT=font1)
-  bAutoCont=WIDGET_BASE(autobox1, /NONEXCLUSIVE)
-  btnAutoCont=WIDGET_BUTTON(bAutoCont, VALUE='By default, pause between each template while looping to allow for stop or continue.', FONT=font1, UVALUE='btnAutoCont')
-  WIDGET_CONTROL, btnAutoCont, SET_BUTTON=ABS(configS.(1).AUTOCONTINUE-1)
+  lbl=WIDGET_LABEL(autobox1, VALUE='Common settings ', /ALIGN_LEFT, FONT=font0, /NO_COPY)
+  bCommonSett=WIDGET_BASE(autobox1, /FRAME, /COLUMN)
+  bAutoImportPath=WIDGET_BASE(bCommonSett,/ROW)
+  lbl=WIDGET_LABEL(bAutoImportPath, VALUE='Default path incoming files:   ', FONT=font1, /NO_COPY)
+  txtAutoImpPath=WIDGET_TEXT(bAutoImportPath, VALUE=configS.(1).AUTOIMPORTPATH, XSIZE=80,/EDITABLE, FONT=font1)
+  btnAutoImpPath=WIDGET_BUTTON(bAutoImportPath, VALUE=thisPath+'images\search.bmp',/BITMAP, UVALUE='aimp_Browse', TOOLTIP='Browse', FONT=font1)
+  btnSaveImpPath=WIDGET_BUTTON(bAutoImportPath, VALUE=thisPath+'images\save.bmp',/BITMAP, UVALUE='aimp_Save',  FONT=font1, SENSITIVE=saveOK)
+  bAutoCont=WIDGET_BASE(bCommonSett, /NONEXCLUSIVE)
+  btnAutoPause=WIDGET_BUTTON(bAutoCont, VALUE='By default, pause between each template while looping to allow for stop or continue.', FONT=font1, UVALUE='btnAutoPause', SENSITIVE=saveOK)
+  WIDGET_CONTROL, btnAutoPause, SET_BUTTON=ABS(configS.(1).AUTOCONTINUE-1)
+  bWait_PDF=WIDGET_BASE(bCommonSett, /ROW)
+  lbl=WIDGET_LABEL(bWait_PDF, VALUE='When reading data from PDF allow ', /NO_COPY)
+  txtWaitPDF0=WIDGET_TEXT(bWait_PDF, VALUE=STRING(configS.(1).WAIT(0), FORMAT='(i0)'), XSIZE=4,/EDITABLE, FONT=font1)
+  lbl=WIDGET_LABEL(bWait_PDF, VALUE=' sec (+ up to 10x1 sec) to open Excel-macro/Acrobat Reader and ', /NO_COPY)
+  txtWaitPDF1=WIDGET_TEXT(bWait_PDF, VALUE=STRING(configS.(1).WAIT(1), FORMAT='(i0)'), XSIZE=4,/EDITABLE, FONT=font1)
+  lbl=WIDGET_LABEL(bWait_PDF, VALUE=' sec to close before next file.', /NO_COPY)
+  lbl=WIDGET_LABEL(bWait_PDF, VALUE='', XSIZE=20, /NO_COPY)
+  btnSaveWait=WIDGET_BUTTON(bWait_PDF, VALUE=thisPath+'images\save.bmp',/BITMAP, UVALUE='aWait_Save', TOOLTIP='Save wait settings for reading PDF',  FONT=font1, SENSITIVE=saveOK)
+  btnTestWait=WIDGET_BUTTON(bWait_PDF, VALUE='Test',UVALUE='aWait_Test', TOOLTIP='Test Excel macro and wait parameter with testfile', FONT=font1)
 
-  lbl=WIDGET_LABEL(autobox1, VALUE='', YSIZE=20, /NO_COPY)
+  lbl=WIDGET_LABEL(autobox1, VALUE='', YSIZE=10, /NO_COPY)
 
   bContA=WIDGET_BASE(autobox1,/ROW)
   ;templates
@@ -369,7 +372,7 @@ pro settings, GROUP_LEADER = mainbase, xoff, yoff, tabString;tabString = 'PARAM'
   WIDGET_CONTROL, lstModality_a, SET_DROPLIST_SELECT=defModality
   lbl=WIDGET_LABEL(bTemp, VALUE='', YSIZE=20, /NO_COPY)
   lbl=WIDGET_LABEL(bTemp, VALUE='Automation Templates:', /ALIGN_LEFT, FONT=font0, /NO_COPY)
-  listTemp_a=WIDGET_LIST(bTemp, VALUE='', SCR_XSIZE=150, FONT=font1, SCR_YSIZE=150, UVALUE='a_listTemp')
+  listTemp_a=WIDGET_LIST(bTemp, VALUE='', SCR_XSIZE=150, FONT=font1, SCR_YSIZE=250, UVALUE='a_listTemp')
 
   bButtEndTemp=WIDGET_BASE(bTemp, /ROW)
   btnAddTemp_a=WIDGET_BUTTON(bButtEndTemp, VALUE=thisPath+'images\plus.bmp',/BITMAP, UVALUE='a_add', TOOLTIP='Add new template', SENSITIVE=saveOK)
@@ -381,73 +384,78 @@ pro settings, GROUP_LEADER = mainbase, xoff, yoff, tabString;tabString = 'PARAM'
   btnDelTemp_a=WIDGET_BUTTON(bButtEndTemp, VALUE=thisPath+'images\delete.bmp',/BITMAP, UVALUE='a_delTemp', TOOLTIP='Delete template', SENSITIVE=saveOK)
   bButtEndTemp2=WIDGET_BASE(bTemp, /ROW)
   btnImport_a=WIDGET_BUTTON(bButtEndTemp2, VALUE=thisPath+'images\importd.bmp',/BITMAP, UVALUE='a_import', TOOLTIP='Import template from another config file', SENSITIVE=saveOK)
+  lbl=WIDGET_LABEL(bButtEndTemp2, VALUE='', XSIZE=10, /NO_COPY)
+  btnRunAuto=WIDGET_BUTTON(bButtEndTemp2, VALUE='Run selected', UVALUE='a_run', FONT=font1)
 
-  lbl=WIDGET_LABEL(bTemp, VALUE='', YSIZE=20, /NO_COPY)
-  btnRunAuto=WIDGET_BUTTON(bTemp, VALUE='Run selected', UVALUE='a_run', FONT=font1)
-
-  lbl=WIDGET_LABEL(bTemp, VALUE='', YSIZE=20, /NO_COPY)
+  lbl=WIDGET_LABEL(bTemp, VALUE='', YSIZE=10, /NO_COPY)
   auto_warningBox=WIDGET_BASE(bTemp, /COLUMN, MAP=0)
   bwarnImg=WIDGET_BASE(auto_warningBox,/ROW)
-  lbl=WIDGET_LABEL(bwarnImg, VALUE='', YSIZE=20, /NO_COPY)
+  lbl=WIDGET_LABEL(bwarnImg, VALUE='', YSIZE=10, /NO_COPY)
   warnimg=WIDGET_BUTTON(bwarnImg, VALUE=thisPath+'images\warning.bmp', /BITMAP)
   warningTxt1=WIDGET_LABEL(auto_warningBox, /ALIGN_LEFT, VALUE='', /DYNAMIC_RESIZE, FONT=fontMini)
   warningTxt2=WIDGET_LABEL(auto_warningBox, /ALIGN_LEFT, VALUE='', /DYNAMIC_RESIZE, FONT=fontMini)
   warningTxt3=WIDGET_LABEL(auto_warningBox, /ALIGN_LEFT, VALUE='', /DYNAMIC_RESIZE, FONT=fontMini)
   warningTxt4=WIDGET_LABEL(auto_warningBox, /ALIGN_LEFT, VALUE='This might cause unexpected behaviour.', /DYNAMIC_RESIZE, FONT=fontMini)
 
-  bMlA=WIDGET_BASE(bContA, XSIZE=15)
+  bMlA=WIDGET_BASE(bContA, XSIZE=10)
 
   ;framed automation parameters
   bAutoParam=WIDGET_BASE(bContA,/COLUMN, /ALIGN_LEFT)
 
-  lbl=WIDGET_LABEL(bAutoParam, VALUE='For import/sorting files ', FONT=font0,/ALIGN_LEFT,/NO_COPY)
+  lbl=WIDGET_LABEL(bAutoParam, VALUE='For import/sorting/verifying files ', FONT=font0,/ALIGN_LEFT,/NO_COPY)
+  ;path
+  bBrowse=WIDGET_BASE(bAutoParam, /ROW)
+  lbl=WIDGET_LABEL(bBrowse, VALUE='Path input files:  ', FONT=font1, /NO_COPY)
+  txtBrowse_a=WIDGET_TEXT(bBrowse, VALUE='', XSIZE=75,/EDITABLE, FONT=font1, UVALUE='txtBrowse_a',/KBRD_FOCUS_EVENTS)
+  btnBrowse=WIDGET_BUTTON(bBrowse, VALUE=thisPath+'images\search.bmp',/BITMAP, TOOLTIP='Browse for input path', UVALUE='a_Browse',  FONT=font1)
+  lbl=WIDGET_LABEL(bAutoParam, VALUE='', YSIZE=5, /NO_COPY)
+  
+  lbl=WIDGET_LABEL(bAutoParam, VALUe='', YSIZE=10, /NO_COPY)
+
+  bAlt_a=WIDGET_BASE(bAutoParam, /ROW, FRAME=1);, MAP=0)
+  lbl=WIDGET_LABEL(bAlt_a, VALUe='', YSIZE=10, /NO_COPY)
+  bAlt_a2=WIDGET_BASE(bAlt_a, /ROW, /NONEXCLUSIVE)
+  btnAltAuto=WIDGET_BUTTON(bAlt_a2, VALUE='Extract data from PDF or TXT results', FONT=font1, UVALUE='btnAltAuto')
+  lbl=WIDGET_LABEL(bAlt_a, VALUe='', XSIZE=220, /NO_COPY)
+  btnAltConfig=WIDGET_BUTTON(bAlt_a, VALUE='Configure/info', FONT=font1, UVALUE='btnAltConfigInfo')
+  
   bImportA=WIDGET_BASE(bAutoParam, /COLUMN, FRAME=1, MAP=1)
   ;stationname
   bStatName=WIDGET_BASE(bImportA, /ROW)
-  lbl=WIDGET_LABEL(bStatName, VALUE='Station name (DICOM 0008,1010):', FONT=font1, /NO_COPY)
+  lbl=WIDGET_LABEL(bStatName, VALUE='Station name (DICOM 0008,1010) or ID if PDF/TXT results:', XSIZE=330, FONT=font1, /NO_COPY)
   txtStatName_a=WIDGET_TEXT(bStatName, VALUE='', XSIZE=20,/EDITABLE, FONT=font1, UVALUE='txtStatName_a',/KBRD_FOCUS_EVENTS)
-  btnStatName=WIDGET_BUTTON(bStatName, VALUE='Retrieve from DICOM file', UVALUE='a_getStatName', FONT=font1)
-  bDCMcrit=WIDGET_BASE(bImportA, /ROW)
-  lbl=WIDGET_LABEL(bDCMcrit, VALUE='Additional DICOM criterion: ', FONT=font1, /NO_COPY)
+  btnStatName=WIDGET_BUTTON(bStatName, VALUE=thisPath+'images\search.bmp',/BITMAP, TOOLTIP='Retrieve the station name or ID from a representative input file (if input file contain such information)', UVALUE='a_getStatName', FONT=font1)
+  bDCMcrit=WIDGET_BASE(bImportA, /ROW, MAP=1)
+  lbl=WIDGET_LABEL(bDCMcrit, VALUE='Additional DICOM criterion (if different tests on same station):  ', FONT=font1, /NO_COPY)
   txtDCMcritGroup=WIDGET_TEXT(bDCMcrit, VALUE='0000', XSIZE=4, FONT=font1, UVALUE='txtDCMcritGroup',/KBRD_FOCUS_EVENTS)
   txtDCMcritElem=WIDGET_TEXT(bDCMcrit, VALUE='0000', XSIZE=4, FONT=font1, UVALUE='txtDCMcritElem',/KBRD_FOCUS_EVENTS)
-  btnDCMcritLookup=WIDGET_BUTTON(bDCMcrit, VALUE='Edit', UVALUE='a_DCMcrit_lookup', FONT=font1, SENSITIVE=saveOK)
-  txtDCMcrit=WIDGET_TEXT(bDCMcrit, VALUE='', XSIZE=20,/EDITABLE, FONT=font1, UVALUE='txtDCMcrit',/KBRD_FOCUS_EVENTS)
-  btnDCMcrit=WIDGET_BUTTON(bDCMcrit, VALUE='Retrieve from DICOM file', UVALUE='a_getDCMcrit', FONT=font1)
-  btnDCMcrit=WIDGET_BUTTON(bDCMcrit, VALUE='Clear', UVALUE='a_DCMcrit_clear', FONT=font1)
+  btnDCMcritLookup=WIDGET_BUTTON(bDCMcrit, VALUE=thisPath+'images\edit.bmp',/BITMAP, TOOLTIP='Edit DICOM tags', UVALUE='a_DCMcrit_lookup', FONT=font1, SENSITIVE=saveOK)
+  lbl=WIDGET_LABEL(bDCMcrit, VALUE='', XSIZE=10, /NO_COPY)
+  txtDCMcrit=WIDGET_TEXT(bDCMcrit, VALUE='', XSIZE=18,/EDITABLE, FONT=font1, UVALUE='txtDCMcrit',/KBRD_FOCUS_EVENTS)
+  btnDCMcrit=WIDGET_BUTTON(bDCMcrit, VALUE=thisPath+'images\search.bmp',/BITMAP, TOOLTIP='Retrieve from DICOM file', UVALUE='a_getDCMcrit', FONT=font1)
+  btnDCMcrit=WIDGET_BUTTON(bDCMcrit, VALUE=thisPath+'images\delete.bmp',/BITMAP, UVALUE='a_DCMcrit_clear', TOOLTIP='Clear DICOM criterion', FONT=font1)
 
   lbl=WIDGET_LABEL(bAutoParam, VALUE='', YSIZE=10, /NO_COPY)
 
-  ;path
-  bBrowse=WIDGET_BASE(bAutoParam, /ROW)
-  lbl=WIDGET_LABEL(bBrowse, VALUE='Path input files:', FONT=font1, /NO_COPY)
-  txtBrowse_a=WIDGET_TEXT(bBrowse, VALUE='', XSIZE=70,/EDITABLE, FONT=font1, UVALUE='txtBrowse_a',/KBRD_FOCUS_EVENTS)
-  btnBrowse=WIDGET_BUTTON(bBrowse, VALUE='Browse', UVALUE='a_Browse',  FONT=font1)
-  ;lbl=WIDGET_LABEL(bImportA, VALUE='     Info: Where to place the images matching station name (and optional DICOM criterion)', FONT=font1, /ALIGN_LEFT, /NO_COPY)
-  ;lbl=WIDGET_LABEL(bImportA, VALUE='           and where to find the images when the automation template runs ', FONT=font1, /ALIGN_LEFT, /NO_COPY)
-  lbl=WIDGET_LABEL(bAutoParam, VALUE='', YSIZE=10, /NO_COPY)
-
+  lbl=WIDGET_LABEL(bAutoParam, VALUE='Image analysis settings ', FONT=font0,/ALIGN_LEFT,/NO_COPY)
   bAutoParam2=WIDGET_BASE(bAutoParam, /COLUMN, FRAME=1)
   bOpenDetails=WIDGET_BASE(bAutoParam2, /Row)
-  
-  bOpenDetailsLft=WIDGET_BASE(bOpenDetails, /COLUMN, XSIZE=290)
-  ;bBtnInclSub=WIDGET_BASE(bOpenDetailsRgt, /NONEXCLUSIVE)
-  ;btnInclSub=WIDGET_BUTTON(bBtnInclSub, VALUE='Include images in subfolders', FONT=font1, UVALUE='btnInclSub')
-  ;btnOnlyLastDate=WIDGET_BUTTON(bBtnInclSub, VALUE='Last date images only (file creation date).', FONT=font1, UVALUE='btnOnlyLastDate')
 
+  bOpenDetailsLft=WIDGET_BASE(bOpenDetails, /COLUMN, XSIZE=290)
   lbl=WIDGET_LABEL(bAutoParam2, VALUe='', YSIZE=10, /NO_COPY)
+
   ;parameter set
   bSets=WIDGET_BASE(bOpenDetailsLft, /ROW)
   lbl=WIDGET_LABEL(bSets, VALUE='Parameter set:', XSIZE=120, FONT=font1, /NO_COPY)
   listSets_a=WIDGET_DROPLIST(bSets, VALUE=paramSetNames, UVALUE='listSets_a', XSIZE=150, FONT=font1)
   WIDGET_CONTROL, listSets_a, SET_DROPLIST_SELECT=selParam
+  lbl=WIDGET_LABEL(bOpenDetailsLft, VALUe='with link to QuickTestOutput template: ', FONT=font1, /NO_COPY)
   bOutpTemp=WIDGET_BASE(bOpenDetailsLft, /ROW)
-  lbl=WIDGET_LABEL(bOutpTemp, VALUe='  Linked to Output template: ', XSIZE=160, FONT=font1, /NO_COPY)
-  lblQTO_a=WIDGET_LABEL(bOutpTemp, VALUE='', XSIZE=120, FONT=font1)
+  lbl=WIDGET_LABEL(bOutpTemp, VALUe='', XSIZE=50, FONT=font1, /NO_COPY)
+  lblQTO_a=WIDGET_LABEL(bOutpTemp, VALUE='', XSIZE=200, FONT=font1)
 
   lbl=WIDGET_LABEL(bOpenDetailsLft, VALUe='', YSIZE=15, /NO_COPY)
 
-  ;bQT2=WIDGET_BASE(bOpenDetailsLft,/COLUMN)
   ;quickTemp list
   bQTlist=WIDGET_BASE(bOpenDetailsLft, /ROW)
   lbl=WIDGET_LABEL(bQTlist, VALUE='QuickTest template:', XSIZE=120, FONT=font1, /NO_COPY)
@@ -467,11 +475,7 @@ pro settings, GROUP_LEADER = mainbase, xoff, yoff, tabString;tabString = 'PARAM'
   btnDownElem=WIDGET_BUTTON(bButtEndSort, VALUE=thisPath+'images\switch_down.bmp',/BITMAP, UVALUE='a_downElem', TOOLTIP='Move element downwards in sort list')
   btnAscElem=WIDGET_BUTTON(bButtEndSort, VALUE=thisPath+'images\sort.bmp',/BITMAP, UVALUE='a_sort_asc', TOOLTIP='Reverse sort order')
 
-  bQTalt=WIDGET_BASE(bAutoParam2, /ROW)
-  bQTalt0=WIDGET_BASE(bQTalt, XSIZE=30)
-  bQTalt1=WIDGET_BASE(bQTalt, /COLUMN)
-
-  bMoveFiles=WIDGET_BASE(bQTalt1, /NONEXCLUSIVE)
+  bMoveFiles=WIDGET_BASE(bAutoParam2, /NONEXCLUSIVE,/COLUMN)
   btnMoveFiles=WIDGET_BUTTON(bMoveFiles, VALUE='Move images automatically to folder named "Archive" when finished calculation.', FONT=font1, UVALUE='btnMoveFiles')
   btnDeleteFiles=WIDGET_BUTTON(bMoveFiles, VALUE='Delete files not accepted (i.e. SR reports, images with no acquisition date).', FONT=font1, UVALUE='btnDeleteFiles')
   btnDeleteFilesEnd=WIDGET_BUTTON(bMoveFiles, VALUE='Delete files (images) exceeding the last image marked for testing.', FONT=font1, UVALUE='btnDeleteFilesEnd')
@@ -479,20 +483,13 @@ pro settings, GROUP_LEADER = mainbase, xoff, yoff, tabString;tabString = 'PARAM'
   lbl=WIDGET_LABEL(bAutoParam, VALUe='', YSIZE=10, /NO_COPY)
 
   ;append resultfile
-  lbl=WIDGET_LABEL(bAutoParam, VALUE='Append results to this output file:', FONT=font1, /ALIGN_LEFT, /NO_COPY)
+  lbl=WIDGET_LABEL(bAutoParam, VALUE='Output txt file ', FONT=font0, /ALIGN_LEFT, /NO_COPY)
   bBrowseApp=WIDGET_BASE(bAutoParam, /ROW)
-  lbl=WIDGET_LABEL(bBrowseApp, VALUE='', XSIZE=10, /NO_COPY)
-  txtBrowseApp=WIDGET_TEXT(bBrowseApp, VALUE=pathApp, /EDITABLE, XSIZE=65, FONT=font1, UVALUE='txtBrowseApp',/KBRD_FOCUS_EVENTS)
-  btnBrowseApp=WIDGET_BUTTON(bBrowseApp, VALUE='Browse', UVALUE='a_BrowseApp', FONT=font1)
-  btnClearApp=WIDGET_BUTTON(bBrowseApp, VALUE='Clear', UVALUE='a_ClearApp', FONT=font1)
-  btnShowApp=WIDGET_BUTTON(bBrowseApp, VALUE='Open', UVALUE='a_OpenApp', FONT=font1)
-
-  lbl=WIDGET_LABEL(bAutoParam, VALUe='', YSIZE=10, /NO_COPY)
-
-  bAlt_a=WIDGET_BASE(bAutoParam, /ROW, FRAME=1, MAP=0)
-  lbl=WIDGET_LABEL(bAlt_a, VALUe='', YSIZE=10, /NO_COPY)
-  bAlt_a2=WIDGET_BASE(bAlt_a, /ROW, /NONEXCLUSIVE)
-  btnAltAuto=WIDGET_BUTTON(bAlt_a2, VALUE='input files are text files from the GE QAP test (decimal mark as for default parameter set)', FONT=font1, UVALUE='btnAltAuto')
+  lbl=WIDGET_LABEL(bBrowseApp, VALUe='Append to: ', FONT=font1, /ALIGN_LEFT, /NO_COPY)
+  txtBrowseApp=WIDGET_TEXT(bBrowseApp, VALUE=pathApp, /EDITABLE, XSIZE=73, FONT=font1, UVALUE='txtBrowseApp',/KBRD_FOCUS_EVENTS)
+  btnBrowseApp=WIDGET_BUTTON(bBrowseApp, VALUE=thisPath+'images\search.bmp',/BITMAP, TOOLTIP='Browse to locate output file', UVALUE='a_BrowseApp', FONT=font1)
+  btnClearApp=WIDGET_BUTTON(bBrowseApp, VALUE=thisPath+'images\delete.bmp',/BITMAP, UVALUE='a_ClearApp', TOOLTIP='Clear output file address', FONT=font1)
+  btnShowApp=WIDGET_BUTTON(bBrowseApp, VALUE=thisPath+'images\open.bmp',/BITMAP, UVALUE='a_OpenApp', TOOLTIP='Open result file', FONT=font1)
 
   selecTemp_a=0
   a_currMod=defModality
@@ -504,7 +501,7 @@ pro settings, GROUP_LEADER = mainbase, xoff, yoff, tabString;tabString = 'PARAM'
   rd_infobox0=WIDGET_BASE(bRename, /COLUMN, XSIZE=850, FRAME=1)
   lbl=WIDGET_LABEL(rd_infobox0, VALUE='Settings and template manager for RenameDICOM ', /ALIGN_LEFT, FONT=font0, /NO_COPY)
   lbl=WIDGET_LABEL(rd_infobox0, VALUE='Define dicom tags to be used for renaming. Define templates on how to combine these to generate recognizable filenames.', /ALIGN_LEFT, FONT=font1, /NO_COPY)
-  lbl=WIDGET_LABEL(rd_infobox0, VALUE='This is the template manager. Templates are built within the RenameDICOM window. Find RenameDICOM from the file menu.', /ALIGN_LEFT, FONT=font1, /NO_COPY)
+  lbl=WIDGET_LABEL(rd_infobox0, VALUE='This is the template manager. Templates are built within the RenameDICOM window. Find RenameDICOM from the file menu or launch button on this page.', /ALIGN_LEFT, FONT=font1, /NO_COPY)
 
   lbl=WIDGET_LABEL(bRename, VALUE='', YSIZE=20, /NO_COPY)
 
@@ -580,6 +577,7 @@ pro settings, GROUP_LEADER = mainbase, xoff, yoff, tabString;tabString = 'PARAM'
   bFile_rdt=WIDGET_BASE(bShow_rdt,/ROW)
   lbl=WIDGET_LABEL(bFile_rdt, VALUE='Filename template:', XSIZE=120,/NO_COPY)
   txtFile_rdt=WIDGET_TEXT(bFile_rdt, VALUE='', XSIZE=500, SCR_XSIZE=500)
+  bRunRenameDICOM=WIDGET_BUTTON(bShow_rdt, VALUE='Launch RenameDICOM to create and edit these templates',FONT=font1, UVALUE='rd_launch')
 
   updRDT, 0
   updRDE, 0
@@ -590,55 +588,53 @@ pro settings, GROUP_LEADER = mainbase, xoff, yoff, tabString;tabString = 'PARAM'
   lbl=WIDGET_LABEL(bInfo , VALUE='', YSIZE=10,/NO_COPY)
   param_infobox=WIDGET_BASE(bInfo, /COLUMN, XSIZE=850, FRAME=1)
   lbl=WIDGET_LABEL(param_infobox, VALUE='Parameter sets:', /ALIGN_LEFT, FONT=font0,/NO_COPY)
-  lbl=WIDGET_LABEL(param_infobox, VALUE='Selected values defining how to perform and output the different tests can be saved within a parameter set.', /ALIGN_LEFT, FONT=font1,/NO_COPY)
-  lbl=WIDGET_LABEL(param_infobox, VALUE='These parameters are saved along with the parameter set:', /ALIGN_LEFT, FONT=font1)
-  lbl=WIDGET_LABEL(param_infobox , VALUE='', YSIZE=5,/NO_COPY)
-  lbl=WIDGET_LABEL(param_infobox, VALUE='- ROI size and positions, selections made for the tests', /ALIGN_LEFT, FONT=font1,/NO_COPY)
-  lbl=WIDGET_LABEL(param_infobox, VALUE='- the general export options (include or exclude headers, transpose tables, decimal mark) - set in main window', /ALIGN_LEFT, FONT=font1,/NO_COPY)
-  lbl=WIDGET_LABEL(param_infobox, VALUE='- include or exclude filename in QuickTest export - set in main window', FONT=font1, /ALIGN_LEFT,/NO_COPY)
-  lbl=WIDGET_LABEL(param_infobox, VALUE='- QuickTest output templates to be used - set in the parameter set manager (this dialog)', FONT=font1, /ALIGN_LEFT,/NO_COPY)
-  lbl=WIDGET_LABEL(param_infobox, VALUE='- default append or not when opening new images - set in main window', FONT=font1, /ALIGN_LEFT,/NO_COPY)
+  lbl=WIDGET_LABEL(param_infobox, VALUE='Define how to perform and output the different tests and save these parameters to a parameter set.', /ALIGN_LEFT, FONT=font1,/NO_COPY)
+  lbl=WIDGET_LABEL(param_infobox, VALUE='Parameters saved in the parameter set:', /ALIGN_LEFT, FONT=font1)
+  lbl=WIDGET_LABEL(param_infobox, VALUE='- set in main window: ROI size and positions, selections made for the tests, export options, default append or not when opening images', /ALIGN_LEFT, FONT=font1,/NO_COPY)
+  lbl=WIDGET_LABEL(param_infobox, VALUE='- set in User settings: default parameter set on opening, link to QuickTestOutput templates', FONT=font1, /ALIGN_LEFT,/NO_COPY)
   lbl=WIDGET_LABEL(bInfo , VALUE='', YSIZE=10,/NO_COPY)
 
   qt_infobox=WIDGET_BASE(bInfo, /COLUMN, XSIZE=850, FRAME=1)
   lbl=WIDGET_LABEL(qt_infobox, VALUE='QuickTest templates:', /ALIGN_LEFT, FONT=font0,/NO_COPY)
   lbl=WIDGET_LABEL(qt_infobox, VALUE='The QuickTest template define, for a given number of images, which test(s) should be performed on which image(s).', /ALIGN_LEFT, FONT=font1,/NO_COPY)
-  lbl=WIDGET_LABEL(qt_infobox, VALUE='Pressing QuickTest button will run all defined tests on the selected images and generate a text-output according to the QuickTest output template.', /ALIGN_LEFT, FONT=font1,/NO_COPY)
+  lbl=WIDGET_LABEL(qt_infobox, VALUE='Pressing QuickTest button will run all defined tests on the selected images and generate a text-output according to the QuickTestOutput template.', /ALIGN_LEFT, FONT=font1,/NO_COPY)
   lbl=WIDGET_LABEL(qt_infobox, VALUE='QuickTest is only possible for the numbered tests (tab named with a number before the test name).', /ALIGN_LEFT, FONT=font1,/NO_COPY)
   lbl=WIDGET_LABEL(qt_infobox, VALUE='To create a QuickTest template: open an image set, turn on the MultiMark option,', /ALIGN_LEFT, FONT=font1,/NO_COPY)
-  lbl=WIDGET_LABEL(qt_infobox, VALUE='   select one of the tabs with the (numbered) tests to perform, select the images to perform this test on, mark these images (right-click in list and mark).', FONT=font1, /ALIGN_LEFT,/NO_COPY)
-  lbl=WIDGET_LABEL(qt_infobox, VALUE='   The number of the test will be the marking in the list. Repeat for all tests to perform on the image set and save.', FONT=font1, /ALIGN_LEFT,/NO_COPY)
+  lbl=WIDGET_LABEL(qt_infobox, VALUE=' - select one of the tabs with the (numbered) tests to perform, select the images to perform this test on, mark these images (right-click in list and mark).', FONT=font1, /ALIGN_LEFT,/NO_COPY)
+  lbl=WIDGET_LABEL(qt_infobox, VALUE=' - The number of the test will be the marking in the list. Repeat for all tests to perform on the image set and save.', FONT=font1, /ALIGN_LEFT,/NO_COPY)
+  lbl=WIDGET_LABEL(qt_infobox, VALUE=' - Alternatively build or edit the QuickTest template in User settings - QuickTest templates.', FONT=font1, /ALIGN_LEFT,/NO_COPY)
   lbl=WIDGET_LABEL(bInfo , VALUE='', YSIZE=10,/NO_COPY)
 
   qto_infobox=WIDGET_BASE(bInfo, /COLUMN, XSIZE=850, FRAME=1)
-  lbl=WIDGET_LABEL(qto_infobox, VALUE='QuickTest output templates:', /ALIGN_LEFT, FONT=font0,/NO_COPY)
-  lbl=WIDGET_LABEL(qto_infobox, VALUE='These templates define for each test what to output to text when using the QuickTest.', /ALIGN_LEFT, FONT=font1,/NO_COPY)
+  lbl=WIDGET_LABEL(qto_infobox, VALUE='QuickTestOutput templates:', /ALIGN_LEFT, FONT=font0,/NO_COPY)
+  lbl=WIDGET_LABEL(qto_infobox, VALUE='QuickTestOutput templates define, for each type of test, what to output to text when using the QuickTest.', /ALIGN_LEFT, FONT=font1,/NO_COPY)
   lbl=WIDGET_LABEL(qto_infobox, VALUE='The "alternative" column refers to the fact that some tests will have different calculations depending on the test parameters chosen.', /ALIGN_LEFT, FONT=font1,/NO_COPY)
   lbl=WIDGET_LABEL(bInfo , VALUE='', YSIZE=10,/NO_COPY)
 
   auto_infobox=WIDGET_BASE(bInfo, /COLUMN, XSIZE=850, FRAME=1)
-  lbl=WIDGET_LABEL(auto_infobox, VALUE='Automation Templates:', /ALIGN_LEFT, FONT=font0,/NO_COPY)
-  lbl=WIDGET_LABEL(auto_infobox, VALUE='Automation templates can be used for automating analysis combining QuickTest template, parameter set (including QuickTest output link),', /ALIGN_LEFT, FONT=font1,/NO_COPY)
-  lbl=WIDGET_LABEL(auto_infobox, VALUE='specify path for input and output and specify sorting of the input images.', /ALIGN_LEFT, FONT=font1,/NO_COPY)
-  lbl=WIDGET_LABEL(auto_infobox, VALUE='The benefit is found when frequently analysing repeated image sets (i.e. constancy tests).', /ALIGN_LEFT, FONT=font1,/NO_COPY)
+  lbl=WIDGET_LABEL(auto_infobox, VALUE='Automation templates:', /ALIGN_LEFT, FONT=font0,/NO_COPY)
+  lbl=WIDGET_LABEL(auto_infobox, VALUE='Automation templates can be used to automate analysis of repetitive tasks. Specify path for input and output data.', /ALIGN_LEFT, FONT=font1,/NO_COPY)
+  lbl=WIDGET_LABEL(auto_infobox, VALUE='Normally, input are images - then QuickTest template, parameter set (including QuickTestOutput link) and sorting of incoming images can be specified.', /ALIGN_LEFT, FONT=font1,/NO_COPY)
+  lbl=WIDGET_LABEL(auto_infobox, VALUE='Alternatively some vendor test results can be used as input to extract specific data from these (like GE-QAP, Siemens Constancy reports).', /ALIGN_LEFT, FONT=font1,/NO_COPY)
   lbl=WIDGET_LABEL(auto_infobox , VALUE='', YSIZE=5)
-  lbl=WIDGET_LABEL(auto_infobox, VALUE='Automatically sort files to their defined paths ', FONT=font1, /ALIGN_LEFT,/NO_COPY)
+  lbl=WIDGET_LABEL(auto_infobox, VALUE='With images: automatically sort files to their defined paths ', FONT=font1, /ALIGN_LEFT,/NO_COPY)
   lbl=WIDGET_LABEL(auto_infobox, VALUE='- From the automation window (Open A button in main window) the files can be imported from a specified folder (image pool).', FONT=font1, /ALIGN_LEFT,/NO_COPY)
   lbl=WIDGET_LABEL(auto_infobox, VALUE='- This import routine will find the station name and optionally the DICOM criterion and sort the images to the path defined for the template.', FONT=font1, /ALIGN_LEFT,/NO_COPY)
   lbl=WIDGET_LABEL(auto_infobox, VALUE='- The extra DICOM criterion is useful for hybrid equipment or e.g. daily vs weekly tests on the same equipment.', FONT=font1, /ALIGN_LEFT,/NO_COPY)
   lbl=WIDGET_LABEL(auto_infobox, VALUE='When the automation template is run:', FONT=font1, /ALIGN_LEFT,/NO_COPY)
-  lbl=WIDGET_LABEL(auto_infobox, VALUE='- The images in the specified path will be sorted by date and then the using the sorting rules if defined.' , FONT=font1, /ALIGN_LEFT,/NO_COPY)
-  lbl=WIDGET_LABEL(auto_infobox, VALUE='- The sorting rules will facilitate a consistent order of the images when analysed according to the QuickTest template defined.' , FONT=font1, /ALIGN_LEFT,/NO_COPY)
+  lbl=WIDGET_LABEL(auto_infobox, VALUE='- The files in the input path will be sorted by date and then optionally using the sorting rules if defined.' , FONT=font1, /ALIGN_LEFT,/NO_COPY)
+  lbl=WIDGET_LABEL(auto_infobox, VALUE='- The sorting rules will facilitate a consistent order of images when analysed according to the QuickTest template defined.' , FONT=font1, /ALIGN_LEFT,/NO_COPY)
   lbl=WIDGET_LABEL(auto_infobox , VALUE='', YSIZE=5)
   lbl=WIDGET_LABEL(auto_infobox, VALUE='If a QuickTest template is defined the calculation will start automatically and generate results to clipboard.', FONT=font1, /ALIGN_LEFT,/NO_COPY)
-  lbl=WIDGET_LABEL(auto_infobox, VALUE='If a result file is specified the results will be appended to this according to the output template (1 row pr date, headers for first row only)', FONT=font1, /ALIGN_LEFT,/NO_COPY)
-  lbl=WIDGET_LABEL(auto_infobox, VALUE='else the program will pause for each date and give the opportunity to paste the results into any text-file or Excel (no headers).', FONT=font1, /ALIGN_LEFT,/NO_COPY)
+  lbl=WIDGET_LABEL(auto_infobox, VALUE='If a result file is specified the results will be appended to this according to the QuickTestOutput template (1 row pr date, headers only if empty resultfile).', FONT=font1, /ALIGN_LEFT,/NO_COPY)
+  lbl=WIDGET_LABEL(auto_infobox, VALUE='If no result file is specified the program will pause for each date and give the opportunity to paste the results into any text-file or Excel (no headers).', FONT=font1, /ALIGN_LEFT,/NO_COPY)
   lbl=WIDGET_LABEL(bInfo , VALUE='', YSIZE=10,/NO_COPY)
 
   rename_infobox=WIDGET_BASE(bInfo, /COLUMN, XSIZE=850, FRAME=1)
   lbl=WIDGET_LABEL(rename_infobox, VALUE='Rename Dicom Templates:', /ALIGN_LEFT, FONT=font0,/NO_COPY)
   lbl=WIDGET_LABEL(rename_infobox, VALUE='DICOM files often have names that do not reflect the content. Rename the DICOM files based on information in the DICOM header.', /ALIGN_LEFT, FONT=font1,/NO_COPY)
   lbl=WIDGET_LABEL(rename_infobox, VALUE='Specify DICOM tags that should be available for building reasonable names and create templates for automatic renaming (within Rename DICOM).', /ALIGN_LEFT, FONT=font1,/NO_COPY)
+  lbl=WIDGET_LABEL(rename_infobox, VALUE='Rename Dicom can also help moving all files of multiple subfolders into the same folder or sort a soup of files into one folder per series.', /ALIGN_LEFT, FONT=font0,/NO_COPY)
 
   s_upd, selConfig-1, 1
 
@@ -671,19 +667,6 @@ pro settings_event, event
   IF N_ELEMENTS(uval) GT 0 AND SIZE(uval, /TNAME) EQ 'STRING' THEN BEGIN
     CASE uval OF
 
-;      'cancel': BEGIN
-;        sv='Yes'
-;        IF autoChanged THEN sv=DIALOG_MESSAGE('Possible unsaved changed for the automation template not saved. Continue without saving?', /QUESTION, DIALOG_PARENT=event.top)
-;        IF sv EQ 'Yes' THEN BEGIN
-;          IF FILE_TEST(configPath, /READ) THEN RESTORE, configPath ELSE sv=DIALOG_MESSAGE('Lost connection to config file '+configPath, /ERROR)
-;          IF N_ELEMENTS(quickTemp) NE 0 THEN BEGIN
-;            IF SIZE(quickTemp, /TNAME) EQ 'STRUCT' THEN BEGIN
-;              IF SIZE(quickTemp.(modality), /TNAME) EQ 'STRUCT' THEN fillQuickTempList, quickTemp.(modality) ELSE fillQuickTempList, -1
-;            ENDIF ELSE fillQuickTempList, -1
-;          ENDIF ELSE fillQuickTempList, -1
-;          WIDGET_CONTROL, Event.top, /DESTROY
-;        ENDIF
-;      END
       'remBlock': BEGIN
         IF saveOK NE 1 THEN BEGIN;not needed change
           IF saveOK EQ -1 THEN BEGIN
@@ -734,6 +717,9 @@ pro settings_event, event
               WIDGET_CONTROL,btnEditQTO,SENSITIVE=1
               WIDGET_CONTROL,btnDelQTO,SENSITIVE=1
               WIDGET_CONTROL,btnImport_qto,SENSITIVE=1
+              WIDGET_CONTROL,btnSaveImpPath,SENSITIVE=1
+              WIDGET_CONTROL,btnAutoPause,SENSITIVE=1
+              WIDGET_CONTROL,btnSaveWait,SENSITIVE=1
               WIDGET_CONTROL,btnAddTemp_a,SENSITIVE=1
               WIDGET_CONTROL,btnDCMcritLookup,SENSITIVE=1
               WIDGET_CONTROL,btnOverWriteAuto,SENSITIVE=1
@@ -1070,8 +1056,13 @@ pro settings_event, event
         adr=DIALOG_PICKFILE(TITLE='Locate config file to import from', /READ, FILTER='*.dat', /FIX_FILTER, DIALOG_PARENT=event.Top, PATH='C:\')
         IF adr(0) NE '' THEN BEGIN
           WIDGET_CONTROL, /HOURGLASS
-          import_s, adr(0), configPath, multiOpt, xoffset, yoffset, Event.top;in settings_import.pro
-          s_upd, WIDGET_INFO(listSets_s, /LIST_SELECT), 0
+          import_s, adr(0), configPath, multiOpt, analyseStringsAll, xoffset, yoffset, Event.top ;in settings_import.pro
+          s_upd, WIDGET_INFO(listSets_s, /LIST_SELECT), 1
+          IF FILE_TEST(configPath, /READ) THEN BEGIN
+            RESTORE, configPath
+            currNames=TAG_NAMES(quickTout.(qto_currMod))
+            WIDGET_CONTROL, lstTemplates_qto, SET_VALUE=currnames, SET_LIST_SELECT=qto_currTemp, SCR_YSIZE=150;added as last, set selected
+          ENDIF
         ENDIF
       END
 
@@ -1363,7 +1354,7 @@ pro settings_event, event
         ENDIF
       END
 
-      ;************** QT output **************
+      ;************** QuickTestOutput  **************
 
       'qto_lstModality': BEGIN;modality changed?
         IF WIDGET_INFO(lstModality_qto, /DROPLIST_SELECT) NE qto_currMod THEN BEGIN
@@ -1528,7 +1519,7 @@ pro settings_event, event
 
             newStruct=CREATE_STRUCT('ALT',WIDGET_INFO(lstAlt, /DROPLIST_SELECT),'COLUMNS',WIDGET_INFO(lstCols, /LIST_SELECT),'CALC',WIDGET_INFO(lstCalc, /DROPLIST_SELECT),'PER_SERIES',WIDGET_INFO(lstPer, /DROPLIST_SELECT))
             IF SIZE(currStruct, /TNAME) EQ 'STRUCT' THEN tempstructTest=CREATE_STRUCT(currStruct, testDescr, newStruct) $
-              ELSE tempstructTest=CREATE_STRUCT('ALL',CREATE_STRUCT('ALT',0,'COLUMNS',-1,'CALC',0,'PER_SERIES',0),testDescr, newStruct)
+            ELSE tempstructTest=CREATE_STRUCT('ALL',CREATE_STRUCT('ALT',0,'COLUMNS',-1,'CALC',0,'PER_SERIES',0),testDescr, newStruct)
             quickToutTemp=replaceStructStruct(quickTout.(qto_currMod).(qto_currTemp), tempstructTest, testno)
             quickToutMod=replaceStructStruct(quickTout.(qto_currMod), quickToutTemp, qto_currTemp)
             quickTout=replaceStructStruct(quickTout, quickToutMod, qto_currMod)
@@ -1861,22 +1852,70 @@ pro settings_event, event
           psets=TAG_NAMES(configS)
           FOR i=1, N_ELEMENTS(psets)-1 DO configS.(i).AUTOIMPORTPATH=adr(0)
           SAVEIF, saveOK, configS, quickTemp, quickTout, loadTemp, renameTemp, FILENAME=configPath
-        ENDIF ELSE sv=DIALOG_MESSAGE('Lost connection to config file '+configPath, /ERROR)      
+          sv=DIALOG_MESSAGE('Saved new default to config file.', /INFORMATION)
+        ENDIF ELSE sv=DIALOG_MESSAGE('Lost connection to config file '+configPath, /ERROR)
       END
-      
-      'btnAutoCont':BEGIN
+
+      'btnAutoPause':BEGIN
         IF FILE_TEST(configPath, /READ) THEN BEGIN
-          RESTORE, configPath 
+          RESTORE, configPath
           psets=TAG_NAMES(configS)
-          autoCo=ABS(WIDGET_INFO(btnAutoCont, /BUTTON_SET)-1)
+          autoCo=ABS(WIDGET_INFO(btnAutoPause, /BUTTON_SET)-1)
           FOR i=1, N_ELEMENTS(psets)-1 DO configS.(i).AUTOCONTINUE=autoCo
           SAVEIF, saveOK, configS, quickTemp, quickTout, loadTemp, renameTemp, FILENAME=configPath
           sv=DIALOG_MESSAGE('Saved new default option to config file.', /INFORMATION)
         ENDIF ELSE sv=DIALOG_MESSAGE('Lost connection to config file '+configPath, /ERROR)
+      END
+      
+      'aWait_Save':BEGIN
+        WIDGET_CONTROL,txtWaitPDF0, GET_VALUE=w0
+        WIDGET_CONTROL,txtWaitPDF1, GET_VALUE=w1
+        IF FILE_TEST(configPath, /READ) THEN BEGIN
+          RESTORE, configPath
+          psets=TAG_NAMES(configS)
+          FOR i=1, N_ELEMENTS(psets)-1 DO configS.(i).WAIT=[LONG(w0),LONG(w1)]
+          SAVEIF, saveOK, configS, quickTemp, quickTout, loadTemp, renameTemp, FILENAME=configPath
+          sv=DIALOG_MESSAGE('Saved new default option to config file.', /INFORMATION)
+        ENDIF ELSE sv=DIALOG_MESSAGE('Lost connection to config file '+configPath, /ERROR)
+        END
+        
+      'aWait_Test':BEGIN
+        waitSec=[5,2]
+        IF FILE_TEST(configPath, /READ) THEN BEGIN
+          RESTORE, configPath
+          waitSec=configS.(1).WAIT
+        ENDIF
+
+        adr=thisPath+'data\testPDF2TXT.pdf'
+        IF FILE_TEST(adr, /READ) THEN BEGIN
+              sv=DIALOG_MESSAGE('Make sure Acrobat Reader is closed down and press OK to start the process. Keep hands off mouse/keyboard while Excel and Acrobat is working.', DIALOG_PARENT=evTop)
+              
+              clipboard.set, adr; send input Path to Excel macro
+              SPAWN, 'start Excel.exe "'+thisPath+'data\convertPDFtoTXT.xlsm" /e', /HIDE
+              tt=SYSTIME(/SECONDS)
+              WAIT, waitSec(0);give time to open Excel/Acrobat Reader
+              FOR w=0, 9 DO BEGIN; wait 1 sec for up to 10 sec to see if clipboard changed
+                pdfContent=clipboard.get()
+                IF pdfContent(0) EQ adr OR pdfContent(0) EQ '' THEN WAIT,1 ELSE BREAK
+              ENDFOR
+              pdfContent=clipboard.get()
+              t2=SYSTIME(/SECONDS)-tt
+              IF pdfContent(0) EQ adr OR pdfContent(0) EQ '' THEN pdfContent=''
+
+              IF pdfContent(0) NE '' THEN BEGIN
+                sv=DIALOG_MESSAGE('The test succeeded. The expected PDF content was found in clipboard. Total time to read content to clipboard: '+STRING(CEIL(t2), FORMAT='(i0)'), DIALOG_PARENT=evTop)
+              ENDIF ELSE BEGIN
+                sv=DIALOG_MESSAGE('Failed to read PDF content for file '+newline+adr+newline+newline+'Troubleshoot:'+newline+$
+                  '-Make sure to close Acrobat Reader before starting the process.'+newline+$
+                  '-Open Excel and hold SHIFT while opening \ImageQC\data\convertPDFtoTXT.xlsm to verify Acrobat reader .exe path or macro activation.', DIALOG_PARENT=evTop)
+              ENDELSE
+          ENDIF ELSE sv=DIALOG_MESSAGE('Failed to read '+adr, DIALOG_PARENT=evTop)
         END
 
       'a_Browse':BEGIN
-        adr=dialog_pickfile(PATH=defPath, GET_PATH=defPath, /DIRECTORY, /READ, TITLE='Select folder', DIALOG_PARENT=event.top)
+        WIDGET_CONTROL, txtAutoImpPath, GET_VALUE=adr
+        IF adr(0) NE '' THEN pa=adr(0) ELSE pa=defPath
+        adr=dialog_pickfile(PATH=pa, /DIRECTORY, /READ, TITLE='Select folder', DIALOG_PARENT=event.top)
         IF adr(0) NE '' THEN BEGIN
           WIDGET_CONTROL, txtBrowse_a, SET_VALUE=adr(0)
           autoChanged=1
@@ -1886,34 +1925,97 @@ pro settings_event, event
       'a_BrowseApp':BEGIN
         adr=dialog_pickfile(PATH=defPath, GET_PATH=defPath, /READ, TITLE='Select result file to append', FILTER='*.txt', /FIX_FILTER, DIALOG_PARENT=event.top)
         IF adr(0) NE '' THEN BEGIN
-          WIDGET_CONTROL, txtBrowseApp, SET_VALUE=adr(0)
-          autoChanged=1
+          adr=adr(0)
+          exten=STRMID(adr,STRLEN(adr)-4)
+          IF exten NE '.txt' AND exten NE '.csv' THEN BEGIN
+            IF STRMID(exten, 0, 1) EQ '.' THEN BEGIN
+              sv=DIALOG_MESSAGE('The result file should be a plain text file. Make sure your '+exten+'-file is such a file.', /WARNING, DIALOG_PARENT=event.top)
+            ENDIF ELSE adr=adr+'.txt'
+          ENDIF
+          IF adr NE '' THEN BEGIN
+            testResFile=FILE_INFO(adr, /NOEXPAND_PATH)
+            IF testResFile.exists EQ 0 THEN BEGIN
+               sv=DIALOG_MESSAGE(adr+newline+'do not exist. Create empty file?',/QUESTION, DIALOG_PARENT=event.top)
+               IF sv EQ 'Yes' THEN BEGIN
+                 OPENW, resfile, adr, /GET_LUN
+                 CLOSE, resfile & FREE_LUN, resfile
+               ENDIF
+            ENDIF
+            WIDGET_CONTROL, txtBrowseApp, SET_VALUE=adr
+            autoChanged=1
+          ENDIF
         ENDIF
       END
 
       'a_getStatName':BEGIN
         WIDGET_CONTROL, txtBrowse_a, GET_VALUE=pathNow
         If pathNow EQ '' THEN pathNow=defPath
-        adr=dialog_pickfile(PATH=pathNow, /READ, TITLE='Select DICOM image to retrieve the station name', DIALOG_PARENT=event.top)
-        IF adr(0) NE '' THEN BEGIN
-          IF FILE_BASENAME(adr) EQ 'DICOMDIR' THEN okDcm = 0 ELSE okDcm=QUERY_DICOM(adr)
-          IF okDcm THEN BEGIN
-            o=obj_new('idlffdicom')
-            t=o->read(adr)
-
-            ;check if directoryfile
-            test=o->GetReference('0004'x,'1220'x)
-            IF test(0) EQ -1 THEN BEGIN
-              test=o->GetReference('0008'x,'1010'x);
-              test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
-              IF test(0) NE -1 THEN stationName=*(test_peker[0]) ELSE stationName=''
-              IF stationName EQ '' THEN sv=DIALOG_MESSAGE('Station name in DICOM tag 0008,1010 not found.',DIALOG_PARENT=event.top)
-              WIDGET_CONTROL, txtStatName_a, SET_VALUE=stationName
-              autoChanged=1
+        
+        IF WIDGET_INFO(btnAltAuto, /BUTTON_SET) THEN BEGIN
+          waitSec=[5,2]
+          IF FILE_TEST(configPath, /READ) THEN BEGIN
+            RESTORE, configPath
+            waitSec=configS.(1).WAIT
+          ENDIF
+          availMod=TAG_NAMES(testVisualQTNames)
+          nameMod=availMod(a_currMod)
+          CASE nameMod OF
+            'CT': BEGIN
+                adr=dialog_pickfile(PATH=pathNow, /READ, TITLE='Select PDF (Siemens CT QC result file) to retrieve the serial number for this system', FILTER='*.pdf', DIALOG_PARENT=event.top)
+                IF adr(0) NE '' THEN BEGIN
+                  sv=DIALOG_MESSAGE('Make sure Acrobat Reader is closed down and press OK to start the process. Keep hands off mouse/keyboard while Excel and Acrobat is working.', DIALOG_PARENT=evTop)              
+                  pdfContent=PDF2clipboard(adr(0), thisPath, waitSec);PDF2clipboard in autoTempRun.pro
+                  IF pdfContent(0) NE '' THEN BEGIN
+                    configGetSiemensQC=updConfigGetSiemensQC()
+                    serialN=readCTserial(pdfContent, configGetSiemensQC)
+                    IF serialN EQ '' THEN sv=DIALOG_MESSAGE('Failed to read CT serial number from the selected PDF.', DIALOG_PARENT=evTop) ELSE BEGIN
+                      WIDGET_CONTROL, txtStatName_a, SET_VALUE=serialN
+                      autoChanged=1
+                    ENDELSE
+                  ENDIF ELSE sv=DIALOG_MESSAGE('Failed to read PDF content to clipboard.', DIALOG_PARENT=evTop)
+                ENDIF        
+              END
+            'XRAY': sv=DIALOG_MESSAGE('Currently GE_QAP is the only option for reading PDF or TXT for this modality. Station name cannot be found in the QAP files. Detector ID will be logged, though.',DIALOG_PARENT=event.top)
+            'PET':BEGIN
+                adr=dialog_pickfile(PATH=pathNow, /READ, TITLE='If input files will be PDF - select PDF (Siemens Daily QC result file) to retrieve the ICS name', FILTER='*.pdf', DIALOG_PARENT=event.top)
+                IF adr(0) NE '' THEN BEGIN
+                  sv=DIALOG_MESSAGE('Make sure Acrobat Reader is closed down and press OK to start the process. Keep hands off mouse/keyboard while Excel and Acrobat is working.', DIALOG_PARENT=evTop)              
+                  pdfContent=PDF2clipboard(adr(0), thisPath, waitSec);PDF2clipboard in autoTempRun.pro
+                  IF pdfContent(0) NE '' THEN BEGIN
+                    configGetSiemensQC=updConfigGetSiemensQC()
+                    resu=readPETdailyQC(pdfContent, configGetSiemensQC)
+                    IF resu.strArrRes(1) EQ '' THEN sv=DIALOG_MESSAGE('Unexpected file content. Could not find system ICS name from the selected PDF', DIALOG_PARENT=evTop) ELSE BEGIN
+                      WIDGET_CONTROL, txtStatName_a, SET_VALUE=resu.strArrRes(1)
+                      autoChanged=1
+                    ENDELSE
+                  ENDIF ELSE sv=DIALOG_MESSAGE('Failed to read PDF content to clipboard.', DIALOG_PARENT=evTop)
+                ENDIF        
+              END
+              'MR': sv=DIALOG_MESSAGE('Currently verifying by station name supported for the MR PDF files.',DIALOG_PARENT=event.top)
+            ELSE: sv=DIALOG_MESSAGE('No PDF/TXT input file type defined for this modality.',DIALOG_PARENT=event.top)
+          ENDCASE
+        ENDIF ELSE BEGIN
+          adr=dialog_pickfile(PATH=pathNow, /READ, TITLE='Select DICOM image to retrieve the station name', DIALOG_PARENT=event.top)
+          IF adr(0) NE '' THEN BEGIN
+            IF FILE_BASENAME(adr) EQ 'DICOMDIR' THEN okDcm = 0 ELSE okDcm=QUERY_DICOM(adr)
+            IF okDcm THEN BEGIN
+              o=obj_new('idlffdicom')
+              t=o->read(adr)
+  
+              ;check if directoryfile
+              test=o->GetReference('0004'x,'1220'x)
+              IF test(0) EQ -1 THEN BEGIN
+                test=o->GetReference('0008'x,'1010'x);
+                test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
+                IF test(0) NE -1 THEN stationName=*(test_peker[0]) ELSE stationName=''
+                IF stationName EQ '' THEN sv=DIALOG_MESSAGE('Station name in DICOM tag 0008,1010 not found.',DIALOG_PARENT=event.top)
+                WIDGET_CONTROL, txtStatName_a, SET_VALUE=stationName
+                autoChanged=1
+              ENDIF ELSE sv=DIALOG_MESSAGE('Selected file is not an DICOM image file.',DIALOG_PARENT=event.top)
+  
             ENDIF ELSE sv=DIALOG_MESSAGE('Selected file is not an DICOM image file.',DIALOG_PARENT=event.top)
-
-          ENDIF ELSE sv=DIALOG_MESSAGE('Selected file is not an DICOM image file.',DIALOG_PARENT=event.top)
-        ENDIF
+          ENDIF
+        ENDELSE
       END
 
       'a_getDCMcrit':BEGIN
@@ -2001,13 +2103,84 @@ pro settings_event, event
 
       'btnAltAuto':BEGIN
         IF WIDGET_INFO(btnAltAuto, /BUTTON_SET) THEN BEGIN
-          WIDGET_CONTROL, bImportA, MAP=0
-          WIDGET_CONTROL, bAutoParam2, MAP=0
+          availMod=TAG_NAMES(testVisualQTNames)
+          nameMod=availMod(a_currMod)
+          CASE nameMod OF
+            'CT':BEGIN
+              WIDGET_CONTROL, bAutoParam2, MAP=0
+              WIDGET_CONTROL, bDCMcrit, MAP=0           
+              autoChanged=1
+            END
+            'XRAY':BEGIN
+              WIDGET_CONTROL, bAutoParam2, MAP=0
+              WIDGET_CONTROL, bDCMcrit, MAP=0
+              autoChanged=1
+              END
+            'PET':BEGIN
+                WIDGET_CONTROL, bAutoParam2, MAP=0
+                WIDGET_CONTROL, bDCMcrit, MAP=0  
+                autoChanged=1
+              END
+             'MR':BEGIN
+                WIDGET_CONTROL, bAutoParam2, MAP=0
+                WIDGET_CONTROL, bDCMcrit, MAP=0
+                autoChanged=1
+              END
+            ELSE: BEGIN
+              sv=DIALOG_MESSAGE('Currently no PDF/TXT test file type available for this modality.', DIALOG_PARENT=event.top)
+              WIDGET_CONTROL, bAutoParam2, MAP=1
+              WIDGET_CONTROL, bDCMcrit, MAP=1
+              WIDGET_CONTROL, btnAltAuto, SET_BUTTON=0
+            END
+          ENDCASE
         ENDIF ELSE BEGIN
-          WIDGET_CONTROL, bImportA, MAP=1
           WIDGET_CONTROL, bAutoParam2, MAP=1
+          WIDGET_CONTROL, bDCMcrit, MAP=1
+          autoChanged=1
         ENDELSE
-        autoChanged=1
+        
+      END
+
+      'btnAltConfigInfo':BEGIN
+        availMod=TAG_NAMES(testVisualQTNames)
+        nameMod=availMod(a_currMod)
+        CASE nameMod OF
+          'CT':BEGIN
+            sv=DIALOG_MESSAGE('Currently only Siemens Constancy/DailyQC available.'+newline+$
+              'Station name/id can be retrieved as the serial number of the system.'+newline+$
+              'This will be used to verify that the input file comes from the expected system.'+newline+$
+              'The files should be placed in the defined input folder'+newline+$
+              'and when analysed they will be moved to the Archive folder.'+newline+$
+              'NB: You can set the decimal mark for output in the parameter set used as default.', DIALOG_PARENT=event.top)
+          END
+          'XRAY':BEGIN;Xray
+            sv=DIALOG_MESSAGE('Currently only GE_QAP available.'+newline+$
+              'The files in their folders (WallStand/Table/DigitalCassette) should be placed in the defined input folder'+newline+$
+              'and when analysed they will be moved to the Archive folder.'+newline+$
+              'Station name/id will be ignored as this type of information is not available in the file.'+newline+$
+              'Detector serial number and stand (WallStand/Table/DigitalCassette) will be logged in the result file, though.'+newline+$
+              'NB: You can set the decimal mark for output in the parameter set used as default.', DIALOG_PARENT=event.top)
+          END
+          'PET':BEGIN
+            sv=DIALOG_MESSAGE('Currently Siemens DailyQC from PET-CT (pdf) and PET-MR (xml) available.'+newline+$
+              'Station name/id can be retrieved as the serial number of the system (not available from xml).'+newline+$
+              'This will be used to verify that the input file comes from the expected system.'+newline+$
+              'The files should be placed in the defined input folder'+newline+$
+              'and when analysed they will be moved to the Archive folder.' +newline+$
+              'You will be asked to set xml og pdf as input when you press save for this template.'+newline+$
+              'NB: You can set the decimal mark for output in the parameter set used as default.', DIALOG_PARENT=event.top)
+          END
+          'MR':BEGIN
+            sv=DIALOG_MESSAGE('Currently ACR reports and PIQT from Philips MR are supported.'+newline+$
+              'The files should be placed in the defined input folder (one for each lab)'+newline+$
+              'and when analysed they will be moved to the Archive folder.' +newline+$
+              'Please make separate templates and output resultfiles for ACR and for PIQT as the output will differ.' +newline+$
+              'NB: You can set the decimal mark for output in the parameter set used as default.', DIALOG_PARENT=event.top)
+          END
+          ELSE: BEGIN
+            sv=DIALOG_MESSAGE('Currently no PDF/TXT test file type available for this modality.', DIALOG_PARENT=event.top)
+            END
+        ENDCASE
       END
 
       'a_add':BEGIN
@@ -2035,8 +2208,6 @@ pro settings_event, event
                 'path','',$
                 'statName','',$
                 'dcmCrit',['0000','0000',''],$
-                'loadBy',0,$
-                'includeSub',0,$
                 'sortBy', '', $
                 'sortAsc',0, $
                 'paramSet',paramSetNames(WIDGET_INFO(listSets_a,/DROPLIST_SELECT)), $
@@ -2113,8 +2284,28 @@ pro settings_event, event
           IF sv EQ 'Yes' THEN BEGIN
             WIDGET_CONTROL, txtBrowse_a, GET_VALUE=newPath
             IF newPath NE '' THEN BEGIN
+              testResFile=FILE_INFO(newPath, /NOEXPAND_PATH)
+              sep=PATH_SEP()
+              IF STRMID(newPath(0), 0, /REVERSE_OFFSET) NE sep THEN newPath=newPath(0)+sep
+            
               WIDGET_CONTROL, /HOURGLASS
               WIDGET_CONTROL, txtBrowseApp, GET_VALUE=newPathApp
+              IF newPathApp NE '' THEN BEGIN
+                testResFile=FILE_INFO(newPathApp, /NOEXPAND_PATH)
+                IF FILE_DIRNAME(newPathApp) EQ '.' THEN BEGIN
+                  sv=DIALOG_MESSAGE(newPathApp+newline+'is not a valid path. This will be cleared.',/QUESTION, DIALOG_PARENT=event.top)
+                  newPathApp=''
+                ENDIF ELSE BEGIN
+                  IF testResFile.exists EQ 0 THEN BEGIN
+                    sv=DIALOG_MESSAGE(newPathApp+newline+'do not exist. Create empty file with this name?',/QUESTION, DIALOG_PARENT=event.top)
+                    IF sv EQ 'Yes' THEN BEGIN
+                      OPENW, resfile, newPathApp, /GET_LUN
+                      CLOSE, resfile & FREE_LUN, resfile
+                    ENDIF
+                  ENDIF
+                ENDELSE
+              ENDIF
+              WIDGET_CONTROL, txtStatName_a, GET_VALUE=newStatName
 
               selMod=WIDGET_INFO(lstModality_a,/DROPLIST_SELECT)
               thisMod=availModNmb(selMod)
@@ -2123,17 +2314,23 @@ pro settings_event, event
               IF WIDGET_INFO(btnAltAuto, /BUTTON_SET) THEN BEGIN
 
                 altAlt=''
-                CASE thisMod OF
-                  1: altAlt='GE_QAP'
+                availMod=TAG_NAMES(testVisualQTNames)
+                nameMod=availMod(a_currMod)
+                CASE nameMod OF
+                  'CT': altAlt='PDF_SiemensConstancy'
+                  'XRAY': altAlt='GE_QAP'
+                  'PET': BEGIN
+                    sv=DIALOG_MESSAGE('Will the input files be XML (Yes) or PDF (No)', /Question, DIALOG_PARENT=event.top)
+                    IF sv EQ 'Yes' THEN altAlt='XML_SiemensPETdailyQC' ELSE altAlt='PDF_SiemensPETdailyQC'
+                    END
+                  'MR': altAlt='PDF_MR'
                   ELSE: altAlt=''
                 ENDCASE
 
                 loadTempSing=CREATE_STRUCT($
                   'path',newPath,$
-                  'statName','',$
+                  'statName', newStatName,$
                   'dcmCrit',['0000','0000',''],$
-                  'loadBy',0,$
-                  'includeSub',0,$
                   'sortBy', '', $
                   'sortAsc',0, $
                   'paramSet','', $
@@ -2144,19 +2341,15 @@ pro settings_event, event
                   'deleteFilesEnd',0,$
                   'alternative',altAlt)
               ENDIF ELSE BEGIN
-                WIDGET_CONTROL, txtStatName_a, GET_VALUE=newStatName
+                
                 WIDGET_CONTROL, txtDCMcritGroup, GET_VALUE=txtGroup
                 WIDGET_CONTROL, txtDCMcritElem, GET_VALUE=txtElem
                 WIDGET_CONTROL, txtDCMcrit, GET_VALUE=dcmCritStr
 
-                ;WIDGET_INFO(btnInclSub,/BUTTON_SET)
-                ;WIDGET_INFO(btnOnlyLastDate,/BUTTON_SET)
                 loadTempSing=CREATE_STRUCT($
                   'path',newPath,$
                   'statName', newStatName,$
                   'dcmCrit',[txtGroup,txtElem,dcmCritStr],$
-                  'loadBy',0,$
-                  'includeSub',0,$
                   'sortBy', sortElem, $
                   'sortAsc', ascElem,$
                   'paramSet',paramSetNames(WIDGET_INFO(listSets_a,/DROPLIST_SELECT)), $
@@ -2225,7 +2418,7 @@ pro settings_event, event
           WIDGET_CONTROL, /HOURGLASS
           selMod=WIDGET_INFO(lstModality_a,/DROPLIST_SELECT)
           thisMod=availModNmb(selMod)
-          import_a, adr(0), configPath, multiOpt, thisMod, xoffset, yoffset, Event.top;in settings_import.pro
+          import_a, adr(0), configPath, multiOpt, analyseStringsAll, thisMod, xoffset, yoffset, Event.top;in settings_import.pro
 
           IF FILE_TEST(configPath, /READ) THEN RESTORE, configPath ELSE sv=DIALOG_MESSAGE('Lost connection to config file '+configPath, /ERROR)
 
@@ -2235,55 +2428,89 @@ pro settings_event, event
               selecTemp_a=WIDGET_INFO(listTemp_a, /LIST_SELECT)
               WIDGET_CONTROL, listTemp_a, SET_VALUE=tempnames_a, SET_LIST_SELECT=selecTemp_a
               auto_upd, selecTemp_a(0), 1
+              s_upd, WIDGET_INFO(listSets_s, /LIST_SELECT), 1
+              IF FILE_TEST(configPath, /READ) THEN BEGIN
+                RESTORE, configPath
+                currNames=TAG_NAMES(quickTout.(qto_currMod))
+                WIDGET_CONTROL, lstTemplates_qto, SET_VALUE=currnames, SET_LIST_SELECT=qto_currTemp, SCR_YSIZE=150;added as last, set selected
+              ENDIF
             ENDIF
           ENDIF
         ENDIF
       END
 
       'a_run': BEGIN
-        selMod=WIDGET_INFO(lstModality_a,/DROPLIST_SELECT)
-        thisMod=availModNmb(selMod)
-        selecTemp_a=WIDGET_INFO(listTemp_a, /LIST_SELECT)
-        IF selecTemp_a NE -1  AND tempnames_a(0) NE '' THEN BEGIN
-          ;check if saved
-          IF FILE_TEST(configPath, /READ) THEN RESTORE, configPath ELSE sv=DIALOG_MESSAGE('Lost connection to config file '+configPath, /ERROR)
-          equal=1
-          selTemp=loadTemp.(thisMod).(selecTemp_a)
-          WIDGET_CONTROL, txtBrowse_a, GET_VALUE=newPath
-          WIDGET_CONTROL, txtBrowseApp, GET_VALUE=newPathApp
-          IF selTemp.alternative EQ '' THEN selAlt=0 ELSE selAlt=1
-          IF selTemp.path NE newPath THEN equal=0 ELSE BEGIN
-            IF selTemp.pathApp NE newPathApp THEN equal=0 ELSE BEGIN
-              IF selAlt NE WIDGET_INFO(btnAltAuto, /BUTTON_SET) THEN equal=0 ELSE BEGIN
-                IF selAlt EQ 0 THEN BEGIN
-                  ;IF selTemp.loadBy NE WIDGET_INFO(btnOnlyLastDate,/BUTTON_SET) THEN equal=0 ELSE BEGIN
-                    ;IF selTemp.includeSub NE WIDGET_INFO(btnInclSub,/BUTTON_SET) THEN equal=0 ELSE BEGIN
-                      IF ~ARRAY_EQUAL(selTemp.sortBy, sortElem) THEN equal=0 ELSE BEGIN
-                        IF ~ARRAY_EQUAL(selTemp.sortAsc, ascElem) THEN equal=0 ELSE BEGIN
-                          IF selTemp.paramSet NE paramSetNames(WIDGET_INFO(listSets_a,/DROPLIST_SELECT)) THEN equal=0 ELSE BEGIN
-                            IF selTemp.quickTemp NE quickTempNames(WIDGET_INFO(listQT_a,/DROPLIST_SELECT)) THEN equal=0 ELSE BEGIN
-                              IF selTemp.archive NE WIDGET_INFO(btnMoveFiles,/BUTTON_SET) THEN equal=0 ELSE BEGIN
-                                IF selTemp.deleteFiles NE WIDGET_INFO(btnDeleteFiles,/BUTTON_SET) THEN equal=0 ELSE BEGIN
-                                  IF selTemp.deleteFilesEnd NE WIDGET_INFO(btnDeleteFilesEnd,/BUTTON_SET) THEN equal=0
-                                ENDELSE
-                              ENDELSE;archive
-                            ENDELSE;quickTemp
-                          ENDELSE;paramSet
-                        ENDELSE;sortAsc
-                      ENDELSE;sortBy
-                    ;ENDELSE;includeSub
-                  ;ENDELSE;loadBy
-                ENDIF; selAlt = 0
-              ENDELSE;selAlt eq
-            ENDELSE;pathAppende
-          ENDELSE;path
-          IF equal THEN BEGIN
-            WIDGET_CONTROL, Event.top, /DESTROY
-            autoStopFlag=0
-            thisTempName=tempnames_a(selecTemp_a)
-            autoTempRun, selTemp, thisMod, TEMPNAME=thisTempName
-          ENDIF ELSE sv=DIALOG_MESSAGE('Saved template and current values do not match. Save before running the template.',DIALOG_PARENT=event.top)
-        ENDIF ELSE sv=DIALOG_MESSAGE('No template selected.',DIALOG_PARENT=event.top)
+        ;sv='Yes'
+        ;IF autoChanged THEN sv=DIALOG_MESSAGE('Possible changes for the automation template not saved. Continue without saving?', /QUESTION, DIALOG_PARENT=event.top)
+        ;IF sv EQ 'Yes' THEN BEGIN
+          selMod=WIDGET_INFO(lstModality_a,/DROPLIST_SELECT)
+          thisMod=availModNmb(selMod)
+          selecTemp_a=WIDGET_INFO(listTemp_a, /LIST_SELECT)
+          IF selecTemp_a NE -1  AND tempnames_a(0) NE '' THEN BEGIN
+            ;check if saved
+            IF FILE_TEST(configPath, /READ) THEN RESTORE, configPath ELSE sv=DIALOG_MESSAGE('Lost connection to config file '+configPath, /ERROR)
+            equal=1
+            selTemp=loadTemp.(thisMod).(selecTemp_a)
+            WIDGET_CONTROL, txtBrowse_a, GET_VALUE=newPath
+            WIDGET_CONTROL, txtBrowseApp, GET_VALUE=newPathApp
+            IF selTemp.alternative EQ '' THEN selAlt=0 ELSE selAlt=1
+            IF selTemp.path NE newPath THEN equal=0 ELSE BEGIN
+              IF selTemp.pathApp NE newPathApp THEN equal=0 ELSE BEGIN
+                IF selAlt NE WIDGET_INFO(btnAltAuto, /BUTTON_SET) THEN equal=0 ELSE BEGIN
+                  IF selAlt EQ 0 THEN BEGIN
+                    IF ~ARRAY_EQUAL(selTemp.sortBy, sortElem) THEN equal=0 ELSE BEGIN
+                      IF ~ARRAY_EQUAL(selTemp.sortAsc, ascElem) THEN equal=0 ELSE BEGIN
+                        IF selTemp.paramSet NE paramSetNames(WIDGET_INFO(listSets_a,/DROPLIST_SELECT)) THEN equal=0 ELSE BEGIN
+                          IF selTemp.quickTemp NE quickTempNames(WIDGET_INFO(listQT_a,/DROPLIST_SELECT)) THEN equal=0 ELSE BEGIN
+                            IF selTemp.archive NE WIDGET_INFO(btnMoveFiles,/BUTTON_SET) THEN equal=0 ELSE BEGIN
+                              IF selTemp.deleteFiles NE WIDGET_INFO(btnDeleteFiles,/BUTTON_SET) THEN equal=0 ELSE BEGIN
+                                IF selTemp.deleteFilesEnd NE WIDGET_INFO(btnDeleteFilesEnd,/BUTTON_SET) THEN equal=0
+                              ENDELSE
+                            ENDELSE;archive
+                          ENDELSE;quickTemp
+                        ENDELSE;paramSet
+                      ENDELSE;sortAsc
+                    ENDELSE;sortBy
+                  ENDIF; selAlt = 0
+                ENDELSE;selAlt eq
+              ENDELSE;pathAppende
+            ENDELSE;path
+            IF equal THEN BEGIN
+              WIDGET_CONTROL, Event.top, /DESTROY
+              autoStopFlag=0
+              thisTempName=tempnames_a(selecTemp_a)
+              IF selTemp.alternative NE '' THEN BEGIN
+                IF STRMID(selTemp.alternative,0,3) EQ 'PDF' THEN BEGIN
+                  sv=DIALOG_MESSAGE('This template will read pdf using an Excel macro and autostarting Acrobat Reader and shortkeys (Ctrl+C, Ctrl+A). '+$
+                    'Make sure Acrobat Reader is closed down and press OK to start the process. Keep hands off mouse/keyboard (unless prompted otherwise) until the summary confirm that these processes are finished.', /INFORMATION, DIALOG_PARENT=evTop)
+                ENDIF
+              ENDIF
+              testLog=''
+              autoTempRun, selTemp, thisMod, TEMPNAME=thisTempName, TESTLOG=testLog
+              updatePlot,1,1,0
+              WIDGET_CONTROL, lblProgress0, SET_VALUE=''
+              
+              IF testLog NE '' THEN BEGIN
+                fi=FILE_INFO(thisPath+'data\')
+                pa=''
+                IF fi.write THEN pa=thisPath+'data\autoLog.txt' ELSE BEGIN
+                  fi=FILE_INFO('C:\temp\')
+                  IF fi.write THEN pa='C:\temp\autoLog.txt'
+                ENDELSE
+                IF pa NE '' THEN BEGIN
+                  OPENW, logfile, pa, /GET_LUN
+                  PRINTF, logfile, testLog
+                  CLOSE, logfile & FREE_LUN, logfile
+                  XDISPLAYFILE, pa, TITLE='Analyse log', /MODAL, DONE_BUTTON='Close', WIDTH=100, GROUP=evtop
+                ENDIF ELSE BEGIN
+                  CLIPBOARD.set, testLog
+                  sv=DIALOG_MESSAGE('Log in clipboard. Paste somewhere to see the log.', DIALOG_PARENT=evtop)
+                ENDELSE
+              ENDIF;testLog
+              
+            ENDIF ELSE sv=DIALOG_MESSAGE('Saved template and current values do not match. Save before running the template.',DIALOG_PARENT=event.top)
+          ENDIF ELSE sv=DIALOG_MESSAGE('No template selected.',DIALOG_PARENT=event.top)
+        ;ENDIF; sv='Yes' (autoChange)
       END
       'a_addElem':BEGIN
         newElem=tags_imgStruct(WIDGET_INFO(listElem,/DROPLIST_SELECT))
@@ -2357,8 +2584,6 @@ pro settings_event, event
           autoChanged=1
         ENDIF
       END
-      ;'btnInclSub': autoChanged=1
-      ;'btnOnlyLastDate': autoChanged=1
       'txtStatName_a': autoChanged=1
       'txtBrowse_a': autoChanged=1
       'txtBrowseApp': autoChanged=1
@@ -2372,14 +2597,14 @@ pro settings_event, event
         selMod=WIDGET_INFO(lstModality_a,/DROPLIST_SELECT)
         thisMod=availModNmb(selMod)
         IF FILE_TEST(configPath, /READ) THEN BEGIN
-          RESTORE, configPath 
+          RESTORE, configPath
           WIDGET_CONTROL, lblQTO_a, SET_VALUE=configS.(WIDGET_INFO(listSets_a,/DROPLIST_SELECT)+1).qtOutTemps(thisMod)
         ENDIF ELSE BEGIN
           sv=DIALOG_MESSAGE('Lost connection to config file '+configPath, /ERROR)
           WIDGET_CONTROL, lblQTO_a, SET_VALUE='?'
         ENDELSE
-        
-        END
+
+      END
 
       ;************** Rename DICOM setup *********
 
@@ -2737,6 +2962,26 @@ pro settings_event, event
 
         WIDGET_CONTROL, txtOutputTest, SET_VALUE=outputTxt
       END
+      'rd_launch':BEGIN
+        IF FILE_TEST(configPath, /READ) THEN RESTORE, configPath ELSE sv=DIALOG_MESSAGE('Lost connection to config file '+configPath, /ERROR)
+        IF N_ELEMENTS(quickTemp) NE 0 THEN BEGIN
+          IF SIZE(quickTemp, /TNAME) EQ 'STRUCT' THEN BEGIN
+            IF SIZE(quickTemp.(modality), /TNAME) EQ 'STRUCT' THEN fillQuickTempList, quickTemp.(modality) ELSE fillQuickTempList, -1
+          ENDIF ELSE fillQuickTempList, -1
+        ENDIF ELSE fillQuickTempList, -1
+        WIDGET_CONTROL, event.top, /DESTROY
+        alreadyOpenAdr=''
+        tags=TAG_NAMES(structImgs)
+        IF tags(0) NE 'EMPTY' THEN alreadyOpenAdr=getListOpenFiles(structImgs,1,-1,-1)
+        RenameDICOM, GROUP_LEADER=evTop, xoffset+200, yoffset+200, alreadyOpenAdr
+        IF alreadyOpenAdr(0) NE '' THEN BEGIN
+          IF WIDGET_INFO(lstShowFile, /DROPLIST_SELECT) EQ 0 THEN RDtemp='' ELSE RDtemp=modalityName
+          fileList=getListOpenFiles(structImgs,0,marked,markedMulti,RENAMEDICOM=RDtemp, CONFIGPATH=configPath, PARENT=evTop)
+          sel=WIDGET_INFO(listFiles, /LIST_SELECT)
+          oldTop=WIDGET_INFO(listFiles, /LIST_TOP)
+          WIDGET_CONTROL, listFiles, SET_VALUE=fileList, SET_LIST_SELECT=sel, SET_LIST_TOP=oldTop
+        ENDIF
+        END
 
       ELSE:
     ENDCASE
@@ -2789,7 +3034,7 @@ pro settings_event, event
 
   IF TAG_NAMES(event, /STRUCTURE_NAME) EQ 'WIDGET_KILL_REQUEST' THEN BEGIN
     sv='Yes'
-    IF autoChanged THEN sv=DIALOG_MESSAGE('Possible unsaved changed for the automation template not saved. Continue without saving?', /QUESTION, DIALOG_PARENT=event.top)
+    IF autoChanged THEN sv=DIALOG_MESSAGE('Possible changes for the automation template not saved. Continue without saving?', /QUESTION, DIALOG_PARENT=event.top)
     IF sv EQ 'Yes' THEN BEGIN
       IF FILE_TEST(configPath, /READ) THEN RESTORE, configPath ELSE sv=DIALOG_MESSAGE('Lost connection to config file '+configPath, /ERROR)
       IF N_ELEMENTS(quickTemp) NE 0 THEN BEGIN
@@ -2845,6 +3090,7 @@ pro s_upd, listNmb, allUpd
     WIDGET_CONTROL, lstCT_s, SET_VALUE=TAG_NAMES(quickTout.CT)
     WIDGET_CONTROL, lstX_s,SET_VALUE=TAG_NAMES(quickTout.Xray)
     WIDGET_CONTROL, lstNM_s, SET_VALUE=TAG_NAMES(quickTout.NM)
+    WIDGET_CONTROL, lstPET_s, SET_VALUE=TAG_NAMES(quickTout.PET)
     WIDGET_CONTROL, lstMR_s, SET_VALUE=TAG_NAMES(quickTout.MR)
   Endif
   tempNamesSel=configS.(listNmb+1).qtOutTemps
@@ -2858,7 +3104,8 @@ pro s_upd, listNmb, allUpd
   WIDGET_CONTROL, lstCT_s, SET_DROPLIST_SELECT=nmbs(0)
   WIDGET_CONTROL, lstX_s, SET_DROPLIST_SELECT=nmbs(1)
   WIDGET_CONTROL, lstNM_s, SET_DROPLIST_SELECT=nmbs(2)
-  WIDGET_CONTROL, lstMR_s, SET_DROPLIST_SELECT=nmbs(3)
+  WIDGET_CONTROL, lstPET_s, SET_DROPLIST_SELECT=nmbs(3)
+  WIDGET_CONTROL, lstMR_s, SET_DROPLIST_SELECT=nmbs(4)
 
   ;output
   output_rows=WHERE(configSinfo[2,*] EQ '-1', nOutpRows)
@@ -2974,7 +3221,6 @@ pro qt_upd, listNmb
           WIDGET_CONTROL, lstQT, SET_VALUE=''
           WIDGET_CONTROL, txtNimgTest_qt, SET_VALUE=''
         ENDELSE
-
 
         WIDGET_CONTROL, lstTempQT, SET_VALUE=QTnames, SET_LIST_SELECT=listNmb
 
@@ -3194,7 +3440,7 @@ pro auto_upd, selT, first
       paramSetNames=paramSetNames[1:-1]
       WIDGET_CONTROL, listSets_a, SET_VALUE=paramSetNames, SET_LIST_SELECT=0
       WIDGET_CONTROL, txtAutoImpPath, SET_VALUE=configS.(1).AUTOIMPORTPATH
-      WIDGET_CONTROL, btnAutoCont, SET_BUTTON=ABS(configS.(1).AUTOCONTINUE-1)
+      WIDGET_CONTROL, btnAutoPause, SET_BUTTON=ABS(configS.(1).AUTOCONTINUE-1)
     ENDIF
 
     tempnames_a=''
@@ -3202,8 +3448,6 @@ pro auto_upd, selT, first
       IF SIZE(loadTemp.(thisMod), /TNAME) EQ 'STRUCT' THEN tempnames_a=TAG_NAMES(loadTemp.(thisMod))
     ENDIF
     WIDGET_CONTROL, listTemp_a, SET_VALUE=tempnames_a, SET_LIST_SELECT=0
-
-    If thisMod EQ 1 THEN WIDGET_CONTROL, bAlt_a, MAP=1 ELSE WIDGET_CONTROL, bAlt_a, MAP=0
 
     includeArr=actualTags(allTags, imgStructInfo, thisMod)
     idsInclude=WHERE(includeArr EQ 1)
@@ -3232,19 +3476,17 @@ pro auto_upd, selT, first
     WIDGET_CONTROL, txtDCMcritElem, SET_VALUE=loadTemp.(thisMod).(selT).dcmCrit(1)
     WIDGET_CONTROL, txtDCMcrit, SET_VALUE=loadTemp.(thisMod).(selT).dcmCrit(2)
     WIDGET_CONTROL, txtBrowseApp, SET_VALUE=loadTemp.(thisMod).(selT).pathApp
-    ;WIDGET_CONTROL, btnOnlyLastDate, SET_BUTTON=loadTemp.(thisMod).(selT).loadBy
-    ;WIDGET_CONTROL, btnInclSub, SET_BUTTON=loadTemp.(thisMod).(selT).includeSub
     WIDGET_CONTROL, btnMoveFiles, SET_BUTTON=loadTemp.(thisMod).(selT).archive
     WIDGET_CONTROL, btnDeleteFiles, SET_BUTTON=loadTemp.(thisMod).(selT).deleteFiles
     WIDGET_CONTROL, btnDeleteFilesEnd, SET_BUTTON=loadTemp.(thisMod).(selT).deleteFilesEnd
     IF loadTemp.(thisMod).(selT).alternative EQ '' THEN BEGIN
       WIDGET_CONTROL, btnAltAuto, SET_BUTTON=0
-      WIDGET_CONTROL, bImportA, MAP=1
       WIDGET_CONTROL, bAutoParam2, MAP=1
+      WIDGET_CONTROL, bDCMcrit, MAP=1
     ENDIF ELSE BEGIN
       WIDGET_CONTROL, btnAltAuto, SET_BUTTON=1
-      WIDGET_CONTROL, bImportA, MAP=0
       WIDGET_CONTROL, bAutoParam2, MAP=0
+      WIDGET_CONTROL, bDCMcrit, MAP=0  
     ENDELSE
 
     sortElem=loadTemp.(thisMod).(selT).sortBy
@@ -3332,13 +3574,11 @@ pro auto_upd, selT, first
     WIDGET_CONTROL, txtDCMcritGroup, SET_VALUE='0000'
     WIDGET_CONTROL, txtDCMcritElem, SET_VALUE='0000'
     WIDGET_CONTROL, txtDCMcrit, SET_VALUE=''
-    ;WIDGET_CONTROL, btnInclSub, SET_BUTTON=0
-    ;WIDGET_CONTROL, btnOnlyLastDate, SET_BUTTON=0
     WIDGET_CONTROL, listSort, SET_VALUE=''
     WIDGET_CONTROL, btnMoveFiles, SET_BUTTON=0
     WIDGET_CONTROL, txtBrowseApp, SET_VALUE=''
     WIDGET_CONTROL, listQT_a, SET_DROPLIST_SELECT=0
-    WIDGET_CONTROL, lblQTO_a, SET_VALUE=configS.(1).qtOutTemps(thisMod)
+    IF SIZE(configS, /TNAME) EQ 'STRUCT' THEN WIDGET_CONTROL, lblQTO_a, SET_VALUE=configS.(1).qtOutTemps(thisMod) ELSE WIDGET_CONTROL, lblQTO_a, SET_VALUE=''
     WIDGET_CONTROL, btnAltAuto, SET_BUTTON=0
     sortElem=''
     ascElem=0

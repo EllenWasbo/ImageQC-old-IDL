@@ -62,10 +62,10 @@ pro calculateQuickTest
       nImg=N_TAGS(structImgs)
       szM=SIZE(markedMulti, /DIMENSIONS)
       IF N_ELEMENTS(szM) EQ 2 THEN nI=MIN([nImg,szM(1)]) ELSE nI=1
-      ;incFilenames=WIDGET_INFO(btnIncFilename, /BUTTON_SET)
-      ;IF incFilenames THEN BEGIN
       multiExpTable=STRARR(2, nTested+1)
-      multiExpTable[*,0]=['Date',formatDMY(structImgs.(imgWithMark(0)).acqDate)]
+      da=structImgs.(imgWithMark(0)).acqDate
+      IF da EQ '' THEN da=structImgs.(imgWithMark(0)).imgDate
+      multiExpTable[*,0]=['Date',formatDMY(da)]
 
       cc=1
       FOR im=0, nI-1 DO BEGIN
@@ -74,8 +74,6 @@ pro calculateQuickTest
           cc=cc+1
         ENDIF
       ENDFOR
-
-      ;ENDIF ELSE multiExpTable=['Date',formatDMY(structImgs.(imgWithMark(0)).acqDate)]
 
       analyseStrings=analyseStringsAll.(modality)
 
@@ -143,7 +141,15 @@ pro calculateQuickTest
             3:
 
             ;***************PET **************
-            4:
+            4:BEGIN
+              testPos=WHERE(currTestsOut EQ analyseStrings(test-1))
+              WIDGET_CONTROL,wtabAnalysisPET, SET_TAB_CURRENT=test-1
+              analyse=analyseStrings(test-1)
+              CASE test OF
+                1: homog
+                ELSE:
+              ENDCASE
+              END
             ;***************MR **************
             5:BEGIN
               testPos=WHERE(currTestsOut EQ analyseStrings(test-1))
@@ -151,7 +157,12 @@ pro calculateQuickTest
               analyse=analyseStrings(test-1)
               CASE test OF
                 1: getDCM_MR
-                2: getPos_MR
+                2: SNR_MR
+                3: PUI_MR
+                4: Ghost_MR
+                5: GD_MR
+                6: Slice_MR
+                7: ROI
                 ELSE:
               ENDCASE
             END
@@ -339,7 +350,7 @@ pro calculateQuickTest
 
       ;updateTable
       redrawImg, 0,0
-      updatePlot,1,1,0
+      ;updatePlot,1,1,0; aviod updatePlot during automation of multiple templates
       WIDGET_CONTROL, wtabResult, SET_TAB_CURRENT=0
     ENDIF
   ENDIF ELSE sv=DIALOG_MESSAGE('QuickTest not available for this mode yet (numbered tests only).', DIALOG_PARENT=evTop)

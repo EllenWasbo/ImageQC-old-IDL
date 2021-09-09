@@ -201,21 +201,21 @@ pro updateTable
             CASE tabType OF
               0: FOR i=0, nRows-1 DO resArrString[*,i]=STRING(homogRes[*,markedTemp(i)], FORMAT=formatCode(homogRes[*,markedTemp(i)]))
               1: BEGIN
-                  FOR i=0, nRows-1 DO BEGIN
-                    resArrString[0:4,i]=STRING(homogRes[0:4,markedTemp(i)], FORMAT=formatCode(homogRes[0:4,markedTemp(i)]))
-                    avg=MEAN(homogRes[0:4,i])
-                    diff=homogRes[0:4,markedTemp(i)]-avg
-                    resArrString[5:9,i]=STRING(diff, FORMAT=formatCode(homogRes[0:4,markedTemp(i)]))
-                  ENDFOR
-                END
+                FOR i=0, nRows-1 DO BEGIN
+                  resArrString[0:4,i]=STRING(homogRes[0:4,markedTemp(i)], FORMAT=formatCode(homogRes[0:4,markedTemp(i)]))
+                  avg=MEAN(homogRes[0:4,i])
+                  diff=homogRes[0:4,markedTemp(i)]-avg
+                  resArrString[5:9,i]=STRING(diff, FORMAT=formatCode(homogRes[0:4,markedTemp(i)]))
+                ENDFOR
+              END
               2: BEGIN
-                  FOR i=0, nRows-1 DO BEGIN
-                    resArrString[0:4,i]=STRING(homogRes[0:4,markedTemp(i)], FORMAT=formatCode(homogRes[0:4,markedTemp(i)]))
-                    avg=MEAN(homogRes[0:4,i])
-                    diff=100.0*(homogRes[0:4,markedTemp(i)]-avg)/avg
-                    resArrString[5:9,i]=STRING(diff, FORMAT='(f0.1)')
-                  ENDFOR
-                END
+                FOR i=0, nRows-1 DO BEGIN
+                  resArrString[0:4,i]=STRING(homogRes[0:4,markedTemp(i)], FORMAT=formatCode(homogRes[0:4,markedTemp(i)]))
+                  avg=MEAN(homogRes[0:4,i])
+                  diff=100.0*(homogRes[0:4,markedTemp(i)]-avg)/avg
+                  resArrString[5:9,i]=STRING(diff, FORMAT='(f0.1)')
+                ENDFOR
+              END
               ELSE:
             ENDCASE
 
@@ -257,14 +257,14 @@ pro updateTable
               ENDELSE
             ENDIF ELSE resArrString=STRARR(6,nRows)
           END
-          
+
           'ROI': BEGIN
             nCols=2
             headers=tableHeaders.XRAY.ROI.Alt1;[mean,stdev]
             resArrString=STRARR(nCols,nRows)
             FOR i=0, nRows-1 DO resArrString[*,i]=STRING(ROIres[*,markedTemp(i)],FORMAT=formatCode(ROIres[*,markedTemp(i)]))
           END
-          
+
           'NPS':
           ELSE:
         ENDCASE
@@ -497,7 +497,7 @@ pro updateTable
           'HOMOG': BEGIN
             szTab=SIZE(homogRes, /DIMENSIONS)
             nCols=10
-            headers=['Center','12oClock','15oClock','18oClock','21oClock','dMean C','dMean 12','dMean 15','dMean 18','dMean 21']
+            headers=tableHeaders.PET.HOMOG.Alt1;['Center','12oClock','15oClock','18oClock','21oClock','dMean C','dMean 12','dMean 15','dMean 18','dMean 21']
             resArrString=STRARR(nCols,nRows)
             resMarked=FLTARR(szTab(0),N_ELEMENTS(markedTemp))
 
@@ -540,13 +540,61 @@ pro updateTable
             resArrString=STRARR(nCols,nRows)
             FOR i=0, nRows-1 DO resArrString[*,i]=expRes[*,markedTemp(i)]
           END
-
-          'POS':BEGIN
-            nCols=2
-            headers=tableHeaders.MR.POS.Alt1
+          
+          'SNR':BEGIN
+            headers=tableHeaders.MR.SNR.Alt1
+            nCols=N_ELEMENTS(headers)
             resArrString=STRARR(nCols,nRows)
-            FOR i=0, nRows-1 DO resArrString[*,i]=MRposRes[*,markedTemp(i)]
+            FOR i=0, nRows-1 DO resArrString[*,i]=STRING(SNRres[*,markedTemp(i)], FORMAT=formatCode(SNRres[*,markedTemp(i)]))
           END
+
+          'PUI':BEGIN
+            headers=tableHeaders.MR.PUI.Alt1
+            nCols=N_ELEMENTS(headers)
+            resArrString=STRARR(nCols,nRows)
+            FOR i=0, nRows-1 DO resArrString[*,i]=STRING(PUIres[0:nCols-1,markedTemp(i)], FORMAT='(f0.1)')
+          END
+          
+          'GHOST':BEGIN
+            headers=tableHeaders.MR.GHOST.Alt1
+            nCols=N_ELEMENTS(headers)
+            resArrString=STRARR(nCols,nRows)
+            FOR i=0, nRows-1 DO BEGIN
+              resArrString[0:4,i]=STRING(ghostMRres[0:4,markedTemp(i)], FORMAT=formatCode(ghostMRres[0:4,markedTemp(i)]))
+              resArrString[5,i]=STRING(ghostMRres[5,markedTemp(i)], FORMAT='(f0.4)')
+            ENDFOR
+          END
+          
+          'GEOMDIST': BEGIN
+            headers=tableHeaders.MR.GEOMDIST.Alt1
+            nCols=N_ELEMENTS(headers)
+            resArrString=STRARR(nCols,nRows)
+            FOR i=0, nRows-1 DO BEGIN
+              resArrString[0:3,i]=STRING(GeomDistRes[0:3,markedTemp(i)], FORMAT=formatCode(GeomDistRes[0:3,markedTemp(i)]))
+              resArrString[4:7,i]=STRING(GeomDistRes[4:7,markedTemp(i)], FORMAT=formatCode(GeomDistRes[4:7,markedTemp(i)]))
+            ENDFOR
+          END
+          
+          'SLICETHICK': BEGIN
+            headers=tableHeaders.MR.SLICETHICK.Alt1
+            nCols=N_ELEMENTS(headers)
+            resArrString=STRARR(nCols,nRows)
+            FOR i=0, nRows-1 DO resArrString[*,i]=STRING(sliceThickResTab[0:3,markedTemp(i)], FORMAT='(f0.1)')
+          END
+          
+          'ROI': BEGIN
+            nCols=2
+            headers=tableHeaders.MR.ROI.Alt1;[mean,stdev]
+            resArrString=STRARR(nCols,nRows)
+            FOR i=0, nRows-1 DO resArrString[*,i]=STRING(ROIres[*,markedTemp(i)],FORMAT=formatCode(ROIres[*,markedTemp(i)]))
+          END
+
+          ;          'POS':BEGIN
+          ;            nCols=2
+          ;            headers=tableHeaders.MR.POS.Alt1
+          ;            resArrString=STRARR(nCols,nRows)
+          ;            FOR i=0, nRows-1 DO resArrString[*,i]=MRposRes[*,markedTemp(i)]
+          ;          END
           ELSE:
         ENDCASE
       ENDIF

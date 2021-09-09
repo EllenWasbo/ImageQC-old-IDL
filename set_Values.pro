@@ -43,6 +43,7 @@ pro set_configSinfo, cSi
     ['append','Append when opening files','-2','','BOOL'],$
     ['autoImportPath','Default path for automation import','-10','','STRING'],$
     ['autoContinue','Default setting to stop 0 or not 1 between automation templates','-10','','INT'],$
+    ['wait','Seconds to wait for Excel/Acrobat to open before and close after reading of data from PDF','-10','','INT'],$
     ['qtOutTemps', 'QuickTest Output templates', '-10','','STRING'], $
     ['MTFtype','MTF method (0..2)','0','MTF','INT'],$
     ['MTFtypeX','LSF fit to.. (0..2)','1','MTF','INT'],$
@@ -128,7 +129,11 @@ pro set_configSinfo, cSi
     ['ContrastRad1', 'ROI radius','3','CONTRAST','FLOAT'],$
     ['ContrastRad2','ROI distance from center','3','CONTRAST','FLOAT'],$
     ['CrossROIsz', 'ROI radius','4','CROSSCALIB','FLOAT'],$
-    ['CrossVol', 'Volume of container','4','CROSSCALIB','FLOAT']]
-
+    ['CrossVol', 'Volume of container','4','CROSSCALIB','FLOAT'],$
+    ['SNR_MR_ROI', 'ROI size (% of phantom)','5','SNR','FLOAT'],$
+    ['PUI_MR_ROI', 'ROI size (% of phantom)','5','PUI','FLOAT'],$
+    ['Ghost_MR_ROI', 'ROI param (Crad, w, h, d, Copt(0/1))','5','GHOST','FLOAT'],$
+    ['GD_MR_act', 'Actual phantom size (mm)','5','GEOMDIST','FLOAT'],$
+    ['Slice_MR_ROI', 'ROI param (tanA, w, h, dU, dL, Copt(0/1))','5','SLICETHICK','FLOAT']]
   RETURN
 end

@@ -108,9 +108,14 @@ pro updateROI, Ana=ana, SEL=presel, IMG=preImg
           END
           1: BEGIN
             WIDGET_CONTROL, unitDeltaO_ROI_X, GET_VALUE=offxyROIX_unit
-            IF offxyROIX_unit THEN centerOff=center+offxyROI/pix ELSE centerOff=center+offxyROI
+            IF offxyROIX_unit THEN centerOff=center+offxyROIX/pix ELSE centerOff=center+offxyROIX
             WIDGET_CONTROL, typeROIX, GET_VALUE= ROItype
           END
+          5: BEGIN
+            WIDGET_CONTROL, unitDeltaO_ROI_MR, GET_VALUE=offxyROIMR_unit
+            IF offxyROIMR_unit THEN centerOff=center+offxyROIMR/pix ELSE centerOff=center+offxyROIMR
+            WIDGET_CONTROL, typeROIMR, GET_VALUE= ROItype
+            END
           ELSE:
         ENDCASE
         CASE ROItype OF
@@ -118,6 +123,8 @@ pro updateROI, Ana=ana, SEL=presel, IMG=preImg
             CASE modality OF
               0: WIDGET_CONTROL, txtROIrad, GET_VALUE=ROIrad
               1: WIDGET_CONTROL, txtROIXrad, GET_VALUE=ROIrad
+              5: WIDGET_CONTROL, txtROIMRrad, GET_VALUE=ROIrad
+              ELSE:
             ENDCASE
             ROIsz=ROUND(FLOAT(ROIrad(0))/pix(0)) ; assume x,y pix equal ! = normal
             ROIroi=getROIcircle(szImg, centerOff, ROIsz);in a1_getROIs.pro
@@ -132,6 +139,11 @@ pro updateROI, Ana=ana, SEL=presel, IMG=preImg
                 WIDGET_CONTROL, txtROIXx, GET_VALUE=ROIx
                 WIDGET_CONTROL, txtROIXy, GET_VALUE=ROIy
               END
+              5: BEGIN
+                WIDGET_CONTROL, txtROIMRx, GET_VALUE=ROIx
+                WIDGET_CONTROL, txtROIMRy, GET_VALUE=ROIy
+                END
+              ELSE:
             ENDCASE
             ddx=FLOOR(0.5*FLOAT(ROIx(0))/pix(0))
             ddy=FLOOR(0.5*FLOAT(ROIy(0))/pix(1))
@@ -154,6 +166,11 @@ pro updateROI, Ana=ana, SEL=presel, IMG=preImg
                 WIDGET_CONTROL, txtROIXy, GET_VALUE=ROIy
                 WIDGET_CONTROL, txtROIXa, GET_VALUE=ROIa
               END
+              5: BEGIN
+                WIDGET_CONTROL, txtROIMRx, GET_VALUE=ROIx
+                WIDGET_CONTROL, txtROIMRy, GET_VALUE=ROIy
+                WIDGET_CONTROL, txtROIMRa, GET_VALUE=ROIa
+                END
             ENDCASE
 
             ddx=FLOOR(0.5*FLOAT(ROIx(0))/pix(0))
@@ -264,6 +281,61 @@ pro updateROI, Ana=ana, SEL=presel, IMG=preImg
         FOR i=0, 11 DO rcROIback[*,*,i]=rcROIback[*,*,i]*exBack(i)
         rcROIs[*,*,6:17]=rcROIback
       END
+      
+      'SNR':BEGIN
+        WIDGET_CONTROL, txtSNR_MR_ROI, GET_VALUE=ROIperc
+        SNR_ROI=getROIcircMR(tempimg,FLOAT(ROIperc(0)))
+        END
+      'PUI':BEGIN
+        WIDGET_CONTROL, txtPUI_MR_ROI, GET_VALUE=ROIperc
+        PUI_ROI=getROIcircMR(tempimg,FLOAT(ROIperc(0)))
+        END
+       'GHOST':BEGIN
+         WIDGET_CONTROL, txtGhost_MR_ROIszC, GET_VALUE=GHOST_MR_ROI_C
+         WIDGET_CONTROL, txtGhost_MR_ROIszW, GET_VALUE=GHOST_MR_ROI_W
+         WIDGET_CONTROL, txtGhost_MR_ROIszH, GET_VALUE=GHOST_MR_ROI_H
+         WIDGET_CONTROL, txtGhost_MR_ROIszD, GET_VALUE=GHOST_MR_ROI_D
+         rad=ROUND(FLOAT(GHOST_MR_ROI_C(0))/pix(0))
+         IF WIDGET_INFO(ghost_MR_optC, /BUTTON_SET) THEN centROI=getROIcircMR(tempimg, 0., RADPIX=rad) ELSE centROI=getROIcircle(szImg, center, rad)
+         w2=ROUND(FLOAT(GHOST_MR_ROI_W(0))/pix(0))/2
+         h=ROUND(FLOAT(GHOST_MR_ROI_H(0))/pix(0))
+         d=ROUND(FLOAT(GHOST_MR_ROI_D(0))/pix(0))
+         x1=MAX([0, szImg(0)/2-w2])
+         x2=MIN([szImg(0)/2+w2, szImg(0)-1])
+         y1=MAX([0, d])
+         y2=MIN([d+h, szImg(1)-1])
+         btmROI=INTARR(szImg)
+         btmROI[x1:x2,y1:y2]=1
+         ghostMR_ROI=INTARR(szImg(0),szImg(1),5)
+         ghostMR_ROI[*,*,0]=centROI
+         ghostMR_ROI[*,*,1]=btmROI
+         ghostMR_ROI[*,*,2]=ROTATE(btmROI,1)
+         ghostMR_ROI[*,*,3]=ROTATE(btmROI,2)
+         ghostMR_ROI[*,*,4]=ROTATE(btmROI,3)
+        END
+        'SLICETHICK':BEGIN;rotation ignored
+          WIDGET_CONTROL, txtSlice_MR_ROIszW, GET_VALUE=Slice_MR_ROI_W
+          WIDGET_CONTROL, txtSlice_MR_ROIszH, GET_VALUE=Slice_MR_ROI_H
+          WIDGET_CONTROL, txtSlice_MR_ROIszD, GET_VALUE=Slice_MR_ROI_D
+          WIDGET_CONTROL, txtSlice_MR_ROIszD2, GET_VALUE=Slice_MR_ROI_D2
+          rad=szImg(0)/10
+          IF WIDGET_INFO(slice_MR_optC, /BUTTON_SET) THEN centROI=getROIcircMR(tempimg, 0., RADPIX=rad) ELSE centROI=getROIcircle(szImg, center, rad)
+          centSlice=centroid(centROI, 0.5, 1) 
+          w2=ROUND(FLOAT(Slice_MR_ROI_W(0))/pix(0))/2
+          h2=ROUND(FLOAT(Slice_MR_ROI_H(0))/pix(0))/2
+          dU=ROUND(FLOAT(Slice_MR_ROI_D(0))/pix(0))
+          dL=ROUND(FLOAT(Slice_MR_ROI_D2(0))/pix(0))
+          dOff=centSlice-szImg/2
+          x1=MAX([0, szImg(0)/2-w2+dOff(0)])
+          x2=MIN([szImg(0)/2+w2+dOff(0), szImg(0)-1])
+          y1=MAX([0, szImg(1)/2+dOff(1)-dU-h2])
+          y2=MIN([szImg(1)/2+dOff(1)-dU+h2, szImg(1)-1])
+          sliceMR_ROI=INTARR(szImg(0),szImg(1),2)
+          sliceMR_ROI[x1:x2,y1:y2,0]=1
+          y1=MAX([0, szImg(1)/2+dOff(1)-dL-h2])
+          y2=MIN([szImg(1)/2+dOff(1)-dL+h2, szImg(1)-1])
+          sliceMR_ROI[x1:x2,y1:y2,1]=1
+        END
       ELSE:
     ENDCASE; ana
 

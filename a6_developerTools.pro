@@ -1,3 +1,62 @@
+pro commonVariable
+  thisPath=FILE_DIRNAME(ROUTINE_FILEPATH('ImageQC'))+'\'
+  filenames=FILE_SEARCH(thisPath,'*.pro', COUNT=nFound)
+  
+  commonName='COMMON VARI'
+  commonIn=!Null
+  variableName='SELIM_IQ';or functionname or procedure or anything
+  varIn=!Null
+  
+  ;loop through all .pro files and find where COMMON
+  FOR i=0, nFound-1 DO BEGIN
+    OPENR, filenhet, filenames(i), /GET_LUN
+    elem=''
+    WHILE ~ EOF(filenhet) DO BEGIN
+      READF, filenhet, elem
+      IF STRMATCH(elem,'*'+commonName+'*',/FOLD_CASE) THEN commonIn=[commonIn,filenames(i)]
+      IF STRMATCH(elem,'*'+variableName+'*',/FOLD_CASE) THEN varIn=[varIn,filenames(i)]
+      
+    ENDWHILE
+    CLOSE, filenhet
+    FREE_LUN, filenhet
+  ENDFOR
+  
+  commonIn=commonIn
+  
+  print, 'commonIn '
+  print, commonIn(UniQ(commonIn))
+  print, 'varIn '
+  print, varIn(uniq(varIn))
+end
+
+function nTextLines, adr
+  OPENR, unit, adr, /GET_LUN
+  str=''
+  nn=0
+  WHILE ~ EOF(unit) DO BEGIN
+    READF, unit, str
+    strtrimmed=STRTRIM(str,1)
+    IF strtrimmed NE '' AND STRMID(strtrimmed,0,1) NE ';' THEN nn=nn+1
+  ENDWHILE
+  FREE_LUN, unit
+  RETURN, nn
+end
+
+pro nCodeLines
+  thisPath=FILE_DIRNAME(ROUTINE_FILEPATH('ImageQC'))+'\'
+  filenames=FILE_SEARCH(thisPath,'*.pro', COUNT=nFound)
+
+  IF filenames(0) NE '' THEN BEGIN
+    nLines=0
+    nFiles=N_ELEMENTS(filenames)
+    FOR i=0, nFiles-1 DO BEGIN
+      nLines=nLines+ nTextLines(filenames(i))
+    ENDFOR
+  ENDIF
+
+  PRINT, 'Number of code lines: ', nlines
+end
+
 pro verifyStructures
 
   ;all imgStruct info

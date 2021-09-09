@@ -47,9 +47,10 @@ end
 ;reorder ids in structure of structures
 function reorderStructStruct, struct, newOrder
   ntags=N_TAGS(struct)
+  nNewOrder=N_ELEMENTS(newOrder)
   tagname=TAG_NAMES(struct)
   structNew=CREATE_STRUCT(tagname(newOrder(0)),struct.(newOrder(0)))
-  FOR i=1, ntags-1 DO structNew=CREATE_STRUCT(structNew,tagname(newOrder(i)),struct.(newOrder(i)))
+  FOR i=1, nNewOrder-1 DO structNew=CREATE_STRUCT(structNew,tagname(newOrder(i)),struct.(newOrder(i)))
   return, structNew
 end
 
@@ -122,6 +123,48 @@ end
 
 ;************* config updates *****************************
 
+function updConfigGetSiemensQC
+
+  PETstrings=CREATE_STRUCT($
+    'English',['Scan Date:','Partial Setup','Full setup','Time Alignment','Calibration','Block Noise','Block Efficiency','Randoms','Scanner Efficiency','Scatter Ratio','Image Plane','Block Timing','Phantom position','true'])
+  CTstrings=CREATE_STRUCT($
+    'English',['Quality Daily','Quality Constancy','Slice','Homogeneity','Noise','Tolerance','Test: Typical head','Test: Typical body','Number of images','Test: Sharpest mode','Tester name','Product Name','Serial Number','Tube Asse','Description','Value','Result','Test Result'],$
+    'Norsk',['Kvalitet daglig','Kvalitetskonstans','Snitt','Homogenitet','St?y','Toleranse','Test: Typisk hode','Test: Typisk kropp','Antall bilder','Test: Skarpeste modus','Kontroll?rnavn','Produktnavn','Serienummer','R?renhet','Beskrivelse','Verdi','Resultat','Test Resultat'])
+  months=['January','February','March','April','May','June','July','August','September','October','November','December']
+
+  headersPET=['Date','ICS Name','Partial','Full',$
+    'Time Align','Calib Factor','Measured Randoms','Scanner Efficiency',$
+    'Scatter Ratio','ECF','Time Alignment Residual', 'Time Alignment fit x','Time Alignment fit y',$
+    'Phantom Pos x', 'Phantom Pos y']
+  headersCT=['Date','Tester name','Product Name','Serial Number','Serial Tube A', 'Serial Tube B',$
+    'HUwater head min','HUwater head max','HUwater body min','HUwater body max',$
+    'Diff head max(abs)','Diff body max(abs)',$
+    'Noise head max','Noise body max',$
+    'Slice head min','Slice head max','Slice body min','Slice body max',$
+    'MTF50 B smooth','MTF10 B smooth','MTF50 H smooth','MTF10 H smooth','MTF50 H sharp','MTF10 H sharp','MTF50 UHR','MTF10 UHR',$
+    'HUwater dblA min','HUwater dblA max','HUwater dblB min','HUwater dblB max',$
+    'Diff dblA max(abs)','Diff dblB max(abs)',$
+    'Noise dblA max','Noise dblB max',$
+    'Slice dblA min','Slice dblA max','Slice dblB min','Slice dblB max',$
+    'MTF50 dblA smooth','MTF10 dblA smooth','MTF50 dblB smooth','MTF10 dblB smooth']
+  headersCT_T2=['Date','Tester name','Product Name','Serial Number','Tube ID',$
+    'HUwater 110kV min','HUwater 110kV max','HUwater 130kV min','HUwater 130kV max',$
+    'Diff 110kV max(abs)','Diff 130kV max(abs)',$
+    'Noise 80kV','Noise 110kV','Noise 130kV',$
+    'Slice 1mm','Slice 1.5mm','Slice 2.5mm','Slice 4mm','Slice 5mm',$
+    'MTF50 B31s','MTF10 B31s','MTF50 H41s','MTF10 H41s','MTF50 U90s','MTF10 U90s']
+  headersCT_Intevo=['Date','Tester name','Product Name','Serial Number','Tube ID',$
+    'HUwater head min','HUwater head max','HUwater body min','HUwater body max',$
+    'Diff head max(abs)','Diff body max(abs)',$
+    'Noise head max','Noise body max',$
+    'Slice head min','Slice head max','Slice body min','Slice body max',$
+    'MTF50 B smooth','MTF10 B smooth','MTF50 H smooth','MTF10 H smooth','MTF50 UHR','MTF10 UHR']
+  headers=CREATE_STRUCT('PET',headersPET,'CT', headersCT,'CT_T2', headersCT_T2, 'CT_Intevo', headersCT_Intevo)
+
+  cGSQC=CREATE_STRUCT('PET',PETstrings,'CT',CTstrings,'months',months, 'headers',headers)
+  return, cGSQC
+end
+
 function updateConfigS, file
 
   ;default values if missing:
@@ -137,8 +180,7 @@ function updateConfigS, file
     'deciMark',',', $
     'includeFilename', 0, $
     'append',0,$
-    'autoImportPath','',$
-    'autoContinue',0,$
+    'autoImportPath','','autoContinue',0,'wait',[5,2],$
     'qtOutTemps', ['DEFAULT','DEFAULT','DEFAULT','DEFAULT','DEFAULT','DEFAULT'], $
     'MTFtype',2,'MTFtypeX',1,'MTFtypeNM',1,'MTFtypeSPECT',1, $
     'plotMTF',3,'plotMTFX', 3, 'plotMTFNM',4,'plotMTFSPECT',4, 'tableMTF',0,'cyclMTF',0,'tableMTFX', 0, $
@@ -151,6 +193,7 @@ function updateConfigS, file
     'NoiseROIsz',55., 'NoiseXpercent',90, 'HUwaterROIsz', 55.,$
     'typeROI',0,'ROIrad',5.,'ROIx',10.,'ROIy',10.,'ROIa',0.,'offxyROI', [0,0], 'offxyROI_unit', 0,$
     'typeROIX',0,'ROIXrad',5.,'ROIXx',10.,'ROIXy',10.,'ROIXa',0.,'offxyROIX', [0,0], 'offxyROIX_unit', 0,$
+    'typeROIMR',0,'ROIMRrad',5.,'ROIMRx',10.,'ROIMRy',10.,'ROIMRa',0.,'offxyROIMR', [0,0], 'offxyROIMR_unit', 0,$
     'NPSroiSz', 50, 'NPSroiDist', 50., 'NPSsubNN', 20, 'NPSroiSzX', 256, 'NPSsubSzX', 5, 'NPSavg', 1, $
     'STProiSz', 11.3, $
     'unifAreaRatio', 0.95,'SNIAreaRatio', 0.9,'unifCorr',0,'unifCorrPos',[0,0],'unifCorrRad',-1.,'SNIcorr',0,'SNIcorrPos',[0,0],'SNIcorrRad',-1.,$
@@ -158,8 +201,9 @@ function updateConfigS, file
     'barROIsz',50.0,'barWidths',[6.4,4.8,4.0,3.2],$
     'ScanSpeedAvg', 25, 'ScanSpeedHeight', 100., 'ScanSpeedFiltW', 15, $
     'ContrastRad1', 20., 'ContrastRad2', 58.,$
-    'CrossROIsz', 60., 'CrossVol', 0.0)
-  ;Removed: unifcorr NM pointsource: 'distCorr',385.0,'attCoeff',2.2,'detThick',9.5,
+    'CrossROIsz', 60., 'CrossVol', 0.0,$
+    'SNR_MR_ROI', 75., 'PUI_MR_ROI', 75., 'Ghost_MR_ROI', [80.,40.,10.,10.,1.],'GD_MR_act', 190.,'Slice_MR_ROI',[0.1,100.,3.,-2.5,2.5,1.])
+
   userinfo=get_login_info()
   commonConfig=CREATE_STRUCT('defConfigNo',1,'saveBlocked',1,'saveStamp',systime(/SECONDS),'username',userinfo.user_name,'autoUnBlock',8);NB if changed check on remBlock in settings.pro
   configSdefault=CREATE_STRUCT('commonConfig',commonConfig,'configDefault',configDefault)
@@ -361,8 +405,9 @@ function updateQuickTout, file, analyseStrAll
     'STP', CREATE_STRUCT('Pixel_mean',CREATE_STRUCT('ALT',0,'COLUMNS',2,'CALC',0,'PER_SERIES',0)),$
     'HOMOG',-1,'NOISE',-1,'EXP',-1,'MTF',-1,'ROI',-1)
   defNM=CREATE_STRUCT('UNIF', -1,'SNI',-1,'ACQ',-1,'BAR',-1)
-  defMR=CREATE_STRUCT('DCM', -1,'POS',-1)
-  quickToutDefault=CREATE_STRUCT('CT',CREATE_STRUCT('DEFAULT',defCT),'Xray',CREATE_STRUCT('DEFAULT',defXray),'NM',CREATE_STRUCT('DEFAULT',defNM),'MR',CREATE_STRUCT('DEFAULT',defMR))
+  defPET=CREATE_STRUCT('HOMOG', -1)
+  defMR=CREATE_STRUCT('DCM', -1,'SNR',-1,'PUI',-1,'GHOST',-1,'GEOMDIST',-1,'SLICETHICK',-1,'ROI',-1)
+  quickToutDefault=CREATE_STRUCT('CT',CREATE_STRUCT('DEFAULT',defCT),'Xray',CREATE_STRUCT('DEFAULT',defXray),'NM',CREATE_STRUCT('DEFAULT',defNM),'PET',CREATE_STRUCT('DEFAULT',defPET),'MR',CREATE_STRUCT('DEFAULT',defMR))
 
   IF file EQ '' THEN quickTout=quickToutDefault ELSE BEGIN
     ;find existing values and paste into new configS structure
@@ -548,7 +593,6 @@ function updateLoadT, file, mOpt, TEMPPA=temppa
       IF N_ELEMENTS(loadT) GT 0 THEN BEGIN
         ;path - folder where the images should be found
         ;statName - station name as defined in DICOM (or empty) - to automatically recognize and sort images into their corresponding folders
-        ;loadBy - 0 = load all images in specified path, 1 = load last date only (for startup/testing issues)
         ;sortBy - STRARR with structure tags in image structure to sort images by
         ;sortAsc - 0/1 ARR where sort order defined 0=ascending, 1=descending , one element=0 (from old template versions) means all ascending
         ;paramSet - name of paramSet to link to or '' if default
@@ -561,8 +605,6 @@ function updateLoadT, file, mOpt, TEMPPA=temppa
           'path','',$
           'statName','',$
           'dcmCrit',['0000','0000',''],$
-          'loadBy',0,$
-          'includeSub',0,$
           'sortBy', '', $
           'sortAsc',0, $
           'paramSet','', $
@@ -996,7 +1038,6 @@ function readImg, adr, frame
         PTR_FREE, test_peker
       ENDIF ELSE BEGIN
         matrix=INTARR(100,100)
-        ;sv=DIALOG_MESSAGE('File do not contain image data. Program might crash. Try closing the file.'+adr, DIALOG_PARENT=0)
       ENDELSE
 
       OBJ_DESTROY,o
@@ -1093,61 +1134,193 @@ function DMYtoYMD, str
   return, strYMD
 end
 
+;For RenameDICOM
+;path = file or folder address
+;foler = 1 if path is a folder or 0 if path is a file, -1 if file and output is strarray, not filename
+;elemArr = string array with elements to pick from tagStruct
+;tagStruct = structure with dicom elements [group, element]
+;formatsArr = string array with format strings without () e.g. ['a0','f0.3']
+function newFileName, path, folder, elemArr, tagStruct, formatsArr
+  newpath=''
+
+  IF folder EQ 1 THEN BEGIN
+    Spawn, 'dir '  + '"'+path+'"' + '*'+ '/b /a-d', res; files only
+
+    IF res(0) NE '' THEN BEGIN;find first dcm file and extract info from this header
+      res=path+res(sort(res))
+      nn=N_ELEMENTS(res)
+      dcm=-1
+      counter=0
+      FOR n=0, nn-1 DO BEGIN
+        dcm=QUERY_DICOM(res(n))
+        IF dcm EQ 1 THEN path=res(n)
+        IF dcm EQ 1 THEN BREAK ELSE counter=counter+1
+      ENDFOR
+    ENDIF ELSE dcm=-1;no files found
+  ENDIF ELSE dcm=QUERY_DICOM(path)
+
+  IF dcm EQ 1 THEN BEGIN
+    o=obj_new('idlffdicom')
+    t=o->read(path)
+
+    nElem=N_ELEMENTS(elemArr)
+    desc=TAG_NAMES(tagStruct)
+
+    nameArr=!Null
+    FOR ee=0, nElem-1 DO BEGIN
+      ide=WHERE(desc EQ STRUPCASE(elemArr(ee)))
+      ide=ide(0)
+      thisTag=tagStruct.(ide)
+      test=o->GetReference(thisTag(0),thisTag(1))
+      notFound=1
+      IF test(0) NE -1 THEN BEGIN
+        test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
+
+        stest=size(test_peker, /TNAME)
+        IF stest EQ 'POINTER' THEN BEGIN
+          namePart=*(test_peker[0])
+
+          nameParts=STRSPLIT(namePart(0),'\',/EXTRACT)
+          formats=STRSPLIT(STRMID(formatsArr.(ide), 1, strlen(formatsArr.(ide))-2),'\',/EXTRACT)
+          nP=N_ELEMENTS(nameParts)
+          IF nP EQ N_ELEMENTS(formats) AND nP GT 1 THEN BEGIN
+            namePartArr=!Null
+            FOR p=0, nP-1 DO BEGIN
+              IF formats(p) NE '_' THEN namePartArr=[namePartArr,STRING(nameParts(p), FORMAT='('+formats(p)+')')]
+            ENDFOR
+            namePart=STRJOIN(namePartArr,'_')
+          ENDIF ELSE namePart=STRING(nameParts(0),FORMAT=formatsArr.(ide))
+
+          nameArr=[nameArr,namePart]
+          notFound=0
+        ENDIF
+
+      ENDIF
+      IF notFound and folder EQ -1 THEN nameArr=[nameArr,'- not found -']
+    ENDFOR
+
+    obj_destroy,o
+
+    IF N_ELEMENTS(nameArr) GT 0 THEN BEGIN
+      IF folder EQ 1 THEN nameArr=IDL_VALIDNAME(nameArr,/CONVERT_ALL)
+      IF folder EQ -1 THEN BEGIN;array of file elements out if folder =-1
+        newpath=nameArr
+        FOREACH elem, newpath, idx DO newpath(idx)=elem.replace('*','X')
+      ENDIF ELSE BEGIN
+        nameStr=STRJOIN(nameArr,'_')
+        IF folder EQ 1 THEN nameStr=STRJOIN(STRSPLIT(nameStr,'_',/EXTRACT),'_') ;remove all multiple and first _
+
+        arr=STRSPLIT(path,'\',/EXTRACT)
+        last=n_elements(arr)-1
+        IF folder EQ 1 THEN newpath=STRJOIN(arr[0:last-2],'\')+'\'+nameStr+'\' ELSE BEGIN
+          nameStr=nameStr.replace('*','X');change * to X (format code not ideal return *)
+          nameStr=nameStr.replace(' ','_')
+          nameStr=STRJOIN(STRSPLIT(nameStr,'[-/\?#%&{}`<>$!:@+|=]',/EXTRACT, /REGEX),'_')
+
+          newpath=STRJOIN(arr[0:last-1],'\')+'\'+nameStr+'.dcm'
+        ENDELSE
+      ENDELSE
+    ENDIF
+
+  ENDIF
+
+  return, newpath
+end
+
 ; return list of filenames for open files
 ; struc = structure of structures from readCT.pro
 ; full = 0 for only parentfolder\filename, =1 for full path
 ; marked = array of indexes for marked files, -1 means none is marked
 ;   full=1 returns only marked, full=0 returns all and set an X on the marked
-; mMulti = multiMark array, -1 means no multimarking (X)
-function getListOpenFiles, struc, full, marked, mMulti
+; mMulti = multiMark array, -1 means no multimarking (only X)
+function getListOpenFiles, struc, full, marked, mMulti, RENAMEDICOM=RDname, CONFIGPATH=cPath, PARENT=parent
+  tags=TAG_NAMES(struc)
+  fileList=''
+  IF tags(0) NE 'EMPTY' THEN BEGIN
+    nn=N_TAGS(struc)
+    markedArr=INTARR(nn)
+    szMM=SIZE(mMulti, /DIMENSIONS)
+    IF N_ELEMENTS(szMM) EQ 1 THEN szMM=[szMM,1]
+    IF marked(0) NE -1 THEN markedArr(marked)=1 ELSE markedArr=markedArr+1
+    IF full EQ 1 THEN BEGIN
+      fileList=STRARR(TOTAL(markedArr))
+      counter=0
+      FOR i=0, nn-1 DO BEGIN
+        IF markedArr(i) EQ 1 THEN BEGIN
+          fileList(counter)=struc.(i).filename
+          counter=counter+1
+        ENDIF
+      ENDFOR
+    ENDIF ELSE BEGIN
+      fileList=STRARR(nn)
 
-  nn=N_TAGS(struc)
-  markedArr=INTARR(nn)
-  szMM=SIZE(mMulti, /DIMENSIONS)
-  IF N_ELEMENTS(szMM) EQ 1 THEN szMM=[szMM,1]
-  IF marked(0) NE -1 THEN markedArr(marked)=1 ELSE markedArr=markedArr+1
-  IF full EQ 1 THEN BEGIN
-    fileList=STRARR(TOTAL(markedArr))
-    counter=0
-    FOR i=0, nn-1 DO BEGIN
-      IF markedArr(i) EQ 1 THEN BEGIN
-        fileList(counter)=struc.(i).filename
-        counter=counter+1
+      RD=0
+      currRDtemp=!Null
+      RDtags=!Null
+      IF N_ELEMENTS(RDname) NE 0 THEN BEGIN
+        IF RDname NE '' THEN BEGIN
+          IF FILE_TEST(cPath, /READ) THEN BEGIN
+            RESTORE, cPath
+            currNames=TAG_NAMES(renameTemp.(2))
+            IF currNames.HasValue(RDname) THEN BEGIN
+              RD=1
+              idTemp=WHERE(currNames EQ RDname)
+              currRDtemp=renameTemp.(2).(idTemp(0))
+              RDtags=renameTemp.tags
+            ENDIF ELSE BEGIN
+              sv=DIALOG_MESSAGE('Could not fine RenameDICOM template called '+RDname+'. Consider creating this template within File->RenameDICOM.', /INFORMATION, DIALOG_PARENT=parent)
+            ENDELSE
+          ENDIF
+        ENDIF
       ENDIF
-    ENDFOR
-  ENDIF ELSE BEGIN
-    fileList=STRARR(nn)
 
-    FOR i=0, nn-1 DO BEGIN
-      add='   '
-      IF mMulti(0) EQ -1 THEN BEGIN
-        IF markedArr(i) AND marked(0) NE -1 THEN add='X ' ELSE add='   '
-      ENDIF ELSE IF mMulti(0) NE -1 THEN BEGIN
-        add=''
-        IF i LT szMM(1) THEN BEGIN
-          FOR j=0, szMM(0)-1 DO BEGIN
-            IF mMulti[j,i] THEN add=add+STRING(j+1, FORMAT='(i0)') ELSE add=add+'  '
-          ENDFOR
-        ENDIF ELSE add=STRING(STRARR(szMM(0)), FORMAT='('+STRING(szMM(0), FORMAT='(i0)')+'(a2))')
-        add=add+'   '
-      ENDIF
-      t=STRSPLIT(struc.(i).filename,'\',/EXTRACT)
-      nSplit=N_ELeMENTS(t)
+      FOR i=0, nn-1 DO BEGIN
+        add='   '
+        IF mMulti(0) EQ -1 THEN BEGIN
+          IF markedArr(i) AND marked(0) NE -1 THEN add='X ' ELSE add='   '
+        ENDIF ELSE IF mMulti(0) NE -1 THEN BEGIN
+          add=''
+          IF i LT szMM(1) THEN BEGIN
+            FOR j=0, szMM(0)-1 DO BEGIN
+              IF mMulti[j,i] THEN add=add+STRING(j+1, FORMAT='(i0)') ELSE add=add+'  '
+            ENDFOR
+          ENDIF ELSE add=STRING(STRARR(szMM(0)), FORMAT='('+STRING(szMM(0), FORMAT='(i0)')+'(a2))')
+          add=add+'   '
+        ENDIF
 
-      endStr=''
-      IF struc.(i).nFrames GT 1 THEN BEGIN
-        IF struc.(i).zpos[0] NE -999. AND struc.(i).slicethick GT 0. THEN endStr='  zpos '+STRING(struc.(i).zpos,FORMAT='(f0.3)')
-        IF struc.(i).angle[0] NE -999. THEN endStr='  angle '+STRING(struc.(i).zpos,FORMAT='(f0.3)')
-        IF endStr EQ '' THEN endStr='  frame '+STRING(struc.(i).frameNo,FORMAT='(i0)')
-      ENDIF
+        midStr=''
+        IF RD EQ 0 THEN BEGIN;show filename
+          splitAdr=STRSPLIT(struc.(i).filename,'\',/EXTRACT)
+          nSplit=N_ELeMENTS(splitAdr)
+          midStr=STRJOIN(splitAdr[nSplit-2:nSplit-1],'\')
+        ENDIF ELSE BEGIN;show RenameDICOM string for input template name
+          formatCurr=currRDtemp.formats
+          fileTemp=currRDtemp.file
+          IF fileTemp(0) NE '' THEN midStr=newFileName(struc.(i).filename, 0, fileTemp, RDtags, formatCurr) ELSE midStr=''
+          IF midStr EQ '' THEN BEGIN
+            splitAdr=STRSPLIT(struc.(i).filename,'\',/EXTRACT)
+            nSplit=N_ELeMENTS(splitAdr)
+            midStr=STRJOIN(splitAdr[nSplit-2:nSplit-1],'\')
+          ENDIF ELSE BEGIN
+            midStr=STRSPLIT(midStr,'\',/EXTRACT)
+            midStr=STRMID(midStr[-1],0,STRLEN(midStr[-1])-4);remove folder and .dcm
+          ENDELSE
+        ENDELSE
 
-      fileList(i)=add+STRJOIN(t[nSplit-2:nSplit-1],'\')+endStr
+        endStr=''
+        IF struc.(i).nFrames GT 1 THEN BEGIN
+          IF struc.(i).zpos[0] NE -999. AND struc.(i).slicethick GT 0. THEN endStr='  zpos '+STRING(struc.(i).zpos,FORMAT='(f0.3)')
+          IF struc.(i).angle[0] NE -999. THEN endStr='  angle '+STRING(struc.(i).zpos,FORMAT='(f0.3)')
+          IF endStr EQ '' THEN endStr='  frame '+STRING(struc.(i).frameNo,FORMAT='(i0)')
+        ENDIF
 
-    ENDFOR
-  ENDELSE
+        fileList(i)=add+midStr+endStr
 
+      ENDFOR
+    ENDELSE
+  ENDIF
   return, fileList
-end
+end;getListOpenFilse
 
 ;get test-number based on current modality tab
 function getResNmb, tabNmb, stringElem, allStrings
@@ -1389,7 +1562,7 @@ function smoothIrreg, X, Y, w
   IF w GT 0 THEN BEGIN
     nY=N_ELEMENTS(Y)
     smoothedY=0.0*Y
-    
+
     FOR i=0, nY-1 DO BEGIN
       tempX=ABS(X-X(i))
       idx=WHERE(tempX LE w, nidx)
@@ -1397,7 +1570,7 @@ function smoothIrreg, X, Y, w
       fac=fac/TOTAL(fac)
       smoothedY(i)=TOTAL(fac*Y(idx))
     ENDFOR
-    
+
   ENDIF ELSE smoothedY=Y
   return, smoothedY
 end
@@ -1591,7 +1764,7 @@ function fitDistPointSource, img, roiMatrix, pix, radi, posfit, radfit
   imgSz=SIZE(img,/DIMENSIONS)
 
   ;estimate centerposition (max) in image?
-  IF posfit(0) EQ 0 THEN BEGIN;x dir  
+  IF posfit(0) EQ 0 THEN BEGIN;x dir
     profX=TOTAL(img[firstX:lastX,firstY:lastY],2)
     xx=FINDGEN(lastX-firstX+1)
     cc=POLY_FIT(xx,profX,2)
@@ -1610,7 +1783,7 @@ function fitDistPointSource, img, roiMatrix, pix, radi, posfit, radfit
   fitPos=ROUND([fitX,fitY])
   centerVal=MEAN(img[fitPos(0)-3:fitPos(0)+3,fitPos(1)-3:fitPos(1)+3]);mean of center pixel and its neighbours
   fitPos=[fitX,fitY]
-  
+
   ;calculate distance from center in image plane within ROI, sort pixels by distance and fit
   roiSz=[lastX-firstX+1, lastY-firstY+1]
   distCenter=FLTARR(imgSz);pixel distance from center
@@ -1635,7 +1808,7 @@ function fitDistPointSource, img, roiMatrix, pix, radi, posfit, radfit
     A=[centerVal*(MEAN(radfit)^2),MEAN(radfit)];firstGuess I0, R0
     fita=[1,0]
   ENDIF
-  
+
   ;equation A6 from https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3966082/#x0 (doi:  10.1118/1.3125642)
   yfit = CURVEFIT(newDists, newSortImg, newDists*0+1., A, FITA=fita, FUNCTION_NAME='pointSourceFit', ITER=iter, CHISQ=chisq);pointSourceFit in a3_fitFunctions.pro
 
@@ -1643,46 +1816,17 @@ function fitDistPointSource, img, roiMatrix, pix, radi, posfit, radfit
 
   ;corr=(distCenter^2+A[1]^2)^(1.5)
   ;corr=(1./min(corr))*corr; matrix to multiply by
-  
+
   fitM=A(0)*A(1)/[(distCenter^2+A[1]^2)^(1.5)]
   corrSub=fitM-yfit(0);matrix to subtract
   corr=(1./max(fitM))*fitM
   corr=1./corr; matrix to multiply by
-  
+
   fitDist=A[1]
   fitPos=pix*(fitPos-imgSz/2);mm from center
 
   return, CREATE_STRUCT('corr',corr, 'corrSub',corrSub,'fitDist',fitDist, 'fitPos', fitPos,'fitData',fitData)
 end
-
-;correction matrix based on input image with inverse square law when point source flooding planar detektor
-;function corrDistPointSource, img, sid, pix, thick, attcoeff
-;  ;center of imager
-;  szImg=SIZE(img, /DIMENSIONS)
-;  distCenter=FLTARR(szImg/2);pixel distance from center
-;  FOR i=0, szImg(0)/2-1 DO BEGIN
-;    FOR j=0, szImg(1)/2-1 DO distCenter(i,j)=SQRT((i+0.5)^2+(j+0.5)^2)
-;  ENDFOR
-;  distCenter=pix*distCenter
-;
-;  ;equation A6 from https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3966082/#x0 (doi:  10.1118/1.3125642)
-;  ;corrMatrix = f central relativ to f periferral excluding N
-;  ds=distCenter^2+sid^2
-;  fCentral =  1. / (sid^2)
-;  IF thick GT 0. AND attcoeff GT 0. THEN BEGIN
-;    euT=EXP(-attcoeff*thick)
-;    fPerif = ((1-euT^(SQRT(ds)/sid))/(1-euT))*(sid/(ds^1.5))
-;  ENDIF ELSE fPerif=(sid/(ds^1.5))
-;
-;  corrMatrix=img*0.0
-;  corrQuad=fCentral/fPerif
-;  corrMatrix[0:szImg(0)/2-1,0:szImg(1)/2-1]=ROTATE(corrQuad,2)
-;  corrMatrix[0:szImg(0)/2-1,szImg(1)/2:szImg(1)-1]=ROTATE(corrQuad,5)
-;  corrMatrix[szImg(0)/2:szImg(0)-1,0:szImg(1)/2-1]=ROTATE(corrQuad,7)
-;  corrMatrix[szImg(0)/2:szImg(0)-1,szImg(1)/2:szImg(1)-1]=corrQuad
-;
-;  return, corrMatrix
-;end
 
 ;combine 2x2 pixels to get matrix size from 2^n to 2^(n-1)
 function sum2x2pix, img, repeats
@@ -1787,19 +1931,19 @@ end
 ;modified by Ellen Wasbo 2015 (Stavanger University Hospital, Norway)
 ;modification related to user interface to incorporate code into ImageQC
 
-function get_fwhm, image, center, pixel
+function get_fwhm, imageIn, center, pixel
 
-  szImg=SIZE(image, /DIMENSIONS)
+  szImg=SIZE(imageIn, /DIMENSIONS)
 
   ;modified from psf.pro & CALCULATE_LSF_LIST.pro
-  region    = image[center(0)-15:center(0)+15, center(1)-5:center(1)+4]             ; omr�det rundt kulen, 31 piksler i x-retning, 10 piksler i y-retning
+  region    = imageIn[center(0)-15:center(0)+15, center(1)-5:center(1)+4]             ; omr�det rundt kulen, 31 piksler i x-retning, 10 piksler i y-retning
   unitv   = REPLICATE(1.,10)                      ; array, 10 elementer med verdien 1
   profile   = region # unitv                      ; array, 31 elementer med summen av de 10 y-verdiene for hver piksel i x-retning
 
   centerB=center
   centerB(1)=center(1)+ROUND(szImg(1)/4)
 
-  regionB   = image[centerB(0)-15:centerB(0)+15, centerB(1)-5:centerB(1)+4]          ; bakgrunn med samme form og st�rrelse som signalet
+  regionB   = imageIn[centerB(0)-15:centerB(0)+15, centerB(1)-5:centerB(1)+4]          ; bakgrunn med samme form og st�rrelse som signalet
   backgroundv = regionB # unitv                       ; summerer bakgrunnen slik som signalet
   meanbackgr  = MEAN(backgroundv)                     ; finner gjennomsnittlig verdi av bakgrunnen
   background  = REPLICATE(meanbackgr, N_ELEMENTS(profile))        ; 1d-array med gjennomsnittlig bakgrunnsverdi i alle 31 elementene
@@ -1870,4 +2014,27 @@ function get_fwhm, image, center, pixel
   ENDIF ELSE res=-1
 
   return, res
+end
+
+;-----------------search for new GE_QAP files excluding folder Archive and including other subfolders-----------
+function findNewGE_QAP_files, inputPath
+  filesFound=''
+  sep=PATH_SEP()
+  Spawn, 'dir '  + '"'+inputPath(0)+'"' + ' /b /a:D', dirTempTemp
+  IF dirTempTemp(0) NE '' THEN BEGIN
+    FOR dd=0, N_ELEMENTS(dirTempTemp)-1 DO BEGIN
+      IF dirTempTemp(dd) NE 'Archive' THEN BEGIN
+        Spawn, 'dir '  + '"'+inputPath(0)+dirTempTemp(dd)+sep+'"' + '*.txt'+ ' /b', adrThisSub
+        IF adrThisSub(0) NE '' THEN BEGIN
+          filesFound=[filesFound,inputPath(0)+dirTempTemp(dd)+sep+adrThisSub]
+        ENDIF
+      ENDIF
+    ENDFOR
+    Spawn, 'dir '  + '"'+inputPath(0)+'"' + '*.txt'+ ' /b', adrDirect
+    IF adrDirect(0) NE '' THEN BEGIN
+      filesFound=[filesFound,inputPath(0)+adrDirect]
+    ENDIF
+    IF N_ELEMENTS(filesFound) GT 1 THEN filesFound=filesFound[1:-1];remove first empty ''
+  ENDIF
+  return, filesFound
 end
