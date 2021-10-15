@@ -548,11 +548,11 @@ pro updateTable
             FOR i=0, nRows-1 DO resArrString[*,i]=STRING(SNRres[*,markedTemp(i)], FORMAT=formatCode(SNRres[*,markedTemp(i)]))
           END
 
-          'PUI':BEGIN
-            headers=tableHeaders.MR.PUI.Alt1
+          'PIU':BEGIN
+            headers=tableHeaders.MR.PIU.Alt1
             nCols=N_ELEMENTS(headers)
             resArrString=STRARR(nCols,nRows)
-            FOR i=0, nRows-1 DO resArrString[*,i]=STRING(PUIres[0:nCols-1,markedTemp(i)], FORMAT='(f0.1)')
+            FOR i=0, nRows-1 DO resArrString[*,i]=STRING(PIUres[0:nCols-1,markedTemp(i)], FORMAT='(f0.1)')
           END
           
           'GHOST':BEGIN
@@ -561,7 +561,7 @@ pro updateTable
             resArrString=STRARR(nCols,nRows)
             FOR i=0, nRows-1 DO BEGIN
               resArrString[0:4,i]=STRING(ghostMRres[0:4,markedTemp(i)], FORMAT=formatCode(ghostMRres[0:4,markedTemp(i)]))
-              resArrString[5,i]=STRING(ghostMRres[5,markedTemp(i)], FORMAT='(f0.4)')
+              resArrString[5,i]=STRING(ghostMRres[5,markedTemp(i)], FORMAT='(f0.2)')
             ENDFOR
           END
           

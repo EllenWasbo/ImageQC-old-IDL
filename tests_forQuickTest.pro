@@ -1188,11 +1188,11 @@ pro SNR_MR
     SNRres=resArr
     results(testNmb)=1
     redrawImg,0,1;active back to original selected
-  ENDIF
+  ENDIF ELSE sv=DIALOG_MESSAGE('You need to select at least two images to calculate difference image.', DIALOG_PARENT=evTop)
 
 end
 
-pro PUI_MR
+pro PIU_MR
   COMPILE_OPT hidden
   COMMON VARI
   WIDGET_CONTROL, /HOURGLASS
@@ -1200,7 +1200,7 @@ pro PUI_MR
   nImg=N_TAGS(structImgs)
 
   resArr=FLTARR(7,nImg)-1; ['min','max','PIU','X min','Y min','X max','Y max']
-  testNmb=getResNmb(modality,'PUI',analyseStringsAll)
+  testNmb=getResNmb(modality,'PIU',analyseStringsAll)
   markedArr=INTARR(nImg)
   IF marked(0) EQ -1 THEN BEGIN
     IF markedMulti(0) EQ -1 THEN markedArr=markedArr+1 ELSE markedArr=markedMulti[testNmb,*]
@@ -1210,15 +1210,15 @@ pro PUI_MR
     anaImg=WHERE(markedArr EQ 1)
     first=anaImg(0)
     activeImg=readImg(structImgs.(first).filename, structImgs.(first).frameNo)
-    updateROI, ANA='PUI', SEL=first
-    szROI=SIZE(PUI_ROI, /DIMENSIONS)
+    updateROI, ANA='PIU', SEL=first
+    szROI=SIZE(PIU_ROI, /DIMENSIONS)
 
     nI=MIN([nImg,N_ELEMENTS(markedArr)])
     FOR i=0, nI-1 DO BEGIN
       IF markedArr(i) THEN BEGIN
         ;check if same size
         activeImg=readImg(structImgs.(i).filename, structImgs.(i).frameNo)
-        updateROI, ANA='PUI', SEL=i;always update pr image
+        updateROI, ANA='PIU', SEL=i;always update pr image
 
         pix=structImgs.(i).pix
         szROI=ROUND(10./pix(0));1cm^2 ROIs to evaluate
@@ -1227,7 +1227,7 @@ pro PUI_MR
         kernelSmooth=FLTARR(szROI,szROI)+(1./szROI^2)
         smoothTemp=CONVOL(activeImg,kernelSmooth,CENTER=0)
 
-        maske=PUI_ROI
+        maske=PIU_ROI
         IMAGE_STATISTICS, smoothTemp, MAXIMUM=maxVal, MINIMUM=minVal, MASK=maske
         resArr(0,i)=minVal
         resArr(1,i)=maxVal
@@ -1243,11 +1243,11 @@ pro PUI_MR
         resArr(5,i)=indMax(0)
         resArr(6,i)=indMax(1)
       ENDIF
-      WIDGET_CONTROL, lblProgress, SET_VALUE='Calculating PUI: '+STRING(i*100./nI, FORMAT='(i0)')+' %'
+      WIDGET_CONTROL, lblProgress, SET_VALUE='Calculating PIU: '+STRING(i*100./nI, FORMAT='(i0)')+' %'
     ENDFOR
     WIDGET_CONTROL, lblProgress, SET_VALUE=''
 
-    PUIres=resArr
+    PIUres=resArr
     results(testNmb)=1
     redrawImg,0,1;active back to original selected
   ENDIF
@@ -1304,10 +1304,10 @@ pro Ghost_MR
         IMAGE_STATISTICS, activeImg, MEAN=rMean, MASK=maske
         resArr(4,i)=rMean
 
-        resArr(5,i)=ABS(0.5*((lMean+rMean)-(tMean+bMean))/cMean)
+        resArr(5,i)=ABS(100.*0.5*((lMean+rMean)-(tMean+bMean))/cMean)
 
       ENDIF
-      WIDGET_CONTROL, lblProgress, SET_VALUE='Calculating Ghosting Ratio: '+STRING(i*100./nI, FORMAT='(i0)')+' %'
+      WIDGET_CONTROL, lblProgress, SET_VALUE='Calculating Percent Signal Ghosting: '+STRING(i*100./nI, FORMAT='(i0)')+' %'
     ENDFOR
     WIDGET_CONTROL, lblProgress, SET_VALUE=''
 
@@ -1366,7 +1366,7 @@ pro GD_MR;geometric distortion
         width45=getWidthAtThreshold(prof45, halfmax)
         width135=getWidthAtThreshold(prof135, halfmax)
         resArr[2:3,i]=[width45(0),width135(0)]*SQRT(2)*pix(0)
-        resArr[4:7,i]=100.*(wAct-resArr[0:3,i])/resArr[0:3,i]
+        resArr[4:7,i]=100.*ABS(resArr[0:3,i]-wAct)/wAct
       ENDIF
       WIDGET_CONTROL, lblProgress, SET_VALUE='Calculating Geometric Distortion: '+STRING(i*100./nI, FORMAT='(i0)')+' %'
     ENDFOR
@@ -1424,28 +1424,16 @@ pro Slice_MR
         nPix=lastX-firstX+1
         IF rows EQ 1 THEN profUpper = subUpper ELSE profUpper=(1./rows)*TOTAL(subUpper,2)
         IF rows EQ 1 THEN profLower = subLower ELSE profLower=(1./rows)*TOTAL(subLower,2)
-        ;halfMax=0.5*(MIN(profUpper)+MAX(profUpper))
-        ;widthFirst=ROUND(getWidthAtThreshold(profUpper, halfmax))
-        ;maxUpper=MEAN(subUpper[nPix/2-widthFirst(0)/2:nPix/2-widthFirst(0)/2,*])
-        ;maxLower=MEAN(subLower[nPix/2-widthFirst(0)/2:nPix/2-widthFirst(0)/2,*])
         maxUpper=MAX(MEDIAN(profUpper,5))
         maxLower=MAX(MEDIAN(profLower,5))
         bg=0.5*(MEAN(subUpper[0:4,*])+MEAN(subLower[0:4,*]))
         halfmaxU=0.5*(maxUpper+bg)
         halfmaxL=0.5*(maxLower+bg)
-        ;nLines=lastY-firstY+1
-        ;res=FLTARR(4,nLines)
-        ;FOR p=0, nLines-1 DO BEGIN
-        ;  res[0:1,p]=getWidthAtThreshold(subUpper[*,p], halfmaxU)
-        ;  res[2:3,p]=getWidthAtThreshold(subLower[*,p], halfmaxL)
-        ;ENDFOR
-        ;wU=[MEAN(res[0,*]),MEAN(res[1,*])]
-        ;wL=[MEAN(res[2,*]),MEAN(res[3,*])]
         
         wU=getWidthAtThreshold(profUpper, halfmaxU)
         wL=getWidthAtThreshold(profLower, halfmaxL)
 
-        structTemp=CREATE_STRUCT('background',bg,'maxVal',[maxUpper,maxLower],'subUpper',subUpper,'subLower',subLower,$
+        structTemp=CREATE_STRUCT('background',bg,'maxVal',[maxUpper,maxLower],'subUpper',profUpper,'subLower',profLower,$
           'firstLast',[[wU(1)-wU(0)/2.,wU(1)+wU(0)/2.],[wL(1)-wL(0)/2.,wL(1)+wL(0)/2.]])
         sliceThickRes=CREATE_STRUCT(sliceThickRes,'L'+STRING(i, FORMAT='(i0)'),structTemp)
         fwhmU=wU(0)*pix(0)

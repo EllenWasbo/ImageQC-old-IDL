@@ -112,7 +112,7 @@ pro getParam, configTemp
   WIDGET_CONTROL, txtHomogROIdistPET, GET_VALUE=homogROIdistPET
   ;MR tests
   WIDGET_CONTROL, txtSNR_MR_ROI, GET_VALUE=SNR_MR_ROI
-  WIDGET_CONTROL, txtPUI_MR_ROI, GET_VALUE=PUI_MR_ROI
+  WIDGET_CONTROL, txtPIU_MR_ROI, GET_VALUE=PIU_MR_ROI
   WIDGET_CONTROL, txtGhost_MR_ROIszC, GET_VALUE=GHOST_MR_ROI_C
   WIDGET_CONTROL, txtGhost_MR_ROIszW, GET_VALUE=GHOST_MR_ROI_W
   WIDGET_CONTROL, txtGhost_MR_ROIszH, GET_VALUE=GHOST_MR_ROI_H
@@ -150,7 +150,7 @@ pro getParam, configTemp
     'scanSpeedAvg',LONG(scanSpeedAvg(0)), 'scanSpeedHeight', FLOAT(scanSpeedHeight(0)), 'scanSpeedFiltW', LONG(scanSpeedFiltW(0)), $
     'contrastRad1', FLOAT(contrastRad1(0)), 'contrastRad2', FLOAT(contrastRad2(0)),$
     'CrossROIsz', FLOAT(crossROIsz(0)), 'CrossVol', FLOAT(crossVol(0)),$
-    'SNR_MR_ROI', FLOAT(SNR_MR_ROI(0)), 'PUI_MR_ROI', FLOAT(PUI_MR_ROI(0)), $
+    'SNR_MR_ROI', FLOAT(SNR_MR_ROI(0)), 'PIU_MR_ROI', FLOAT(PIU_MR_ROI(0)), $
     'Ghost_MR_ROI', [FLOAT(GHOST_MR_ROI_C(0)),FLOAT(GHOST_MR_ROI_W(0)),FLOAT(GHOST_MR_ROI_H(0)),FLOAT(GHOST_MR_ROI_D(0)),WIDGET_INFO(ghost_MR_optC, /BUTTON_SET)],$
     'GD_MR_act', FLOAT(GD_MR_act(0)),$
     'Slice_MR_ROI', [FLOAT(Slice_MR_TANA(0)),FLOAT(Slice_MR_ROI_W(0)),FLOAT(Slice_MR_ROI_H(0)),FLOAT(Slice_MR_ROI_D(0)),FLOAT(Slice_MR_ROI_D2(0)),WIDGET_INFO(slice_MR_optC, /BUTTON_SET)])

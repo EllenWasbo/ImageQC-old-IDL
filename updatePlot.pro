@@ -1573,23 +1573,11 @@ pro updatePlot, setRangeMinMaxX, setRangeMinMaxY, optionSet
                       valuesPlot=CREATE_STRUCT('pix',xVals,'ProfileUpper', subUpper); vect) 
                       
                       resPlot=objarr(7);szSub(1)*2+5)
-                      resPlot[0]=PLOT(xVals,subUpper, NAME='Profile Upper', COLOR=colors[*,0], TITLE='Profiles to find slice thickness', YTITLE='Pixel value', XTITLE='pos (mm)', $
+                      resPlot[0]=PLOT(xVals,subUpper, NAME='Profile Upper', COLOR=colors[*,0], TITLE='(Avg) profiles to find slice thickness', YTITLE='Pixel value', XTITLE='pos (mm)', $
                         XRANGE=rangeX, YRANGE=rangeY, XSTYLE=1, YSTYLE=1, MARGIN=resPlotMargin, FONT_NAME=foName, FONT_SIZE=foSize, CURRENT=currWin)
                       
-                      ;FOR line=1,szSub(1)-1 DO BEGIN
-                      ;  vect=subUpper[*,line]
-                      ;  valuesPlot=CREATE_STRUCT(valuesPlot, 'ProfileUpper_'+STRING(line,FORMAT='(i0)'), vect)
-                      ;  resPlot[line]=PLOT(xVals,vect, '-', NAME='Profile', COLOR=colors[*,0], /OVERPLOT)
-                      ;ENDFOR
-                      
-                      ;vect=subLower[*,0]
                       valuesPlot=CREATE_STRUCT(valuesPlot,'ProfileLower', subLower);vect)
                       resPlot[1]=PLOT(xVals, subLower, '-', NAME='Profile Lower', COLOR=colors[*,1], /OVERPLOT)
-                      ;FOR line=1,szSub(1)-1 DO BEGIN
-                      ;  vect=subLower[*,line]
-                      ;  valuesPlot=CREATE_STRUCT(valuesPlot, 'ProfileLower_'+STRING(line,FORMAT='(i0)'), vect)
-                      ;  resPlot[line+szSub(1)]=PLOT(xVals,vect, '-', NAME='Profile', COLOR=colors[*,1], /OVERPLOT)
-                      ;ENDFOR
                       
                       resPlot[2]=PLOT(xVals, FLTARR(szSub(0))+backGround, '-2', NAME='Background', COLOR=[0,0,0], /OVERPLOT)
                       resPlot[3]=PLOT(sliceThickRes.(sel).firstLast[*,0]*pix,[halfMax(0),halfMax(0)], '-.2', NAME='Half Max Upper', COLOR=colors[*,0], /OVERPLOT)

@@ -22,7 +22,7 @@ pro ImageQC_event, ev
 
   ;local variables in event
   COMMON LocEv, structImgsAll
-  COMMON SELIM_IQ, selAdr; passing selected adresses from selectImages_event.pro to ImageQC_event.pro
+  COMMON SELIM_IQ, selAdr, selFrameNo; passing selected adresses and frame numbers (if multiframe) from selectImages_event.pro to ImageQC_event.pro
 
   evTop=ev.Top
   ;******************* UVALUE **********************
@@ -36,9 +36,11 @@ pro ImageQC_event, ev
 
       'exit': BEGIN
         IF saveOK EQ 1 THEN BEGIN
-          IF FILE_TEST(configPath, /READ) THEN RESTORE, configPath ELSE sv=DIALOG_MESSAGE('Lost connection to config file '+configPath, /ERROR)
-          configS.(0).saveBlocked=0
-          SAVEIF, saveOK, configS, quickTemp, quickTout, loadTemp, renameTemp, FILENAME=configPath
+          IF FILE_TEST(configPath, /READ) THEN BEGIN
+            RESTORE, configPath
+            configS.(0).saveBlocked=0
+            SAVEIF, saveOK, configS, quickTemp, quickTout, loadTemp, renameTemp, FILENAME=configPath
+          ENDIF ELSE sv=DIALOG_MESSAGE('Lost connection to config file '+configPath, /ERROR)
         ENDIF
         WIDGET_CONTROL, ev.top, /DESTROY
       END
@@ -167,8 +169,8 @@ pro ImageQC_event, ev
         sel=WIDGET_INFO(listSelMultiTemp, /DROPLIST_SELECT)
         IF FILE_TEST(configPath, /READ) THEN RESTORE, configPath ELSE sv=DIALOG_MESSAGE('Lost connection to config file '+configPath, /ERROR); getting the quickTemp-structure
         qTexist=1
-        IF SIZE(quickTemp, /TNAME) EQ 'INT' THEN qTexist=0 ELSE BEGIN
-          IF SIZE(quickTemp.(modality), /TNAME) EQ 'INT'THEN qTexist=0
+        IF SIZE(quickTemp, /TNAME) NE 'STRUCT' THEN qTexist=0 ELSE BEGIN
+          IF SIZE(quickTemp.(modality), /TNAME) NE 'STRUCT' THEN qTexist=0
         ENDELSE
         IF sel EQ 0 OR qTexist EQ 0 THEN BEGIN
           QTtempArr=-1
@@ -180,10 +182,11 @@ pro ImageQC_event, ev
         ENDELSE
 
         selAdr=''
+        selFrameNo=!Null
         selectImages, QTtempArr, QTname, defPath
 
         IF selAdr(0) NE '' THEN BEGIN
-          openFiles, selAdr
+          IF total(selFrameNo) NE -N_ELEMENTS(selFrameNo) THEN openFiles, selAdr, FRAMENOS=selFrameNo-1 ELSE openFiles, selAdr
           redrawImg,0,1
           updateInfo
         ENDIF
@@ -1021,6 +1024,11 @@ pro ImageQC_event, ev
       'runMulti': BEGIN
         calculateQuickTest
         updatePlot,1,1,0
+        IF N_ELEMENTS(multiExpTable) GT 1 THEN BEGIN
+          sv=DIALOG_MESSAGE('QuickTest finished. Copy results to clipboard?',/QUESTION,DIALOG_PARENT=evTop)
+          IF sv EQ 'Yes' THEN exportMulti
+          sv=DIALOG_MESSAGE('QuickTest results ready in clipboard.',/INFORMATION,DIALOG_PARENT=evTop)
+        ENDIF
       END
 
       'expMulti': exportMulti
@@ -2489,21 +2497,21 @@ pro ImageQC_event, ev
           WIDGET_CONTROL, wtabResult, SET_TAB_CURRENT=0
         ENDIF
       END
-      ;----analyse PUI MR--------------------------------------------------------------------------------------------------
-      'PUI_MR':BEGIN
+      ;----analyse PIU MR--------------------------------------------------------------------------------------------------
+      'PIU_MR':BEGIN
         IF tags(0) NE 'EMPTY' THEN BEGIN
-          PUI_MR; tests_forQuickTest.pro
+          PIU_MR; tests_forQuickTest.pro
           updateTable
           updatePlot, 1,1,3
           WIDGET_CONTROL, wtabResult, SET_TAB_CURRENT=0
         ENDIF
       END
-      'PUI_MR_setMinMax':BEGIN
+      'PIU_MR_setMinMax':BEGIN
         resValid=0
-        IF N_ELEMENTS(PUIres) GT 0 THEN BEGIN
+        IF N_ELEMENTS(PIUres) GT 0 THEN BEGIN
           sel=WIDGET_INFO(listFiles, /LIST_SELECT)  & sel=sel(0)
-          minWL=PUIres[0,sel]
-          maxWL=PUIres[1,sel]
+          minWL=PIUres[0,sel]
+          maxWL=PIUres[1,sel]
           IF minWL NE maxWL AND minWL NE -1 THEN BEGIN
             resValid=1
             WIDGET_CONTROL, txtMinWL, SET_VALUE=STRING(minWL, FORMAT='(i0)')
@@ -2517,7 +2525,7 @@ pro ImageQC_event, ev
           ENDIF
         ENDIF
         IF resValid EQ 0 THEN BEGIN
-          sv=DIALOG_MESSAGE('No valid PUI results for selected image. Window level could not be set based on the results.',/INFORMATION, DIALOG_PARENT=evTop)
+          sv=DIALOG_MESSAGE('No valid PIU results for selected image. Window level could not be set based on the results.',/INFORMATION, DIALOG_PARENT=evTop)
         ENDIF
       END
       ;----analyse Ghosting Ratio MR--------------------------------------------------------------------------------------------------
@@ -2590,32 +2598,34 @@ pro ImageQC_event, ev
         tags=TAG_NAMES(structImgs)
         IF tags(0) NE 'EMPTY' THEN BEGIN
 
-          ;include only info actual for current modality
-          tagnam=TAG_NAMES(structImgs.(0))
-          includeArr=actualTags(tagnam, imgStructInfo, modality)
-          idsInclude=WHERE(includeArr EQ 1)
+          expDCMinfo, GROUP_LEADER = ev.top, xoffset+200, yoffset+200
 
-          nImg=N_TAGS(structImgs)
-          nInfo=TOTAL(includeArr)
-          infoTable=STRARR(nInfo,nImg+1)
-          infoTable[*,0]=tagnam(idsInclude)
-          FOR i=0, nImg-1 DO BEGIN
-            FOR j=0, nInfo-1 DO BEGIN
-              infoTable[j,i+1]=STRJOIN(STRING(structImgs.(i).(idsInclude(j))),' | ')
-            ENDFOR
-          ENDFOR
-          sv=DIALOG_MESSAGE('Save to file? (No = copy to clipboard)', /QUESTION, DIALOG_PARENT=evTop)
-          IF sv EQ 'Yes' THEN BEGIN
-            adr=DIALOG_PICKFILE(TITLE='Save as...',/WRITE, FILTER='*.txt', /FIX_FILTER, DEFAULT_EXTENSION='.txt', DIALOG_PARENT=evTop)
-            IF adr(0) NE '' THEN BEGIN
-              a=STRJOIN(infoTable, STRING(9B))
-              OPENW, expfile, adr,/GET_LUN
-              FOR i=0, N_ELEMENTS(a)-1 DO PRINTF, expfile, a(i)
-              CLOSE, expfile & FREE_LUN, expfile
-            ENDIF
-          ENDIF ELSE BEGIN
-            CLIPBOARD.set, STRJOIN(infoTable, STRING(9B))
-          ENDELSE
+;          ;include only info actual for current modality
+;          tagnam=TAG_NAMES(structImgs.(0))
+;          includeArr=actualTags(tagnam, imgStructInfo, modality)
+;          idsInclude=WHERE(includeArr EQ 1)
+;
+;          nImg=N_TAGS(structImgs)
+;          nInfo=TOTAL(includeArr)
+;          infoTable=STRARR(nInfo,nImg+1)
+;          infoTable[*,0]=tagnam(idsInclude)
+;          FOR i=0, nImg-1 DO BEGIN
+;            FOR j=0, nInfo-1 DO BEGIN
+;              infoTable[j,i+1]=STRJOIN(STRING(structImgs.(i).(idsInclude(j))),' | ')
+;            ENDFOR
+;          ENDFOR
+;          sv=DIALOG_MESSAGE('Save to file? (No = copy to clipboard)', /QUESTION, DIALOG_PARENT=evTop)
+;          IF sv EQ 'Yes' THEN BEGIN
+;            adr=DIALOG_PICKFILE(TITLE='Save as...',/WRITE, FILTER='*.txt', /FIX_FILTER, DEFAULT_EXTENSION='.txt', DIALOG_PARENT=evTop)
+;            IF adr(0) NE '' THEN BEGIN
+;              a=STRJOIN(infoTable, STRING(9B))
+;              OPENW, expfile, adr,/GET_LUN
+;              FOR i=0, N_ELEMENTS(a)-1 DO PRINTF, expfile, a(i)
+;              CLOSE, expfile & FREE_LUN, expfile
+;            ENDIF
+;          ENDIF ELSE BEGIN
+;            CLIPBOARD.set, STRJOIN(infoTable, STRING(9B))
+;          ENDELSE
         ENDIF
       END
 
@@ -3433,13 +3443,13 @@ pro ImageQC_event, ev
           WIDGET_CONTROL, txtSNR_MR_ROI, SET_VALUE=STRING(val, FORMAT='(f0.1)')
           clearRes, 'SNR' & redrawImg,0,0
         END
-        txtPUI_MR_ROI: BEGIN
-          WIDGET_CONTROL, txtPUI_MR_ROI, GET_VALUE=val
+        txtPIU_MR_ROI: BEGIN
+          WIDGET_CONTROL, txtPIU_MR_ROI, GET_VALUE=val
           val=ABS(FLOAT(comma2pointFloat(val(0))))
           IF val LT 1. THEN val=1.
           IF val GT 100. THEN val=100.
-          WIDGET_CONTROL, txtPUI_MR_ROI, SET_VALUE=STRING(val, FORMAT='(f0.1)')
-          clearRes, 'PUI' & redrawImg,0,0
+          WIDGET_CONTROL, txtPIU_MR_ROI, SET_VALUE=STRING(val, FORMAT='(f0.1)')
+          clearRes, 'PIU' & redrawImg,0,0
         END
         txtGhost_MR_ROIszC: BEGIN
           WIDGET_CONTROL, txtGhost_MR_ROIszC, GET_VALUE=val
@@ -3873,7 +3883,7 @@ pro ImageQC_event, ev
             IF WIDGET_INFO(lstShowFile, /DROPLIST_SELECT) EQ 0 THEN RDtemp='' ELSE RDtemp=modalityName
             fileList=getListOpenFiles(structImgs,0,marked,markedMulti,RENAMEDICOM=RDtemp, CONFIGPATH=configPath, PARENT=evTop)
             WIDGET_CONTROL, listFiles, YSIZE=n_elements(fileList), SET_VALUE=fileList, SET_LIST_SELECT=newFirstSel, SET_LIST_TOP=0
-            WIDGET_CONTROL, listFiles, SCR_YSIZE=170
+            WIDGET_CONTROL, listFiles, SCR_YSIZE=listFilesYsize
             clearRes
             updateInfo
           ENDIF
@@ -3902,9 +3912,11 @@ pro ImageQC_event, ev
   ;******************* Exit program ***********************
   IF TAG_NAMES(ev, /STRUCTURE_NAME) EQ 'WIDGET_KILL_REQUEST' THEN BEGIN
     IF saveOK EQ 1 THEN BEGIN
-      IF FILE_TEST(configPath, /READ) THEN RESTORE, configPath ELSE sv=DIALOG_MESSAGE('Lost connection to config file '+configPath, /ERROR)
-      configS.(0).saveBlocked=0
-      SAVEIF, saveOK, configS, quickTemp, quickTout, loadTemp, renameTemp, FILENAME=configPath
+      IF FILE_TEST(configPath, /READ) THEN BEGIN
+        RESTORE, configPath
+        configS.(0).saveBlocked=0
+        SAVEIF, saveOK, configS, quickTemp, quickTout, loadTemp, renameTemp, FILENAME=configPath
+      ENDIF ELSE sv=DIALOG_MESSAGE('Lost connection to config file '+configPath, /ERROR)
     ENDIF
     WIDGET_CONTROL, ev.top, /DESTROY
   ENDIF

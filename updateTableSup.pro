@@ -393,11 +393,11 @@ pro updateTableSup
       IF results(curTab) EQ 1 THEN BEGIN
     
         CASE analyse OF
-          'PUI':BEGIN
-            headers=tableHeaders.MR.PUI.AltSup
+          'PIU':BEGIN
+            headers=tableHeaders.MR.PIU.AltSup
             nCols=4
             resArrString=STRARR(nCols,nRows)
-            FOR i=0, nRows-1 DO resArrString[*,i]=STRING(PUIres[3:6,markedTemp(i)], FORMAT='(i0)')
+            FOR i=0, nRows-1 DO resArrString[*,i]=STRING(PIUres[3:6,markedTemp(i)], FORMAT='(i0)')
             END
             
           'SLICETHICK':BEGIN

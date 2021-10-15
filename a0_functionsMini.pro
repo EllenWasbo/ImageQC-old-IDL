@@ -128,8 +128,8 @@ function updConfigGetSiemensQC
   PETstrings=CREATE_STRUCT($
     'English',['Scan Date:','Partial Setup','Full setup','Time Alignment','Calibration','Block Noise','Block Efficiency','Randoms','Scanner Efficiency','Scatter Ratio','Image Plane','Block Timing','Phantom position','true'])
   CTstrings=CREATE_STRUCT($
-    'English',['Quality Daily','Quality Constancy','Slice','Homogeneity','Noise','Tolerance','Test: Typical head','Test: Typical body','Number of images','Test: Sharpest mode','Tester name','Product Name','Serial Number','Tube Asse','Description','Value','Result','Test Result'],$
-    'Norsk',['Kvalitet daglig','Kvalitetskonstans','Snitt','Homogenitet','St?y','Toleranse','Test: Typisk hode','Test: Typisk kropp','Antall bilder','Test: Skarpeste modus','Kontroll?rnavn','Produktnavn','Serienummer','R?renhet','Beskrivelse','Verdi','Resultat','Test Resultat'])
+    'English',['Quality Daily','Quality*Constancy','Slice','Homogeneity','Noise','Tolerance','Test: Typical head','Test: Typical body','Number of images','Test: Sharpest mode','Tester name','Product Name','Serial Number','Tube Asse','Description','Value','Result','Test Result'],$
+    'Norsk',['Kvalitet daglig','Kvalitets*konstans','Snitt','Homogenitet','St?y','Toleranse','Test: Typisk hode','Test: Typisk kropp','Antall bilder','Test: Skarpeste modus','Kontroll?rnavn','Produktnavn','Serienummer','R?renhet','Beskrivelse','Verdi','Resultat','Test Resultat'])
   months=['January','February','March','April','May','June','July','August','September','October','November','December']
 
   headersPET=['Date','ICS Name','Partial','Full',$
@@ -202,10 +202,11 @@ function updateConfigS, file
     'ScanSpeedAvg', 25, 'ScanSpeedHeight', 100., 'ScanSpeedFiltW', 15, $
     'ContrastRad1', 20., 'ContrastRad2', 58.,$
     'CrossROIsz', 60., 'CrossVol', 0.0,$
-    'SNR_MR_ROI', 75., 'PUI_MR_ROI', 75., 'Ghost_MR_ROI', [80.,40.,10.,10.,1.],'GD_MR_act', 190.,'Slice_MR_ROI',[0.1,100.,3.,-2.5,2.5,1.])
+    'SNR_MR_ROI', 75., 'PIU_MR_ROI', 75., 'Ghost_MR_ROI', [80.,40.,10.,10.,1.],'GD_MR_act', 190.,'Slice_MR_ROI',[0.1,100.,3.,-2.5,2.5,1.])
+  expInfoPatterns=CREATE_STRUCT('mAs_profile',['ZPOS','MAS'])
 
   userinfo=get_login_info()
-  commonConfig=CREATE_STRUCT('defConfigNo',1,'saveBlocked',1,'saveStamp',systime(/SECONDS),'username',userinfo.user_name,'autoUnBlock',8);NB if changed check on remBlock in settings.pro
+  commonConfig=CREATE_STRUCT('defConfigNo',1,'saveBlocked',1,'saveStamp',systime(/SECONDS),'username',userinfo.user_name,'autoUnBlock',8,'expInfoPatterns',expInfoPatterns);NB if changed check on remBlock in settings.pro
   configSdefault=CREATE_STRUCT('commonConfig',commonConfig,'configDefault',configDefault)
 
   newConfigS=-1
@@ -231,7 +232,16 @@ function updateConfigS, file
         FOR i=0, N_ELEMENTS(currCommonTags)-1 DO BEGIN
           IF oldCommonTags.HasValue(currCommonTags(i)) THEN BEGIN
             iOld=WHERE(oldCommonTags EQ currCommonTags(i))
-            IF iOld NE -1 THEN oldCommon.(i)=oldConfigS.(0).(iOld)
+            IF iOld NE -1 THEN BEGIN
+              IF currCommonTags(i) EQ 'SAVESTAMP' THEN BEGIN
+                IF SIZE(oldConfigS.(0).(iOld), /TNAME) EQ 'STRING' THEN BEGIN
+                  sv=DIALOG_MESSAGE('Config file of older version where timestamp saved as string. For your information (before it is lost): This file was last saved '+oldConfigS.(0).(iOld))
+                ENDIF
+              ENDIF
+              IF SIZE(oldCommon.(i), /TNAME) EQ 'STRUCT' THEN BEGIN
+                oldCommon=replaceStructStruct(oldCommon, oldConfigS.(0).(iOld), i)
+              ENDIF ELSE oldCommon.(i)=oldConfigS.(0).(iOld)
+            ENDIF
           ENDIF
         ENDFOR
       ENDELSE
@@ -406,7 +416,7 @@ function updateQuickTout, file, analyseStrAll
     'HOMOG',-1,'NOISE',-1,'EXP',-1,'MTF',-1,'ROI',-1)
   defNM=CREATE_STRUCT('UNIF', -1,'SNI',-1,'ACQ',-1,'BAR',-1)
   defPET=CREATE_STRUCT('HOMOG', -1)
-  defMR=CREATE_STRUCT('DCM', -1,'SNR',-1,'PUI',-1,'GHOST',-1,'GEOMDIST',-1,'SLICETHICK',-1,'ROI',-1)
+  defMR=CREATE_STRUCT('DCM', -1,'SNR',-1,'PIU',-1,'GHOST',-1,'GEOMDIST',-1,'SLICETHICK',-1,'ROI',-1)
   quickToutDefault=CREATE_STRUCT('CT',CREATE_STRUCT('DEFAULT',defCT),'Xray',CREATE_STRUCT('DEFAULT',defXray),'NM',CREATE_STRUCT('DEFAULT',defNM),'PET',CREATE_STRUCT('DEFAULT',defPET),'MR',CREATE_STRUCT('DEFAULT',defMR))
 
   IF file EQ '' THEN quickTout=quickToutDefault ELSE BEGIN
@@ -968,7 +978,7 @@ function imgStructDescTags
     'seriesNmb','Series Number','seriesTime','Series Time','seriesUID','Series UID','acqNmb','Acquisition Number', 'acqtime','Acquisition Time',$
     'sliceThick','Slice Thickness', 'pix', 'Pixel size','imageSize','Image Size','kVp','kVp','FOV','FOV','rekonFOV','Reconstruction FOV','mA','mA','mAs','mAs',$
     'ExpTime','Exposure Time','coll','Collimation','pitch','Pitch',$
-    'ExModType','Exposure Modulation Type','CTDIvol','CTDI vol','spotSize','Focal Spot size (mm)','DAP','DAP','EI','Exposure Index','sensitivity','Sensitivity','sdd','Source Detector Distance',$
+    'ExModType','Exposure Modulation Type','CTDIvol','CTDI vol','focalSpotSz','Focal Spot size (mm)','DAP','DAP','EI','Exposure Index','sensitivity','Sensitivity','sdd','Source Detector Distance',$
     'filterAddOn','Filter AddOn','kernel','Reconstruction kernel',$
     'zpos', 'Z position', 'imgNo','Image Number','nFrames','Number Of Frames','wCenter','Window Center','wWidth','Window Width',$
     'collType','Collimator Type','nEWindows','Number of Energy Windows','EWindowName','Energy Window Name','zoomFactor','Zoom Factor','radius1','Radius Detector 1','radius2','Radius Detector 2','detectorVector','Detector Number',$
@@ -1141,7 +1151,7 @@ end
 ;tagStruct = structure with dicom elements [group, element]
 ;formatsArr = string array with format strings without () e.g. ['a0','f0.3']
 function newFileName, path, folder, elemArr, tagStruct, formatsArr
-  newpath=''
+  newpath='_'
 
   IF folder EQ 1 THEN BEGIN
     Spawn, 'dir '  + '"'+path+'"' + '*'+ '/b /a-d', res; files only
@@ -1162,42 +1172,49 @@ function newFileName, path, folder, elemArr, tagStruct, formatsArr
   IF dcm EQ 1 THEN BEGIN
     o=obj_new('idlffdicom')
     t=o->read(path)
-
-    nElem=N_ELEMENTS(elemArr)
-    desc=TAG_NAMES(tagStruct)
-
     nameArr=!Null
-    FOR ee=0, nElem-1 DO BEGIN
-      ide=WHERE(desc EQ STRUPCASE(elemArr(ee)))
-      ide=ide(0)
-      thisTag=tagStruct.(ide)
-      test=o->GetReference(thisTag(0),thisTag(1))
-      notFound=1
-      IF test(0) NE -1 THEN BEGIN
-        test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
 
-        stest=size(test_peker, /TNAME)
-        IF stest EQ 'POINTER' THEN BEGIN
-          namePart=*(test_peker[0])
-
-          nameParts=STRSPLIT(namePart(0),'\',/EXTRACT)
-          formats=STRSPLIT(STRMID(formatsArr.(ide), 1, strlen(formatsArr.(ide))-2),'\',/EXTRACT)
-          nP=N_ELEMENTS(nameParts)
-          IF nP EQ N_ELEMENTS(formats) AND nP GT 1 THEN BEGIN
-            namePartArr=!Null
-            FOR p=0, nP-1 DO BEGIN
-              IF formats(p) NE '_' THEN namePartArr=[namePartArr,STRING(nameParts(p), FORMAT='('+formats(p)+')')]
-            ENDFOR
-            namePart=STRJOIN(namePartArr,'_')
-          ENDIF ELSE namePart=STRING(nameParts(0),FORMAT=formatsArr.(ide))
-
-          nameArr=[nameArr,namePart]
-          notFound=0
+    test=o->GetReference('0008'x,'0060'x)
+    test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
+    modality=*(test_peker[0])
+    IF modality EQ 'SR' THEN BEGIN
+      nameArr='RDSR'
+    ENDIF ELSE BEGIN
+      nElem=N_ELEMENTS(elemArr)
+      desc=TAG_NAMES(tagStruct)
+      
+      FOR ee=0, nElem-1 DO BEGIN
+        ide=WHERE(desc EQ STRUPCASE(elemArr(ee)))
+        ide=ide(0)
+        thisTag=tagStruct.(ide)
+        test=o->GetReference(thisTag(0),thisTag(1))
+        notFound=1
+        IF test(0) NE -1 THEN BEGIN
+          test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
+  
+          stest=size(test_peker, /TNAME)
+          IF stest EQ 'POINTER' THEN BEGIN
+            namePart=*(test_peker[0])
+  
+            nameParts=STRSPLIT(namePart(0),'\',/EXTRACT)
+            formats=STRSPLIT(STRMID(formatsArr.(ide), 1, strlen(formatsArr.(ide))-2),'\',/EXTRACT)
+            nP=N_ELEMENTS(nameParts)
+            IF nP EQ N_ELEMENTS(formats) AND nP GT 1 THEN BEGIN
+              namePartArr=!Null
+              FOR p=0, nP-1 DO BEGIN
+                IF formats(p) NE '_' THEN namePartArr=[namePartArr,STRING(nameParts(p), FORMAT='('+formats(p)+')')]
+              ENDFOR
+              namePart=STRJOIN(namePartArr,'_')
+            ENDIF ELSE namePart=STRING(nameParts(0),FORMAT=formatsArr.(ide))
+  
+            nameArr=[nameArr,namePart]
+            notFound=0
+          ENDIF
+  
         ENDIF
-
-      ENDIF
-      IF notFound and folder EQ -1 THEN nameArr=[nameArr,'- not found -']
-    ENDFOR
+        IF notFound and folder EQ -1 THEN nameArr=[nameArr,'- not found -']
+      ENDFOR
+    ENDELSE
 
     obj_destroy,o
 
@@ -1221,7 +1238,7 @@ function newFileName, path, folder, elemArr, tagStruct, formatsArr
         ENDELSE
       ENDELSE
     ENDIF
-
+    IF newpath EQ '' THEN newpath='_'
   ENDIF
 
   return, newpath

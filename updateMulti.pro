@@ -51,7 +51,7 @@ pro updateMulti, AUTOACTIVE=autoactive, NIMGTEMP=nImgTemp
           IF N_ELEMENTS(multiList) GT 0 THEN BEGIN
             sel=WIDGET_INFO(listSelMultiTemp, /DROPLIST_SELECT)
             IF sel EQ -1 THEN sel=0
-            RESTORE, thisPath+'data\config.dat'
+            IF FILE_TEST(configPath, /READ) THEN RESTORE, configPath ELSE sv=DIALOG_MESSAGE('Lost connection to config file '+configPath, /ERROR)
             nImg=N_TAGS(structImgs)
             testOpt=WHERE(multiOpt.(modality) GT 0, nTests)
             IF sel LE 0 THEN BEGIN

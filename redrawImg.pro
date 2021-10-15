@@ -91,7 +91,7 @@ pro redrawImg, viewpl, newActive
 ;        oModel->Add, thisROI
 ;      ENDIF
 
-      analyseArr=['HOMOG', 'NOISE','HUWATER','ROI','STP','UNIF','SNI','BAR','CONTRAST','CROSSCALIB','RC','SNR','PUI','GHOST']
+      analyseArr=['HOMOG', 'NOISE','HUWATER','ROI','STP','UNIF','SNI','BAR','CONTRAST','CROSSCALIB','RC','SNR','PIU','GHOST']
       IF analyseArr.HasValue(analyse) THEN BEGIN
         CASE analyse OF
           'HOMOG': ROIs=homogROIs
@@ -106,7 +106,7 @@ pro redrawImg, viewpl, newActive
           'CONTRAST': ROIs=conROIs
           'RC': ROIs=rcROIs
           'SNR': ROIs=SNR_ROI
-          'PUI': ROIs=PUI_ROI
+          'PIU': ROIs=PIU_ROI
           'GHOST': ROIs=ghostMR_ROI
           ELSE:
         ENDCASE
@@ -464,17 +464,17 @@ pro redrawImg, viewpl, newActive
 
         ENDIF
         
-        IF analyse EQ 'PUI' THEN BEGIN
-            IF N_ELEMENTS(PUIres) GT 0 THEN BEGIN
+        IF analyse EQ 'PIU' THEN BEGIN
+            IF N_ELEMENTS(PIUres) GT 0 THEN BEGIN
               szROI2=ROUND(5./tempStruct.pix(0));1cm^2 ROIs to evaluate
-              pos=PUIres[3:4,sel]
+              pos=PIUres[3:4,sel]
               x1=pos(0)-szROI2 & x2=pos(0)+szROI2
               y1=pos(1)-szROI2 & y2=pos(1)+szROI2
               lineROI = OBJ_NEW('IDLgrPolyline', [[x1,y1],[x2,y1],[x2,y2],[x1,y2],[x1,y1]], COLOR = 255*([1,0,0]), LINESTYLE=0)
               oModel->Add, lineROI
               oTextL1= OBJ_NEW('IDLgrText', 'min', LOCATIONS=[x2+2,y2], COLOR = 255*([1,0,0]))
               oModel->Add, oTextL1
-              pos=PUIres[5:6,sel]
+              pos=PIUres[5:6,sel]
               x1=pos(0)-szROI2 & x2=pos(0)+szROI2
               y1=pos(1)-szROI2 & y2=pos(1)+szROI2
               lineROI2 = OBJ_NEW('IDLgrPolyline', [[x1,y1],[x2,y1],[x2,y2],[x1,y2],[x1,y1]], COLOR = 255*([1,0,0]), LINESTYLE=0)
@@ -495,6 +495,13 @@ pro redrawImg, viewpl, newActive
               V2=OBJ_NEW('IDLgrPolyline',[[cent(0)-nPixDiag2,cent(1)-nPixDiag2],[cent(0)+nPixDiag2,cent(1)+nPixDiag2]], COLOR = 255*([1,0,0]), LINESTYLE=0)
               V2_1=OBJ_NEW('IDLgrPolyline',[[cent(0)-nPixDiag2,cent(1)+nPixDiag2],[cent(0)+nPixDiag2,cent(1)-nPixDiag2]], COLOR = 255*([1,0,0]), LINESTYLE=0)
               oModel->Add, V1 & oModel->Add, V1_1 & oModel->Add, V2 & oModel->Add, V2_1
+              
+              ;add true size circle
+              WIDGET_CONTROL, txtGD_MR_act, GET_VALUE=wAct
+              ROIsz=0.5*(FLOAT(wAct(0))/tempStruct.pix(0))
+              actCircle=getROIcircle(sizeAct, cent+1, ROIsz);cent+1 should be cent, but by visual inspection..... Todo...
+              contour0=OBJ_NEW('IDLgrContour',actCircle[*,*],COLOR=255*([1,0,0]), C_VALUE=0.5, N_LEVELS=1)
+              oModel->Add, Contour0
             ENDIF
           ENDIF
         ENDIF

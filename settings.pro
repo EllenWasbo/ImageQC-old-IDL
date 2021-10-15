@@ -91,6 +91,8 @@ pro settings, GROUP_LEADER = mainbase, xoff, yoff, tabString;tabString = 'PARAM'
   bBtmButt=WIDGET_BASE(settingsboxLft, /COLUMN)
   btnSaveConfigBackup=WIDGET_BUTTON(bBtmButt, VALUE='Backup', TOOLTIP='Backup config file', UVALUE='backupConfig', FONT=font1)
   btnRestoreConfig=WIDGET_BUTTON(bBtmButt, VALUE='Restore', TOOLTIP='Restore and replace config file with backup config file', UVALUE='restoreConfig', FONT=font1)
+  btnLocateConfig=WIDGET_BUTTON(bBtmButt, VALUE='Locate', TOOLTIP='Locate config file', UVALUE='locateConfig', FONT=font1)
+  btnLocateConfig=WIDGET_BUTTON(bBtmButt, VALUE='View config path', TOOLTIP='Where is the current config file?', UVALUE='viewConfig', FONT=font1)
   btnExpXMLConfig=WIDGET_BUTTON(bBtmButt, VALUE='Export to XML', TOOLTIP='Export config structures to XML file', UVALUE='expXML', FONT=font1)
 
   ;*************
@@ -409,7 +411,7 @@ pro settings, GROUP_LEADER = mainbase, xoff, yoff, tabString;tabString = 'PARAM'
   txtBrowse_a=WIDGET_TEXT(bBrowse, VALUE='', XSIZE=75,/EDITABLE, FONT=font1, UVALUE='txtBrowse_a',/KBRD_FOCUS_EVENTS)
   btnBrowse=WIDGET_BUTTON(bBrowse, VALUE=thisPath+'images\search.bmp',/BITMAP, TOOLTIP='Browse for input path', UVALUE='a_Browse',  FONT=font1)
   lbl=WIDGET_LABEL(bAutoParam, VALUE='', YSIZE=5, /NO_COPY)
-  
+
   lbl=WIDGET_LABEL(bAutoParam, VALUe='', YSIZE=10, /NO_COPY)
 
   bAlt_a=WIDGET_BASE(bAutoParam, /ROW, FRAME=1);, MAP=0)
@@ -418,7 +420,7 @@ pro settings, GROUP_LEADER = mainbase, xoff, yoff, tabString;tabString = 'PARAM'
   btnAltAuto=WIDGET_BUTTON(bAlt_a2, VALUE='Extract data from PDF or TXT results', FONT=font1, UVALUE='btnAltAuto')
   lbl=WIDGET_LABEL(bAlt_a, VALUe='', XSIZE=220, /NO_COPY)
   btnAltConfig=WIDGET_BUTTON(bAlt_a, VALUE='Configure/info', FONT=font1, UVALUE='btnAltConfigInfo')
-  
+
   bImportA=WIDGET_BASE(bAutoParam, /COLUMN, FRAME=1, MAP=1)
   ;stationname
   bStatName=WIDGET_BASE(bImportA, /ROW)
@@ -681,7 +683,9 @@ pro settings_event, event
               tagsCommon=TAG_NAMES(configS.(0))
               autounblock=8
               IF tagsCommon.HasValue('AUTOUNBLOCK') THEN autounblock=configS.(0).AUTOUNBLOCK
-              commonConfig=CREATE_STRUCT('defConfigNo',configS.(0).defConfigNo,'saveBlocked',1,'saveStamp', systime(/SECONDS),'username',userinfo.user_name,'autounblock',autounblock)
+              expInfoPatterns=CREATE_STRUCT('mAs_profile',['zpos','mAs'])
+              IF tagsCommon.HasValue('EXPINFOPATTERNS') THEN expInfoPatterns=configS.(0).EXPINFOPATTERNS
+              commonConfig=CREATE_STRUCT('defConfigNo',configS.(0).defConfigNo,'saveBlocked',1,'saveStamp', systime(/SECONDS),'username',userinfo.user_name,'autounblock',autounblock,'expInfoPatterns',expInfoPatterns)
               configS=replaceStructStruct(configS, commonConfig,0)
 
               SAVEIF, saveOK, configS, quickTemp, quickTout, loadTemp, renameTemp, FILENAME=configPath
@@ -817,12 +821,94 @@ pro settings_event, event
           ENDIF ELSE sv=DIALOG_MESSAGE('Missing writing permissions to the selected folder.',/ERROR, DIALOG_PARENT=event.Top)
         ENDIF
       END
+      'viewConfig': BEGIN
+        msg='Config file path:'+newline+configPath
+        IF thisPath+'data\config.dat' NE configPath THEN msg=msg+newline+'Path to config file located, at startup, from:'+newline+tempPath+'configImageQC_Path.txt'
+        sv=DIALOG_MESSAGE(msg, DIALOG_PARENT=event.Top)
+      END
+      'locateConfig': BEGIN
+        IF saveOK EQ 1 THEN BEGIN
+          sv=DIALOG_MESSAGE('Are you sure you want to locate a new config file?',/QUESTION, DIALOG_PARENT=event.Top)
+          IF sv EQ 'Yes' THEN BEGIN
+            ;rename data\config.dat if exists
+            fi=FILE_INFO(thisPath+'data\config.dat')
+            IF fi.exists THEN BEGIN
+              IF fi.write THEN BEGIN
+                sv=DIALOG_MESSAGE('A config file exists in ImageQC\data\config.dat and will be deleted. Backup this file first?',/QUESTION, DIALOG_PARENT=event.Top)
+                IF sv EQ 'Yes' THEN BEGIN
+                  adr=DIALOG_PICKFILE(TITLE='Backup existing config.dat to', /WRITE, FILTER='*.dat', /FIX_FILTER, DIALOG_PARENT=event.Top, FILE=thisPath+'data\configBackup.dat')
+                  IF adr(0) NE '' THEN BEGIN
+                    FILE_MOVE, thisPath+'data\config.dat', adr
+                  ENDIF
+                ENDIF
+                FILE_DELETE, thisPath+'data\config.dat'
+              ENDIF ELSE BEGIN
+                sv=DIALOG_MESSAGE('A config file exists in ImageQC\data\config.dat with no writing permission. '+newline+$
+                  'As long as that file is not removed or renamed ImageQC will use that file.', DIALOG_PARENT=evTop)
+              ENDELSE
+            ENDIF;config.dat exists
 
+            ;add path to tempPath .txt
+            adr=DIALOG_PICKFILE(TITLE='Locate config file', /READ, FILTER='*.dat', /FIX_FILTER, DIALOG_PARENT=event.Top, PATH='C:\')
+            IF adr(0) NE '' THEN BEGIN
+              ;update
+              WIDGET_CONTROL, /HOURGLASS
+              configS=!Null
+              config=!Null
+              newconfigS=updateConfigS(adr(0))
+              IF SIZE(newconfigS, /TNAME) EQ 'STRUCT' THEN BEGIN
+                userinfo=get_login_info()
+                IF newconfigS.(0).SAVEBLOCKED THEN BEGIN                
+                  IF newconfigS.(0).USERNAME EQ userinfo.user_name AND systime(/SECONDS)-newconfigS.(0).SAVESTAMP LT 10 THEN sv='Yes' ELSE BEGIN;allow for old config file without save information
+                    sv=DIALOG_MESSAGE('The selected config file is blocked ('+updStamp(newconfigS.(0).USERNAME, newconfigS.(0).SAVESTAMP) +')'+newline+'Override the blocking and continue?',/QUESTION, DIALOG_PARENT=event.Top)
+                  ENDELSE
+                ENDIF ELSE sv='Yes'
+                IF sv EQ 'Yes' THEN BEGIN
+                  saveOK=1
+                  newconfigS.(0).SAVEBLOCKED=1
+                  newconfigS.(0).SAVESTAMP=systime(/SECONDS)
+
+                  newconfigS.(0).USERNAME=userinfo.user_name
+
+                  configS=newconfigS
+                  quickTemp=updateQuickT(adr(0), multiOpt, TEMPPA=tempPath)
+                  loadTemp=updateLoadT(adr(0),multiOpt, TEMPPA=tempPath)
+                  quickTout=updateQuickTout(adr(0))
+                  renameTemp=updateRenameTemp(adr(0))
+
+                  tempPathLocateConfig=tempPath+'configImageQC_Path.txt'
+                  OPENW, pathfile, tempPathLocateConfig, /GET_LUN
+                  PRINTF, pathfile, adr(0)
+                  CLOSE, pathfile & FREE_LUN, pathfile
+                  configPath=adr(0)
+
+                  SAVEIF, saveOK, configS, quickTemp, quickTout, loadTemp, renameTemp, FILENAME=configPath
+                  ;update values on default parameterset
+                  selConfig=configS.(0).defConfigNo
+                  restoreTagsS=TAG_NAMES(configS)
+                  refreshParam, configS.(selConfig), restoreTagsS(selConfig)
+                  IF SIZE(quickTemp, /TNAME) EQ 'STRUCT' THEN fillQuickTempList, quickTemp.(modality) ELSE fillQuickTempList, -1; in refreshParam.pro
+                  s_upd, selConfig-1, 1
+                  qt_upd, 0
+                  WIDGET_CONTROL, lstModality_qto, SET_DROPLIST_SELECT=0 & qto_currMod=0 & qto_updMode
+                  auto_upd, 0, 1
+                  updRDT, 0
+                  updRDE, 0
+
+                  sv=DIALOG_MESSAGE('Updated info from config file.'+newline+$
+                    'ImageQC will, at startup, find the location of the config file you specified in this text file: '+newline+tempPathLocateConfig, /INFORMATION, DIALOG_PARENT=event.Top)
+                ENDIF
+              ENDIF ELSE sv=DIALOG_MESSAGE('The selected file was not a valid config file.', DIALOG_PARENT=evTop)
+            ENDIF;adr NE ''
+          ENDIF
+
+        ENDIF ELSE sv=DIALOG_MESSAGE('Save blocked by another user session.', DIALOG_PARENT=evTop)
+      END
       'restoreConfig':BEGIN
         IF saveOK EQ 1 THEN BEGIN
           sv=DIALOG_MESSAGE('Are you sure you want to overwrite the current config file with a restored one?',/QUESTION, DIALOG_PARENT=event.Top)
           IF sv EQ 'Yes' THEN BEGIN
-            adr=DIALOG_PICKFILE(TITLE='Locate config file to restore from', /READ, FILTER='*.dat', /FIX_FILTER, DIALOG_PARENT=event.Top, PATH='C:\')
+            adr=DIALOG_PICKFILE(TITLE='Restore config file from', /READ, FILTER='*.dat', /FIX_FILTER, DIALOG_PARENT=event.Top, PATH='C:\')
             IF adr(0) NE '' THEN BEGIN
               WIDGET_CONTROL, /HOURGLASS
               configS=!Null
@@ -842,22 +928,26 @@ pro settings_event, event
                 quickTout=updateQuickTout(adr(0))
                 renameTemp=updateRenameTemp(adr(0))
 
+                configPath=thisPath+'data\config.dat'
+
                 SAVEIF, saveOK, configS, quickTemp, quickTout, loadTemp, renameTemp, FILENAME=configPath
-                ;update values on default parameterset
-                selConfig=configS.(0).defConfigNo
-                restoreTagsS=TAG_NAMES(configS)
-                refreshParam, configS.(selConfig), restoreTagsS(selConfig)
-                IF SIZE(quickTemp, /TNAME) EQ 'STRUCT' THEN fillQuickTempList, quickTemp.(modality) ELSE fillQuickTempList, -1; in refreshParam.pro
-                s_upd, selConfig-1, 1
-                qt_upd, 0
-                WIDGET_CONTROL, lstModality_qto, SET_DROPLIST_SELECT=0 & qto_currMod=0 & qto_updMode
-                auto_upd, 0, 1
-                updRDT, 0
-                updRDE, 0
+                IF saveOK THEN BEGIN
+                  ;update values on default parameterset
+                  selConfig=configS.(0).defConfigNo
+                  restoreTagsS=TAG_NAMES(configS)
+                  refreshParam, configS.(selConfig), restoreTagsS(selConfig)
+                  IF SIZE(quickTemp, /TNAME) EQ 'STRUCT' THEN fillQuickTempList, quickTemp.(modality) ELSE fillQuickTempList, -1; in refreshParam.pro
+                  s_upd, selConfig-1, 1
+                  qt_upd, 0
+                  WIDGET_CONTROL, lstModality_qto, SET_DROPLIST_SELECT=0 & qto_currMod=0 & qto_updMode
+                  auto_upd, 0, 1
+                  updRDT, 0
+                  updRDE, 0
 
-                sv=DIALOG_MESSAGE('Config file restored.', /INFORMATION, DIALOG_PARENT=event.Top)
+                  sv=DIALOG_MESSAGE('Config file restored.', /INFORMATION, DIALOG_PARENT=event.Top)
+                ENDIF
 
-              ENDIF; not valid file
+              ENDIF ELSE sv=DIALOG_MESSAGE('The selected file was not a valid config file.', DIALOG_PARENT=evTop)
 
             ENDIF; no file selected
           ENDIF;Yes
@@ -1866,7 +1956,7 @@ pro settings_event, event
           sv=DIALOG_MESSAGE('Saved new default option to config file.', /INFORMATION)
         ENDIF ELSE sv=DIALOG_MESSAGE('Lost connection to config file '+configPath, /ERROR)
       END
-      
+
       'aWait_Save':BEGIN
         WIDGET_CONTROL,txtWaitPDF0, GET_VALUE=w0
         WIDGET_CONTROL,txtWaitPDF1, GET_VALUE=w1
@@ -1877,8 +1967,8 @@ pro settings_event, event
           SAVEIF, saveOK, configS, quickTemp, quickTout, loadTemp, renameTemp, FILENAME=configPath
           sv=DIALOG_MESSAGE('Saved new default option to config file.', /INFORMATION)
         ENDIF ELSE sv=DIALOG_MESSAGE('Lost connection to config file '+configPath, /ERROR)
-        END
-        
+      END
+
       'aWait_Test':BEGIN
         waitSec=[5,2]
         IF FILE_TEST(configPath, /READ) THEN BEGIN
@@ -1888,29 +1978,29 @@ pro settings_event, event
 
         adr=thisPath+'data\testPDF2TXT.pdf'
         IF FILE_TEST(adr, /READ) THEN BEGIN
-              sv=DIALOG_MESSAGE('Make sure Acrobat Reader is closed down and press OK to start the process. Keep hands off mouse/keyboard while Excel and Acrobat is working.', DIALOG_PARENT=evTop)
-              
-              clipboard.set, adr; send input Path to Excel macro
-              SPAWN, 'start Excel.exe "'+thisPath+'data\convertPDFtoTXT.xlsm" /e', /HIDE
-              tt=SYSTIME(/SECONDS)
-              WAIT, waitSec(0);give time to open Excel/Acrobat Reader
-              FOR w=0, 9 DO BEGIN; wait 1 sec for up to 10 sec to see if clipboard changed
-                pdfContent=clipboard.get()
-                IF pdfContent(0) EQ adr OR pdfContent(0) EQ '' THEN WAIT,1 ELSE BREAK
-              ENDFOR
-              pdfContent=clipboard.get()
-              t2=SYSTIME(/SECONDS)-tt
-              IF pdfContent(0) EQ adr OR pdfContent(0) EQ '' THEN pdfContent=''
+          sv=DIALOG_MESSAGE('Make sure Acrobat Reader is closed down and press OK to start the process. Keep hands off mouse/keyboard while Excel and Acrobat is working.', DIALOG_PARENT=evTop)
 
-              IF pdfContent(0) NE '' THEN BEGIN
-                sv=DIALOG_MESSAGE('The test succeeded. The expected PDF content was found in clipboard. Total time to read content to clipboard: '+STRING(CEIL(t2), FORMAT='(i0)'), DIALOG_PARENT=evTop)
-              ENDIF ELSE BEGIN
-                sv=DIALOG_MESSAGE('Failed to read PDF content for file '+newline+adr+newline+newline+'Troubleshoot:'+newline+$
-                  '-Make sure to close Acrobat Reader before starting the process.'+newline+$
-                  '-Open Excel and hold SHIFT while opening \ImageQC\data\convertPDFtoTXT.xlsm to verify Acrobat reader .exe path or macro activation.', DIALOG_PARENT=evTop)
-              ENDELSE
-          ENDIF ELSE sv=DIALOG_MESSAGE('Failed to read '+adr, DIALOG_PARENT=evTop)
-        END
+          clipboard.set, adr; send input Path to Excel macro
+          SPAWN, 'start Excel.exe "'+thisPath+'data\convertPDFtoTXT.xlsm" /e', /HIDE
+          tt=SYSTIME(/SECONDS)
+          WAIT, waitSec(0);give time to open Excel/Acrobat Reader
+          FOR w=0, 9 DO BEGIN; wait 1 sec for up to 10 sec to see if clipboard changed
+            pdfContent=clipboard.get()
+            IF pdfContent(0) EQ adr OR pdfContent(0) EQ '' THEN WAIT,1 ELSE BREAK
+          ENDFOR
+          pdfContent=clipboard.get()
+          t2=SYSTIME(/SECONDS)-tt
+          IF pdfContent(0) EQ adr OR pdfContent(0) EQ '' THEN pdfContent=''
+
+          IF pdfContent(0) NE '' THEN BEGIN
+            sv=DIALOG_MESSAGE('The test succeeded. The expected PDF content was found in clipboard. Total time to read content to clipboard: '+STRING(CEIL(t2), FORMAT='(i0)'), DIALOG_PARENT=evTop)
+          ENDIF ELSE BEGIN
+            sv=DIALOG_MESSAGE('Failed to read PDF content for file '+newline+adr+newline+newline+'Troubleshoot:'+newline+$
+              '-Make sure to close Acrobat Reader before starting the process.'+newline+$
+              '-Open Excel and hold SHIFT while opening \ImageQC\data\convertPDFtoTXT.xlsm to verify Acrobat reader .exe path or macro activation.', DIALOG_PARENT=evTop)
+          ENDELSE
+        ENDIF ELSE sv=DIALOG_MESSAGE('Failed to read '+adr, DIALOG_PARENT=evTop)
+      END
 
       'a_Browse':BEGIN
         WIDGET_CONTROL, txtAutoImpPath, GET_VALUE=adr
@@ -1935,11 +2025,11 @@ pro settings_event, event
           IF adr NE '' THEN BEGIN
             testResFile=FILE_INFO(adr, /NOEXPAND_PATH)
             IF testResFile.exists EQ 0 THEN BEGIN
-               sv=DIALOG_MESSAGE(adr+newline+'do not exist. Create empty file?',/QUESTION, DIALOG_PARENT=event.top)
-               IF sv EQ 'Yes' THEN BEGIN
-                 OPENW, resfile, adr, /GET_LUN
-                 CLOSE, resfile & FREE_LUN, resfile
-               ENDIF
+              sv=DIALOG_MESSAGE(adr+newline+'do not exist. Create empty file?',/QUESTION, DIALOG_PARENT=event.top)
+              IF sv EQ 'Yes' THEN BEGIN
+                OPENW, resfile, adr, /GET_LUN
+                CLOSE, resfile & FREE_LUN, resfile
+              ENDIF
             ENDIF
             WIDGET_CONTROL, txtBrowseApp, SET_VALUE=adr
             autoChanged=1
@@ -1950,7 +2040,7 @@ pro settings_event, event
       'a_getStatName':BEGIN
         WIDGET_CONTROL, txtBrowse_a, GET_VALUE=pathNow
         If pathNow EQ '' THEN pathNow=defPath
-        
+
         IF WIDGET_INFO(btnAltAuto, /BUTTON_SET) THEN BEGIN
           waitSec=[5,2]
           IF FILE_TEST(configPath, /READ) THEN BEGIN
@@ -1961,37 +2051,37 @@ pro settings_event, event
           nameMod=availMod(a_currMod)
           CASE nameMod OF
             'CT': BEGIN
-                adr=dialog_pickfile(PATH=pathNow, /READ, TITLE='Select PDF (Siemens CT QC result file) to retrieve the serial number for this system', FILTER='*.pdf', DIALOG_PARENT=event.top)
-                IF adr(0) NE '' THEN BEGIN
-                  sv=DIALOG_MESSAGE('Make sure Acrobat Reader is closed down and press OK to start the process. Keep hands off mouse/keyboard while Excel and Acrobat is working.', DIALOG_PARENT=evTop)              
-                  pdfContent=PDF2clipboard(adr(0), thisPath, waitSec);PDF2clipboard in autoTempRun.pro
-                  IF pdfContent(0) NE '' THEN BEGIN
-                    configGetSiemensQC=updConfigGetSiemensQC()
-                    serialN=readCTserial(pdfContent, configGetSiemensQC)
-                    IF serialN EQ '' THEN sv=DIALOG_MESSAGE('Failed to read CT serial number from the selected PDF.', DIALOG_PARENT=evTop) ELSE BEGIN
-                      WIDGET_CONTROL, txtStatName_a, SET_VALUE=serialN
-                      autoChanged=1
-                    ENDELSE
-                  ENDIF ELSE sv=DIALOG_MESSAGE('Failed to read PDF content to clipboard.', DIALOG_PARENT=evTop)
-                ENDIF        
-              END
+              adr=dialog_pickfile(PATH=pathNow, /READ, TITLE='Select PDF (Siemens CT QC result file) to retrieve the serial number for this system', FILTER='*.pdf', DIALOG_PARENT=event.top)
+              IF adr(0) NE '' THEN BEGIN
+                sv=DIALOG_MESSAGE('Make sure Acrobat Reader is closed down and press OK to start the process. Keep hands off mouse/keyboard while Excel and Acrobat is working.', DIALOG_PARENT=evTop)
+                pdfContent=PDF2clipboard(adr(0), thisPath, waitSec);PDF2clipboard in autoTempRun.pro
+                IF pdfContent(0) NE '' THEN BEGIN
+                  configGetSiemensQC=updConfigGetSiemensQC()
+                  serialN=readCTserial(pdfContent, configGetSiemensQC)
+                  IF serialN EQ '' THEN sv=DIALOG_MESSAGE('Failed to read CT serial number from the selected PDF.', DIALOG_PARENT=evTop) ELSE BEGIN
+                    WIDGET_CONTROL, txtStatName_a, SET_VALUE=serialN
+                    autoChanged=1
+                  ENDELSE
+                ENDIF ELSE sv=DIALOG_MESSAGE('Failed to read PDF content to clipboard.', DIALOG_PARENT=evTop)
+              ENDIF
+            END
             'XRAY': sv=DIALOG_MESSAGE('Currently GE_QAP is the only option for reading PDF or TXT for this modality. Station name cannot be found in the QAP files. Detector ID will be logged, though.',DIALOG_PARENT=event.top)
             'PET':BEGIN
-                adr=dialog_pickfile(PATH=pathNow, /READ, TITLE='If input files will be PDF - select PDF (Siemens Daily QC result file) to retrieve the ICS name', FILTER='*.pdf', DIALOG_PARENT=event.top)
-                IF adr(0) NE '' THEN BEGIN
-                  sv=DIALOG_MESSAGE('Make sure Acrobat Reader is closed down and press OK to start the process. Keep hands off mouse/keyboard while Excel and Acrobat is working.', DIALOG_PARENT=evTop)              
-                  pdfContent=PDF2clipboard(adr(0), thisPath, waitSec);PDF2clipboard in autoTempRun.pro
-                  IF pdfContent(0) NE '' THEN BEGIN
-                    configGetSiemensQC=updConfigGetSiemensQC()
-                    resu=readPETdailyQC(pdfContent, configGetSiemensQC)
-                    IF resu.strArrRes(1) EQ '' THEN sv=DIALOG_MESSAGE('Unexpected file content. Could not find system ICS name from the selected PDF', DIALOG_PARENT=evTop) ELSE BEGIN
-                      WIDGET_CONTROL, txtStatName_a, SET_VALUE=resu.strArrRes(1)
-                      autoChanged=1
-                    ENDELSE
-                  ENDIF ELSE sv=DIALOG_MESSAGE('Failed to read PDF content to clipboard.', DIALOG_PARENT=evTop)
-                ENDIF        
-              END
-              'MR': sv=DIALOG_MESSAGE('Currently verifying by station name supported for the MR PDF files.',DIALOG_PARENT=event.top)
+              adr=dialog_pickfile(PATH=pathNow, /READ, TITLE='If input files will be PDF - select PDF (Siemens Daily QC result file) to retrieve the ICS name', FILTER='*.pdf', DIALOG_PARENT=event.top)
+              IF adr(0) NE '' THEN BEGIN
+                sv=DIALOG_MESSAGE('Make sure Acrobat Reader is closed down and press OK to start the process. Keep hands off mouse/keyboard while Excel and Acrobat is working.', DIALOG_PARENT=evTop)
+                pdfContent=PDF2clipboard(adr(0), thisPath, waitSec);PDF2clipboard in autoTempRun.pro
+                IF pdfContent(0) NE '' THEN BEGIN
+                  configGetSiemensQC=updConfigGetSiemensQC()
+                  resu=readPETdailyQC(pdfContent, configGetSiemensQC)
+                  IF resu.strArrRes(1) EQ '' THEN sv=DIALOG_MESSAGE('Unexpected file content. Could not find system ICS name from the selected PDF', DIALOG_PARENT=evTop) ELSE BEGIN
+                    WIDGET_CONTROL, txtStatName_a, SET_VALUE=resu.strArrRes(1)
+                    autoChanged=1
+                  ENDELSE
+                ENDIF ELSE sv=DIALOG_MESSAGE('Failed to read PDF content to clipboard.', DIALOG_PARENT=evTop)
+              ENDIF
+            END
+            'MR': sv=DIALOG_MESSAGE('Currently verifying by station name supported for the MR PDF files.',DIALOG_PARENT=event.top)
             ELSE: sv=DIALOG_MESSAGE('No PDF/TXT input file type defined for this modality.',DIALOG_PARENT=event.top)
           ENDCASE
         ENDIF ELSE BEGIN
@@ -2001,7 +2091,7 @@ pro settings_event, event
             IF okDcm THEN BEGIN
               o=obj_new('idlffdicom')
               t=o->read(adr)
-  
+
               ;check if directoryfile
               test=o->GetReference('0004'x,'1220'x)
               IF test(0) EQ -1 THEN BEGIN
@@ -2012,7 +2102,7 @@ pro settings_event, event
                 WIDGET_CONTROL, txtStatName_a, SET_VALUE=stationName
                 autoChanged=1
               ENDIF ELSE sv=DIALOG_MESSAGE('Selected file is not an DICOM image file.',DIALOG_PARENT=event.top)
-  
+
             ENDIF ELSE sv=DIALOG_MESSAGE('Selected file is not an DICOM image file.',DIALOG_PARENT=event.top)
           ENDIF
         ENDELSE
@@ -2108,24 +2198,24 @@ pro settings_event, event
           CASE nameMod OF
             'CT':BEGIN
               WIDGET_CONTROL, bAutoParam2, MAP=0
-              WIDGET_CONTROL, bDCMcrit, MAP=0           
+              WIDGET_CONTROL, bDCMcrit, MAP=0
               autoChanged=1
             END
             'XRAY':BEGIN
               WIDGET_CONTROL, bAutoParam2, MAP=0
               WIDGET_CONTROL, bDCMcrit, MAP=0
               autoChanged=1
-              END
+            END
             'PET':BEGIN
-                WIDGET_CONTROL, bAutoParam2, MAP=0
-                WIDGET_CONTROL, bDCMcrit, MAP=0  
-                autoChanged=1
-              END
-             'MR':BEGIN
-                WIDGET_CONTROL, bAutoParam2, MAP=0
-                WIDGET_CONTROL, bDCMcrit, MAP=0
-                autoChanged=1
-              END
+              WIDGET_CONTROL, bAutoParam2, MAP=0
+              WIDGET_CONTROL, bDCMcrit, MAP=0
+              autoChanged=1
+            END
+            'MR':BEGIN
+              WIDGET_CONTROL, bAutoParam2, MAP=0
+              WIDGET_CONTROL, bDCMcrit, MAP=0
+              autoChanged=1
+            END
             ELSE: BEGIN
               sv=DIALOG_MESSAGE('Currently no PDF/TXT test file type available for this modality.', DIALOG_PARENT=event.top)
               WIDGET_CONTROL, bAutoParam2, MAP=1
@@ -2138,7 +2228,7 @@ pro settings_event, event
           WIDGET_CONTROL, bDCMcrit, MAP=1
           autoChanged=1
         ENDELSE
-        
+
       END
 
       'btnAltConfigInfo':BEGIN
@@ -2179,7 +2269,7 @@ pro settings_event, event
           END
           ELSE: BEGIN
             sv=DIALOG_MESSAGE('Currently no PDF/TXT test file type available for this modality.', DIALOG_PARENT=event.top)
-            END
+          END
         ENDCASE
       END
 
@@ -2287,7 +2377,7 @@ pro settings_event, event
               testResFile=FILE_INFO(newPath, /NOEXPAND_PATH)
               sep=PATH_SEP()
               IF STRMID(newPath(0), 0, /REVERSE_OFFSET) NE sep THEN newPath=newPath(0)+sep
-            
+
               WIDGET_CONTROL, /HOURGLASS
               WIDGET_CONTROL, txtBrowseApp, GET_VALUE=newPathApp
               IF newPathApp NE '' THEN BEGIN
@@ -2322,7 +2412,7 @@ pro settings_event, event
                   'PET': BEGIN
                     sv=DIALOG_MESSAGE('Will the input files be XML (Yes) or PDF (No)', /Question, DIALOG_PARENT=event.top)
                     IF sv EQ 'Yes' THEN altAlt='XML_SiemensPETdailyQC' ELSE altAlt='PDF_SiemensPETdailyQC'
-                    END
+                  END
                   'MR': altAlt='PDF_MR'
                   ELSE: altAlt=''
                 ENDCASE
@@ -2341,7 +2431,7 @@ pro settings_event, event
                   'deleteFilesEnd',0,$
                   'alternative',altAlt)
               ENDIF ELSE BEGIN
-                
+
                 WIDGET_CONTROL, txtDCMcritGroup, GET_VALUE=txtGroup
                 WIDGET_CONTROL, txtDCMcritElem, GET_VALUE=txtElem
                 WIDGET_CONTROL, txtDCMcrit, GET_VALUE=dcmCritStr
@@ -2443,73 +2533,73 @@ pro settings_event, event
         ;sv='Yes'
         ;IF autoChanged THEN sv=DIALOG_MESSAGE('Possible changes for the automation template not saved. Continue without saving?', /QUESTION, DIALOG_PARENT=event.top)
         ;IF sv EQ 'Yes' THEN BEGIN
-          selMod=WIDGET_INFO(lstModality_a,/DROPLIST_SELECT)
-          thisMod=availModNmb(selMod)
-          selecTemp_a=WIDGET_INFO(listTemp_a, /LIST_SELECT)
-          IF selecTemp_a NE -1  AND tempnames_a(0) NE '' THEN BEGIN
-            ;check if saved
-            IF FILE_TEST(configPath, /READ) THEN RESTORE, configPath ELSE sv=DIALOG_MESSAGE('Lost connection to config file '+configPath, /ERROR)
-            equal=1
-            selTemp=loadTemp.(thisMod).(selecTemp_a)
-            WIDGET_CONTROL, txtBrowse_a, GET_VALUE=newPath
-            WIDGET_CONTROL, txtBrowseApp, GET_VALUE=newPathApp
-            IF selTemp.alternative EQ '' THEN selAlt=0 ELSE selAlt=1
-            IF selTemp.path NE newPath THEN equal=0 ELSE BEGIN
-              IF selTemp.pathApp NE newPathApp THEN equal=0 ELSE BEGIN
-                IF selAlt NE WIDGET_INFO(btnAltAuto, /BUTTON_SET) THEN equal=0 ELSE BEGIN
-                  IF selAlt EQ 0 THEN BEGIN
-                    IF ~ARRAY_EQUAL(selTemp.sortBy, sortElem) THEN equal=0 ELSE BEGIN
-                      IF ~ARRAY_EQUAL(selTemp.sortAsc, ascElem) THEN equal=0 ELSE BEGIN
-                        IF selTemp.paramSet NE paramSetNames(WIDGET_INFO(listSets_a,/DROPLIST_SELECT)) THEN equal=0 ELSE BEGIN
-                          IF selTemp.quickTemp NE quickTempNames(WIDGET_INFO(listQT_a,/DROPLIST_SELECT)) THEN equal=0 ELSE BEGIN
-                            IF selTemp.archive NE WIDGET_INFO(btnMoveFiles,/BUTTON_SET) THEN equal=0 ELSE BEGIN
-                              IF selTemp.deleteFiles NE WIDGET_INFO(btnDeleteFiles,/BUTTON_SET) THEN equal=0 ELSE BEGIN
-                                IF selTemp.deleteFilesEnd NE WIDGET_INFO(btnDeleteFilesEnd,/BUTTON_SET) THEN equal=0
-                              ENDELSE
-                            ENDELSE;archive
-                          ENDELSE;quickTemp
-                        ENDELSE;paramSet
-                      ENDELSE;sortAsc
-                    ENDELSE;sortBy
-                  ENDIF; selAlt = 0
-                ENDELSE;selAlt eq
-              ENDELSE;pathAppende
-            ENDELSE;path
-            IF equal THEN BEGIN
-              WIDGET_CONTROL, Event.top, /DESTROY
-              autoStopFlag=0
-              thisTempName=tempnames_a(selecTemp_a)
-              IF selTemp.alternative NE '' THEN BEGIN
-                IF STRMID(selTemp.alternative,0,3) EQ 'PDF' THEN BEGIN
-                  sv=DIALOG_MESSAGE('This template will read pdf using an Excel macro and autostarting Acrobat Reader and shortkeys (Ctrl+C, Ctrl+A). '+$
-                    'Make sure Acrobat Reader is closed down and press OK to start the process. Keep hands off mouse/keyboard (unless prompted otherwise) until the summary confirm that these processes are finished.', /INFORMATION, DIALOG_PARENT=evTop)
-                ENDIF
+        selMod=WIDGET_INFO(lstModality_a,/DROPLIST_SELECT)
+        thisMod=availModNmb(selMod)
+        selecTemp_a=WIDGET_INFO(listTemp_a, /LIST_SELECT)
+        IF selecTemp_a NE -1  AND tempnames_a(0) NE '' THEN BEGIN
+          ;check if saved
+          IF FILE_TEST(configPath, /READ) THEN RESTORE, configPath ELSE sv=DIALOG_MESSAGE('Lost connection to config file '+configPath, /ERROR)
+          equal=1
+          selTemp=loadTemp.(thisMod).(selecTemp_a)
+          WIDGET_CONTROL, txtBrowse_a, GET_VALUE=newPath
+          WIDGET_CONTROL, txtBrowseApp, GET_VALUE=newPathApp
+          IF selTemp.alternative EQ '' THEN selAlt=0 ELSE selAlt=1
+          IF selTemp.path NE newPath THEN equal=0 ELSE BEGIN
+            IF selTemp.pathApp NE newPathApp THEN equal=0 ELSE BEGIN
+              IF selAlt NE WIDGET_INFO(btnAltAuto, /BUTTON_SET) THEN equal=0 ELSE BEGIN
+                IF selAlt EQ 0 THEN BEGIN
+                  IF ~ARRAY_EQUAL(selTemp.sortBy, sortElem) THEN equal=0 ELSE BEGIN
+                    IF ~ARRAY_EQUAL(selTemp.sortAsc, ascElem) THEN equal=0 ELSE BEGIN
+                      IF selTemp.paramSet NE paramSetNames(WIDGET_INFO(listSets_a,/DROPLIST_SELECT)) THEN equal=0 ELSE BEGIN
+                        IF selTemp.quickTemp NE quickTempNames(WIDGET_INFO(listQT_a,/DROPLIST_SELECT)) THEN equal=0 ELSE BEGIN
+                          IF selTemp.archive NE WIDGET_INFO(btnMoveFiles,/BUTTON_SET) THEN equal=0 ELSE BEGIN
+                            IF selTemp.deleteFiles NE WIDGET_INFO(btnDeleteFiles,/BUTTON_SET) THEN equal=0 ELSE BEGIN
+                              IF selTemp.deleteFilesEnd NE WIDGET_INFO(btnDeleteFilesEnd,/BUTTON_SET) THEN equal=0
+                            ENDELSE
+                          ENDELSE;archive
+                        ENDELSE;quickTemp
+                      ENDELSE;paramSet
+                    ENDELSE;sortAsc
+                  ENDELSE;sortBy
+                ENDIF; selAlt = 0
+              ENDELSE;selAlt eq
+            ENDELSE;pathAppende
+          ENDELSE;path
+          IF equal THEN BEGIN
+            WIDGET_CONTROL, Event.top, /DESTROY
+            autoStopFlag=0
+            thisTempName=tempnames_a(selecTemp_a)
+            IF selTemp.alternative NE '' THEN BEGIN
+              IF STRMID(selTemp.alternative,0,3) EQ 'PDF' THEN BEGIN
+                sv=DIALOG_MESSAGE('This template will read pdf using an Excel macro and autostarting Acrobat Reader and shortkeys (Ctrl+C, Ctrl+A). '+$
+                  'Make sure Acrobat Reader is closed down and press OK to start the process. Keep hands off mouse/keyboard (unless prompted otherwise) until the summary confirm that these processes are finished.', /INFORMATION, DIALOG_PARENT=evTop)
               ENDIF
-              testLog=''
-              autoTempRun, selTemp, thisMod, TEMPNAME=thisTempName, TESTLOG=testLog
-              updatePlot,1,1,0
-              WIDGET_CONTROL, lblProgress0, SET_VALUE=''
-              
-              IF testLog NE '' THEN BEGIN
-                fi=FILE_INFO(thisPath+'data\')
-                pa=''
-                IF fi.write THEN pa=thisPath+'data\autoLog.txt' ELSE BEGIN
-                  fi=FILE_INFO('C:\temp\')
-                  IF fi.write THEN pa='C:\temp\autoLog.txt'
-                ENDELSE
-                IF pa NE '' THEN BEGIN
-                  OPENW, logfile, pa, /GET_LUN
-                  PRINTF, logfile, testLog
-                  CLOSE, logfile & FREE_LUN, logfile
-                  XDISPLAYFILE, pa, TITLE='Analyse log', /MODAL, DONE_BUTTON='Close', WIDTH=100, GROUP=evtop
-                ENDIF ELSE BEGIN
-                  CLIPBOARD.set, testLog
-                  sv=DIALOG_MESSAGE('Log in clipboard. Paste somewhere to see the log.', DIALOG_PARENT=evtop)
-                ENDELSE
-              ENDIF;testLog
-              
-            ENDIF ELSE sv=DIALOG_MESSAGE('Saved template and current values do not match. Save before running the template.',DIALOG_PARENT=event.top)
-          ENDIF ELSE sv=DIALOG_MESSAGE('No template selected.',DIALOG_PARENT=event.top)
+            ENDIF
+            testLog=''
+            autoTempRun, selTemp, thisMod, TEMPNAME=thisTempName, TESTLOG=testLog
+            updatePlot,1,1,0
+            WIDGET_CONTROL, lblProgress0, SET_VALUE=''
+
+            IF testLog NE '' THEN BEGIN
+              fi=FILE_INFO(thisPath+'data\')
+              pa=''
+              IF fi.write THEN pa=thisPath+'data\autoLog.txt' ELSE BEGIN
+                fi=FILE_INFO('C:\temp\')
+                IF fi.write THEN pa='C:\temp\autoLog.txt'
+              ENDELSE
+              IF pa NE '' THEN BEGIN
+                OPENW, logfile, pa, /GET_LUN
+                PRINTF, logfile, testLog
+                CLOSE, logfile & FREE_LUN, logfile
+                XDISPLAYFILE, pa, TITLE='Analyse log', /MODAL, DONE_BUTTON='Close', WIDTH=100, GROUP=evtop
+              ENDIF ELSE BEGIN
+                CLIPBOARD.set, testLog
+                sv=DIALOG_MESSAGE('Log in clipboard. Paste somewhere to see the log.', DIALOG_PARENT=evtop)
+              ENDELSE
+            ENDIF;testLog
+
+          ENDIF ELSE sv=DIALOG_MESSAGE('Saved template and current values do not match. Save before running the template.',DIALOG_PARENT=event.top)
+        ENDIF ELSE sv=DIALOG_MESSAGE('No template selected.',DIALOG_PARENT=event.top)
         ;ENDIF; sv='Yes' (autoChange)
       END
       'a_addElem':BEGIN
@@ -2981,7 +3071,7 @@ pro settings_event, event
           oldTop=WIDGET_INFO(listFiles, /LIST_TOP)
           WIDGET_CONTROL, listFiles, SET_VALUE=fileList, SET_LIST_SELECT=sel, SET_LIST_TOP=oldTop
         ENDIF
-        END
+      END
 
       ELSE:
     ENDCASE
@@ -3486,7 +3576,7 @@ pro auto_upd, selT, first
     ENDIF ELSE BEGIN
       WIDGET_CONTROL, btnAltAuto, SET_BUTTON=1
       WIDGET_CONTROL, bAutoParam2, MAP=0
-      WIDGET_CONTROL, bDCMcrit, MAP=0  
+      WIDGET_CONTROL, bDCMcrit, MAP=0
     ENDELSE
 
     sortElem=loadTemp.(thisMod).(selT).sortBy
@@ -3655,7 +3745,13 @@ pro updRDT, sel ;update rename dicom template list and details for selected
   ;fill cat/file template based on list selection
   WIDGET_CONTROL, /HOURGLASS
   IF FILE_TEST(configPath, /READ) THEN RESTORE, configPath ELSE sv=DIALOG_MESSAGE('Lost connection to config file '+configPath, /ERROR)
-
+  IF SIZE(renameTemp, /TNAME) NE 'STRUCT' THEN BEGIN; should not be necessary, but has happened so added fix here while searching for original error
+    renameTemp=updateRenameTemp(configPath)
+    IF saveOK EQ 1 THEN BEGIN
+      configS.(0).saveStamp=SYSTIME(/SECONDS)
+      SAVE, configS, quickTemp, quickTout, loadTemp, renameTemp, FILENAME=configPath
+    ENDIF
+  ENDIF
   rdt_names=TAG_NAMES(renameTemp.temp)
   WIDGET_CONTROL, lstTemp_rdt, SET_VALUE=rdt_names, SET_LIST_SELECT=sel
 

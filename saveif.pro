@@ -1,7 +1,7 @@
 pro SAVEIF, saveOK, configS, quickTemp, quickTout, loadTemp, renameTemp, FILENAME=configPath
 
   fi=FILE_INFO(configPath)
-  IF fi.write EQ 0 THEN BEGIN
+  IF fi.write EQ 0 AND fi.exists EQ 1 THEN BEGIN
     sv=DIALOG_MESSAGE('You have lost writing-permission to the config file. Saving will be blocked.')
     saveOK=-1
   ENDIF ELSE BEGIN

@@ -396,7 +396,7 @@ pro autoTempRun, thisTemp, thisModality, LOOP=loop, PICKFILES=pickfiles, TEMPNAM
                   activeImg=readImg(structImgs.(0).filename, structImgs.(0).frameNo)
                   fileList=getListOpenFiles(structImgs,0,marked, markedMulti)
                   WIDGET_CONTROL, listFiles, YSIZE=n_elements(fileList), SET_VALUE=fileList, SET_LIST_SELECT=0, SET_LIST_TOP=0
-                  WIDGET_CONTROL, listFiles, SCR_YSIZE=170
+                  WIDGET_CONTROL, listFiles, SCR_YSIZE=listFilesYsize
                   WIDGET_CONTROL, lblLoadedN, SET_VALUE=STRING(n_elements(fileList), FORMAT='(i0)')+' )'
                   clearRes
                   updateInfo
@@ -512,7 +512,7 @@ pro autoTempRun, thisTemp, thisModality, LOOP=loop, PICKFILES=pickfiles, TEMPNAM
                           ENDIF
                           fileList=getListOpenFiles(structImgs,0,marked, markedMulti);update with new path
                           WIDGET_CONTROL, listFiles, YSIZE=n_elements(fileList), SET_VALUE=fileList, SET_LIST_SELECT=0, SET_LIST_TOP=0
-                          WIDGET_CONTROL, listFiles, SCR_YSIZE=170
+                          WIDGET_CONTROL, listFiles, SCR_YSIZE=listFilesYsize
                           WIDGET_CONTROL, lblLoadedN, SET_VALUE=STRING(n_elements(fileList), FORMAT='(i0)')+' )'
                         ENDIF;move files to 'Archive'
 

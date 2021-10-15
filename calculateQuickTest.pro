@@ -158,7 +158,7 @@ pro calculateQuickTest
               CASE test OF
                 1: getDCM_MR
                 2: SNR_MR
-                3: PUI_MR
+                3: PIU_MR
                 4: Ghost_MR
                 5: GD_MR
                 6: Slice_MR

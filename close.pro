@@ -49,7 +49,7 @@ pro closeImgs, imgIds
       fileList=getListOpenFiles(structImgs,0,marked,markedMulti,RENAMEDICOM=RDtemp, CONFIGPATH=configPath, PARENT=evTop)
 
       WIDGET_CONTROL, listFiles, YSIZE=n_elements(fileList), SET_VALUE=fileList, SET_LIST_SELECT=0, SET_LIST_TOP=0
-      WIDGET_CONTROL, listFiles, SCR_YSIZE=170
+      WIDGET_CONTROL, listFiles, SCR_YSIZE=listFilesYsize
 
       IF markedMulti(0) NE -1 THEN clearRes ELSE BEGIN; too complicated to keep results if markedMulti
         analyseStrings=analyseStringsAll.(modality)
@@ -87,7 +87,7 @@ pro closeImgs, imgIds
               'CROSSCALIB': clearRes, 'CROSSCALIB'
               'RC': clearRes, 'RC';probably less could be done, but - just in case some trouble
               'SNR': clearRes, 'SNR'
-              'PUI': PUIres=PUIres[*,remain]
+              'PIU': PIUres=PIUres[*,remain]
               'GHOST': ghostMRres=ghostMRres[*,remain]
             ENDCASE
           ENDIF

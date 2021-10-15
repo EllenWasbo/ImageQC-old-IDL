@@ -15,7 +15,7 @@
 ;along with this program; if not, write to the Free Software
 ;Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
-pro openFiles, adrFilesToOpen, SILENT=silent
+pro openFiles, adrFilesToOpen, SILENT=silent, FRAMENOS=frameNos
   COMPILE_OPT hidden
   COMMON VARI
 
@@ -50,34 +50,44 @@ pro openFiles, adrFilesToOpen, SILENT=silent
     FOR i=0, nFiles-1 DO BEGIN
 
       WIDGET_CONTROL, lblProgress, SET_VALUE='Loading file info: '+STRING(i*100./nFiles, FORMAT='(i0)')+' %'
-      
+     
       structNew=readImgInfo(adrFilesToOpen(i), evTop, silent)
-      
-      
+         
       IF SIZE(structNew, /TNAME) EQ 'STRUCT' THEN BEGIN
         tagn=TAG_NAMES(structNew)
         multiFrame=1
         IF tagn.HasValue('FILENAME') THEN multiFrame=0
 
         IF counter EQ 0 AND app EQ 0 THEN BEGIN
-          IF multiFrame THEN BEGIN
-            structImgs=CREATE_STRUCT('S0',structNew.(0))
-            counter=1
-            FOR mf=1, structNew.(0).nFrames-1 DO BEGIN
-              structImgs=CREATE_STRUCT(structImgs,'S'+STRING(counter,FORMAT='(i0)'),structNew.(mf))
+          IF multiFrame THEN BEGIN          
+            IF N_ELEMENTS(frameNos) GT 0 THEN BEGIN;coming from selectImages with specified frameNos
+              structImgs=CREATE_STRUCT('S0',structNew.(frameNos(i)))
               counter=counter+1
-            ENDFOR
+            ENDIF ELSE BEGIN
+              structImgs=CREATE_STRUCT('S0',structNew.(0))
+              counter=1
+              FOR mf=1, structNew.(0).nFrames-1 DO BEGIN
+                structImgs=CREATE_STRUCT(structImgs,'S'+STRING(counter,FORMAT='(i0)'),structNew.(mf))
+                counter=counter+1
+              ENDFOR
+            ENDELSE
           ENDIF ELSE BEGIN
             structImgs=CREATE_STRUCT('S0',structNew)
             counter=counter+1
           ENDELSE
+          
         ENDIF ELSE BEGIN
           
           IF multiFrame THEN BEGIN
-            FOR mf=0, structNew.(0).nFrames-1 DO BEGIN
-              structImgs=CREATE_STRUCT(structImgs,'S'+STRING(counter+app,FORMAT='(i0)'),structNew.(mf))
-              counter=counter+1
-            ENDFOR
+            IF N_ELEMENTS(frameNos) GT 0 THEN BEGIN;coming from selectImages with specified frameNos
+              structImgs=CREATE_STRUCT(structImgs,'S'+STRING(counter+app,FORMAT='(i0)'),structNew.(frameNos(i)))
+              counter=counter+1         
+            ENDIF ELSE BEGIN
+              FOR mf=0, structNew.(0).nFrames-1 DO BEGIN
+                structImgs=CREATE_STRUCT(structImgs,'S'+STRING(counter+app,FORMAT='(i0)'),structNew.(mf))
+                counter=counter+1
+              ENDFOR
+            ENDELSE
           ENDIF ELSE BEGIN
             structImgs=CREATE_STRUCT(structImgs,'S'+STRING(counter+app,FORMAT='(i0)'),structNew)
             counter=counter+1
@@ -192,7 +202,7 @@ pro openFiles, adrFilesToOpen, SILENT=silent
         IF N_ELEMENTS(silent) EQ 0 THEN silent = 0
         IF silent EQ 0 THEN BEGIN
           WIDGET_CONTROL, listFiles, YSIZE=n_elements(fileList), SET_VALUE=fileList, SET_LIST_SELECT=newSel
-          WIDGET_CONTROL, listFiles, SCR_YSIZE=170
+          WIDGET_CONTROL, listFiles, SCR_YSIZE=listFilesYsize
           WIDGET_CONTROL, lblLoadedN, SET_VALUE=STRING(n_elements(fileList), FORMAT='(i0)')+' )'
         ENDIF
         activeImg=readImg(structImgs.(app).filename, structImgs.(app).frameNo)

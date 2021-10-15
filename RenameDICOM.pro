@@ -100,7 +100,7 @@ pro RenameDICOM, GROUP_LEADER = mainbase, xoff, yoff, inputAdr
 
   bFileActions=WIDGET_BASE(bMain, /ROW, XSIZE=300)
   btnPutAllinOne=WIDGET_BUTTON(bFileActions, VALUE='Move all DCM files in subfolders to selected folder', UVALUE='putAllinOne', FONT=font1, XSIZE=300)
-  btnPutSeriesInFolders=WIDGET_BUTTON(bFileActions, VALUE='Sort files into subfolders of same seriesnumber', UVALUE='putSeriesFolder', TOOLTIP='Put all files with same seriesnumber into folder named <seriesnumber>', FONT=font1, XSIZE=300)
+  btnPutSeriesInFolders=WIDGET_BUTTON(bFileActions, VALUE='Sort files into subfolders of same series UID', UVALUE='putSeriesFolder', TOOLTIP='Put all files with same seriesUID into the same subfolder', FONT=font1, XSIZE=300)
   ;btnResetToInput=WIDGET_BUTTON(bFileActions, VALUE='Use paths from open files in ImageQC',UVALUE='resetInput', TOOLTIP='Work on the files already open in the main window (if any)', FONT=font1, XSIZE=300)
 
   lbl=WIDGET_LABEL(bMain, VALUE='', YSIZE=20, /NO_COPY)
@@ -469,8 +469,11 @@ pro RenameDICOM_event, event
             test=o->GetReference('0020'x,'0011'x)
             test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
             seriesNmb=LONG(*(test_peker[0]))
+            test=o->GetReference('0020'x,'000E'x)
+            test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
+            seriesUID=*(test_peker[0])
 
-            subFolder=STRING(seriesNmb, FORMAT='(i04)')+'\'
+            subFolder='serNo_'+STRING(seriesNmb, FORMAT='(i04)')+'_serUID_'+IDL_VALIDNAME(seriesUID, /CONVERT_ALL)+'\'; TODO - legge til noe ift UID her
             IF ~subFs.HasValue(subFolder) THEN FILE_MKDIR, adrDir+ subFolder
             tempname=adrDir+ subFolder + FILE_BASENAME(origPaths(i))
             newPaths(i)=tempname
@@ -567,7 +570,12 @@ pro RenameDICOM_event, event
       res=''
       IF adr(0) NE '' THEN BEGIN; find dicom files within path in txtCat field
         Spawn, 'dir '  + '"'+adr(0)+'"' + '*'+ '/b /ad', res; directories only
+        idHidden=WHERE(res EQ 'System Volume Information')
+        IF idHidden(0) NE -1 THEN BEGIN
+          IF N_ELEMENTS(res) EQ 1 THEN res='' ELSE res=removeIDarr(res, idHidden)
+        ENDIF        
         origPaths=adr(0)+res(sort(res))
+          
         delimPos=STRPOS(origPaths,'\', /REVERSE_SEARCH)
         IF delimPos(0) NE 0 THEN origPaths=origPaths+'\'
 
@@ -608,7 +616,8 @@ pro RenameDICOM_event, event
 
         IF fileTemp(0) NE '' THEN BEGIN
           IF adr(0) NE '' THEN BEGIN; find dicom files within path in txtCat field
-            Spawn, 'dir '  + '"'+adr(0)+'\"' + '*'+ '/b /a-d', res
+            delimPos=STRPOS(adr(0),'\', /REVERSE_SEARCH)
+            IF delimPos(0) EQ STRLEN(adr(0))-1 THEN Spawn, 'dir '  +adr(0) + '*'+ '/b /a-d', res ELSE Spawn, 'dir '  + '"'+adr(0)+'\"' + '*'+ '/b /a-d', res
             IF res(0) EQ '' THEN origPaths='' ELSE origPaths=adr(0)+res(sort(res))
           ENDIF
 

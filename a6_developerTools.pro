@@ -4,7 +4,7 @@ pro commonVariable
   
   commonName='COMMON VARI'
   commonIn=!Null
-  variableName='SELIM_IQ';or functionname or procedure or anything
+  variableName='newFileName';or functionname or procedure or anything
   varIn=!Null
   
   ;loop through all .pro files and find where COMMON

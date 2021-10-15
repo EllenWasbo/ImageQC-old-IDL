@@ -16,7 +16,11 @@ function getImgList, struct, serId
 
     IF struct.(serId).(0).zpos NE -999. THEN BEGIN
       FOR i=0, nImg-1 DO imgTab[i]='imgNo ' + STRING(struct.(serId).(i).imgNo, FORMAT='(i3)') + ' zpos ' + STRING(struct.(serId).(i).zPos, FORMAT='(f0.1)')
-    ENDIF ELSE FOR i=0, nImg-1 DO imgTab[i]='imgNo '+ STRING(struct.(serId).(i).imgNo, FORMAT='(3i0)')
+    ENDIF ELSE BEGIN
+      IF struct.(serId).(0).nFrames GT 1 THEN BEGIN
+        FOR i=0, nImg-1 DO imgTab[i]='frameNo '+ STRING(struct.(serId).(i).frameNo, FORMAT='(3i0)')
+      ENDIF ELSE FOR i=0, nImg-1 DO imgTab[i]='imgNo '+ STRING(struct.(serId).(i).imgNo, FORMAT='(3i0)')
+    ENDELSE
 
   ENDIF
   return, imgTab
@@ -29,8 +33,15 @@ function getSelList, struct
     imgTab=STRARR(nImg)
 
     IF struct.(0).zpos NE -999. THEN BEGIN
-      FOR i=0, nImg-1 DO imgTab[i]=STRING(struct.(i).seriesNmb, FORMAT='(i5)') +' ' + struct.(i).seriesName + ' / imgNo ' + STRING(struct.(i).imgNo, FORMAT='(3i0)') + ' zpos ' + STRING(struct.(i).zPos, FORMAT='(f0.1)')
-    ENDIF ELSE FOR i=0, nImg-1 DO imgTab[i]=STRING(struct.(i).seriesNmb, FORMAT='(i5)') +' ' + struct.(i).seriesName + ' / imgNo '+ STRING(struct.(i).imgNo, FORMAT='(3i0)')
+      FOR i=0, nImg-1 DO BEGIN
+        imgTab[i]=STRING(struct.(i).seriesNmb, FORMAT='(i5)') +' ' + struct.(i).seriesName + ' / imgNo ' + STRING(struct.(i).imgNo, FORMAT='(3i0)') + ' zpos ' + STRING(struct.(i).zPos, FORMAT='(f0.1)')
+      ENDFOR
+    ENDIF ELSE BEGIN
+      IF struct.(0).nFrames GT 1 THEN BEGIN
+        FOR i=0, nImg-1 DO imgTab[i]=STRING(struct.(i).seriesNmb, FORMAT='(i5)') +' ' + struct.(i).seriesName + ' / frameNo '+ STRING(struct.(i).frameNo, FORMAT='(3i0)')
+      ENDIF ELSE FOR i=0, nImg-1 DO imgTab[i]=STRING(struct.(i).seriesNmb, FORMAT='(i5)') +' ' + struct.(i).seriesName + ' / imgNo '+ STRING(struct.(i).imgNo, FORMAT='(3i0)')
+      
+    ENDELSE
 
   ENDIF
   return, imgTab
@@ -162,10 +173,6 @@ pro selectImages, markArr, QTstring, defPath
   b1=WIDGET_BASE(bBottom, XSIZE=250, /COLUMN)
   lbl=WIDGET_LABEL(b1, VALUE='Select options will affect all', FONT=font1, /ALIGN_LEFT, /NO_COPY)
   lbl=WIDGET_LABEL(b1, VALUE='selected series.', FONT=font1,/ALIGN_LEFT, /NO_COPY)
-
-  ;bSortBy=WIDGET_BASE(b1, /ROW)
-  ;lblSort=WIDGET_LABEL(bSortby, VALUE='Sort by', FONT=font1, /ALIGN_LEFT)
-  ;lstSort=WIDGET_DROPLIST(bSortby, VALUE=['Series time / Acquisition number',''], XSIZE=150, FONT=font1, UVALUE='listSort')
 
   lbl=WIDGET_LABEL(bBottom, VALUE='', XSIZE=5, /NO_COPY)
   b2=WIDGET_BASE(bBottom, /COLUMN, FRAME=1)
@@ -492,7 +499,11 @@ pro selectImages_event, event
         IF SIZE(structSelected, /TNAME) EQ 'STRUCT' THEN BEGIN
           nSel=N_TAGS(structSelected)
           selAdr=STRARR(nSel)
-          FOR i=0, nSel-1 DO selAdr[i]=structSelected.(i).filename
+          selFrameNo=INTARR(nSel)
+          FOR i=0, nSel-1 DO BEGIN
+            selAdr[i]=structSelected.(i).filename
+            selFrameNo[i]=structSelected.(i).frameNo
+          ENDFOR         
         ENDIF
         WIDGET_CONTROL, event.top, /DESTROY
       END

@@ -24,7 +24,7 @@ pro clearAll
   iDrawLarge.erase
 
   ;clear list
-  WIDGET_CONTROL, listFiles, YSIZE=1, SCR_YSIZE=170, SET_VALUE='';, SET_LIST_SELECT=-1; empty none selected
+  WIDGET_CONTROL, listFiles, YSIZE=1, SCR_YSIZE=listFilesYsize, SET_VALUE='';, SET_LIST_SELECT=-1; empty none selected
   WIDGET_CONTROL, lblLoadedN, SET_VALUE='0 )'
   marked=-1
   markedMulti=-1
@@ -74,7 +74,7 @@ pro clearRes, analyseStr
       rcRes=!Null
       radialRes=!Null
       SNRres=!Null
-      PUIres=!Null
+      PIUres=!Null
       ghostMRres=!Null
       
       results=results*0
@@ -111,7 +111,7 @@ pro clearRes, analyseStr
         'RC': rcRes=!Null
         'RADIAL': radialRes=!Null
         'SNR': SNRres=!Null
-        'PUI': PUIres=!Null
+        'PIU': PIUres=!Null
         'GHOST': ghostMRres=!Null
         ELSE:
       ENDCASE

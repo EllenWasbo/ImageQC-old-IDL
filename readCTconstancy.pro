@@ -26,7 +26,7 @@ function formatDDMMYYYY, str
   return, strDMY
 end
 
-function getTypeAndLanuage, clipres, configGetSiemensQC
+function getTypeAndLanguage, clipres, configGetSiemensQC
 
   ;detect language and type of report
   nLangu=N_TAGS(configGetSiemensQC.CT)
@@ -91,7 +91,7 @@ end
 function readCTserial, clipres, configGetSiemensQC
   serialString=''
   
-  typeAndLanguage=getTypeAndLanuage(clipres, configGetSiemensQC)
+  typeAndLanguage=getTypeAndLanguage(clipres, configGetSiemensQC)
 
   IF typeAndLanguage.REPORTTYPENO EQ -1 THEN errMsg='No results in file or unexpected content or language.' ELSE BEGIN 
     ;serial Number
@@ -138,7 +138,7 @@ function readCTconstancy, clipres, configGetSiemensQC
     resVectMTFdbl=FLTARR(4)-1000.; 50% 10% typical body smooth tube A / tube B
 
     ;detect language and type of report
-    typeAndLanguage=getTypeAndLanuage(clipres, configGetSiemensQC)
+    typeAndLanguage=getTypeAndLanguage(clipres, configGetSiemensQC)
     langu=typeAndLanguage.LANGUAGENO
     typeStr=typeAndLanguage.REPORTTYPE
     symbiaT=typeAndLanguage.SYMBIAT

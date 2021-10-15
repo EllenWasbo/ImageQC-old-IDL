@@ -131,9 +131,16 @@ pro set_configSinfo, cSi
     ['CrossROIsz', 'ROI radius','4','CROSSCALIB','FLOAT'],$
     ['CrossVol', 'Volume of container','4','CROSSCALIB','FLOAT'],$
     ['SNR_MR_ROI', 'ROI size (% of phantom)','5','SNR','FLOAT'],$
-    ['PUI_MR_ROI', 'ROI size (% of phantom)','5','PUI','FLOAT'],$
+    ['PIU_MR_ROI', 'ROI size (% of phantom)','5','PIU','FLOAT'],$
     ['Ghost_MR_ROI', 'ROI param (Crad, w, h, d, Copt(0/1))','5','GHOST','FLOAT'],$
     ['GD_MR_act', 'Actual phantom size (mm)','5','GEOMDIST','FLOAT'],$
-    ['Slice_MR_ROI', 'ROI param (tanA, w, h, dU, dL, Copt(0/1))','5','SLICETHICK','FLOAT']]
+    ['Slice_MR_ROI', 'ROI param (tanA, w, h, dU, dL, Copt(0/1))','5','SLICETHICK','FLOAT'],$
+    ['typeROIMR','ROI shape (0..2)','5','ROI','INT'],$
+    ['ROIMRrad','ROI radius','5','ROI','FLOAT'],$
+    ['ROIMRx','ROI size x','5','ROI','FLOAT'],$
+    ['ROIMRy','ROI size y','5','ROI','FLOAT'],$
+    ['ROIMRa','ROI rotation','5','ROI','FLOAT'],$
+    ['offxyROIMR', 'Extra offset ROI dx,dy','5','ROI','INT'], $
+    ['offxyROIMR_unit', 'Extra offset ROI pix(0) or mm(1)','5','ROI','INT']]
   RETURN
 end

@@ -23,7 +23,7 @@ pro ImageQC,  GROUP_LEADER=bMain
     evTop, currVersion, saveOK, configPath, tempPath, lblDir, btnAppend, switchMode, listFiles,ctmActions, lastList, lblLoadedN,lstShowFile, lblProgress0, lblProgress, lblSettings, selConfig, activeImg, activeResImg, ROIs, newOrder, currSortElem, currAscElem, $
     marked, markedMulti, autoStopFlag,multiOpt, testVisualQTNames, currentHeaderAlt, btnUseMulti, listSelMultiTemp, multiExpTable, $
     txtActive1, txtActive2, newline, pathsep, tab, xoffset, yoffset, font0, font1, fontMini,$
-    drawLarge, drawXY, coltable, btnSetColorTable, txtMinWL, txtMaxWL, txtCenterWL, txtWidthWL, lblCursorValue, lblCursorPos,lblCursorPosMM, $
+    drawLarge, drawXY, listFilesYsize, coltable, btnSetColorTable, txtMinWL, txtMaxWL, txtCenterWL, txtWidthWL, lblCursorValue, lblCursorPos,lblCursorPosMM, $
     zoomSlider, zoomFactor, txtDeltaX, txtDeltaY, txtDeltaA, dxya, useDelta, btnHideAnnot,$
     defPath, thisPath, structImgs, imgStructInfo,configSinfo, deciMark, listDeciMark, copyHeader, btnCopyHeader, transposeTable, btnTranspose, headers, tableHeaders,lastXY, lastXYreleased, mouseDown, lastXYright, mouseDownRight, $
     useMulti, btnIncFilename, modality, modalityName, analyse, analyseStringsAll, analyseStringsDCM, results, $
@@ -58,12 +58,12 @@ pro ImageQC,  GROUP_LEADER=bMain
     crossRes, crossROI, txtCrossROIsz, txtCrossMeasAct,txtCrossMeasActT, txtCrossMeasRest, txtCrossMeasRT, txtCrossScanAct, txtCrossScanStart,$
     txtCrossVol, txtCrossConc, txtCrossFactorPrev, txtCrossFactor,$
     rcRes, rcROIs, btnRCrev, cwRCexclude, cw_rcType,$
-    SNRres, SNR_ROI, txtSNR_MR_ROI, PUIres, PUI_ROI, txtPUI_MR_ROI, GeomDistRes, txtGD_MR_act,$
+    SNRres, SNR_ROI, txtSNR_MR_ROI, PIUres, PIU_ROI, txtPIU_MR_ROI, GeomDistRes, txtGD_MR_act,$
     ghostMRres, ghostMR_ROI, ghost_MR_optC, txtGhost_MR_ROIszC, txtGhost_MR_ROIszW, txtGhost_MR_ROIszH, txtGhost_MR_ROIszD, $
     sliceMR_ROI, slice_MR_optC, txtSlice_MR_TANA, txtSlice_MR_ROIszW, txtSlice_MR_ROIszH, txtSlice_MR_ROIszD, txtSlice_MR_ROIszD2
 
   !EXCEPT=0;2 to see all errors
-  currVersion='2.0'
+  currVersion='2.01'
   thisPath=FILE_DIRNAME(ROUTINE_FILEPATH('ImageQC'))+'\'
   xoffset=100
   yoffset=50
@@ -78,7 +78,7 @@ pro ImageQC,  GROUP_LEADER=bMain
   analyseStringsNM=['UNIF','SNI','ACQ','BAR', 'ENERGYSPEC','SCANSPEED','MTF','GEOMMEAN'];,'TIMEACTCURVE']
   analyseStringsSPECT=['MTF','RADIAL','CONTRAST']
   analyseStringsPET=['HOMOG','CROSSCALIB','RC']
-  analyseStringsMR=['DCM','SNR','PUI','GHOST','GEOMDIST','SLICETHICK','ROI']
+  analyseStringsMR=['DCM','SNR','PIU','GHOST','GEOMDIST','SLICETHICK','ROI']
   analyseStringsAll=CREATE_STRUCT('CT',analyseStringsCT,'Xray',analyseStringsXray,'NM',analyseStringsNM,'SPECT',analyseStringsSPECT,'PET',analyseStringsPET,'MR',analyseStringsMR)
   analyseStringsDCM=CREATE_STRUCT('CT','EXP','Xray','EXP','NM','ACQ','SPECT','','PET','','MR','DCM')
 
@@ -114,25 +114,54 @@ pro ImageQC,  GROUP_LEADER=bMain
           '0, LABEL, * Welcome to ImageQC v'+currVersion+' *,FONT=Tahoma*ITALIC*20', $
           '0, LABEL, ------------------------------------------', $
           '0, LABEL, ', $
+          '0, LABEL, New to ImageQC? Initiate a new config file.,FONT=Tahoma*16', $
           '0, LABEL, ', $
-          '0, LABEL, Do you wish to create a new config file,FONT=Tahoma*16', $
-          '0, LABEL, or locate an existing config file of yours?,FONT=Tahoma*16', $
+          '0, LABEL, If you already have a config file for ImageQC you could,FONT=Tahoma*16', $
+          '0, LABEL, restore that config file i.e. save it to ImageQC\\data\\config.dat.,FONT=Tahoma*16', $
+          '0, LABEL, Or you may locate the config file saving the config path information to,FONT=Tahoma*16', $
+          '0, LABEL, '+STRJOIN(STRSPLIT(tempPathLocateConfig,/EXTRACT,'\'),'\\')+',FONT=Tahoma*16', $
+          '0, LABEL, Locate is helpful if you do not have writing permission to ImageQC\\data,FONT=Tahoma*16', $
           '0, LABEL, ', $
           '2, LABEL, ', $
           '1, BASE,, /ROW', $
-          '0, BUTTON, Locate config file, QUIT, TAG=Locate',$
-          '2, BUTTON, Initiate new config file, QUIT, TAG=New']
-        res=CW_FORM_2(box, /COLUMN, TAB_MODE=1, TITLE='Welcome to ImageQC', XSIZE=300, YSIZE=300, FOCUSNO=1, XOFFSET=xoffset+200, YOFFSET=yoffset+200)
+          '0, BUTTON, Initiate new config file, QUIT, TAG=New',$
+          '0, BUTTON, Restore config file, QUIT, TAG=Restore',$
+          '2, BUTTON, Locate config file, QUIT, TAG=Locate']
+        res=CW_FORM_2(box, /COLUMN, TAB_MODE=1, TITLE='Welcome to ImageQC', XSIZE=435, YSIZE=300, FOCUSNO=1, XOFFSET=xoffset+200, YOFFSET=yoffset+200)
 
-        IF res.Locate THEN BEGIN
-          adr=DIALOG_PICKFILE(TITLE='Locate config file', /READ, FILTER='*.dat', /FIX_FILTER, PATH='C:\')
+        restoreFailed=0
+        adr=''
+        IF res.Restore THEN BEGIN
+          adr=DIALOG_PICKFILE(TITLE='Restore config file from', /READ, FILTER='*.dat', /FIX_FILTER, PATH='C:\')
+          IF adr NE '' THEN BEGIN
+            configPath=thisPath+'data\config.dat'
+            fi=FILE_INFO(thisPath+'data\')
+            IF fi.write THEN BEGIN
+              ;copy file from adr
+              IF adr NE configPath THEN BEGIN
+                fi=FILE_INFO(configPath)
+                IF fi.exists THEN BEGIN
+                  sv=DIALOG_MESSAGE('A config file already exist (ImageQC\data\config.dat). Overwrite?',/QUESTION)
+                  IF sv EQ 'Yes' THEN FILE_COPY, adr, configPath, /OVERWRITE
+                ENDIF ELSE FILE_COPY, adr, configPath
+              ENDIF             
+            ENDIF ELSE restoreFailed=1
+          ENDIF
+        ENDIF; restore
+
+        IF res.Locate OR restoreFailed THEN BEGIN
+          IF res.Locate THEN adr=DIALOG_PICKFILE(TITLE='Locate config file', /READ, FILTER='*.dat', /FIX_FILTER, PATH='C:\')
           IF adr NE '' THEN BEGIN
             OPENW, pathfile, tempPathLocateConfig, /GET_LUN
             PRINTF, pathfile, adr
             CLOSE, pathfile & FREE_LUN, pathfile
             configPath=adr
+            msg='When you open ImageQC next time it will find the location of the config file you specified in this text file: '+newline+tempPathLocateConfig
+            IF restoreFailed THEN msg='No writing permission to ImageQC\data'+newline+msg
+            sv=DIALOG_MESSAGE(msg)
           ENDIF
         ENDIF; locate
+        
       ENDIF; Else no write permission, continue to configPath=''
     ENDELSE;fi.exist tempPath
   ENDELSE;data\config.dat
@@ -222,7 +251,7 @@ pro ImageQC,  GROUP_LEADER=bMain
     'Xray',['1. STP','2. Homogeneity','3. Noise','4. Header info','5. MTF','6. ROI'],$
     'NM',['1. Uniformity','2. SNI','3. Header info','4. BarPhantom'],$
     'PET', ['1. Uniformity'],$
-    'MR',['1. Header info','2. SNR','3. PUI','4. Ghosting','5. GeomDist','6. Slice thickness','7. ROI'])
+    'MR',['1. Header info','2. SNR','3. PIU','4. Ghosting','5. GeomDist','6. Slice thickness','7. ROI'])
   
   CT_headers=CREATE_STRUCT($
     'HOMOG',CREATE_STRUCT('Alt1',['12oClock','15oClock','18oClock','21oClock','Center HU','Diff C 12','Diff C 15','Diff C 18','Diff C 21']),$
@@ -260,8 +289,8 @@ pro ImageQC,  GROUP_LEADER=bMain
   MR_headers=CREATE_STRUCT($
     'DCM', CREATE_STRUCT('Alt1',['Imaging frequency','Receive coil','Transmit coil']),$
     'SNR', CREATE_STRUCT('Alt1',['S img 1','S img 2','S mean','stdev diff','SNR']),$
-    'PUI', CREATE_STRUCT('Alt1',['min','max','PIU'],'AltSup',['x min (pix from lower left)','y min','x max', 'y max']),$
-    'GHOST', CREATE_STRUCT('Alt1',['Center','top','bottom','left','right','GR']),$
+    'PIU', CREATE_STRUCT('Alt1',['min','max','PIU'],'AltSup',['x min (pix from lower left)','y min','x max', 'y max']),$
+    'GHOST', CREATE_STRUCT('Alt1',['Center','top','bottom','left','right','PSG']),$
     'GEOMDIST', CREATE_STRUCT('Alt1',['width_0','width_90','width_45','width_135','GD_0','GD_90','GD_45','GD_135']),$
     'SLICETHICK', CREATE_STRUCT('Alt1',['Nominal (mm)','Measured (mm)','Diff (mm)','Diff (%)'],'AltSup',['FWHMupper (mm)','FWHMlower (mm)']),$
     'ROI', CREATE_STRUCT('Alt1',['Pixel mean','Pixel stdev']))
@@ -310,6 +339,7 @@ pro ImageQC,  GROUP_LEADER=bMain
 
   winX=1500 &  winY=1100
   drawXY=500
+  listFilesYsize=130
 
   s=obj_new('idlsysmonitorinfo')
   nMon=s->GetNumberOfMonitors()
@@ -385,7 +415,7 @@ pro ImageQC,  GROUP_LEADER=bMain
   lstShowFile=WIDGET_DROPLIST(bListLoadedTitle, VALUE=['Filename','Rename template '+modNames(modality)], FONT=font1, UVALUE='lstShowFile')
   tbList=WIDGET_BASE(bListLoadedTitle, /ROW, /TOOLBAR)
   toolInfoList=WIDGET_BUTTON(tbList, VALUE=thisPath+'images\info.bmp',/BITMAP, UVALUE='infoList', TOOLTIP='Info about list display')
-  listFiles=WIDGET_LIST(bListLoaded, XSIZE=650, SCR_XSIZE=winX/2-110, YSIZE=1, SCR_YSIZE=150, MULTIPLE=1, FONT=font1, UVALUE='filelist', /CONTEXT_EVENTS)
+  listFiles=WIDGET_LIST(bListLoaded, XSIZE=650, SCR_XSIZE=winX/2-110, YSIZE=1, SCR_YSIZE=listFilesYsize, MULTIPLE=1, FONT=font1, UVALUE='filelist', /CONTEXT_EVENTS)
   ctmActions=WIDGET_BASE(listFiles, /CONTEXT_MENU)
   ctmActions0=WIDGET_BUTTON(ctmActions, VALUE='Mark selected',  FONT=font1, UVALUE='listActions', UNAME='listActions0')
   ctmActions1=WIDGET_BUTTON(ctmActions, VALUE='Remove all marks',  FONT=font1, UVALUE='listActions', UNAME='listActions1')
@@ -495,7 +525,7 @@ pro ImageQC,  GROUP_LEADER=bMain
   lbl=WIDGET_LABEL(bInfoLow, VALUE='', XSIZE=30, /NO_COPY)
   toolBarInfo = WIDGET_BASE(bInfoLow, /COLUMN, /TOOLBAR)
   lbl=WIDGET_LABEL(bInfoLow, VALUE='', XSIZE=20, /NO_COPY)
-  btnClipBoardInfo=WIDGET_BUTTON(toolBarInfo, VALUE=thisPath+'images\copy.bmp',/BITMAP, TOOLTIP='Copy these parameters for all images to clipboard or file in tabular format', UVALUE='copyInfo')
+  btnClipBoardInfo=WIDGET_BUTTON(toolBarInfo, VALUE=thisPath+'images\copy.bmp',/BITMAP, TOOLTIP='Copy image info (all images) to clipboard or file in tabular format', UVALUE='copyInfo')
   toolDump=WIDGET_BUTTON(toolbarInfo, VALUE=thisPath+'images\dump.bmp', /BITMAP, TOOLTIP='DICOM dump of active file', UVALUE='dump')
   toolEditHeader=WIDGET_BUTTON(toolbarInfo, VALUE=thisPath+'images\edit.bmp', /BITMAP, TOOLTIP='Edit parameters from DICOM header of active file', UVALUE='editHeader')
   txtActive1=WIDGET_TEXT(bInfoLow, XSIZE=100, YSIZE=100, VALUE='', SCR_XSIZE=300, SCR_YSIZE=150, FONT=font1)
@@ -1287,7 +1317,7 @@ pro ImageQC,  GROUP_LEADER=bMain
   ;************************ MR tests *************
   bDcmMR=WIDGET_BASE(wtabAnalysisMR, Title='1. Header info', /COLUMN)
   bSNR_MR=WIDGET_BASE(wtabAnalysisMR, Title='2. SNR', /COLUMN)
-  bPUI_MR=WIDGET_BASE(wtabAnalysisMR, Title='3. PUI', /COLUMN)
+  bPIU_MR=WIDGET_BASE(wtabAnalysisMR, Title='3. PIU', /COLUMN)
   bGhost_MR=WIDGET_BASE(wtabAnalysisMR, Title='4. Ghosting', /COLUMN)
   bGD_MR=WIDGET_BASE(wtabAnalysisMR, Title='5. GeomDist', /COLUMN)
   bSlice_MR=WIDGET_BASE(wtabAnalysisMR, Title='6. Slice thickness', /COLUMN)
@@ -1318,23 +1348,24 @@ pro ImageQC,  GROUP_LEADER=bMain
   bSNR_MR_btn=WIDGET_BASE(bSNR_MR, /ROW)
   btnSNR_MR=WIDGET_BUTTON(bSNR_MR_btn, VALUE='Calculate SNR', UVALUE='SNR_MR',FONT=font1)
   
-  ;--------------------- PUI ------------------------------------
-  lbl = WIDGET_LABEL(bPUI_MR, VALUE='', SCR_YSIZE=20, /NO_COPY)
-  lbl = WIDGET_LABEL(bPUI_MR, VALUE='Based on NEMA MS-3 2008',FONT=font1, /NO_COPY, /ALIGN_LEFT)
-  lbl = WIDGET_LABEL(bPUI_MR, VALUE='Center and size of phantom will be found from maximum x and y profiles.',FONT=font1, /NO_COPY, /ALIGN_LEFT)
-  lbl = WIDGET_LABEL(bPUI_MR, VALUE='Multiple locations with the same min or same max might occur. Only one position shown.',FONT=font1, /NO_COPY, /ALIGN_LEFT)
-  lbl = WIDGET_LABEL(bPUI_MR, VALUE='', SCR_YSIZE=20, /NO_COPY)
-  bPUI_MR_ROI=WIDGET_BASE(bPUI_MR, /ROW)
-  lbl = WIDGET_LABEL(bPUI_MR_ROI, VALUE='ROI % of circular phantom ',FONT=font1, /NO_COPY)
-  txtPUI_MR_ROI  = WIDGET_TEXT(bPUI_MR_ROI, VALUE='', /EDITABLE, XSIZE=4, SCR_YSIZE=20, /KBRD_FOCUS_EVENTS, FONT=font1)
+  ;--------------------- PIU ------------------------------------
+  lbl = WIDGET_LABEL(bPIU_MR, VALUE='', SCR_YSIZE=20, /NO_COPY)
+  lbl = WIDGET_LABEL(bPIU_MR, VALUE='Based on NEMA MS-3 2008',FONT=font1, /NO_COPY, /ALIGN_LEFT)
+  lbl = WIDGET_LABEL(bPIU_MR, VALUE='Center and size of phantom will be found from maximum x and y profiles.',FONT=font1, /NO_COPY, /ALIGN_LEFT)
+  lbl = WIDGET_LABEL(bPIU_MR, VALUE='Multiple locations with the same min or same max might occur. Only one position shown.',FONT=font1, /NO_COPY, /ALIGN_LEFT)
+  lbl = WIDGET_LABEL(bPIU_MR, VALUE='', SCR_YSIZE=20, /NO_COPY)
+  bPIU_MR_ROI=WIDGET_BASE(bPIU_MR, /ROW)
+  lbl = WIDGET_LABEL(bPIU_MR_ROI, VALUE='ROI % of circular phantom ',FONT=font1, /NO_COPY)
+  txtPIU_MR_ROI  = WIDGET_TEXT(bPIU_MR_ROI, VALUE='', /EDITABLE, XSIZE=4, SCR_YSIZE=20, /KBRD_FOCUS_EVENTS, FONT=font1)
 
-  bPUI_MR_btn=WIDGET_BASE(bPUI_MR, /ROW)
-  btnPUI_MR=WIDGET_BUTTON(bPUI_MR_btn, VALUE='Calculate PUI', UVALUE='PUI_MR',FONT=font1)
-  btnPUI_MR_setMinMax=WIDGET_BUTTON(bPUI_MR_btn, VALUE='Set window level to [min,max] for this current image', UVALUE='PUI_MR_setMinMax',FONT=font1)
+  bPIU_MR_btn=WIDGET_BASE(bPIU_MR, /ROW)
+  btnPIU_MR=WIDGET_BUTTON(bPIU_MR_btn, VALUE='Calculate PIU', UVALUE='PIU_MR',FONT=font1)
+  btnPIU_MR_setMinMax=WIDGET_BUTTON(bPIU_MR_btn, VALUE='Set window level to [min,max] for this current image', UVALUE='PIU_MR_setMinMax',FONT=font1)
   
   ;--------------------- Ghosting Ratio ------------------------------------
   lbl = WIDGET_LABEL(bGhost_MR, VALUE='', SCR_YSIZE=20, /NO_COPY)
-  lbl = WIDGET_LABEL(bGhost_MR, VALUE='Ghosting Ratio = |(left + rigth)-(top+bottom)| / 2*center',FONT=font1, /NO_COPY, /ALIGN_LEFT)
+  lbl = WIDGET_LABEL(bGhost_MR, VALUE='Based on ACR MR Quality Control Manual, 2015',FONT=font1, /NO_COPY, /ALIGN_LEFT)
+  lbl = WIDGET_LABEL(bGhost_MR, VALUE='Percent Signal Ghosting (PSG) = 100 * |(left + right)-(top+bottom)| / 2*center',FONT=font1, /NO_COPY, /ALIGN_LEFT)
   lbl = WIDGET_LABEL(bGhost_MR, VALUE='If optimized, center and size of phantom will be found from maximum x and y profiles.',FONT=font1, /NO_COPY, /ALIGN_LEFT)
   lbl = WIDGET_LABEL(bGhost_MR, VALUE='', SCR_YSIZE=20, /NO_COPY)
   bGhost_MR_ROI1=WIDGET_BASE(bGhost_MR, /ROW)
@@ -1352,11 +1383,12 @@ pro ImageQC,  GROUP_LEADER=bMain
   txtGhost_MR_ROIszD  = WIDGET_TEXT(bGhost_MR_ROI3, VALUE='', /EDITABLE, XSIZE=4, SCR_YSIZE=20, /KBRD_FOCUS_EVENTS, FONT=font1)
 
   bGhost_MR_btn=WIDGET_BASE(bGhost_MR, /ROW)
-  btnGhost_MR=WIDGET_BUTTON(bGhost_MR_btn, VALUE='Calculate Ghosting Ratio', UVALUE='Ghost_MR',FONT=font1)
+  btnGhost_MR=WIDGET_BUTTON(bGhost_MR_btn, VALUE='Calculate Percent Signal Ghosting', UVALUE='Ghost_MR',FONT=font1)
   
   ;--------------------- Geometric Distortion ------------------------------------
   lbl = WIDGET_LABEL(bGD_MR, VALUE='', SCR_YSIZE=20, /NO_COPY)
-  lbl = WIDGET_LABEL(bGD_MR, VALUE='Geometric distortion = 100 * (true width - measured width ) / measured width',FONT=font1, /NO_COPY, /ALIGN_LEFT)
+  lbl = WIDGET_LABEL(bGD_MR, VALUE='Based on NEMA MS-2 2008',FONT=font1, /NO_COPY, /ALIGN_LEFT)
+  lbl = WIDGET_LABEL(bGD_MR, VALUE='Geometric distortion = 100 * ABS(measured width - true width) / true width',FONT=font1, /NO_COPY, /ALIGN_LEFT)
   lbl = WIDGET_LABEL(bGD_MR, VALUE='Measured at 0, 90, 45, 135 degrees',FONT=font1, /NO_COPY, /ALIGN_LEFT)
   lbl = WIDGET_LABEL(bGD_MR, VALUE='Center and width of phantom will be found from maximum profiles.',FONT=font1, /NO_COPY, /ALIGN_LEFT)
   lbl = WIDGET_LABEL(bGD_MR, VALUE='NB: Slice with grid not a good option for these measurements. Use a homogeneous slice.',FONT=font1, /NO_COPY, /ALIGN_LEFT)
@@ -1365,13 +1397,14 @@ pro ImageQC,  GROUP_LEADER=bMain
   bGD_MR_act=WIDGET_BASE(bGD_MR, /ROW)
   lbl = WIDGET_LABEL(bGD_MR_act, VALUE='Actual width of phantom (mm) ',FONT=font1, /NO_COPY)
   txtGD_MR_act  = WIDGET_TEXT(bGD_MR_act, VALUE='', /EDITABLE, XSIZE=5, SCR_YSIZE=20, /KBRD_FOCUS_EVENTS, FONT=font1)
+  lbl = WIDGET_LABEL(bGD_MR_act, VALUE='A red circle of this width will be overlayed the image when calculated.',FONT=font1, /NO_COPY)
 
   bGD_MR_btn=WIDGET_BASE(bGD_MR, /ROW)
   btnGD_MR=WIDGET_BUTTON(bGD_MR_btn, VALUE='Calculate geometric distortion', UVALUE='GD_MR',FONT=font1)
   
   ;--------------------- Slice thickness MR ------------------------------------
   lbl = WIDGET_LABEL(bSlice_MR, VALUE='', SCR_YSIZE=5, /NO_COPY)
-  lbl = WIDGET_LABEL(bSlice_MR, VALUE='Based on NEMA MS-5 2018',FONT=font1, /NO_COPY, /ALIGN_LEFT)
+  lbl = WIDGET_LABEL(bSlice_MR, VALUE='Based on NEMA MS-5 2018 and ACR MR Quality Control Manual, 2015',FONT=font1, /NO_COPY, /ALIGN_LEFT)
   lbl = WIDGET_LABEL(bSlice_MR, VALUE='Slice thickness = tan (wedge angle) * FWHM',FONT=font1, /NO_COPY, /ALIGN_LEFT)
   lbl = WIDGET_LABEL(bSlice_MR, VALUE='Slice thickness ACR = 1/10 * harmonic mean of FWHM upper and lower = 0.2 * upper * lower / (upper + lower)',FONT=font1, /NO_COPY, /ALIGN_LEFT)
   lbl = WIDGET_LABEL(bSlice_MR, VALUE='FWHM will be calculated for the averaged profile within each ROI, max from medianfiltered profile.',FONT=font1, /NO_COPY, /ALIGN_LEFT)

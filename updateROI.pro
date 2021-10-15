@@ -286,9 +286,9 @@ pro updateROI, Ana=ana, SEL=presel, IMG=preImg
         WIDGET_CONTROL, txtSNR_MR_ROI, GET_VALUE=ROIperc
         SNR_ROI=getROIcircMR(tempimg,FLOAT(ROIperc(0)))
         END
-      'PUI':BEGIN
-        WIDGET_CONTROL, txtPUI_MR_ROI, GET_VALUE=ROIperc
-        PUI_ROI=getROIcircMR(tempimg,FLOAT(ROIperc(0)))
+      'PIU':BEGIN
+        WIDGET_CONTROL, txtPIU_MR_ROI, GET_VALUE=ROIperc
+        PIU_ROI=getROIcircMR(tempimg,FLOAT(ROIperc(0)))
         END
        'GHOST':BEGIN
          WIDGET_CONTROL, txtGhost_MR_ROIszC, GET_VALUE=GHOST_MR_ROI_C
