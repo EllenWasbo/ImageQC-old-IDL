@@ -18,7 +18,7 @@ pro set_imgStructInfo, iSi
     ['filterAddOn','STRING','0/1','0018 1160'],$
     ['coll','FLOAT','0','0018 9307'],['pitch','FLOAT','0','0018 9311'],$
     ['ExModType','STRING','0','0018 9323'],['ExModType','STRING','1','0018 7062'],$
-    ['CTDIvol','FLOAT','0','0018 9345'],['','STRING','0/1','0018 1190'],['DAP','FLOAT','1','0018 115E'],$
+    ['CTDIvol','FLOAT','0','0018 9345'],['focalSpotSz','STRING','0/1','0018 1190'],['DAP','FLOAT','1','0018 115E'],$
     ['EI','FLOAT','1','0018 1411'],['sensitivity','FLOAT','1','0018 6000'],$
     ['sdd','FLOAT','1','0018 1110'],$
     ['collType','STRING','2/3/4','0018 1181'],$
@@ -33,6 +33,12 @@ pro set_imgStructInfo, iSi
   RETURN
 end
 
+;
+;['autoImportPath','Default path for automation import','-10','','STRING'],$
+;  ['autoContinue','Default setting to stop 0 or not 1 between automation templates','-10','','INT'],$
+;  ['wait','Seconds to wait for Excel/Acrobat to open before and close after reading of data from PDF','-10','','INT'],$
+;  ['lastImpDate','Last date yyyymmdd when import files from autoImportPath','-10','','STRING'],$
+;  ['ignoreSince','Ignore images aquired more than n days on import','-10','','INT'],$
 
 ;tags in configS with explanations for settings.pro [tagname, description, modality (0-4) or output '-1' other '-2', not list in settings like others'-10'' analysestring or '','BOOL/INT/FLOAT/STRING']
 pro set_configSinfo, cSi
@@ -41,9 +47,6 @@ pro set_configSinfo, cSi
     ['includeFilename', 'Include filename','-1','','BOOL'], $
     ['transposeTable', 'Transpose table','-1','','BOOL'], $
     ['append','Append when opening files','-2','','BOOL'],$
-    ['autoImportPath','Default path for automation import','-10','','STRING'],$
-    ['autoContinue','Default setting to stop 0 or not 1 between automation templates','-10','','INT'],$
-    ['wait','Seconds to wait for Excel/Acrobat to open before and close after reading of data from PDF','-10','','INT'],$
     ['qtOutTemps', 'QuickTest Output templates', '-10','','STRING'], $
     ['MTFtype','MTF method (0..2)','0','MTF','INT'],$
     ['MTFtypeX','LSF fit to.. (0..2)','1','MTF','INT'],$
@@ -86,7 +89,10 @@ pro set_configSinfo, cSi
     ['altHomogX','Table output selection','1','HOMOG','INT'],$
     ['HomogROIszPET', 'ROI radius','4','HOMOG','FLOAT'],$
     ['HomogROIdist','ROI distance from center','0','HOMOG','FLOAT'],$
+    ['HomogROIdistX','ROI distance from center %','1','HOMOG','FLOAT'],$
     ['HomogROIdistPET','ROI distance from center','4','HOMOG','FLOAT'],$
+    ['HomogROIrot','ROI rotation (degrees)','0','HOMOG','FLOAT'],$
+    ['HomogROIrotX','ROI rotation (degrees)','1','HOMOG','FLOAT'],$
     ['NoiseROIsz','ROI radius','0','NOISE','FLOAT'],$
     ['NoiseXpercent','ROI (%)','1','NOISE','INTEGER'],$
     ['HUwaterROIsz','ROI radius','0','HUWATER','FLOAT'],$
@@ -104,6 +110,10 @@ pro set_configSinfo, cSi
     ['ROIXa','ROI rotation','1','ROI','FLOAT'],$
     ['offxyROIX', 'Extra offset ROI dx,dy','1','ROI','INT'], $
     ['offxyROIX_unit', 'Extra offset ROI pix(0) or mm(1)','1','ROI','INT'], $
+    ['ringMedian','Median filter image (pix)','0','RING','INT'],$
+    ['ringSmooth','Smooth filter profile (mm)','0','RING','FLOAT'],$
+    ['ringStop','Radius range (mm)','0','RING','FLOAT'],$
+    ['ringArtTrend','Subtract trend (0) or mean (1)','0','RING','INT'],$
     ['NPSroiSz', 'ROI size','0','NPS','INT'],$
     ['NPSroiDist','ROI distance from center','0','NPS','FLOAT'],$
     ['NPSsubNN', 'Number of ROIs', '0','NPS','INT'],$
@@ -131,8 +141,11 @@ pro set_configSinfo, cSi
     ['CrossROIsz', 'ROI radius','4','CROSSCALIB','FLOAT'],$
     ['CrossVol', 'Volume of container','4','CROSSCALIB','FLOAT'],$
     ['SNR_MR_ROI', 'ROI size (% of phantom)','5','SNR','FLOAT'],$
+    ['SNR_MR_ROIcut', 'ROI cut top (mm)','5','SNR','LONG'],$
     ['PIU_MR_ROI', 'ROI size (% of phantom)','5','PIU','FLOAT'],$
+    ['PIU_MR_ROIcut', 'ROI cut top (mm)','5','PIU','LONG'],$ 
     ['Ghost_MR_ROI', 'ROI param (Crad, w, h, d, Copt(0/1))','5','GHOST','FLOAT'],$
+    ['Ghost_MR_ROIcut', 'ROI cut top (mm)','5','GHOST','LONG'],$
     ['GD_MR_act', 'Actual phantom size (mm)','5','GEOMDIST','FLOAT'],$
     ['Slice_MR_ROI', 'ROI param (tanA, w, h, dU, dL, Copt(0/1))','5','SLICETHICK','FLOAT'],$
     ['typeROIMR','ROI shape (0..2)','5','ROI','INT'],$

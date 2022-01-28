@@ -15,7 +15,7 @@
 ;along with this program; if not, write to the Free Software
 ;Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
-pro openFiles, adrFilesToOpen, SILENT=silent, FRAMENOS=frameNos
+pro openFiles, adrFilesToOpen, SILENT=silent, FRAMENOS=frameNos, ADR_HEADERS=adrHeaders
   COMPILE_OPT hidden
   COMMON VARI
 
@@ -41,6 +41,7 @@ pro openFiles, adrFilesToOpen, SILENT=silent, FRAMENOS=frameNos
       tnSt=LONG(tnSt)
       counter=MAX(tnSt)
     ENDELSE
+    IF app EQ 0 THEN WIDGET_CONTROL, zoomSlider, SET_VALUE=1.0
     
     ;read image info from dicom header
     errLogg=''
@@ -51,7 +52,7 @@ pro openFiles, adrFilesToOpen, SILENT=silent, FRAMENOS=frameNos
 
       WIDGET_CONTROL, lblProgress, SET_VALUE='Loading file info: '+STRING(i*100./nFiles, FORMAT='(i0)')+' %'
      
-      structNew=readImgInfo(adrFilesToOpen(i), evTop, silent)
+      IF N_ELEMENTS(adrHeaders) EQ 0 THEN structNew=readImgInfo(adrFilesToOpen(i), evTop, silent) ELSE structNew=readImgInfo(adrFilesToOpen(i), evTop, silent, ADR_HEADER=adrHeaders(i))
          
       IF SIZE(structNew, /TNAME) EQ 'STRUCT' THEN BEGIN
         tagn=TAG_NAMES(structNew)

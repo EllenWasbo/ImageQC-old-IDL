@@ -1,11 +1,8 @@
-pro commonVariable
+pro findText, txtSample
   thisPath=FILE_DIRNAME(ROUTINE_FILEPATH('ImageQC'))+'\'
   filenames=FILE_SEARCH(thisPath,'*.pro', COUNT=nFound)
   
-  commonName='COMMON VARI'
-  commonIn=!Null
-  variableName='newFileName';or functionname or procedure or anything
-  varIn=!Null
+  txtIn=!Null
   
   ;loop through all .pro files and find where COMMON
   FOR i=0, nFound-1 DO BEGIN
@@ -13,20 +10,15 @@ pro commonVariable
     elem=''
     WHILE ~ EOF(filenhet) DO BEGIN
       READF, filenhet, elem
-      IF STRMATCH(elem,'*'+commonName+'*',/FOLD_CASE) THEN commonIn=[commonIn,filenames(i)]
-      IF STRMATCH(elem,'*'+variableName+'*',/FOLD_CASE) THEN varIn=[varIn,filenames(i)]
+      IF STRMATCH(elem,'*'+txtSample+'*',/FOLD_CASE) THEN txtIn=[txtIn,filenames(i)]
       
     ENDWHILE
     CLOSE, filenhet
     FREE_LUN, filenhet
   ENDFOR
   
-  commonIn=commonIn
-  
-  print, 'commonIn '
-  print, commonIn(UniQ(commonIn))
-  print, 'varIn '
-  print, varIn(uniq(varIn))
+  print, 'Found sample text in '
+  print, transpose(txtIn(uniq(txtIn)))
 end
 
 function nTextLines, adr

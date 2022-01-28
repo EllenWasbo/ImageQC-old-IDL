@@ -5,7 +5,7 @@
 ;This program is free software; you can redistribute it and/or
 ;modify it under the terms of the GNU General Public License version 2
 ;as published by the Free Software Foundation
-;
+
 ;This program is distributed in the hope that it will be useful,
 ;but WITHOUT ANY WARRANTY; without even the implied warranty of
 ;MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See thef
@@ -91,16 +91,16 @@ pro RenameDICOM, GROUP_LEADER = mainbase, xoff, yoff, inputAdr
   lbl=WIDGET_LABEL(bMain, VALUE='', YSIZE=20, /NO_COPY)
 
   ;browse
-  bBrowse=WIDGET_BASE(bMain, /ROW, XSIZE=500, SCR_XSIZE=450)
+  bBrowse=WIDGET_BASE(bMain, /ROW, XSIZE=500);, SCR_XSIZE=450)
   lbl=WIDGET_LABEL(bBrowse, VALUE='Selected folder: ', FONT="Arial*Bold*18", /NO_COPY)
-  txtCat=WIDGET_TEXT(bBrowse, XSIZE=100, /EDITABLE,/KBRD_FOCUS_EVENTS)
+  txtCat=WIDGET_TEXT(bBrowse, XSIZE=100, SCR_XSIZE=450, /EDITABLE,/KBRD_FOCUS_EVENTS)
   btnBrowse=WIDGET_BUTTON(bBrowse, VALUE='Browse',UVALUE='browse', XSIZE=50, FONT=font1)
   btnClear=WIDGET_BUTTON(bBrowse, VALUE='Clear',TOOLTIP='Use files open in ImageQC (if any)',UVALUE='clear', XSIZE=50, FONT=font1)
   lbl=WIDGET_LABEL(bMain,VALUE='If no path specified then files open in ImageQC will be the files subject to renaming.',FONT=font1, /NO_COPY)
 
   bFileActions=WIDGET_BASE(bMain, /ROW, XSIZE=300)
   btnPutAllinOne=WIDGET_BUTTON(bFileActions, VALUE='Move all DCM files in subfolders to selected folder', UVALUE='putAllinOne', FONT=font1, XSIZE=300)
-  btnPutSeriesInFolders=WIDGET_BUTTON(bFileActions, VALUE='Sort files into subfolders of same series UID', UVALUE='putSeriesFolder', TOOLTIP='Put all files with same seriesUID into the same subfolder', FONT=font1, XSIZE=300)
+  btnPutSeriesInFolders=WIDGET_BUTTON(bFileActions, VALUE='Sort files into subfolders if same series', UVALUE='putSeriesFolder', TOOLTIP='Put all files with same seriesUID and series description into the same subfolder', FONT=font1, XSIZE=300)
   ;btnResetToInput=WIDGET_BUTTON(bFileActions, VALUE='Use paths from open files in ImageQC',UVALUE='resetInput', TOOLTIP='Work on the files already open in the main window (if any)', FONT=font1, XSIZE=300)
 
   lbl=WIDGET_LABEL(bMain, VALUE='', YSIZE=20, /NO_COPY)
@@ -164,7 +164,7 @@ pro RenameDICOM_event, event
           ENDIF ELSE BEGIN
             newTemp=1
             selNo=WIDGET_INFO(lstTemplate, /DROPLIST_SELECT)
-  
+
             box=[$
               '1, BASE,, /ROW', $
               '2, LABEL, Overwrite selected template or create new?', $
@@ -172,7 +172,7 @@ pro RenameDICOM_event, event
               '0, BUTTON, Overwrite, QUIT, TAG=Overwrite',$
               '2, BUTTON, New, QUIT, TAG=New']
             res=CW_FORM_2(box, /COLUMN, TAB_MODE=1, TITLE='Owerwrite or new?', XSIZE=260, YSIZE=100, FOCUSNO=1, XOFFSET=xoffset+200, YOFFSET=yoffset+200)
-  
+
             IF res.Overwrite THEN BEGIN
               newTemp=0
               RESTORE, configPath
@@ -181,7 +181,7 @@ pro RenameDICOM_event, event
               renameTemp=replaceStructStruct(renameTemp,temps,2)
               SAVEIF, saveOK, configS, quickTemp, quickTout, loadTemp, renameTemp, FILENAME=configPath
             ENDIF
-  
+
             IF newTemp THEN BEGIN
               box=[$
                 '1, BASE,, /ROW', $
@@ -213,29 +213,29 @@ pro RenameDICOM_event, event
       'addTemp': BEGIN
         IF saveOK THEN BEGIN
 
-            box=[$
-              '1, BASE,, /ROW', $
-              '2, TEXT, , LABEL_LEFT=New template name:, WIDTH=12, TAG=tempname', $
-              '1, BASE,, /ROW', $
-              '0, BUTTON, Cancel, QUIT, TAG=Cancel',$
-              '2, BUTTON, Save, QUIT, TAG=Save']
-            res=CW_FORM_2(box, /COLUMN, TAB_MODE=1, TITLE='New template name', XSIZE=200, YSIZE=100, FOCUSNO=1, XOFFSET=xoffset+200, YOFFSET=yoffset+200)
-            IF res.Save THEN BEGIN
-              IF res.tempname NE '' THEN BEGIN
-                RESTORE, configPath
-                tempname=STRUPCASE(IDL_VALIDNAME(res.tempname, /CONVERT_ALL))
-                alrNames=TAG_NAMES(renameTemp.temp)
-                IF alrNames.HasValue(tempname) THEN BEGIN
-                  sv=DIALOG_MESSAGE('Template name '+tempname+' already exist.', DIALOG_PARENT=event.Top)
-                ENDIF ELSE BEGIN
-                  newT=CREATE_STRUCT('cat',catTemp,'file',fileTemp,'formats',formatCurr)
-                  temps=CREATE_STRUCT(renameTemp.temp,tempname,newT)
-                  renameTemp=replaceStructStruct(renameTemp,temps,2)
-                  SAVEIF, saveOK, configS, quickTemp, quickTout, loadTemp, renameTemp, FILENAME=configPath
-                  updTemp, N_ELEMENTS(alrNames), 1
-                ENDELSE
-              ENDIF ELSE sv=DIALOG_MESSAGE('No new name entered. Could not save template.', DIALOG_PARENT=event.top)
-            ENDIF
+          box=[$
+            '1, BASE,, /ROW', $
+            '2, TEXT, , LABEL_LEFT=New template name:, WIDTH=12, TAG=tempname', $
+            '1, BASE,, /ROW', $
+            '0, BUTTON, Cancel, QUIT, TAG=Cancel',$
+            '2, BUTTON, Save, QUIT, TAG=Save']
+          res=CW_FORM_2(box, /COLUMN, TAB_MODE=1, TITLE='New template name', XSIZE=200, YSIZE=100, FOCUSNO=1, XOFFSET=xoffset+200, YOFFSET=yoffset+200)
+          IF res.Save THEN BEGIN
+            IF res.tempname NE '' THEN BEGIN
+              RESTORE, configPath
+              tempname=STRUPCASE(IDL_VALIDNAME(res.tempname, /CONVERT_ALL))
+              alrNames=TAG_NAMES(renameTemp.temp)
+              IF alrNames.HasValue(tempname) THEN BEGIN
+                sv=DIALOG_MESSAGE('Template name '+tempname+' already exist.', DIALOG_PARENT=event.Top)
+              ENDIF ELSE BEGIN
+                newT=CREATE_STRUCT('cat',catTemp,'file',fileTemp,'formats',formatCurr)
+                temps=CREATE_STRUCT(renameTemp.temp,tempname,newT)
+                renameTemp=replaceStructStruct(renameTemp,temps,2)
+                SAVEIF, saveOK, configS, quickTemp, quickTout, loadTemp, renameTemp, FILENAME=configPath
+                updTemp, N_ELEMENTS(alrNames), 1
+              ENDELSE
+            ENDIF ELSE sv=DIALOG_MESSAGE('No new name entered. Could not save template.', DIALOG_PARENT=event.top)
+          ENDIF
 
         ENDIF ELSE sv=DIALOG_MESSAGE('Save blocked by another user session. Go to settings and remove blocking if this is due to a previous program crash.', DIALOG_PARENT=event.Top)
       END
@@ -302,6 +302,57 @@ pro RenameDICOM_event, event
       END
       'clear':clearRD
       ;'resetInput':clearRD
+      ;'copyRenameIf':BEGIN - just a thought - to be used for images on CD
+;        ;adr input folder from txtCat - reading all files from folders and subfolders
+;        WIDGET_CONTROL, txtCat, GET_VALUE=adr
+;        ;file rename template as specified
+;        ;dialog specifying target folder and min and or max filesize
+;        IF adr(0) NE '' THEN BEGIN
+;          targ=dialog_pickfile(PATH=defPath, GET_PATH=defPath,/DIRECTORY, /READ, TITLE='Select target folder - where to put the copied files')
+;          IF targ NE '' THEN BEGIN
+;            ;writing permission to targ?
+;            fi=FILE_INFO(targ)
+;            IF fi.write THEN BEGIN       
+;              box=[$
+;                '1, BASE,, /COLUMN', $
+;                '0, LABEL, Copy all files found in ', $
+;                '1, LABEL, '+adr(0), $
+;                '1, LABEL, to ', $
+;                '2, LABEL, '+targ, $
+;                '1, BASE,, /COLUMN',$
+;                '1, LABEL, Min or max file size - keep empty to include all sizes',$
+;                '1, TEXT, 500, LABEL_LEFT=Min (kB):, WIDTH=4, TAG=minkB', $
+;                '1, TEXT, 550, LABEL_LEFT=Max (kB):, WIDTH=4, TAG=maxkB', $
+;                '1, BASE,, /ROW', $
+;                '0, BUTTON, Copy, QUIT, TAG=copy',$
+;                '2, BUTTON, Cancel, QUIT, TAG=Cancel']
+;              res=CW_FORM_2(box, /COLUMN, TAB_MODE=1, TITLE='Copy and rename', XSIZE=260, YSIZE=100, FOCUSNO=1, XOFFSET=xoffset+200, YOFFSET=yoffset+200)
+;      
+;              IF res.copy THEN BEGIN
+;                res=FILE_SEARCH(adr,'*')
+;                IF res(0) NE '' THEN BEGIN
+;                  nres=N_ELEMENTS(res)
+;                  sv=DIALOG_MESSAGE('Found '+STRING(nres, FORMAT='(i0)')+' in the selected folder. Continue to copy to target folder?'), /QUESTION, DIALOG_PARENT=event.Top)
+;                  IF sv EQ 'Yes' THEN BEGIN
+;                    FOR i=0, nres-1 DO BEGIN
+;                      
+;                      ;is it correct size
+;                      
+;                      ;is it dicom
+;                      
+;                      IF res.rename EQ 0 THEN BEGIN;rename and add _xxx if already
+;                      ENDIF
+;                      
+;                      
+;                    ENDFOR
+;                  ENDIF
+;                ENDIF ELSE sv=DIALOG_MESSAGE('Found no files in the selected folder.', DIALOG_PARENT=event.Top)
+;              ENDIF
+;            ENDIF ELSE sv=DIALOG_MESSAGE('No write permission to target folder.', DIALOG_PARENT=event.Top)
+;          ENDIF;no target folder selected
+;        ENDIF ELSE sv=DIALOG_MESSAGE('No input path selected.', DIALOG_PARENT=event.Top)
+;        
+;        END
       'putAllinOne':BEGIN
         WIDGET_CONTROL, /HOURGLASS
         WIDGET_CONTROL, txtCat, GET_VALUE=adr
@@ -338,7 +389,7 @@ pro RenameDICOM_event, event
             resFI=FILE_INFO(origPaths(i))
             IF resFI.DIRECTORY EQ 1 THEN origPaths(i)='' ELSE BEGIN
 
-              IF FILE_BASENAME(origPaths(i)) EQ 'DICOMDIR' THEN origPaths(i)=''
+              IF FILE_BASENAME(origPaths(i)) EQ 'DICOMDIR' OR FILE_TEST(origPaths(i),/DIRECTORY) THEN origPaths(i)=''
 
               IF qu AND origPaths(i) NE '' THEN BEGIN;query dicom if .dcm extension not found
                 dcm=QUERY_DICOM(origPaths(i))
@@ -364,7 +415,7 @@ pro RenameDICOM_event, event
 
           nMove=0
           for i=0, nFiles-1 do BEGIN
-            IF origPaths(i) NE '' AND origPaths(i) NE newPaths(i) THEN BEGIN
+            IF origPaths(i) NE '' AND newPaths(i) NE '_' AND newPaths(i) NE 'notDICOM' AND origPaths(i) NE newPaths(i) THEN BEGIN
               WIDGET_CONTROL, lblStatus, SET_VALUE='Moving file '+STRING(i,FORMAT='(i0)')+'/'+  STRING(nFiles,FORMAT='(i0)')
               file_move, origPaths(i), newPaths(i)
               nMove=nMove+1
@@ -446,10 +497,7 @@ pro RenameDICOM_event, event
           nnn=N_ELEMENTS(origPaths)
           ;find all dicom files
           FOR i =0,nnn-1 DO BEGIN
-            IF FILE_BASENAME(origPaths(i)) EQ 'DICOMDIR' THEN dcm = 0 ELSE BEGIN
-              resFI=FILE_INFO(origPaths(i))
-              IF resFI.DIRECTORY EQ 1 THEN dcm=0 ELSE dcm=QUERY_DICOM(origPaths(i))
-            ENDELSE
+            IF FILE_BASENAME(origPaths(i)) EQ 'DICOMDIR' OR FILE_TEST(origPaths(i), /DIRECTORY) THEN dcm = 0 ELSE dcm=QUERY_DICOM(origPaths(i))
             IF dcm EQ 0 THEN origPaths(i)=''
           ENDFOR
 
@@ -472,8 +520,11 @@ pro RenameDICOM_event, event
             test=o->GetReference('0020'x,'000E'x)
             test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
             seriesUID=*(test_peker[0])
+            test=o->GetReference('0008'x,'103E'x)
+            test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
+            seriesDesc=*(test_peker[0])
 
-            subFolder='serNo_'+STRING(seriesNmb, FORMAT='(i04)')+'_serUID_'+IDL_VALIDNAME(seriesUID, /CONVERT_ALL)+'\'; TODO - legge til noe ift UID her
+            subFolder=STRING(seriesNmb, FORMAT='(i04)')+'_'+IDL_VALIDNAME(seriesDesc, /CONVERT_ALL)+'_serUID_'+IDL_VALIDNAME(seriesUID, /CONVERT_ALL)+'\'; TODO - legge til noe ift UID her
             IF ~subFs.HasValue(subFolder) THEN FILE_MKDIR, adrDir+ subFolder
             tempname=adrDir+ subFolder + FILE_BASENAME(origPaths(i))
             newPaths(i)=tempname
@@ -573,9 +624,13 @@ pro RenameDICOM_event, event
         idHidden=WHERE(res EQ 'System Volume Information')
         IF idHidden(0) NE -1 THEN BEGIN
           IF N_ELEMENTS(res) EQ 1 THEN res='' ELSE res=removeIDarr(res, idHidden)
-        ENDIF        
+        ENDIF
         origPaths=adr(0)+res(sort(res))
-          
+        IF N_ELEMENTS(res) EQ 1 and res(0) EQ '' THEN BEGIN
+          res=FILE_SEARCH(adr(0),'*', COUNT=nFound, /TEST_DIRECTORY)
+          origPaths=res(sort(res))
+        ENDIF
+
         delimPos=STRPOS(origPaths,'\', /REVERSE_SEARCH)
         IF delimPos(0) NE 0 THEN origPaths=origPaths+'\'
 
@@ -608,20 +663,39 @@ pro RenameDICOM_event, event
               WIDGET_CONTROL, lblStatus, SET_VALUE=''
             ENDELSE
           ENDIF ELSE sv=DIALOG_MESSAGE('Name template cannot be empty.', DIALOG_PARENT=event.top)
-        ENDIF
-      ENDIF
+        ENDIF;res ''
+      ENDIF; adr ''
 
       IF res(0) EQ '' OR pathType EQ 2 THEN BEGIN; no catalogues (or only catalogues with no DICOM content) search for files
         pathType=2
 
         IF fileTemp(0) NE '' THEN BEGIN
-          IF adr(0) NE '' THEN BEGIN; find dicom files within path in txtCat field
-            delimPos=STRPOS(adr(0),'\', /REVERSE_SEARCH)
-            IF delimPos(0) EQ STRLEN(adr(0))-1 THEN Spawn, 'dir '  +adr(0) + '*'+ '/b /a-d', res ELSE Spawn, 'dir '  + '"'+adr(0)+'\"' + '*'+ '/b /a-d', res
-            IF res(0) EQ '' THEN origPaths='' ELSE origPaths=adr(0)+res(sort(res))
-          ENDIF
+          foundSome=1
+          If adr(0) NE '' THEN BEGIN; find dicom files within path in txtCat field
+            ;delimPos=STRPOS(adr(0),'\', /REVERSE_SEARCH)
+            ;IF delimPos(0) NE STRLEN(adr(0))-1 THEN adr(0)=adr(0)+'\'
+            ;Spawn, 'dir ' + '"'  +adr(0)+'"' + '*'+ '/b /a-d', res
+            ;ENDIF ELSE Spawn, 'dir '  + '"'+adr(0)+'\"' + '*'+ '/b /a-d', res
+            res=FILE_SEARCH(adr(0),'*.dcm', COUNT=nFound)
+            IF nFound EQ 0 THEN BEGIN
+              res=FILE_SEARCH(adr(0),'*', COUNT=nFound);search all files if no .dcm is found
+              IF nFound GT 0 THEN BEGIN
+                resQU=!Null
+                FOR ff=0, nFound-1 DO BEGIN
+                  IF FILE_TEST(res(ff),/DIRECTORY) EQ 0 THEN BEGIN
+                    IF QUERY_DICOM(res(ff)) THEN resQU=[resQU,res(ff)]
+                  ENDIF
+                ENDFOR
+                res=resQU
+              ENDIF
+            ENDIF
+            IF res(0) EQ '' THEN BEGIN
+              origPaths=''
+              foundSome=0
+            ENDIF ELSE origPaths=res(sort(res));origPaths=adr(0)+res(sort(res))
+          ENDIF; adr ''
 
-          IF origPaths(0) NE '' THEN BEGIN
+          IF foundSome THEN BEGIN
             IF update EQ 10 THEN nFiles=MIN([10,N_ELEMENTS(origPaths)]) ELSE nFiles=N_ELEMENTS(origPaths)
             newPaths=origPaths & newPaths[*]=''
             displayTable=STRARR(2,200)
@@ -641,10 +715,10 @@ pro RenameDICOM_event, event
             WIDGET_CONTROL, lblStatus, SET_VALUE=''
           ENDIF ELSE sv=DIALOG_MESSAGE('Found no images to rename. Specify folder or open files in main window first. NB: Cannot handle special charachters in the path.', DIALOG_PARENT=event.top)
         ENDIF ELSE sv=DIALOG_MESSAGE('Filename template cannot be empty.', DIALOG_PARENT=event.top)
-      ENDIF
-    ENDIF
+      ENDIF; pathtype 2
+    ENDIF;update GE 1
     update=0
-  ENDIF
+  ENDIF;update Exist
 
   ;******************* Perform rename of catalogues or files ? ***********************
   IF N_ELEMENTS(rename) NE 0 THEN BEGIN
@@ -666,7 +740,7 @@ pro RenameDICOM_event, event
 
         nP= n_elements(newPaths)
         for i=0, nP-1 do begin
-          IF newPaths(i) NE '' AND newPaths(i) NE origPaths(i) THEN BEGIN
+          IF newPaths(i) NE '' AND newPaths(i) NE '_' AND newPaths(i) NE 'notDICOM' AND newPaths(i) NE origPaths(i) THEN BEGIN
             file_move, origPaths(i), newPaths(i)
             IF inputAdrRD(0) NE '' AND adr(0) EQ '' THEN BEGIN
               filenoInput=where(inputAdrRD EQ origPaths(i))
@@ -695,8 +769,21 @@ pro RenameDICOM_event, event
               dirNames=newPaths
               nDirs=n_elements(dirNames)
               FOR i=0, nDirs-1 DO BEGIN
-                Spawn, 'dir '  + '"'+dirNames(i)+'"' + '*'+ '/b /a-d', res; files only,may not work in standalone version (makeRT)
-                origPaths=dirNames(i)+res(sort(res))
+                ;Spawn, 'dir '  + '"'+dirNames(i)+'"' + '*'+ '/b /a-d', res; files only
+                res=FILE_SEARCH(dirNames(i),'*.dcm', COUNT=nFound)
+                IF nFound EQ 0 THEN BEGIN
+                  res=FILE_SEARCH(dirNames(i),'*', COUNT=nFound);search all files if no .dcm is found
+                  IF nFound GT 0 THEN BEGIN
+                    resQU=!Null
+                    FOR ff=0, nFound-1 DO BEGIN
+                      IF FILE_TEST(res(ff),/DIRECTORY) EQ 0 THEN BEGIN
+                        IF QUERY_DICOM(res(ff)) THEN resQU=[resQU,res(ff)]
+                      ENDIF
+                    ENDFOR
+                    res=resQU
+                  ENDIF
+                ENDIF
+                origPaths=res(sort(res));origPaths=dirNames(i)+res(sort(res))
                 IF origPaths(0) NE '' THEN BEGIN
                   nFiles=N_ELEMENTS(origPaths)
                   WIDGET_CONTROL, lblStatus, SET_VALUE='Renaming '+STRING(nFiles,FORMAT='(i0)')+' files in directory '+STRING(i+1, FORMAT='(i0)')+'/'+STRING(nDirs, FORMAT='(i0)')
@@ -707,16 +794,16 @@ pro RenameDICOM_event, event
                   origPaths=modPaths.origPaths & newPaths=modPaths.newPaths
                   u=UNIQ(newPaths)
                   IF N_ELEMENTS(u) EQ N_ELEMENTS(newPaths) THEN BEGIN
-  
+
                     for k=0, n_elements(newPaths)-1 do begin
-                      IF newPaths(k) NE '' AND origPaths(k) NE newPaths(k) THEN file_move, origPaths(k), newPaths(k)
+                      IF newPaths(k) NE '' AND newPaths(k) NE '_' AND newPaths(k) NE 'notDICOM' AND origPaths(k) NE newPaths(k) THEN file_move, origPaths(k), newPaths(k)
                     endfor
                   ENDIF ELSE BEGIN
                     sv=DIALOG_MESSAGE('Names are not unique using the selected name template. Only first unique file is renamed.', DIALOG_PARENT=event.top)
                     origPathsMod=origPaths(u)
                     newPathsMod=newPaths(u)
                     for k=0, n_elements(newPathsMod)-1 do begin
-                      IF newPathsMod(k) NE '' AND newPaths(i) NE origPaths(i) THEN file_move, origPathsMod(k), newPathsMod(k)
+                      IF newPathsMod(k) NE '' AND newPathsMod(k) NE '_' AND newPathsMod(k) NE 'notDICOM' AND newPathsMod(i) NE origPathsMod(i) THEN file_move, origPathsMod(k), newPathsMod(k)
                     endfor
                   ENDELSE
                 ENDIF
@@ -733,7 +820,7 @@ pro RenameDICOM_event, event
         origPathsMod=origPaths(u)
         newPathsMod=newPaths(u)
         for k=0, n_elements(newPathsMod)-1 do begin
-          IF newPathsMod(k) NE '' AND newPathsMod(k) NE origPathsMod(k) THEN BEGIN
+          IF newPathsMod(k) NE '' AND newPathsMod(i) NE '_' AND newPathsMod(i) NE 'notDICOM' AND newPathsMod(k) NE origPathsMod(k) THEN BEGIN
             file_move, origPathsMod(k), newPathsMod(k)
             IF inputAdrRD(0) NE '' AND adr(0) EQ '' THEN structImgs.(u(k)).filename=newPathsMod(k)
           ENDIF

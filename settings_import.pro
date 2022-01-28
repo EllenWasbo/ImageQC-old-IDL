@@ -63,14 +63,6 @@ pro import_s, source_path, target_path, mOpt, anaStrAll, xo, yo, parent, NAMED_S
             ;check output-templates connected
             IF N_ELEMENTS(qto2imp) EQ 0 THEN qto2imp=STRARR(N_ELEMENTS(IDs2import),N_ELEMENTS(impConfigS.(1).QTOUTTEMPS))
             qto2imp[i,*]=TRANSPOSE(impConfigS.(idSource).QTOUTTEMPS)
-            ;            ots=impConfigS.(impConfigS.(idSource)).QTOUTTEMPS
-            ;            def_ots=WHERE(ots NE 'DEFAULT')
-            ;            IF def_ots(0) NE -1 THEN BEGIN
-            ;              not_def=ots(def_ots)
-            ;              newline = string([13B, 10B])
-            ;              sv=DIALOG_MESSAGE('The parameter set '+newname+' have links to these QuickTest Output templates '+newline+STRJOIN(ots,newline)+newline+'These will all be set to DEFAULT. Consider importing output templates and reconnect the paramater set.', /INFORMATION, DIALOG_PARENT=parent)
-            ;              FOREACH elem, impConfigS.(idSource).QTOUTTEMPS, o DO impConfigS.(idSource).QTOUTTEMPS(o)='DEFAULT'
-            ;            ENDIF
 
             configS=replaceStructStruct(configS, impConfigS.(idSource), idReplace)
             updSet=1
@@ -84,19 +76,6 @@ pro import_s, source_path, target_path, mOpt, anaStrAll, xo, yo, parent, NAMED_S
             ;check output-templates connected
             IF N_ELEMENTS(qto2imp) EQ 0 THEN qto2imp=STRARR(N_ELEMENTS(IDs2import),N_ELEMENTS(impConfigS.(1).QTOUTTEMPS))
             qto2imp[i,*]=TRANSPOSE(impConfigS.(IDs2import(i)+1).QTOUTTEMPS)
-            ;ots=impConfigS.(IDs2import(i)+1).QTOUTTEMPS
-            ;def_ots=WHERE(ots NE 'DEFAULT')
-            ;IF def_ots(0) NE -1 THEN BEGIN
-            ;FOR q=0, N_ELEMENTS(def_ots)-1 DO BEGIN
-            ;  nameExist=TAG_NAMES(quickTout.(def_ots(q)))
-            ;  IF ~nameExist.HasValue(ots(def_ots(q))) THEN BEGIN
-            ;    TODO - implement import of QTO based on linked to paramset
-            ;  ENDIF
-            ;ENDFOR
-            ;newline = string([13B, 10B])
-            ;sv=DIALOG_MESSAGE('The parameter set '+newname+' have links to these QuickTest Output templates '+newline+STRJOIN(ots,newline)+newline+'These will all be set to DEFAULT. Consider importing output templates and reconnect the paramater set.', /INFORMATION, DIALOG_PARENT=parent)
-            ;FOREACH elem, impConfigS.(IDs2import(i)+1).QTOUTTEMPS, o DO impConfigS.(IDs2import(i)+1).QTOUTTEMPS(o)='DEFAULT'
-            ;ENDIF
             configS=CREATE_STRUCT(configS, newname, impConfigS.(IDs2import(i)+1))
             updSet=1
           ENDELSE
@@ -183,13 +162,13 @@ pro import_qt, source_path, target_path, mOpt, modSel, xo, yo, parent, NAMED_TEM
 
               box=[$
                 '1, BASE,, /COLUMN', $
-                '0, LABEL, Template '+newname+' already exist', $
-                '2,  TEXT, , LABEL_LEFT=Rename the imported template:, WIDTH=12, TAG=newname,', $
+                '0, LABEL, QuickTest template '+newname+' already exist', $
+                '2,  TEXT, , LABEL_LEFT=Rename the imported QuickTest template:, WIDTH=12, TAG=newname,', $
                 '1, BASE,, /ROW', $
                 '0, BUTTON, OK, QUIT, TAG=Save',$
                 '0, BUTTON, Overwrite, QUIT, TAG=Overwrite',$
                 '2, BUTTON, Cancel/Ignore, QUIT, TAG=Cancel']
-              res=CW_FORM_2(box, /COLUMN, TAB_MODE=1, TITLE='Rename the imported template', XSIZE=300, YSIZE=100, FOCUSNO=1, XOFFSET=xo+250, YOFFSET=yo+250)
+              res=CW_FORM_2(box, /COLUMN, TAB_MODE=1, TITLE='Rename the imported QuickTest template', XSIZE=300, YSIZE=100, FOCUSNO=1, XOFFSET=xo+250, YOFFSET=yo+250)
 
               IF res.Cancel THEN newname=''
               IF res.Save THEN BEGIN
@@ -273,13 +252,13 @@ pro import_qto, source_path, target_path, analyseStrA, modNmb, xo, yo, parent, N
 
         box=[$
           '1, BASE,, /COLUMN', $
-          '0, LABEL, Template '+newname+' already exist', $
-          '2,  TEXT, , LABEL_LEFT=Rename the imported template:, WIDTH=12, TAG=newname,', $
+          '0, LABEL, QuickTestOutput template '+newname+' already exist', $
+          '2,  TEXT, , LABEL_LEFT=Rename the imported QuickTestOutput template:, WIDTH=12, TAG=newname,', $
           '1, BASE,, /ROW', $
           '0, BUTTON, OK, QUIT, TAG=Save',$
           '0, BUTTON, Overwrite, QUIT, TAG=Overwrite',$
           '2, BUTTON, Cancel/Ignore, QUIT, TAG=Cancel']
-        res=CW_FORM_2(box, /COLUMN, TAB_MODE=1, TITLE='Rename the imported template', XSIZE=300, YSIZE=100, FOCUSNO=1, XOFFSET=xo+250, YOFFSET=yo+250)
+        res=CW_FORM_2(box, /COLUMN, TAB_MODE=1, TITLE='Rename the imported QuickTestOutput template', XSIZE=300, YSIZE=100, FOCUSNO=1, XOFFSET=xo+250, YOFFSET=yo+250)
 
         IF res.Cancel THEN newname=''
         IF res.Save THEN BEGIN
@@ -352,13 +331,13 @@ pro import_a, source_path, target_path, mOpt, anaStrAll, modSel, xo, yo, parent
 
                 box=[$
                   '1, BASE,, /COLUMN', $
-                  '0, LABEL, Template '+newname+' already exist', $
-                  '2,  TEXT, , LABEL_LEFT=Rename the imported template:, WIDTH=12, TAG=newname,', $
+                  '0, LABEL, Automation template '+newname+' already exist', $
+                  '2,  TEXT, , LABEL_LEFT=Rename the imported automation template:, WIDTH=12, TAG=newname,', $
                   '1, BASE,, /ROW', $
                   '0, BUTTON, OK, QUIT, TAG=Save',$
                   '0, BUTTON, Overwrite, QUIT, TAG=Overwrite',$
                   '2, BUTTON, Cancel/Ignore, QUIT, TAG=Cancel']
-                res=CW_FORM_2(box, /COLUMN, TAB_MODE=1, TITLE='Rename the imported template', XSIZE=300, YSIZE=100, FOCUSNO=1, XOFFSET=xo+250, YOFFSET=yo+250)
+                res=CW_FORM_2(box, /COLUMN, TAB_MODE=1, TITLE='Rename the imported automation template', XSIZE=300, YSIZE=100, FOCUSNO=1, XOFFSET=xo+250, YOFFSET=yo+250)
 
                 IF res.Cancel THEN newname=''
                 IF res.Save THEN BEGIN

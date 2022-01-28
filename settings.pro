@@ -347,17 +347,17 @@ pro settings, GROUP_LEADER = mainbase, xoff, yoff, tabString;tabString = 'PARAM'
   bCommonSett=WIDGET_BASE(autobox1, /FRAME, /COLUMN)
   bAutoImportPath=WIDGET_BASE(bCommonSett,/ROW)
   lbl=WIDGET_LABEL(bAutoImportPath, VALUE='Default path incoming files:   ', FONT=font1, /NO_COPY)
-  txtAutoImpPath=WIDGET_TEXT(bAutoImportPath, VALUE=configS.(1).AUTOIMPORTPATH, XSIZE=80,/EDITABLE, FONT=font1)
-  btnAutoImpPath=WIDGET_BUTTON(bAutoImportPath, VALUE=thisPath+'images\search.bmp',/BITMAP, UVALUE='aimp_Browse', TOOLTIP='Browse', FONT=font1)
+  txtAutoImpPath=WIDGET_TEXT(bAutoImportPath, VALUE=configS.(0).AUTOCOMMON.AUTOIMPORTPATH, XSIZE=80,/EDITABLE, FONT=font1)
+  btnAutoImpPath=WIDGET_BUTTON(bAutoImportPath, VALUE=thisPath+'images\open.bmp',/BITMAP, UVALUE='aimp_Browse', TOOLTIP='Browse', FONT=font1)
   btnSaveImpPath=WIDGET_BUTTON(bAutoImportPath, VALUE=thisPath+'images\save.bmp',/BITMAP, UVALUE='aimp_Save',  FONT=font1, SENSITIVE=saveOK)
   bAutoCont=WIDGET_BASE(bCommonSett, /NONEXCLUSIVE)
   btnAutoPause=WIDGET_BUTTON(bAutoCont, VALUE='By default, pause between each template while looping to allow for stop or continue.', FONT=font1, UVALUE='btnAutoPause', SENSITIVE=saveOK)
-  WIDGET_CONTROL, btnAutoPause, SET_BUTTON=ABS(configS.(1).AUTOCONTINUE-1)
+  WIDGET_CONTROL, btnAutoPause, SET_BUTTON=ABS(configS.(0).AUTOCOMMON.AUTOCONTINUE-1)
   bWait_PDF=WIDGET_BASE(bCommonSett, /ROW)
   lbl=WIDGET_LABEL(bWait_PDF, VALUE='When reading data from PDF allow ', /NO_COPY)
-  txtWaitPDF0=WIDGET_TEXT(bWait_PDF, VALUE=STRING(configS.(1).WAIT(0), FORMAT='(i0)'), XSIZE=4,/EDITABLE, FONT=font1)
+  txtWaitPDF0=WIDGET_TEXT(bWait_PDF, VALUE=STRING(configS.(0).AUTOCOMMON.WAIT(0), FORMAT='(i0)'), XSIZE=4,/EDITABLE, FONT=font1)
   lbl=WIDGET_LABEL(bWait_PDF, VALUE=' sec (+ up to 10x1 sec) to open Excel-macro/Acrobat Reader and ', /NO_COPY)
-  txtWaitPDF1=WIDGET_TEXT(bWait_PDF, VALUE=STRING(configS.(1).WAIT(1), FORMAT='(i0)'), XSIZE=4,/EDITABLE, FONT=font1)
+  txtWaitPDF1=WIDGET_TEXT(bWait_PDF, VALUE=STRING(configS.(0).AUTOCOMMON.WAIT(1), FORMAT='(i0)'), XSIZE=4,/EDITABLE, FONT=font1)
   lbl=WIDGET_LABEL(bWait_PDF, VALUE=' sec to close before next file.', /NO_COPY)
   lbl=WIDGET_LABEL(bWait_PDF, VALUE='', XSIZE=20, /NO_COPY)
   btnSaveWait=WIDGET_BUTTON(bWait_PDF, VALUE=thisPath+'images\save.bmp',/BITMAP, UVALUE='aWait_Save', TOOLTIP='Save wait settings for reading PDF',  FONT=font1, SENSITIVE=saveOK)
@@ -409,7 +409,7 @@ pro settings, GROUP_LEADER = mainbase, xoff, yoff, tabString;tabString = 'PARAM'
   bBrowse=WIDGET_BASE(bAutoParam, /ROW)
   lbl=WIDGET_LABEL(bBrowse, VALUE='Path input files:  ', FONT=font1, /NO_COPY)
   txtBrowse_a=WIDGET_TEXT(bBrowse, VALUE='', XSIZE=75,/EDITABLE, FONT=font1, UVALUE='txtBrowse_a',/KBRD_FOCUS_EVENTS)
-  btnBrowse=WIDGET_BUTTON(bBrowse, VALUE=thisPath+'images\search.bmp',/BITMAP, TOOLTIP='Browse for input path', UVALUE='a_Browse',  FONT=font1)
+  btnBrowse=WIDGET_BUTTON(bBrowse, VALUE=thisPath+'images\open.bmp',/BITMAP, TOOLTIP='Browse for input path', UVALUE='a_Browse',  FONT=font1)
   lbl=WIDGET_LABEL(bAutoParam, VALUE='', YSIZE=5, /NO_COPY)
 
   lbl=WIDGET_LABEL(bAutoParam, VALUe='', YSIZE=10, /NO_COPY)
@@ -417,18 +417,19 @@ pro settings, GROUP_LEADER = mainbase, xoff, yoff, tabString;tabString = 'PARAM'
   bAlt_a=WIDGET_BASE(bAutoParam, /ROW, FRAME=1);, MAP=0)
   lbl=WIDGET_LABEL(bAlt_a, VALUe='', YSIZE=10, /NO_COPY)
   bAlt_a2=WIDGET_BASE(bAlt_a, /ROW, /NONEXCLUSIVE)
-  btnAltAuto=WIDGET_BUTTON(bAlt_a2, VALUE='Extract data from PDF or TXT results', FONT=font1, UVALUE='btnAltAuto')
+  btnAltAuto=WIDGET_BUTTON(bAlt_a2, VALUE='Extract data from PDF, XML or TXT results', FONT=font1, UVALUE='btnAltAuto')
   lbl=WIDGET_LABEL(bAlt_a, VALUe='', XSIZE=220, /NO_COPY)
   btnAltConfig=WIDGET_BUTTON(bAlt_a, VALUE='Configure/info', FONT=font1, UVALUE='btnAltConfigInfo')
 
   bImportA=WIDGET_BASE(bAutoParam, /COLUMN, FRAME=1, MAP=1)
   ;stationname
   bStatName=WIDGET_BASE(bImportA, /ROW)
-  lbl=WIDGET_LABEL(bStatName, VALUE='Station name (DICOM 0008,1010) or ID if PDF/TXT results:', XSIZE=330, FONT=font1, /NO_COPY)
+  lbl=WIDGET_LABEL(bStatName, VALUE='Station name (DICOM 0008,1010) or ID if not DICOM:', XSIZE=330, FONT=font1, /NO_COPY)
   txtStatName_a=WIDGET_TEXT(bStatName, VALUE='', XSIZE=20,/EDITABLE, FONT=font1, UVALUE='txtStatName_a',/KBRD_FOCUS_EVENTS)
   btnStatName=WIDGET_BUTTON(bStatName, VALUE=thisPath+'images\search.bmp',/BITMAP, TOOLTIP='Retrieve the station name or ID from a representative input file (if input file contain such information)', UVALUE='a_getStatName', FONT=font1)
+  btnStatNameMore=WIDGET_BUTTON(bStatName, VALUE='More info/options', FONT=font1, UVALUE='a_DCMcritMore')
   bDCMcrit=WIDGET_BASE(bImportA, /ROW, MAP=1)
-  lbl=WIDGET_LABEL(bDCMcrit, VALUE='Additional DICOM criterion (if different tests on same station):  ', FONT=font1, /NO_COPY)
+  lbl=WIDGET_LABEL(bDCMcrit, VALUE='Additional DICOM criterion:  ', FONT=font1, /NO_COPY)
   txtDCMcritGroup=WIDGET_TEXT(bDCMcrit, VALUE='0000', XSIZE=4, FONT=font1, UVALUE='txtDCMcritGroup',/KBRD_FOCUS_EVENTS)
   txtDCMcritElem=WIDGET_TEXT(bDCMcrit, VALUE='0000', XSIZE=4, FONT=font1, UVALUE='txtDCMcritElem',/KBRD_FOCUS_EVENTS)
   btnDCMcritLookup=WIDGET_BUTTON(bDCMcrit, VALUE=thisPath+'images\edit.bmp',/BITMAP, TOOLTIP='Edit DICOM tags', UVALUE='a_DCMcrit_lookup', FONT=font1, SENSITIVE=saveOK)
@@ -489,7 +490,7 @@ pro settings, GROUP_LEADER = mainbase, xoff, yoff, tabString;tabString = 'PARAM'
   bBrowseApp=WIDGET_BASE(bAutoParam, /ROW)
   lbl=WIDGET_LABEL(bBrowseApp, VALUe='Append to: ', FONT=font1, /ALIGN_LEFT, /NO_COPY)
   txtBrowseApp=WIDGET_TEXT(bBrowseApp, VALUE=pathApp, /EDITABLE, XSIZE=73, FONT=font1, UVALUE='txtBrowseApp',/KBRD_FOCUS_EVENTS)
-  btnBrowseApp=WIDGET_BUTTON(bBrowseApp, VALUE=thisPath+'images\search.bmp',/BITMAP, TOOLTIP='Browse to locate output file', UVALUE='a_BrowseApp', FONT=font1)
+  btnBrowseApp=WIDGET_BUTTON(bBrowseApp, VALUE=thisPath+'images\open.bmp',/BITMAP, TOOLTIP='Browse to locate output file', UVALUE='a_BrowseApp', FONT=font1)
   btnClearApp=WIDGET_BUTTON(bBrowseApp, VALUE=thisPath+'images\delete.bmp',/BITMAP, UVALUE='a_ClearApp', TOOLTIP='Clear output file address', FONT=font1)
   btnShowApp=WIDGET_BUTTON(bBrowseApp, VALUE=thisPath+'images\open.bmp',/BITMAP, UVALUE='a_OpenApp', TOOLTIP='Open result file', FONT=font1)
 
@@ -522,7 +523,8 @@ pro settings, GROUP_LEADER = mainbase, xoff, yoff, tabString;tabString = 'PARAM'
   btnDown_rde=WIDGET_BUTTON(bButt_tbl_rde, VALUE=thisPath+'images\switch_down.bmp',/BITMAP, UVALUE='rde_downTemp', TOOLTIP='Move downwards in list', SENSITIVE=saveOK)
   btnDel_rde=WIDGET_BUTTON(bButt_tbl_rde, VALUE=thisPath+'images\delete.bmp',/BITMAP, UVALUE='rde_delTemp', TOOLTIP='Delete element', SENSITIVE=saveOK)
   lbl=WIDGET_LABEL(bButt_tbl_rde, VALUE='', XSIZE=10, /NO_COPY)
-  btnTest_rde=WIDGET_BUTTON(bButt_tbl_rde, VALUE='Test DICOM file', UVALUE='rde_test', TOOLTIP='Select DICOM file and see output')
+  btnDCMdump=WIDGET_BUTTON(bButt_tbl_rde, VALUE='View DICOM header', UVALUE='dicomDump', TOOLTIP='Select a DICOM file and view the DICOM header')
+  btnTest_rde=WIDGET_BUTTON(bButt_tbl_rde, VALUE='Test format codes with DICOM file', UVALUE='rde_test', TOOLTIP='Select DICOM file and test header content formated as specified')
 
   lbl=WIDGET_LABEL(bRenameMid, VALUE='', XSIZE=10, /NO_COPY)
   bFormatInfo=WIDGET_BASE(bRenameMid,/COLUMN)
@@ -685,7 +687,9 @@ pro settings_event, event
               IF tagsCommon.HasValue('AUTOUNBLOCK') THEN autounblock=configS.(0).AUTOUNBLOCK
               expInfoPatterns=CREATE_STRUCT('mAs_profile',['zpos','mAs'])
               IF tagsCommon.HasValue('EXPINFOPATTERNS') THEN expInfoPatterns=configS.(0).EXPINFOPATTERNS
-              commonConfig=CREATE_STRUCT('defConfigNo',configS.(0).defConfigNo,'saveBlocked',1,'saveStamp', systime(/SECONDS),'username',userinfo.user_name,'autounblock',autounblock,'expInfoPatterns',expInfoPatterns)
+              autoCommon=CREATE_STRUCT('autoImportPath','','autoContinue',0,'wait',[5,2],'lastImpDate','','ignoreSince',-1)
+              IF tagsCommon.HasValue('AUTOCOMMON') THEN autoCommon=configS.(0).AUTOCOMMON
+              commonConfig=CREATE_STRUCT('defConfigNo',configS.(0).defConfigNo,'saveBlocked',1,'saveStamp', systime(/SECONDS),'username',userinfo.user_name,'autounblock',autounblock,'expInfoPatterns',expInfoPatterns,'autoCommon',autoCommon)
               configS=replaceStructStruct(configS, commonConfig,0)
 
               SAVEIF, saveOK, configS, quickTemp, quickTout, loadTemp, renameTemp, FILENAME=configPath
@@ -858,7 +862,7 @@ pro settings_event, event
               newconfigS=updateConfigS(adr(0))
               IF SIZE(newconfigS, /TNAME) EQ 'STRUCT' THEN BEGIN
                 userinfo=get_login_info()
-                IF newconfigS.(0).SAVEBLOCKED THEN BEGIN                
+                IF newconfigS.(0).SAVEBLOCKED THEN BEGIN
                   IF newconfigS.(0).USERNAME EQ userinfo.user_name AND systime(/SECONDS)-newconfigS.(0).SAVESTAMP LT 10 THEN sv='Yes' ELSE BEGIN;allow for old config file without save information
                     sv=DIALOG_MESSAGE('The selected config file is blocked ('+updStamp(newconfigS.(0).USERNAME, newconfigS.(0).SAVESTAMP) +')'+newline+'Override the blocking and continue?',/QUESTION, DIALOG_PARENT=event.Top)
                   ENDELSE
@@ -1939,8 +1943,9 @@ pro settings_event, event
         ;for each config update adr
         IF FILE_TEST(configPath, /READ) THEN BEGIN
           RESTORE, configPath
-          psets=TAG_NAMES(configS)
-          FOR i=1, N_ELEMENTS(psets)-1 DO configS.(i).AUTOIMPORTPATH=adr(0)
+          ;psets=TAG_NAMES(configS)
+          ;FOR i=1, N_ELEMENTS(psets)-1 DO configS.(i).AUTOIMPORTPATH=adr(0)
+          configS.(0).AUTOCOMMON.AUTOIMPORTPATH=adr(0)
           SAVEIF, saveOK, configS, quickTemp, quickTout, loadTemp, renameTemp, FILENAME=configPath
           sv=DIALOG_MESSAGE('Saved new default to config file.', /INFORMATION)
         ENDIF ELSE sv=DIALOG_MESSAGE('Lost connection to config file '+configPath, /ERROR)
@@ -1949,9 +1954,10 @@ pro settings_event, event
       'btnAutoPause':BEGIN
         IF FILE_TEST(configPath, /READ) THEN BEGIN
           RESTORE, configPath
-          psets=TAG_NAMES(configS)
+          ;psets=TAG_NAMES(configS)
           autoCo=ABS(WIDGET_INFO(btnAutoPause, /BUTTON_SET)-1)
-          FOR i=1, N_ELEMENTS(psets)-1 DO configS.(i).AUTOCONTINUE=autoCo
+          ;FOR i=1, N_ELEMENTS(psets)-1 DO configS.(i).AUTOCONTINUE=autoCo
+          configS.(0).AUTOCOMMON.AUTOCONTINUE=autoCo
           SAVEIF, saveOK, configS, quickTemp, quickTout, loadTemp, renameTemp, FILENAME=configPath
           sv=DIALOG_MESSAGE('Saved new default option to config file.', /INFORMATION)
         ENDIF ELSE sv=DIALOG_MESSAGE('Lost connection to config file '+configPath, /ERROR)
@@ -1962,8 +1968,9 @@ pro settings_event, event
         WIDGET_CONTROL,txtWaitPDF1, GET_VALUE=w1
         IF FILE_TEST(configPath, /READ) THEN BEGIN
           RESTORE, configPath
-          psets=TAG_NAMES(configS)
-          FOR i=1, N_ELEMENTS(psets)-1 DO configS.(i).WAIT=[LONG(w0),LONG(w1)]
+          ;psets=TAG_NAMES(configS)
+          ;FOR i=1, N_ELEMENTS(psets)-1 DO configS.(i).WAIT=[LONG(w0),LONG(w1)]
+          configS.(0).AUTOCOMMON.WAIT=[LONG(w0),LONG(w1)]
           SAVEIF, saveOK, configS, quickTemp, quickTout, loadTemp, renameTemp, FILENAME=configPath
           sv=DIALOG_MESSAGE('Saved new default option to config file.', /INFORMATION)
         ENDIF ELSE sv=DIALOG_MESSAGE('Lost connection to config file '+configPath, /ERROR)
@@ -1973,7 +1980,7 @@ pro settings_event, event
         waitSec=[5,2]
         IF FILE_TEST(configPath, /READ) THEN BEGIN
           RESTORE, configPath
-          waitSec=configS.(1).WAIT
+          waitSec=configS.(0).AUTOCOMMON.WAIT
         ENDIF
 
         adr=thisPath+'data\testPDF2TXT.pdf'
@@ -2045,7 +2052,7 @@ pro settings_event, event
           waitSec=[5,2]
           IF FILE_TEST(configPath, /READ) THEN BEGIN
             RESTORE, configPath
-            waitSec=configS.(1).WAIT
+            waitSec=configS.(0).AUTOCOMMON.WAIT
           ENDIF
           availMod=TAG_NAMES(testVisualQTNames)
           nameMod=availMod(a_currMod)
@@ -2138,6 +2145,12 @@ pro settings_event, event
           ENDIF ELSE sv=DIALOG_MESSAGE('Selected file is not an DICOM image file.',DIALOG_PARENT=event.top)
         ENDIF
       END
+
+      'a_DCMcritMore': BEGIN
+        i1='For DICOM input files: Station name is first considered, next the additional DICOM criterion. '
+        i2='If Station name is left blank, but with an additional DICOM criterion - that criterion is tested on those files not matching any templates by station name.'
+        sv=DIALOG_MESSAGE(i1+i2,DIALOG_PARENT=event.top)
+        END
 
       'a_DCMcrit_lookup': BEGIN
         IF FILE_TEST(configPath, /READ) THEN RESTORE, configPath ELSE sv=DIALOG_MESSAGE('Lost connection to config file '+configPath, /ERROR)
@@ -2410,8 +2423,19 @@ pro settings_event, event
                   'CT': altAlt='PDF_SiemensConstancy'
                   'XRAY': altAlt='GE_QAP'
                   'PET': BEGIN
-                    sv=DIALOG_MESSAGE('Will the input files be XML (Yes) or PDF (No)', /Question, DIALOG_PARENT=event.top)
-                    IF sv EQ 'Yes' THEN altAlt='XML_SiemensPETdailyQC' ELSE altAlt='PDF_SiemensPETdailyQC'
+                    box=[$
+                      '1, BASE,, /COLUMN', $
+                      '2, BUTTON, PDF|XML, EXCLUSIVE, LABEL_TOP=Input files will be..., COLUMN, SET_VALUE=0, TAG=from', $
+                      '1, BASE,, /ROW', $
+                      '2, BUTTON, OK, QUIT, TAG=OK']
+                    res=CW_FORM_2(box, /COLUMN, TAB_MODE=1, TITLE='Select input file type', XSIZE=200, YSIZE=200, FOCUSNO=3, XOFFSET=xoffset+400, YOFFSET=yoffset+200)
+
+                    IF res.OK THEN BEGIN
+                      CASE res.from OF
+                        0: altAlt='XML_SiemensPETdailyQC'
+                        ELSE: altAlt='PDF_SiemensPETdailyQC'
+                      ENDCASE
+                    ENDIF
                   END
                   'MR': altAlt='PDF_MR'
                   ELSE: altAlt=''
@@ -2905,6 +2929,39 @@ pro settings_event, event
           ENDIF ELSE sv=DIALOG_MESSAGE('Can not delete last row.', DIALOG_PARENT=event.top)
         ENDIF ELSE sv=DIALOG_MESSAGE('No row selected.', DIALOG_PARENT=event.top)
       END
+      'dicomDump':BEGIN
+        adrSel=dialog_pickfile(PATH=defPath, GET_PATH=defPath, /READ, TITLE='Select DICOM file')
+        IF adrSel(0) NE '' THEN BEGIN
+          IF FILE_BASENAME(adrSel) NE 'DICOMDIR' THEN BEGIN
+            okDcm=QUERY_DICOM(adrSel(0))
+            IF okDcm THEN BEGIN
+              obj = OBJ_NEW( 'IDLffDICOM' )
+              var = obj->Read(adrSel(0))
+              tit=adrSel(0)
+              pa=thisPath+'data\dumpTemp.txt'
+              fi=FILE_INFO(thisPath+'data\')
+              IF fi.write EQ 0 THEN BEGIN
+                fi=FILE_INFO(tempPath)
+                IF fi.write THEN pa=tempPath+'dumpTemp.txt' ELSE BEGIN
+                  pa=DIALOG_PICKFILE(TITLE='Select a txt-file to dump the DICOM header into.',/WRITE, FILTER='*.txt', /FIX_FILTER, DEFAULT_EXTENSION='.txt', DIALOG_PARENT=evTop)
+                  IF pa NE '' THEN BEGIN
+                    fi=FILE_INFO(FILE_DIRNAME(pa))
+                    IF fi.write EQ 0 THEN BEGIN
+                      sv=DIALOG_MESSAGE('You do not have write permissions for the selected folder.',/ERROR)
+                      pa=''
+                    ENDIF
+                  ENDIF
+                ENDELSE
+              ENDIF
+              IF pa NE '' THEN BEGIN
+                obj->DumpElements, pa
+                sv=DIALOG_MESSAGE('DICOM dump saved in file '+pa+newline+'Make sure no sensitive data is left there.')
+                XDISPLAYFILE, pa, TITLE=tit, /MODAL, DONE_BUTTON='Close'
+              ENDIF
+            ENDIF ELSE sv=DIALOG_MESSAGE('The selected file was not recognized as a DICOM file. '+adrSel(0), DIALOG_PARENT=event.top)
+          ENDIF ELSE sv=DIALOG_MESSAGE('Can not read files named DICOMDIR.', DIALOG_PARENT=event.top)
+        ENDIF
+      END
       'rde_test':BEGIN
         adrSel=dialog_pickfile(PATH=defPath, GET_PATH=defPath, /READ, TITLE='Select DICOM file')
         IF adrSel(0) NE '' THEN BEGIN
@@ -2912,13 +2969,30 @@ pro settings_event, event
             IF FILE_TEST(configPath, /READ) THEN RESTORE, configPath ELSE sv=DIALOG_MESSAGE('Lost connection to config file '+configPath, /ERROR)
 
             selT=WIDGET_INFO(lstTemp_rdt,/LIST_SELECT)
-            sv=DIALOG_MESSAGE('View with format codes of selected template (Yes) or default format codes (No).', /QUESTION, DIALOG_PARENT=event.top)
-            IF sv EQ 'Yes' THEN formatcodes=renameTemp.temp.(selT).formats ELSE formatcodes=renameTemp.tagformats
 
-            outp=newFileName(adrSel, -1, TAG_NAMES(renameTemp.tags), renameTemp.tags, formatcodes)
-            IF outp(0) NE '' THEN BEGIN
-              arr=TAG_NAMES(renameTemp.tags)+':  '+outp
-              sv=DIALOG_MESSAGE(['Information in defined tags for file',adrSel,'', arr,'','NB: special characters might change to _ depending on whether it will be used for file name or folder name'],/INFORMATION, DIALOG_PARENT=event.top)
+            box=[$
+              '1, BASE,, /COLUMN', $
+              '2, BUTTON, as default|from selected template, EXCLUSIVE, LABEL_TOP=Use format codes ..., COLUMN, SET_VALUE=1, TAG=from', $
+              '1, BASE,, /ROW', $
+              '0, BUTTON, OK, QUIT, TAG=OK',$
+              '2, BUTTON, Cancel, QUIT']
+            res=CW_FORM_2(box, /COLUMN, TAB_MODE=1, TITLE='Which format codes to use for output', XSIZE=300, YSIZE=200, FOCUSNO=3, XOFFSET=xoffset+400, YOFFSET=yoffset+200)
+
+            IF res.OK THEN BEGIN
+              CASE res.from OF
+                0: formatcodes=renameTemp.tagformats
+                1: formatcodes=renameTemp.temp.(selT).formats
+              ENDCASE
+
+              outp=newFileName(adrSel, -1, TAG_NAMES(renameTemp.tags), renameTemp.tags, formatcodes)
+              IF outp(0) NE '' THEN BEGIN
+                IF outp(0) EQ 'notDICOM' THEN BEGIN
+                  sv=DIALOG_MESSAGE(['Selected file not recognized as DICOM file',adrSel],/INFORMATION, DIALOG_PARENT=event.top)
+                ENDIF ELSE BEGIN
+                  arr=TAG_NAMES(renameTemp.tags)+':  '+outp
+                  sv=DIALOG_MESSAGE(['Information in defined tags for file',adrSel,'', arr,'','NB: special characters might change to _ depending on whether it will be used for file name or folder name'],/INFORMATION, DIALOG_PARENT=event.top)
+                ENDELSE
+              ENDIF
             ENDIF
           ENDIF ELSE sv=DIALOG_MESSAGE('Can not read files named DICOMDIR.', DIALOG_PARENT=event.top)
         ENDIF
@@ -3529,8 +3603,8 @@ pro auto_upd, selT, first
       paramSetNames=STRUPCASE(TAG_NAMES(configS))
       paramSetNames=paramSetNames[1:-1]
       WIDGET_CONTROL, listSets_a, SET_VALUE=paramSetNames, SET_LIST_SELECT=0
-      WIDGET_CONTROL, txtAutoImpPath, SET_VALUE=configS.(1).AUTOIMPORTPATH
-      WIDGET_CONTROL, btnAutoPause, SET_BUTTON=ABS(configS.(1).AUTOCONTINUE-1)
+      WIDGET_CONTROL, txtAutoImpPath, SET_VALUE=configS.(0).AUTOCOMMON.AUTOIMPORTPATH
+      WIDGET_CONTROL, btnAutoPause, SET_BUTTON=ABS(configS.(0).AUTOCOMMON.AUTOCONTINUE-1)
     ENDIF
 
     tempnames_a=''

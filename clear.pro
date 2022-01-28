@@ -60,6 +60,8 @@ pro clearRes, analyseStr
       NPSres=!Null
       varImgRes=!Null
       ROIres=!Null
+      ringArtProf=!Null
+      ringArtRes=!Null
       CTlinRes=!Null
       HUwaterRes=!Null
       sliceThickRes=!Null
@@ -76,6 +78,7 @@ pro clearRes, analyseStr
       SNRres=!Null
       PIUres=!Null
       ghostMRres=!Null
+      GeomDistRes=!Null
       
       results=results*0
       currentHeaderAlt=currentHeaderAlt*0
@@ -91,6 +94,10 @@ pro clearRes, analyseStr
         'NPS': NPSres=!Null
         'VARI': varImgRes=!Null
         'ROI': ROIres=!Null
+        'RING': BEGIN
+          ringArtProf=!Null
+          ringArtRes=!Null
+        END
         'CTLIN':CTlinres=!Null
         'HUWATER': HUwaterRes=!Null
         'SLICETHICK': BEGIN
@@ -113,6 +120,7 @@ pro clearRes, analyseStr
         'SNR': SNRres=!Null
         'PIU': PIUres=!Null
         'GHOST': ghostMRres=!Null
+        'GEOMDIST': GeomDistRes=!Null
         ELSE:
       ENDCASE
   

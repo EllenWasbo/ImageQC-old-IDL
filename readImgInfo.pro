@@ -149,7 +149,7 @@ end
 ;dialog_par = Dialog parent window to let messages be located on top of window calling it
 ;silentValue = 0 if error meassages should be displayed, 1 if silent modus
 
-function readImgInfo, adr, dialog_par, silentValue
+function readImgInfo, adr, dialog_par, silentValue, ADR_HEADER=adrHeader
 
   imgStruct=-1
 
@@ -533,7 +533,7 @@ function readImgInfo, adr, dialog_par, silentValue
 
   ENDIF ELSE BEGIN; txt
 
-    adrHeader=DIALOG_PICKFILE(TITLE='Locate DICOM header as .txt file for selected image as txt.', /READ, FILTER='*.txt', /FIX_FILTER, PATH=FILE_DIRNAME(adr), DIALOG_PARENT=evTop)
+    IF N_ELEMENTS(adrHeader) EQ 0 THEN adrHeader=DIALOG_PICKFILE(TITLE='Locate DICOM header as .txt file for selected image as txt.', /READ, FILTER='*.txt', /FIX_FILTER, PATH=FILE_DIRNAME(adr), DIALOG_PARENT=evTop)
     IF adrHeader(0) NE '' THEN BEGIN
       OPENR, filenhet, adrHeader, /GET_LUN
       elem=''
@@ -710,8 +710,10 @@ function readImgInfo, adr, dialog_par, silentValue
         'frameNo', frameNo)
 
       ;********save as .dat*********
-      adrDat=DIALOG_PICKFILE(PATH=FILE_DIRNAME(adr)+FILE_BASENAME(adr)+'.dat', TITLE='Save file as IDL structure (.dat-file) to continue',/WRITE, FILTER='*.dat', /FIX_FILTER, DIALOG_PARENT=evTop)
-      
+      ;adrDat=DIALOG_PICKFILE(PATH=FILE_DIRNAME(adr)+'\'+FILE_BASENAME(adr)+'.dat', TITLE='Save file as IDL structure (.dat-file) to continue',/WRITE, FILTER='*.dat', /FIX_FILTER, DIALOG_PARENT=evTop)
+      na=FILE_BASENAME(adr)
+      adrDat=FILE_DIRNAME(adr)+'\'+STRMID(na,0,STRLEN(na)-4)+'.dat'
+
       IF adrDat NE '' THEN BEGIN
         fi=FILE_INFO(FILE_DIRNAME(adrDat))
         IF fi.write THEN BEGIN
@@ -723,7 +725,13 @@ function readImgInfo, adr, dialog_par, silentValue
             rows=FLTARR(imageSize(0),imageSize(1))
             FOR r=0, imageSize(1)-1 DO BEGIN
               READF, filenhet, elem
-              rows[*,r]=STRSPLIT(elem,/EXTRACT)
+              temp=STRSPLIT(elem,/EXTRACT)
+              IF N_ELEMENTS(temp) EQ N_ELEMENTS(rows[*,r]) THEN rows[*,r]=temp ELSE BEGIN
+                sv=DIALOG_MESSAGE(['Failed reading image file. Mismatch between imagesize in information file and found pixels in image file. ',$
+                  'Make sure the selected image file(s) correspond to the selected information file. ',$
+                  'This could also happen if ImageJ was not given enough time to convert to .txt. Try again in ImageJ and watch the statusbar.'],/ERROR, DIALOG_PARENT=evTop)
+                BREAK
+              ENDELSE
             ENDFOR
           ENDIF ELSE BEGIN
             WHILE ~ EOF(filenhet) DO BEGIN

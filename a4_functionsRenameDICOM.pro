@@ -12,7 +12,7 @@ function getUniqPaths, origPaths,newPaths,pathType
   IF N_ELEMENTS(u) NE N_ELEMENTS(modNewPaths) THEN BEGIN
     FOR i=0, N_ELEMENTS(modNewPaths)-1 DO BEGIN
       eqPaths=WHERE(modNewPaths EQ modNewPaths(i), nP)
-      IF modNewPaths(i) NE '' THEN BEGIN
+      IF modNewPaths(i) NE '' AND modNewPaths(i) NE '_' AND modNewPaths(i) NE 'notDICOM' THEN BEGIN
         IF nP GT 1 THEN BEGIN
           FOR j=0, nP-1 DO BEGIN
             IF pathType EQ 1 THEN modNewPaths(eqPaths(j))= FILE_DIRNAME(modNewPaths(eqPaths(j)))+'\'+FILE_BASENAME(modNewPaths(eqPaths(j))) + '_' + STRING(j, FORMAT='(i02)')+'\' $

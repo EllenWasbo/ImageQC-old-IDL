@@ -234,14 +234,15 @@ pro selectImages_event, event
           WIDGET_CONTROL, lblProgressSelIm, SET_VALUE='Searching for files'
           structImgsSelIm=!Null
           dirs=''
-          Spawn, 'dir "'+adr(0)+'"* /b /s /a-D', adrTempTemp
+          ;Spawn, 'dir "'+adr(0)+'"* /b /s /a-D', adrTempTemp
+          adrTempTemp=FILE_SEARCH(adr(0), '*')
           IF adrTempTemp(0) NE '' THEN BEGIN
             nFound=N_ELEMENTS(adrTempTemp)
             dcmOk=INTARR(nFound)
             dcmAdr=''
             adrTempTemp=adrTempTemp(sort(adrTempTemp))
             FOR d=0, nFound-1 DO BEGIN
-              IF adrTempTemp(d) EQ 'DICOMDIR' THEN BEGIN
+              IF adrTempTemp(d) EQ 'DICOMDIR' OR FILE_TEST(adrTempTemp(d),/DIRECTORY) THEN BEGIN
                 dcmOk(d)=0 ; IDL crash if QUERY_DICOM on DICOMDIR - unknown reason
               ENDIF ELSE BEGIN
                 ;adrTempTemp(d)=dirs(i)+adrTempTemp(d)

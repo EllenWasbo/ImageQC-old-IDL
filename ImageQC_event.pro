@@ -154,13 +154,20 @@ pro ImageQC_event, ev
         adrFilesToOpen='--'
 
         IF adrFilesToOpen(0) EQ '--' THEN BEGIN
-          adrFilesToOpen=DIALOG_PICKFILE(TITLE='Select .txt files with tabulated imagedata (txt export from ImageJ).', /READ, FILTER='*.txt', /FIX_FILTER, PATH=defPath, GET_PATH=defPath, DIALOG_PARENT=evTop)
-          WIDGET_CONTROL, lblProgress, SET_VALUE='Preparing to load new files...'
-          WIDGET_CONTROL, /HOURGLASS
-          openFiles, adrFilesToOpen;(SORT(adrFilesToOpen))
-          redrawImg,0,1
-          updateInfo
-          WIDGET_CONTROL, lblProgress, SET_VALUE=''
+          adrFilesToOpen=DIALOG_PICKFILE(TITLE='Select .txt file(s) with tabulated imagedata (txt export from ImageJ).', /READ, /MULTIPLE, FILTER='*.txt', /FIX_FILTER, PATH=defPath, GET_PATH=defPath, DIALOG_PARENT=evTop)
+          IF adrFilesToOpen(0) NE '' THEN BEGIN
+            adrHeaders=DIALOG_PICKFILE(TITLE='Locate DICOM header(s) as .txt file for selected image(s) as txt.', /READ, /MULTIPLE,FILTER='*.txt', /FIX_FILTER, PATH=FILE_DIRNAME(adrFilesToOpen(0)), DIALOG_PARENT=evTop)
+            IF adrHeaders(0) NE '' THEN BEGIN
+              IF N_ELEMENTS(adrFilesToOpen) EQ N_ELEMENTS(adrHeaders) THEN BEGIN
+                WIDGET_CONTROL, lblProgress, SET_VALUE='Preparing to load new files...'
+                WIDGET_CONTROL, /HOURGLASS
+                openFiles, adrFilesToOpen, ADR_HEADERS=adrHeaders
+                redrawImg,0,1
+                updateInfo
+                WIDGET_CONTROL, lblProgress, SET_VALUE=''
+              ENDIF ELSE sv=DIALOG_MESSAGE('Mismatch between number of image files and header files.',/ERROR)
+            ENDIF
+          ENDIF
         ENDIF
       END
 
@@ -1026,8 +1033,10 @@ pro ImageQC_event, ev
         updatePlot,1,1,0
         IF N_ELEMENTS(multiExpTable) GT 1 THEN BEGIN
           sv=DIALOG_MESSAGE('QuickTest finished. Copy results to clipboard?',/QUESTION,DIALOG_PARENT=evTop)
-          IF sv EQ 'Yes' THEN exportMulti
-          sv=DIALOG_MESSAGE('QuickTest results ready in clipboard.',/INFORMATION,DIALOG_PARENT=evTop)
+          IF sv EQ 'Yes' THEN BEGIN
+            exportMulti
+            sv=DIALOG_MESSAGE('QuickTest results ready in clipboard.',/INFORMATION,DIALOG_PARENT=evTop)
+          ENDIF
         ENDIF
       END
 
@@ -1239,7 +1248,7 @@ pro ImageQC_event, ev
 
       'typeROI':  BEGIN
         IF ev.SELECT EQ 1 AND tags(0) NE 'EMPTY' THEN BEGIN
-          redrawImg, 0,0
+          clearRes, 'ROI' & redrawImg, 0,0
         ENDIF
       END
 
@@ -1254,7 +1263,7 @@ pro ImageQC_event, ev
 
       'typeROIX':  BEGIN
         IF ev.SELECT EQ 1 AND tags(0) NE 'EMPTY' THEN BEGIN
-          redrawImg, 0,0
+          clearRes, 'ROI' & redrawImg, 0,0
         ENDIF
       END
 
@@ -1269,10 +1278,24 @@ pro ImageQC_event, ev
 
       'typeROIMR':  BEGIN
         IF ev.SELECT EQ 1 AND tags(0) NE 'EMPTY' THEN BEGIN
-          redrawImg, 0,0
+          clearRes, 'ROI' & redrawImg, 0,0
         ENDIF
       END
 
+      ;--------ring artifact CT------------
+      'ringArt':BEGIN
+        IF tags(0) NE 'EMPTY' THEN BEGIN
+          ringArt; tests_forQuickTest.pro
+          updateTable
+          updatePlot, 1,1,0
+          WIDGET_CONTROL, wtabResult, SET_TAB_CURRENT=0
+        ENDIF
+        END
+       'ringArtTrend':BEGIN
+         IF ev.SELECT EQ 1 AND tags(0) NE 'EMPTY' THEN BEGIN
+           clearRes, 'RING' & redrawImg, 0,0
+         ENDIF
+        END
       ;-----analyse-tab header info
       'headerInfoCT':BEGIN
         IF tags(0) NE 'EMPTY' THEN BEGIN
@@ -3067,6 +3090,29 @@ pro ImageQC_event, ev
           WIDGET_CONTROL, txtHomogROIdist, SET_VALUE=STRING(val, FORMAT='(f0.1)')
           clearRes, 'HOMOG' & redrawImg,0,0
         END
+        txtHomogROIdistX:BEGIN
+          WIDGET_CONTROL, txtHomogROIdistX, GET_VALUE=val
+          val=ABS(FLOAT(comma2pointFloat(val(0))))
+          IF val GT 90. THEN val = 90.;avoid too close to border
+          IF val GT 0. THEN WIDGET_CONTROL, txtHomogROIdistX, SET_VALUE=STRING(val, FORMAT='(f0.1)') ELSE WIDGET_CONTROL, txtHomogROIdistX, SET_VALUE=''
+          clearRes, 'HOMOG' & redrawImg,0,0
+        END
+        txtHomogROIrot:BEGIN
+          WIDGET_CONTROL, txtHomogROIrot, GET_VALUE=val
+          val=ABS(FLOAT(comma2pointFloat(val(0))))
+          WIDGET_CONTROL, txtHomogROIrot, SET_VALUE=STRING(val, FORMAT='(f0.1)')
+          clearRes, 'HOMOG' & redrawImg,0,0
+        END
+        txtHomogROIrotX:BEGIN
+          WIDGET_CONTROL, txtHomogROIrotX, GET_VALUE=val
+          val=ABS(FLOAT(comma2pointFloat(val(0))))
+          WIDGET_CONTROL, txtHomogROIrotX, SET_VALUE=STRING(val, FORMAT='(f0.1)')
+          IF val GT 0. THEN BEGIN; with rotation a distance value is needed - default 1/4 imagesize (averaged)
+            WIDGET_CONTROL, txtHomogROIdistX, GET_VALUE=val
+            IF val EQ '' THEN WIDGET_CONTROL, txtHomogROIdistX, SET_VALUE='50.0'
+          ENDIF
+          clearRes, 'HOMOG' & redrawImg,0,0
+        END
         txtHomogROIszPET:BEGIN
           WIDGET_CONTROL, txtHomogROIszPET, GET_VALUE=val
           val=ABS(FLOAT(comma2pointFloat(val(0))))
@@ -3173,6 +3219,35 @@ pro ImageQC_event, ev
           val=ABS(FLOAT(comma2pointFloat(val(0))))
           WIDGET_CONTROL, txtROIMRa, SET_VALUE=STRING(val, FORMAT='(f0.1)')
           clearRes, 'ROI' & redrawImg,0,0
+        END
+
+        txtRingMedian:BEGIN
+          WIDGET_CONTROL, txtRingMedian, GET_VALUE=val
+          val=ABS(LONG(val(0)))
+          WIDGET_CONTROL, txtRingMedian, SET_VALUE=STRING(val, FORMAT='(i0)')
+          clearRes, 'RING' & redrawImg,0,0
+        END
+        txtRingSmooth:BEGIN
+          WIDGET_CONTROL, txtRingSmooth, GET_VALUE=val
+          val=ABS(FLOAT(comma2pointFloat(val(0))))
+          WIDGET_CONTROL, txtRingSmooth, SET_VALUE=STRING(val, FORMAT='(f0.1)')
+          clearRes, 'RING' & redrawImg,0,0
+        END
+        txtRingStart:BEGIN
+          WIDGET_CONTROL, txtRingStart, GET_VALUE=val
+          val=ABS(FLOAT(comma2pointFloat(val(0))))
+          WIDGET_CONTROL, txtRingStop, GET_VALUE=valStop
+          IF FLOAT(valStop(0)) LE val THEN val=MAX([0,FLOAT(valStop(0))-10])
+          WIDGET_CONTROL, txtRingStart, SET_VALUE=STRING(val, FORMAT='(f0.1)')
+          clearRes, 'RING' & redrawImg,0,0
+        END
+        txtRingStop:BEGIN
+          WIDGET_CONTROL, txtRingStop, GET_VALUE=val
+          val=ABS(FLOAT(comma2pointFloat(val(0))))
+          WIDGET_CONTROL, txtRingStart, GET_VALUE=valStart
+          IF FLOAT(valStart(0)) GE val THEN val=FLOAT(valStart(0))+10
+          WIDGET_CONTROL, txtRingStop, SET_VALUE=STRING(val, FORMAT='(f0.1)')
+          clearRes, 'RING' & redrawImg,0,0
         END
 
         txtNPSroiSz: BEGIN
@@ -3443,6 +3518,12 @@ pro ImageQC_event, ev
           WIDGET_CONTROL, txtSNR_MR_ROI, SET_VALUE=STRING(val, FORMAT='(f0.1)')
           clearRes, 'SNR' & redrawImg,0,0
         END
+        txtSNR_MR_ROIcut: BEGIN
+          WIDGET_CONTROL, txtSNR_MR_ROIcut, GET_VALUE=val
+          val=ABS(LONG(comma2pointFloat(val(0))))
+          WIDGET_CONTROL, txtSNR_MR_ROIcut, SET_VALUE=STRING(val, FORMAT='(i0)')
+          clearRes, 'SNR' & redrawImg,0,0
+        END
         txtPIU_MR_ROI: BEGIN
           WIDGET_CONTROL, txtPIU_MR_ROI, GET_VALUE=val
           val=ABS(FLOAT(comma2pointFloat(val(0))))
@@ -3451,10 +3532,22 @@ pro ImageQC_event, ev
           WIDGET_CONTROL, txtPIU_MR_ROI, SET_VALUE=STRING(val, FORMAT='(f0.1)')
           clearRes, 'PIU' & redrawImg,0,0
         END
+        txtPIU_MR_ROIcut: BEGIN
+          WIDGET_CONTROL, txtPIU_MR_ROIcut, GET_VALUE=val
+          val=ABS(LONG(comma2pointFloat(val(0))))
+          WIDGET_CONTROL, txtPIU_MR_ROIcut, SET_VALUE=STRING(val, FORMAT='(i0)')
+          clearRes, 'PIU' & redrawImg,0,0
+        END
         txtGhost_MR_ROIszC: BEGIN
           WIDGET_CONTROL, txtGhost_MR_ROIszC, GET_VALUE=val
           val=ABS(FLOAT(comma2pointFloat(val(0))))
           WIDGET_CONTROL, txtGhost_MR_ROIszC, SET_VALUE=STRING(val, FORMAT='(f0.1)')
+          clearRes, 'GHOST' & redrawImg,0,0
+        END
+        txtGhost_MR_ROIcut: BEGIN
+          WIDGET_CONTROL, txtGhost_MR_ROIcut, GET_VALUE=val
+          val=ABS(LONG(comma2pointFloat(val(0))))
+          WIDGET_CONTROL, txtGhost_MR_ROIcut, SET_VALUE=STRING(val, FORMAT='(i0)')
           clearRes, 'GHOST' & redrawImg,0,0
         END
         txtGhost_MR_ROIszW: BEGIN

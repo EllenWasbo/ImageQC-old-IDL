@@ -22,9 +22,10 @@ function removeIDarr, arr, id
   newArr=arr
   IF id EQ 0 THEN BEGIN
     IF N_ELEMENTS(arr) GT 1 THEN newArr=arr[1:N_ELEMENTS(arr)-1] ELSE newArr=!null
-  ENDIF
-  IF id EQ N_ELEMENTS(arr)-1 THEN newArr=arr[0:N_ELEMENTS(arr)-2]
-  IF id GT 0 AND id LT N_ELEMENTS(arr)-1 THEN newArr=[arr[0:id-1],arr[id+1:N_ELEMENTS(arr)-1]]
+  ENDIF ELSE BEGIN
+    IF id EQ N_ELEMENTS(arr)-1 THEN newArr=arr[0:N_ELEMENTS(arr)-2]
+    IF id GT 0 AND id LT N_ELEMENTS(arr)-1 THEN newArr=[arr[0:id-1],arr[id+1:N_ELEMENTS(arr)-1]]
+  ENDELSE
   return, newArr
 end
 
@@ -180,7 +181,6 @@ function updateConfigS, file
     'deciMark',',', $
     'includeFilename', 0, $
     'append',0,$
-    'autoImportPath','','autoContinue',0,'wait',[5,2],$
     'qtOutTemps', ['DEFAULT','DEFAULT','DEFAULT','DEFAULT','DEFAULT','DEFAULT'], $
     'MTFtype',2,'MTFtypeX',1,'MTFtypeNM',1,'MTFtypeSPECT',1, $
     'plotMTF',3,'plotMTFX', 3, 'plotMTFNM',4,'plotMTFSPECT',4, 'tableMTF',0,'cyclMTF',0,'tableMTFX', 0, $
@@ -189,11 +189,12 @@ function updateConfigS, file
     'searchMaxMTF_ROI',0,$
     'LinROIrad',3.,'LinROIradS',11., 'LinTab',lintab, $
     'RampDist',38.,'RampLen',60.,'RampBackG',5.,'RampSearch',5,'RampAvg',1,'RampType',0,'RampDens',0,$
-    'HomogROIsz',10., 'HomogROIszX',10., 'altHomogX', 0, 'HomogROIszPET', 10.,'HomogROIdist',55.,'HomogROIdistPET',55.,$
+    'HomogROIsz',10., 'HomogROIszX',10., 'altHomogX', 0, 'HomogROIszPET', 10.,'HomogROIdist',55.,'HomogROIdistX',0.,'HomogROIdistPET',55.,'HomogROIrot',0.,'HomogROIrotX',0.,$
     'NoiseROIsz',55., 'NoiseXpercent',90, 'HUwaterROIsz', 55.,$
     'typeROI',0,'ROIrad',5.,'ROIx',10.,'ROIy',10.,'ROIa',0.,'offxyROI', [0,0], 'offxyROI_unit', 0,$
     'typeROIX',0,'ROIXrad',5.,'ROIXx',10.,'ROIXy',10.,'ROIXa',0.,'offxyROIX', [0,0], 'offxyROIX_unit', 0,$
     'typeROIMR',0,'ROIMRrad',5.,'ROIMRx',10.,'ROIMRy',10.,'ROIMRa',0.,'offxyROIMR', [0,0], 'offxyROIMR_unit', 0,$
+    'ringMedian',0,'ringSmooth',1.,'ringStop',[5.,65.],'ringArtTrend',0,$
     'NPSroiSz', 50, 'NPSroiDist', 50., 'NPSsubNN', 20, 'NPSroiSzX', 256, 'NPSsubSzX', 5, 'NPSavg', 1, $
     'STProiSz', 11.3, $
     'unifAreaRatio', 0.95,'SNIAreaRatio', 0.9,'unifCorr',0,'unifCorrPos',[0,0],'unifCorrRad',-1.,'SNIcorr',0,'SNIcorrPos',[0,0],'SNIcorrRad',-1.,$
@@ -202,13 +203,15 @@ function updateConfigS, file
     'ScanSpeedAvg', 25, 'ScanSpeedHeight', 100., 'ScanSpeedFiltW', 15, $
     'ContrastRad1', 20., 'ContrastRad2', 58.,$
     'CrossROIsz', 60., 'CrossVol', 0.0,$
-    'SNR_MR_ROI', 75., 'PIU_MR_ROI', 75., 'Ghost_MR_ROI', [80.,40.,10.,10.,1.],'GD_MR_act', 190.,'Slice_MR_ROI',[0.1,100.,3.,-2.5,2.5,1.])
+    'SNR_MR_ROI', 75., 'SNR_MR_ROIcut', 0, 'PIU_MR_ROI', 75., 'PIU_MR_ROIcut', 0, 'Ghost_MR_ROI', [80.,40.,10.,10.,1.],'Ghost_MR_ROIcut',0, 'GD_MR_act', 190.,'Slice_MR_ROI',[0.1,100.,3.,-2.5,2.5,1.])
   expInfoPatterns=CREATE_STRUCT('mAs_profile',['ZPOS','MAS'])
+  autoCommon=CREATE_STRUCT('autoImportPath','','autoContinue',0,'wait',[5,2],'lastImpDate',0,'ignoreSince',-1)
 
   userinfo=get_login_info()
-  commonConfig=CREATE_STRUCT('defConfigNo',1,'saveBlocked',1,'saveStamp',systime(/SECONDS),'username',userinfo.user_name,'autoUnBlock',8,'expInfoPatterns',expInfoPatterns);NB if changed check on remBlock in settings.pro
+  commonConfig=CREATE_STRUCT('defConfigNo',1,'saveBlocked',1,'saveStamp',systime(/SECONDS),'username',userinfo.user_name,'autoUnBlock',8,'expInfoPatterns',expInfoPatterns,'autoCommon',autoCommon)
+  ;NB if changed check on remBlock in settings.pro
   configSdefault=CREATE_STRUCT('commonConfig',commonConfig,'configDefault',configDefault)
-
+  
   newConfigS=-1
 
   IF file EQ '' THEN newConfigS=configSdefault ELSE BEGIN
@@ -247,9 +250,18 @@ function updateConfigS, file
       ENDELSE
       newConfigS=CREATE_STRUCT('commonConfig',oldCommon)
 
-      ;the rest configS.(1+)
       defaultTags=TAG_NAMES(configDefault)
       restoreTagsS=TAG_NAMES(oldConfigS)
+      
+      ;moving auto common param to autoCommon for older versions    
+      IF N_ELEMENTS(restoreTagsS) GT 1 THEN BEGIN
+        oldTags=TAG_NAMES(oldConfigS.(1))
+        IF oldTags.HasValue('AUTOIMPORTPATH') THEN newConfigS.(0).AUTOCOMMON.AUTOIMPORTPATH=oldConfigS.(1).AUTOIMPORTPATH
+        IF oldTags.HasValue('AUTOCONTINUE') THEN newConfigS.(0).AUTOCOMMON.AUTOCONTINUE=oldConfigS.(1).AUTOCONTINUE
+        IF oldTags.HasValue('WAIT') THEN   newConfigS.(0).AUTOCOMMON.WAIT=oldConfigS.(1).WAIT
+      ENDIF
+
+      ;the rest configS.(1+)     
       FOR i=1, N_ELEMENTS(restoreTagsS)-1 DO BEGIN;for each parameterset
         oldTags=TAG_NAMES(oldConfigS.(i))
         configTemp=!Null;CREATE_STRUCT('DECIMARK',oldConfigS.(i).DECIMARK)
@@ -265,7 +277,9 @@ function updateConfigS, file
                 modQtOutTemps[0:nModOld-1]=oldConfigS.(i).(ff)
                 configTemp=CREATE_STRUCT(configTemp, defaultTags(j), modQtOutTemps)
               ENDIF ELSE configTemp=CREATE_STRUCT(configTemp, defaultTags(j), oldConfigS.(i).(ff))
-            ENDIF ELSE configTemp=CREATE_STRUCT(configTemp, defaultTags(j), oldConfigS.(i).(ff))
+            ENDIF ELSE BEGIN
+              IF N_ELEMENTS(oldConfigS.(i).(ff)) EQ N_ELEMENTS(configDefault.(j)) THEN configTemp=CREATE_STRUCT(configTemp, defaultTags(j), oldConfigS.(i).(ff)) ELSE configTemp=CREATE_STRUCT(configTemp, defaultTags(j),configDefault.(j))
+            ENDELSE
           ENDIF ELSE BEGIN
             ;paste default content
             configTemp=CREATE_STRUCT(configTemp, defaultTags(j),configDefault.(j))
@@ -410,7 +424,7 @@ function updateQuickTout, file, analyseStrAll
     'Avg_xy_MTF10',CREATE_STRUCT('ALT',0,'COLUMNS',[1,4],'CALC',3,'PER_SERIES',0),$
     'MTF50',CREATE_STRUCT('ALT',1,'COLUMNS',[0],'CALC',0,'PER_SERIES',1),$
     'MTF10',CREATE_STRUCT('ALT',1,'COLUMNS',[1],'CALC',0,'PER_SERIES',1)),$
-    'CTLIN',-1,'HUWATER',-1,'EXP',-1,'ROI',-1)
+    'CTLIN',-1,'HUWATER',-1,'EXP',-1,'ROI',-1, 'RING',-1)
   defXray=CREATE_STRUCT($
     'STP', CREATE_STRUCT('Pixel_mean',CREATE_STRUCT('ALT',0,'COLUMNS',2,'CALC',0,'PER_SERIES',0)),$
     'HOMOG',-1,'NOISE',-1,'EXP',-1,'MTF',-1,'ROI',-1)
@@ -936,6 +950,23 @@ function getOutNumbMinOne, tempStructIn, testname
   RETURN, [expTestNo(0),outputNmbMin1]
 end
 
+;find if DICOM object match criterion [tagGroup, tagElem, tagContent] - used in automation templates with additional DICOM criterion
+function testDCMcritMatch, DCMobj, criterion
+  matchFlag=0
+  IF criterion(2) NE '' THEN BEGIN
+    groupElem=[criterion(0),criterion(1)]
+    GrEl=[UINT(0),UINT(0)]
+    READS, groupElem, GrEl, FORMAT='(z)'
+    test=DCMobj->GetReference(GrEl(0),GrEl(1));
+    test_peker=DCMobj->GetValue(REFERENCE=test[0],/NO_COPY)
+    IF test(0) NE -1 THEN BEGIN
+      IF *(test_peker[0]) EQ criterion(2) THEN matchFlag=1
+    ENDIF
+  ENDIF
+
+  RETURN, matchFlag
+end
+
 ;previously saved .dat-file might miss some newly introduced parameters. Update to avoid crashes and to update current Path (.filename) if replaced since created
 ;called by struc='',pathNow ='' gives default, empty structure to be able to find list of available tags
 function imgStructUpdate, struc, pathNow
@@ -1015,20 +1046,51 @@ function readImg, adr, frame
 
       ;image with correct values and rotation
       test=o->GetReference('0028'x,'1052'x)
-      test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
+      IF frame NE -1 THEN BEGIN
+        nVal=N_ELEMENTS(test)
+        IF frame LE nVal THEN test_peker=o->GetValue(REFERENCE=test[frame-1],/NO_COPY) ELSE test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
+      ENDIF ELSE test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
       IF test(0) NE -1 THEN intercept=FLOAT(*(test_peker[0])) ELSE intercept=0
 
       test=o->GetReference('0028'x,'1053'x)
-      test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
+      IF frame NE -1 THEN BEGIN
+        nVal=N_ELEMENTS(test)
+        IF frame LE nVal THEN test_peker=o->GetValue(REFERENCE=test[frame-1],/NO_COPY) ELSE test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
+      ENDIF ELSE test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
       IF test(0) NE -1 THEN slope=FLOAT(*(test_peker[0])) ELSE slope=1.
 
       test=o->GetReference('0018'x,'5100'x)
-      test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
+      IF frame NE -1 THEN BEGIN
+        nVal=N_ELEMENTS(test)
+        IF frame LE nVal THEN test_peker=o->GetValue(REFERENCE=test[frame-1],/NO_COPY) ELSE test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
+      ENDIF ELSE test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
       ori=0
       IF test(0) NE -1 THEN BEGIN
         temporient=STRTRIM(STRING(*(test_peker[0])),2)
         IF temporient EQ 'FFS' THEN ori=1
       ENDIF
+
+      SI=!Null
+      SS=!Null
+      ;different rescale on Philips MR
+      ;      test=o->GetReference('2005'x,'100D'x)
+      ;      IF test(0) NE -1 THEN BEGIN
+      ;        IF frame NE -1 THEN BEGIN
+      ;          nVal=N_ELEMENTS(test)
+      ;          IF frame LE nVal THEN test_peker=o->GetValue(REFERENCE=test[frame-1],/NO_COPY) ELSE test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
+      ;        ENDIF ELSE test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
+      ;        SI=FLOAT(*(test_peker[0]))
+      ;
+      ;        test=o->GetReference('2005'x,'100E'x)
+      ;        IF test(0) NE -1 THEN BEGIN
+      ;          IF frame NE -1 THEN BEGIN
+      ;            nVal=N_ELEMENTS(test)
+      ;            IF frame LE nVal THEN test_peker=o->GetValue(REFERENCE=test[frame-1],/NO_COPY) ELSE test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
+      ;          ENDIF ELSE test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
+      ;          SS=FLOAT(*(test_peker[0]))
+      ;        ENDIF
+      ;
+      ;      ENDIF
 
       ;multiframe?
       test=o->GetReference('7FE0'x,'0010'x)
@@ -1043,6 +1105,11 @@ function readImg, adr, frame
           matrix=FLOAT(*(test_peker[0]))
         ENDELSE
 
+        ;        IF N_ELEMENTS(SS) GT 0 THEN BEGIN; Philips MR (https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3998685/pdf/tlo0701_0065.pdf)
+        ;          matrix=REVERSE(matrix,2)
+        ;          IF N_ELEMENTS(SS) GT 0 THEN matrix=matrix-SI
+        ;          matrix=(1./SS)*matrix
+        ;        ENDIF ELSE
         matrix=REVERSE(matrix,2)*slope + intercept
         IF ori EQ 1 THEN matrix=REVERSE(matrix)
         PTR_FREE, test_peker
@@ -1103,21 +1170,24 @@ end
 ;formatstring according to input type
 function formatCodeType, val, type
   nVal=N_ELEMENTS(val)
-  CASE type Of
-    'BOOL': IF val EQ 0 THEN strFormatCode='("false ", i0)' ELSE strFormatCode='("true ", i0)'
-    'STRING':strFormatCode='(a0)'
-    'INT':BEGIN
-      IF nVal GT 1 THEN BEGIN
-        strFormatCode='('+STRING(nVal-1, FORMAT='(i0)')+'(i0," / "),i0)'
-      ENDIF ELSE strFormatCode='(i0)'
-    END
-    'FLOAT':BEGIN
-      IF nVal GT 1 THEN BEGIN
-        strFormatCode='('+STRING(nVal-1, FORMAT='(i0)')+'(f0.1," / "),f0.1)'
-      ENDIF ELSE strFormatCode=formatCode(val)
-    END
-    ELSE:
-  ENDCASE
+  strFormatCode='(a0)'
+  IF nVal GT 0 THEN BEGIN
+    CASE type Of
+      'BOOL': IF val EQ 0 THEN strFormatCode='("false ", i0)' ELSE strFormatCode='("true ", i0)'
+      'STRING':strFormatCode='(a0)'
+      'INT':BEGIN
+        IF nVal GT 1 THEN BEGIN
+          strFormatCode='('+STRING(nVal-1, FORMAT='(i0)')+'(i0," / "),i0)'
+        ENDIF ELSE strFormatCode='(i0)'
+      END
+      'FLOAT':BEGIN
+        IF nVal GT 1 THEN BEGIN
+          strFormatCode='('+STRING(nVal-1, FORMAT='(i0)')+'(f0.1," / "),f0.1)'
+        ENDIF ELSE strFormatCode=formatCode(val)
+      END
+      ELSE:
+    ENDCASE
+  ENDIF
 
   return, strFormatCode
 end
@@ -1146,7 +1216,7 @@ end
 
 ;For RenameDICOM
 ;path = file or folder address
-;foler = 1 if path is a folder or 0 if path is a file, -1 if file and output is strarray, not filename
+;folder = 1 if path is a folder or 0 if path is a file, -1 if file and output is strarray, not filename
 ;elemArr = string array with elements to pick from tagStruct
 ;tagStruct = structure with dicom elements [group, element]
 ;formatsArr = string array with format strings without () e.g. ['a0','f0.3']
@@ -1154,20 +1224,23 @@ function newFileName, path, folder, elemArr, tagStruct, formatsArr
   newpath='_'
 
   IF folder EQ 1 THEN BEGIN
-    Spawn, 'dir '  + '"'+path+'"' + '*'+ '/b /a-d', res; files only
-
+    ;Spawn, 'dir '  + '"'+path+'"' + '*'+ '/b /a-d', res; files only
+    res=FILE_SEARCH(path,'*.dcm', COUNT=nFound)
+    IF nFound EQ 0 THEN res=FILE_SEARCH(path,'*', COUNT=nFound);search all files if no .dcm is found
     IF res(0) NE '' THEN BEGIN;find first dcm file and extract info from this header
-      res=path+res(sort(res))
+      res=res(sort(res));path+res(sort(res))
       nn=N_ELEMENTS(res)
       dcm=-1
       counter=0
       FOR n=0, nn-1 DO BEGIN
-        dcm=QUERY_DICOM(res(n))
+        IF FILE_TEST(res(n),/DIRECTORY) THEN dcm=0 ELSE dcm=QUERY_DICOM(res(n))
         IF dcm EQ 1 THEN path=res(n)
         IF dcm EQ 1 THEN BREAK ELSE counter=counter+1
       ENDFOR
     ENDIF ELSE dcm=-1;no files found
-  ENDIF ELSE dcm=QUERY_DICOM(path)
+  ENDIF ELSE BEGIN
+    IF FILE_BASENAME(path) EQ 'DICOMDIR' THEN dcm=0 ELSE dcm=QUERY_DICOM(path)
+  ENDELSE
 
   IF dcm EQ 1 THEN BEGIN
     o=obj_new('idlffdicom')
@@ -1182,7 +1255,7 @@ function newFileName, path, folder, elemArr, tagStruct, formatsArr
     ENDIF ELSE BEGIN
       nElem=N_ELEMENTS(elemArr)
       desc=TAG_NAMES(tagStruct)
-      
+
       FOR ee=0, nElem-1 DO BEGIN
         ide=WHERE(desc EQ STRUPCASE(elemArr(ee)))
         ide=ide(0)
@@ -1191,11 +1264,11 @@ function newFileName, path, folder, elemArr, tagStruct, formatsArr
         notFound=1
         IF test(0) NE -1 THEN BEGIN
           test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
-  
+
           stest=size(test_peker, /TNAME)
           IF stest EQ 'POINTER' THEN BEGIN
             namePart=*(test_peker[0])
-  
+
             nameParts=STRSPLIT(namePart(0),'\',/EXTRACT)
             formats=STRSPLIT(STRMID(formatsArr.(ide), 1, strlen(formatsArr.(ide))-2),'\',/EXTRACT)
             nP=N_ELEMENTS(nameParts)
@@ -1206,18 +1279,20 @@ function newFileName, path, folder, elemArr, tagStruct, formatsArr
               ENDFOR
               namePart=STRJOIN(namePartArr,'_')
             ENDIF ELSE namePart=STRING(nameParts(0),FORMAT=formatsArr.(ide))
-  
+
             nameArr=[nameArr,namePart]
             notFound=0
           ENDIF
-  
+
         ENDIF
-        IF notFound and folder EQ -1 THEN nameArr=[nameArr,'- not found -']
+        IF notFound and folder EQ -1 THEN nameArr=[nameArr,'notFoundTag']
       ENDFOR
     ENDELSE
 
     obj_destroy,o
 
+    arr=STRSPLIT(path,'\',/EXTRACT)
+    last=n_elements(arr)-1
     IF N_ELEMENTS(nameArr) GT 0 THEN BEGIN
       IF folder EQ 1 THEN nameArr=IDL_VALIDNAME(nameArr,/CONVERT_ALL)
       IF folder EQ -1 THEN BEGIN;array of file elements out if folder =-1
@@ -1227,8 +1302,6 @@ function newFileName, path, folder, elemArr, tagStruct, formatsArr
         nameStr=STRJOIN(nameArr,'_')
         IF folder EQ 1 THEN nameStr=STRJOIN(STRSPLIT(nameStr,'_',/EXTRACT),'_') ;remove all multiple and first _
 
-        arr=STRSPLIT(path,'\',/EXTRACT)
-        last=n_elements(arr)-1
         IF folder EQ 1 THEN newpath=STRJOIN(arr[0:last-2],'\')+'\'+nameStr+'\' ELSE BEGIN
           nameStr=nameStr.replace('*','X');change * to X (format code not ideal return *)
           nameStr=nameStr.replace(' ','_')
@@ -1238,8 +1311,12 @@ function newFileName, path, folder, elemArr, tagStruct, formatsArr
         ENDELSE
       ENDELSE
     ENDIF
-    IF newpath EQ '' THEN newpath='_'
-  ENDIF
+    IF folder GE 0 THEN BEGiN
+      IF newpath EQ '' OR newpath EQ '_' THEN BEGIN
+        IF folder EQ 1 THEN newpath=STRJOIN(arr[0:last-2],'\')+'\missingInfo\' ELSE newpath=STRJOIN(arr[0:last-1],'\')+'\missingInfo.dcm'
+      ENDIF
+    ENDIF
+  ENDIF ELSE newpath='notDICOM';not DICOM
 
   return, newpath
 end
@@ -1379,6 +1456,15 @@ function actualTags, arr_tagn, arr_isinfo, moda
         modpos=STRPOS(tagsModality(pos(0)),STRING(moda, FORMAT='(i0)'))
         IF modpos(0) EQ -1 THEN actArr(t)=0; did not find current modality-number in string defining actual modalities
       ENDIF
+    ENDIF
+    IF N_ELEMENTS(pos) GT 1 THEN BEGIN; different definitions for different modalities like for ExModType CT vs Xray
+      FOR ff=1, N_ELEMENTS(pos)-1 DO BEGIN
+          modpos=STRPOS(tagsModality(pos(ff)),STRING(moda, FORMAT='(i0)'))
+          IF modpos(0) EQ -1 THEN actArr(t)=0 ELSE BEGIN
+            actArr(t)=1; did not find current modality-number in string defining actual modalities
+            BREAK
+          ENDELSE
+      ENDFOR
     ENDIF
   ENDFOR
   return, actArr
@@ -1615,20 +1701,6 @@ function getProfile, imagein, start, ende
 
   return,imagein[long(yy)*sx + xx]
 end
-
-;get circular mask within array of size arrSz
-;center of circle [x,y] pix
-function getROIcircle, arrSz, center, radius
-
-  arr=SHIFT(DIST(arrSz(0),arrSz(1)),center(0),center(1))
-  in=WHERE(arr LE radius)
-  circle=INTARR(arrSz(0), arrSz(1))
-  circle(in)=1
-
-  return, circle
-end
-
-
 
 ;*********** fourier and gauss stuff ********************
 function ESFtoLSF, esfVec
@@ -2033,23 +2105,56 @@ function get_fwhm, imageIn, center, pixel
   return, res
 end
 
+;----------- keep only file search results for specific file after non-recursive search ---------------
+function keepOnlyExtension, inputPaths, ext, FILESONLY=filesonly
+  outpPaths=inputPaths
+  nSkip=0
+  FOR pp=0, N_ELEMENTS(inputPaths)-1 DO BEGIN
+    skipThis=0
+    IF N_ELEMENTS(filesonly) GT 0 THEN BEGIN
+      IF filesonly THEN BEGIN
+        IF FILE_TEST(inputPaths(pp), /DIRECTORY) THEN skipThis=1
+      ENDIF
+    ENDIF
+    IF STRLEN(inputPaths(pp)) GT 4 THEN BEGIN
+      IF STRLEN(ext) GT 1 THEN BEGIN
+        last4char=STRMID(inputPaths(pp),3,4,/REVERSE_OFFSET)
+        IF last4char NE ext THEN skipThis=1
+      ENDIF
+    ENDIF ELSE skipThis=1
+    IF skipThis THEN BEGIN
+      outpPaths=removeIDarr(outpPaths, pp-nSkip)
+      nSkip=nSkip+1
+    ENDIF
+  ENDFOR
+  IF N_ELEMENTS(outpPaths) EQ 0 THEN outpPaths=''
+  return, outpPaths
+end
+
 ;-----------------search for new GE_QAP files excluding folder Archive and including other subfolders-----------
 function findNewGE_QAP_files, inputPath
   filesFound=''
   sep=PATH_SEP()
-  Spawn, 'dir '  + '"'+inputPath(0)+'"' + ' /b /a:D', dirTempTemp
+  ;Spawn, 'dir '  + '"'+inputPath(0)+'"' + ' /b /a:D', dirTempTemp
+  dirTempTemp=FILE_SEARCH(inputPath(0),'*', /TEST_DIRECTORY)
   IF dirTempTemp(0) NE '' THEN BEGIN
     FOR dd=0, N_ELEMENTS(dirTempTemp)-1 DO BEGIN
-      IF dirTempTemp(dd) NE 'Archive' THEN BEGIN
-        Spawn, 'dir '  + '"'+inputPath(0)+dirTempTemp(dd)+sep+'"' + '*.txt'+ ' /b', adrThisSub
+      testArr=STRSPLIT(dirTempTemp(dd),PATH_SEP(),/EXTRACT)
+      IF ~testArr.HasValue('Archive') THEN BEGIN
+        ;Spawn, 'dir '  + '"'+inputPath(0)+dirTempTemp(dd)+sep+'"' + '*.txt'+ ' /b', adrThisSub
+        adrThisSub=FILE_SEARCH(dirTempTemp(dd)+'\*');,'*.txt');avoid recursive
         IF adrThisSub(0) NE '' THEN BEGIN
-          filesFound=[filesFound,inputPath(0)+dirTempTemp(dd)+sep+adrThisSub]
+          adrThisSub=keepOnlyExtension(adrThisSub, '.txt')
+          IF adrThisSub(0) NE '' THEN filesFound=[filesFound,adrThisSub];inputPath(0)+dirTempTemp(dd)+sep+adrThisSub]
         ENDIF
       ENDIF
     ENDFOR
-    Spawn, 'dir '  + '"'+inputPath(0)+'"' + '*.txt'+ ' /b', adrDirect
+    ;Spawn, 'dir '  + '"'+inputPath(0)+'"' + '*.txt'+ ' /b', adrDirect
+    adrDirect=FILE_SEARCH(inputPath(0)+'*');,'*.txt');avoid recursive
     IF adrDirect(0) NE '' THEN BEGIN
-      filesFound=[filesFound,inputPath(0)+adrDirect]
+      ;are the files .txt?
+      adrDirect=keepOnlyExtension(adrDirect, '.txt')
+      IF adrDirect(0) NE '' THEN filesFound=[filesFound,adrDirect];inputPath(0)+adrDirect]
     ENDIF
     IF N_ELEMENTS(filesFound) GT 1 THEN filesFound=filesFound[1:-1];remove first empty ''
   ENDIF

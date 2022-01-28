@@ -56,11 +56,16 @@ pro updateROI, Ana=ana, SEL=presel, IMG=preImg
             ROIsz=ROUND(FLOAT(ROIsz(0))/pix(0)) ; assume x,y pix equal ! = normal
             WIDGET_CONTROL,  txtHomogROIdist, GET_VALUE=ROIdist
             ROIdist=ROUND(FLOAT(ROIdist(0))/pix(0)) ; assume x,y pix equal ! = normal
+            WIDGET_CONTROL,  txtHomogROIrot, GET_VALUE=ROIrot
+            ROIrot=FLOAT(ROIrot) ; assume x,y pix equal ! = normal
           END
           1:BEGIN
             WIDGET_CONTROL, txtHomogROIszX, GET_VALUE=ROIsz
             ROIsz=ROUND(FLOAT(ROIsz(0))/pix(0)) ; assume x,y pix equal ! = normal
-            ROIdist=-1
+            WIDGET_CONTROL,  txtHomogROIdistX, GET_VALUE=ROIdist
+            IF ROIdist NE '' THEN ROIdist=FLOAT(ROIdist(0)) ELSE ROIdist=-1
+            WIDGET_CONTROL,  txtHomogROIrotX, GET_VALUE=ROIrot
+            ROIrot=FLOAT(ROIrot)
           END
 
           4:BEGIN
@@ -68,11 +73,12 @@ pro updateROI, Ana=ana, SEL=presel, IMG=preImg
             ROIsz=ROUND(FLOAT(ROIsz(0))/pix(0)) ; assume x,y pix equal ! = normal
             WIDGET_CONTROL,  txtHomogROIdistPET, GET_VALUE=ROIdist
             ROIdist=ROUND(FLOAT(ROIdist(0))/pix(0)) ; assume x,y pix equal ! = normal
+            ROIrot=-1
           END
           ELSE:
         ENDCASE
 
-        homogROIs=getHomogRois(szImg, imgCenterOffset, ROIsz, ROIdist, modality);in a1_getROIs.pro
+        homogROIs=getHomogRois(szImg, imgCenterOffset, ROIsz, ROIdist, ROIrot, modality);in a1_getROIs.pro
       END; homog
 
       'NOISE': BEGIN
@@ -284,19 +290,28 @@ pro updateROI, Ana=ana, SEL=presel, IMG=preImg
       
       'SNR':BEGIN
         WIDGET_CONTROL, txtSNR_MR_ROI, GET_VALUE=ROIperc
-        SNR_ROI=getROIcircMR(tempimg,FLOAT(ROIperc(0)))
+        WIDGET_CONTROL, txtSNR_MR_ROIcut, GET_VALUE=cutROImm
+        SNR_ROI=getROIcircMR(tempimg,FLOAT(ROIperc(0)),CUTTOP=ROUND(FLOAT(cutROImm[0]/pix[0])))
         END
       'PIU':BEGIN
         WIDGET_CONTROL, txtPIU_MR_ROI, GET_VALUE=ROIperc
-        PIU_ROI=getROIcircMR(tempimg,FLOAT(ROIperc(0)))
+        WIDGET_CONTROL, txtPIU_MR_ROIcut, GET_VALUE=cutROImm
+        PIU_ROI=getROIcircMR(tempimg,FLOAT(ROIperc(0)),CUTTOP=ROUND(FLOAT(cutROImm[0]/pix[0])))
         END
        'GHOST':BEGIN
          WIDGET_CONTROL, txtGhost_MR_ROIszC, GET_VALUE=GHOST_MR_ROI_C
+         WIDGET_CONTROL, txtGhost_MR_ROIcut, GET_VALUE=cutROImm
          WIDGET_CONTROL, txtGhost_MR_ROIszW, GET_VALUE=GHOST_MR_ROI_W
          WIDGET_CONTROL, txtGhost_MR_ROIszH, GET_VALUE=GHOST_MR_ROI_H
          WIDGET_CONTROL, txtGhost_MR_ROIszD, GET_VALUE=GHOST_MR_ROI_D
          rad=ROUND(FLOAT(GHOST_MR_ROI_C(0))/pix(0))
-         IF WIDGET_INFO(ghost_MR_optC, /BUTTON_SET) THEN centROI=getROIcircMR(tempimg, 0., RADPIX=rad) ELSE centROI=getROIcircle(szImg, center, rad)
+         cutt=ROUND(FLOAT(cutROImm[0]/pix[0]))
+         IF WIDGET_INFO(ghost_MR_optC, /BUTTON_SET) THEN centROI=getROIcircMR(tempimg, 0., RADPIX=rad,CUTTOP=cutt) ELSE BEGIN
+          centROI=getROIcircle(szImg, center, rad)
+          IF cutt GT 0 THEN BEGIN
+            centROI[*,center[1]+rad-cutt:szImg[1]-1]=0
+          ENDIF
+         ENDELSE
          w2=ROUND(FLOAT(GHOST_MR_ROI_W(0))/pix(0))/2
          h=ROUND(FLOAT(GHOST_MR_ROI_H(0))/pix(0))
          d=ROUND(FLOAT(GHOST_MR_ROI_D(0))/pix(0))
@@ -308,10 +323,16 @@ pro updateROI, Ana=ana, SEL=presel, IMG=preImg
          btmROI[x1:x2,y1:y2]=1
          ghostMR_ROI=INTARR(szImg(0),szImg(1),5)
          ghostMR_ROI[*,*,0]=centROI
-         ghostMR_ROI[*,*,1]=btmROI
-         ghostMR_ROI[*,*,2]=ROTATE(btmROI,1)
-         ghostMR_ROI[*,*,3]=ROTATE(btmROI,2)
-         ghostMR_ROI[*,*,4]=ROTATE(btmROI,3)
+         ghostMR_ROI[*,*,1]=btmROI        
+         ghostMR_ROI[*,*,3]=ROTATE(btmROI,2);top
+         y1=MAX([0, szImg(1)/2-w2])
+         y2=MIN([szImg(1)/2+w2, szImg(1)-1])
+         x1=MAX([0, d])
+         x2=MIN([d+h, szImg(0)-1])
+         rgtROI=INTARR(szImg)
+         rgtROI[x1:x2,y1:y2]=1
+         ghostMR_ROI[*,*,2]=rgtROI
+         ghostMR_ROI[*,*,4]=ROTATE(rgtROI,2);left
         END
         'SLICETHICK':BEGIN;rotation ignored
           WIDGET_CONTROL, txtSlice_MR_ROIszW, GET_VALUE=Slice_MR_ROI_W

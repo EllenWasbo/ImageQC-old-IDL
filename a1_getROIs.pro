@@ -22,7 +22,19 @@
 ;ROIsZ = radius of the circles (pix)
 ;ROIdist = radius from center of image to center of circles (pix)
 
-function getHomogRois, imgSize, imgCenterOffset, ROIsz, ROIdist, mode
+;get circular mask within array of size arrSz
+;center of circle [x,y] pix
+function getROIcircle, arrSz, center, radius
+
+  arr=SHIFT(DIST(arrSz(0),arrSz(1)),center(0),center(1))
+  in=WHERE(arr LE radius)
+  circle=INTARR(arrSz(0), arrSz(1))
+  circle(in)=1
+
+  return, circle
+end
+
+function getHomogRois, imgSize, imgCenterOffset, ROIsz, ROIdist, ROIrot, mode
 
   roiAll=INTARR(imgSize(0),imgSize(1),5)
 
@@ -31,13 +43,27 @@ function getHomogRois, imgSize, imgCenterOffset, ROIsz, ROIdist, mode
   
   CASE mode OF
     1:BEGIN ; Xray
-      dx=imgSize(0)/4
-      dy=imgSize(1)/4
-      centers[0:1,0]=center
-      centers[0:1,1]=center+[-dx,dy];upper left
-      centers[0:1,2]=center+[-dx,-dy];lower left
-      centers[0:1,3]=center+[dx,dy];upper right
-      centers[0:1,4]=center+[dx,-dy];lower right
+      IF ROIrot GT 0. OR ROIdist NE -1 THEN BEGIN
+        minSz=MIN([center(0),center(1),imgSize(0)-center(0), imgSize(1)-center(1)])
+        dd=minSz*0.01*[ROIdist,ROIdist];ROIdist=% of shortest distance from center
+        daRad=(ROIrot-45.)/!radeg
+        dd=dd(0)*[cos(daRad),sin(daRad)]
+        
+        centers[0:1,0]=center
+        centers[0:1,1]=center+[dd(1),dd(0)];12 o'clock -45deg
+        centers[0:1,2]=center+[-dd(0),dd(1)];21 o'clock -45 deg
+        centers[0:1,3]=center+[dd(0),-dd(1)];15 o'clock -45deg
+        centers[0:1,4]=center+[-dd(1),-dd(0)];18 o'clock -45deg
+        
+      ENDIF ELSE BEGIN
+        dd=[imgSize(0)/4,imgSize(1)/4]
+      
+        centers[0:1,0]=center
+        centers[0:1,1]=center+[-dd(0),dd(1)];upper left
+        centers[0:1,2]=center+[-dd(0),-dd(1)];lower left
+        centers[0:1,3]=center+[dd(0),dd(1)];upper right
+        centers[0:1,4]=center+[dd(0),-dd(1)];lower right
+      ENDELSE
       END
     2:BEGIN ; NM
         dx=ROIdist(0)
@@ -60,7 +86,9 @@ function getHomogRois, imgSize, imgCenterOffset, ROIsz, ROIdist, mode
         ENDELSE
       END
     ELSE: BEGIN ;CT/PET
-        daRad=imgCenterOffset(2)/!radeg
+        rotThis=imgCenterOffset(2)
+        IF ROIrot GT 0. THEN rotThis=rotThis+ROIrot
+        daRad=rotThis/!radeg
         dd=ROIdist*[cos(daRad),sin(daRad)]
 
         centers[0:1,0]=center
@@ -440,7 +468,7 @@ end
 
 ;get center and width from max profiles (avoiding ACR phantom structures at top)
 ;circular ROI radius based on % area, radius = sqrt(ROI%) * phantom radius
-function getROIcircMR, imgIn, ROIperc, RADPIX=radpix
+function getROIcircMR, imgIn, ROIperc, RADPIX=radpix, CUTTOP=cuttop
   sz=SIZE(imgIn, /DIMENSIONS)
   xMax=FLTARR(sz(0))
   yMAx=FLTARR(sz(1))
@@ -451,6 +479,9 @@ function getROIcircMR, imgIn, ROIperc, RADPIX=radpix
   widthY=getWidthAtThreshold(yMax, halfmax)
   IF N_ELEMENTS(radpix) NE 0 THEN radROI=radpix ELSE radROI=0.5*MEAN([widthX[0],widthY[0]])*SQRT(0.01*ROIperc)
   roiCircMR=getROIcircle(sz, [widthX[1],widthY[1]], radROI)
+  IF N_ELEMENTS(cuttop) NE 0 THEN BEGIN
+    roiCircMR[*,widthY[1]+radROI-cuttop:sz[1]-1]=0
+  ENDIF
 
   return, roiCircMR
 end

@@ -152,6 +152,13 @@ pro updateTable
             resArrString=STRARR(nCols,nRows)
             FOR i=0, nRows-1 DO resArrString[*,i]=STRING(ROIres[*,markedTemp(i)],FORMAT=formatCode(ROIres[*,markedTemp(i)]))
           END
+          
+          'RING': BEGIN
+            nCols=2
+            headers=tableHeaders.CT.RING.Alt1
+            resArrString=STRARR(nCols,nRows)
+            FOR i=0, nRows-1 DO resArrString[*,i]=STRING(ringArtRes[*,markedTemp(i)],FORMAT='(f0.1)')
+            END
 
           'FWHM': BEGIN
             nCols=3

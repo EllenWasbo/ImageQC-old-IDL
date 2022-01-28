@@ -156,24 +156,29 @@ pro autoTempRun, thisTemp, thisModality, LOOP=loop, PICKFILES=pickfiles, TEMPNAM
     ENDIF ELSE BEGIN
       IF thisTemp.alternative EQ '' THEN BEGIN
         ;IF thisTemp.includeSub THEN Spawn, 'dir '  + '"'+adr(0)+'"' + '*'+ '/b /s', adrTempTemp ELSE BEGIN
-        Spawn, 'dir '  + '"'+adr(0)+'"' + '*'+ '/b /a-D', adrTempTemp
-        adrTempTemp=adr(0)+adrTempTemp
+        ;Spawn, 'dir '  + '"'+adr(0)+'"' + '*'+ '/b /a-D', adrTempTemp
+        ;adrTempTemp=adr(0)+adrTempTemp
+        adrTempTemp=FILE_SEARCH(adr(0)+'*')
         ;ENDELSE
       ENDIF ELSE BEGIN
 
         altType=STRMID(thisTemp.alternative,0,3)
         CASE altType OF
           'PDF': BEGIN
-            Spawn, 'dir '  + '"'+adr(0)+'"' + '*.pdf'+ '/b /a-D', adrTempTemp
-            IF adrTempTemp(0) NE '' THEN BEGIN
-              adrTempTemp=adr(0)+adrTempTemp
-            ENDIF
+            ;            Spawn, 'dir '  + '"'+adr(0)+'"' + '*.pdf'+ '/b /a-D', adrTempTemp
+            ;            IF adrTempTemp(0) NE '' THEN BEGIN
+            ;              adrTempTemp=adr(0)+adrTempTemp
+            ;            ENDIF
+            adrTempTemp=FILE_SEARCH(adr(0)+'*')
+            adrTempTemp=keepOnlyExtension(adrTempTemp, '.pdf', FILESONLY=1)
           END
           'XML':BEGIN
-            Spawn, 'dir '  + '"'+adr(0)+'"' + '*.xml'+ '/b /a-D', adrTempTemp
-            IF adrTempTemp(0) NE '' THEN BEGIN
-              adrTempTemp=adr(0)+adrTempTemp
-            ENDIF
+            ;            Spawn, 'dir '  + '"'+adr(0)+'"' + '*.xml'+ '/b /a-D', adrTempTemp
+            ;            IF adrTempTemp(0) NE '' THEN BEGIN
+            ;              adrTempTemp=adr(0)+adrTempTemp
+            ;            ENDIF
+            adrTempTemp=FILE_SEARCH(adr(0)+'*')
+            adrTempTemp=keepOnlyExtension(adrTempTemp, '.xml', FILESONLY=1)
           END
           ELSE:
         ENDCASE
@@ -380,7 +385,7 @@ pro autoTempRun, thisTemp, thisModality, LOOP=loop, PICKFILES=pickfiles, TEMPNAM
               archiveOK=-1
               WIDGET_CONTROL, lblProgress0, GET_VALUE=currStat
               FOR q=0, endLoop DO BEGIN
-
+                skipAlready=0
                 IF datelist(q) NE '' THEN BEGIN
                   IF N_ELEMENTS(dateList) NE 1 THEN BEGIN
                     notIds=WHERE(dates NE dateList(q))
@@ -393,135 +398,151 @@ pro autoTempRun, thisTemp, thisModality, LOOP=loop, PICKFILES=pickfiles, TEMPNAM
                     structImgsAll=!Null
                   ENDELSE
 
-                  activeImg=readImg(structImgs.(0).filename, structImgs.(0).frameNo)
-                  fileList=getListOpenFiles(structImgs,0,marked, markedMulti)
-                  WIDGET_CONTROL, listFiles, YSIZE=n_elements(fileList), SET_VALUE=fileList, SET_LIST_SELECT=0, SET_LIST_TOP=0
-                  WIDGET_CONTROL, listFiles, SCR_YSIZE=listFilesYsize
-                  WIDGET_CONTROL, lblLoadedN, SET_VALUE=STRING(n_elements(fileList), FORMAT='(i0)')+' )'
-                  clearRes
-                  updateInfo
+                  ;check if files (first file) already in archive - skip analysis (unless pickfile)
+                  IF pickfiles EQ 0 THEN BEGIN;TODO pretty much the same code repeated later on archiving - fix this duplication at some time
+                    IF N_TAGS(sturctImgs) EQ 1 THEN nFiName=FILE_DIRNAME(structImgs.(0).filename)+'\Archive\'+datelist(q)+'_'+FILE_BASENAME(structImgs.(0).filename) ELSE nFiName=FILE_DIRNAME(structImgs.(0).filename)+'\Archive\'+datelist(q)+'\'+FILE_BASENAME(structImgs.(0).filename)
+                    fi=FILE_INFO(nFiName)
+                    IF fi.exists EQ 1 THEN skipAlready=1
+                  ENDIF
 
-                  IF autoStopFlag EQ 0 THEN BEGIN
-                    nImgTemp=0
-                    updateMulti, AUTOACTIVE=1, NIMGTEMP=nImgTemp;can set autoStopFlag to 1 if numbers do not match
+                  IF skipAlready EQ 0 THEN BEGIN
+                    activeImg=readImg(structImgs.(0).filename, structImgs.(0).frameNo)
+                    fileList=getListOpenFiles(structImgs,0,marked, markedMulti)
+                    WIDGET_CONTROL, listFiles, YSIZE=n_elements(fileList), SET_VALUE=fileList, SET_LIST_SELECT=0, SET_LIST_TOP=0
+                    WIDGET_CONTROL, listFiles, SCR_YSIZE=listFilesYsize
+                    WIDGET_CONTROL, lblLoadedN, SET_VALUE=STRING(n_elements(fileList), FORMAT='(i0)')+' )'
+                    clearRes
+                    updateInfo
 
-                    CASE autoStopFlag OF
-                      1:BEGIN;stop
-                        loop2=0
-                        endLoop=0
-                      END
-                      2: BEGIN;skip to next template
-                        autoStopFlag=0
-                        endLoop=0
-                        skipToNext=1
-                      END
-                      ELSE:
-                    ENDCASE
+                    IF autoStopFlag EQ 0 THEN BEGIN
+                      nImgTemp=0
+                      updateMulti, AUTOACTIVE=1, NIMGTEMP=nImgTemp;can set autoStopFlag to 1 if numbers do not match
 
-                    tags=TAG_NAMES(structImgs)
-                    IF tags(0) NE 'EMPTY' AND autoStopFlag EQ 0 AND skipToNext EQ 0 THEN BEGIN
-                      calculateQuickTest
-                      ;*****************************'
-                      ;********************************
-                      ;**********************************
-                      IF TOTAL(results) GT 0 THEN BEGIN
-                        testLog=testLog+newline+tab+datelist(q)+': Found '+STRING(n_elements(fileList), FORMAT='(i0)')+' images.'
-                        IF nImgTemp NE n_elements(fileList) THEN testLog=testLog+' Minimum '+STRING(nImgTemp,FORMAT='(i0)')+' images expected.'
-                        errFile=0
-                        ;append resultfile?
-                        IF thisTemp.pathApp NE '' THEN BEGIN
-                          transposeTable=1
+                      CASE autoStopFlag OF
+                        1:BEGIN;stop
+                          loop2=0
+                          endLoop=0
+                        END
+                        2: BEGIN;skip to next template
+                          autoStopFlag=0
+                          endLoop=0
+                          skipToNext=1
+                        END
+                        ELSE:
+                      ENDCASE
 
-                          ;file exists?
-                          testResFile=FILE_INFO(thisTemp.pathApp)
-                          IF testResFile.exists THEN BEGIN
-                            IF testResFile.SIZE EQ 0 THEN copyHeader=1 ELSE copyHeader=0
-                            exportMulti
-                            IF pickfiles THEN BEGIN
-                              IF writeOK EQ -1 THEN BEGIN; ask only for first date if more than one
-                                sv=DIALOG_MESSAGE('You have selected specific files to analyse. Results exist in clipboard. Append to resultfile for selected template?',/QUESTION, DIALOG_PARENT=evTop)
-                                IF sv EQ 'No' THEN writeOK=0 ELSE writeOK=1
+                      tags=TAG_NAMES(structImgs)
+                      IF tags(0) NE 'EMPTY' AND autoStopFlag EQ 0 AND skipToNext EQ 0 THEN BEGIN
+                        calculateQuickTest
+                        ;*****************************'
+                        ;********************************
+                        ;**********************************
+                        IF TOTAL(results) GT 0 THEN BEGIN
+                          testLog=testLog+newline+tab+datelist(q)+': Found '+STRING(n_elements(fileList), FORMAT='(i0)')+' images.'
+                          IF nImgTemp NE n_elements(fileList) THEN testLog=testLog+' Minimum '+STRING(nImgTemp,FORMAT='(i0)')+' images expected.'
+                          errFile=0
+                          ;append resultfile?
+                          IF thisTemp.pathApp NE '' THEN BEGIN
+                            transposeTable=1
+
+                            ;file exists?
+                            testResFile=FILE_INFO(thisTemp.pathApp)
+                            IF testResFile.exists THEN BEGIN
+                              IF testResFile.SIZE EQ 0 THEN copyHeader=1 ELSE copyHeader=0
+                              exportMulti
+                              IF pickfiles THEN BEGIN
+                                IF writeOK EQ -1 THEN BEGIN; ask only for first date if more than one
+                                  sv=DIALOG_MESSAGE('You have selected specific files to analyse. Results exist in clipboard. Append to resultfile for selected template?',/QUESTION, DIALOG_PARENT=evTop)
+                                  IF sv EQ 'No' THEN writeOK=0 ELSE writeOK=1
+                                ENDIF
+                              ENDIF ELSE writeOK=1
+                              IF writeOK THEN BEGIN
+                                OPENW, resfile, thisTemp.pathApp, /APPEND, /GET_LUN
+                                PRINTF, resfile, CLIPBOARD.GET()
+                                CLOSE, resfile & FREE_LUN, resfile
+                                writtenToFile=1
                               ENDIF
-                            ENDIF ELSE writeOK=1
-                            IF writeOK THEN BEGIN
-                              OPENW, resfile, thisTemp.pathApp, /APPEND, /GET_LUN
-                              PRINTF, resfile, CLIPBOARD.GET()
-                              CLOSE, resfile & FREE_LUN, resfile
-                              writtenToFile=1
+                              ;IF infoLogg1 EQ '' THEN infoLogg1='Written results to file';commas not working wiht cw_form... for dates: '+structImgs.(0).acqDate ELSE infoLogg1=infoLogg1+', '+structImgs.(0).acqDate
+                            ENDIF ELSE BEGIN
+                              errFile=1
+                              exportMulti;to clipboard
+                            ENDELSE
+
+                          ENDIF ELSE exportMulti;to clipboard
+
+                          IF writtenToFile EQ 0 THEN BEGIN
+                            sv='Yes'
+                            IF errFile EQ 1 THEN sv=DIALOG_MESSAGE('Could not find file '+thisTemp.pathApp+newline+'. Current results can be found in clipboard. Paste these manually to a result file and then press Yes to continue or No to stop.', /QUESTION,DIALOG_PARENT=evTop)
+                            IF thisTemp.pathApp EQ '' THEN sv=DIALOG_MESSAGE('No path for results specified. Current results can be found in clipboard. Paste these manually to a result file and then press Yes to continue or No to stop.', /QUESTION,DIALOG_PARENT=evTop)
+                            IF sv EQ 'No' THEN BEGIN
+                              loop2=0
+                              autoStopFlag=1
                             ENDIF
-                            ;IF infoLogg1 EQ '' THEN infoLogg1='Written results to file';commas not working wiht cw_form... for dates: '+structImgs.(0).acqDate ELSE infoLogg1=infoLogg1+', '+structImgs.(0).acqDate
-                          ENDIF ELSE BEGIN
-                            errFile=1
-                            exportMulti;to clipboard
-                          ENDELSE
+                          ENDIF ELSE testLog=testLog+newline+ tab+tab+'Results written to file.'
 
-                        ENDIF ELSE exportMulti;to clipboard
-
-                        IF writtenToFile EQ 0 THEN BEGIN
-                          sv='Yes'
-                          IF errFile EQ 1 THEN sv=DIALOG_MESSAGE('Could not find file '+thisTemp.pathApp+newline+'. Current results can be found in clipboard. Paste these manually to a result file and then press Yes to continue or No to stop.', /QUESTION,DIALOG_PARENT=evTop)
-                          IF thisTemp.pathApp EQ '' THEN sv=DIALOG_MESSAGE('No path for results specified. Current results can be found in clipboard. Paste these manually to a result file and then press Yes to continue or No to stop.', /QUESTION,DIALOG_PARENT=evTop)
-                          IF sv EQ 'No' THEN BEGIN
-                            loop2=0
-                            autoStopFlag=1
-                          ENDIF
-                        ENDIF ELSE testLog=testLog+newline+ tab+tab+'Results written to file.'
-
-                        IF thisTemp.deleteFilesEnd AND autoStopFlag EQ 0 THEN BEGIN
-                          imgWithMark=WHERE(TOTAL(markedMulti,1) GT 0)
-                          IF N_ELEMENTS(tags) GT imgWithMark(-1)+1 AND pickFiles EQ 0 THEN BEGIN
-                            delAdr=!Null
-                            dd=imgWithMark(-1)+1
-                            selList=!Null
-                            WHILE dd LT N_ELEMENTS(tags) DO BEGIN
-                              delAdr=[delAdr,structImgs.(dd).filename]
-                              selList=[selList,dd]
-                              dd=dd+1
-                            ENDWHILE
-                            IF N_ELEMENTS(delAdr) GT 0 THEN BEGIN
-                              FILE_DELETE, delAdr, /QUIET, /RECYCLE
-                              closeImgs, selList
-                              ;infoLogg2=infoLogg2+newline+STRING(N_ELEMENTS(delAdr),FORMAT='(i0)')+' files exceeding last image analysed moved to recycle bin'
-                              testLog=testLog+newline+ tab+tab+STRING(N_ELEMENTS(delAdr),FORMAT='(i0)')+' files exceeding last image deleted.'
+                          IF thisTemp.deleteFilesEnd AND autoStopFlag EQ 0 THEN BEGIN
+                            imgWithMark=WHERE(TOTAL(markedMulti,1) GT 0)
+                            IF N_ELEMENTS(tags) GT imgWithMark(-1)+1 AND pickFiles EQ 0 THEN BEGIN
+                              delAdr=!Null
+                              dd=imgWithMark(-1)+1
+                              selList=!Null
+                              WHILE dd LT N_ELEMENTS(tags) DO BEGIN
+                                delAdr=[delAdr,structImgs.(dd).filename]
+                                selList=[selList,dd]
+                                dd=dd+1
+                              ENDWHILE
+                              IF N_ELEMENTS(delAdr) GT 0 THEN BEGIN
+                                FILE_DELETE, delAdr, /QUIET, /RECYCLE
+                                closeImgs, selList
+                                ;infoLogg2=infoLogg2+newline+STRING(N_ELEMENTS(delAdr),FORMAT='(i0)')+' files exceeding last image analysed moved to recycle bin'
+                                testLog=testLog+newline+ tab+tab+STRING(N_ELEMENTS(delAdr),FORMAT='(i0)')+' files exceeding last image deleted.'
+                              ENDIF
                             ENDIF
-                          ENDIF
-                        ENDIF;deleteFilesEnd
+                          ENDIF;deleteFilesEnd
 
-                        ;move files?
-                        IF thisTemp.archive AND autoStopFlag EQ 0 THEN BEGIN
-                          IF pickfiles THEN BEGIN
-                            IF archiveOK EQ -1 THEN BEGIN
-                              sv=DIALOG_MESSAGE('You have selected specific files to analyse. Move files to archive?',/QUESTION, DIALOG_PARENT=evTop)
-                              IF sv EQ 'No' THEN archiveOK=0 ELSE archiveOK=1
+                          ;move files?
+                          IF thisTemp.archive AND autoStopFlag EQ 0 THEN BEGIN
+                            IF pickfiles THEN BEGIN
+                              IF archiveOK EQ -1 THEN BEGIN
+                                ;did the picked files come from the Archive already?
+                                pathElem=STRSPLIT(structImgs.(0).filename,'\',/EXTRACT)
+                                IF pathElem.HasValue('Archive') THEN archiveOK=0 ELSE BEGIN
+                                  sv=DIALOG_MESSAGE('You have selected specific files to analyse. Move files to archive?',/QUESTION, DIALOG_PARENT=evTop)
+                                  IF sv EQ 'No' THEN archiveOK=0 ELSE archiveOK=1
+                                ENDELSE
+                              ENDIF
+                            ENDIF ELSE archiveOK=1
+                            IF archiveOK THEN BEGIN
+                              IF N_TAGS(structImgs) EQ 1 THEN archivePath=FILE_DIRNAME(structImgs.(0).filename)+'\Archive\' $
+                              ELSE archivePath=FILE_DIRNAME(structImgs.(0).filename)+'\Archive\'+datelist(q)+'\'
+                              fi=FILE_INFO(archivePath)
+                              IF fi.exists EQ 0 THEN FILE_MKDIR, archivePath
+                              FOR i=0, N_TAGS(structImgs)-1 DO BEGIN
+                                IF N_TAGS(sturctImgs) EQ 1 THEN newFiName=archivePath+datelist(q)+'_'+FILE_BASENAME(structImgs.(i).filename) ELSE newFiName=archivePath+FILE_BASENAME(structImgs.(i).filename)
+                                fi=FILE_INFO(newFiName)
+                                IF fi.exists EQ 0 THEN file_move, structImgs.(i).filename, newFiName
+                                structImgs.(i).filename=newFiName
+                              ENDFOR
+
+                              ;IF infoLogg2 EQ '' THEN infoLogg2='Moved files to "Archive" in '+STRJOIN(STRSPLIT(thisTemp.path,','),'')+newline;remove comma to not create error with CW_FORM later
+                              testLog=testLog+newline+ tab+tab+'Moved files to Archive.'
                             ENDIF
-                          ENDIF ELSE archiveOK=1
-                          IF archiveOK THEN BEGIN
-                            IF N_TAGS(structImgs) EQ 1 THEN archivePath=FILE_DIRNAME(structImgs.(0).filename)+'\Archive\' $
-                            ELSE archivePath=FILE_DIRNAME(structImgs.(0).filename)+'\Archive\'+datelist(q)+'\'
-                            fi=FILE_INFO(archivePath)
-                            IF fi.exists EQ 0 THEN FILE_MKDIR, archivePath
-                            FOR i=0, N_TAGS(structImgs)-1 DO BEGIN
-                              IF N_TAGS(sturctImgs) EQ 1 THEN newFiName=archivePath+datelist(q)+'_'+FILE_BASENAME(structImgs.(i).filename) ELSE newFiName=archivePath+FILE_BASENAME(structImgs.(i).filename)
-                              fi=FILE_INFO(newFiName)
-                              IF fi.exists EQ 0 THEN file_move, structImgs.(i).filename, newFiName
-                              structImgs.(i).filename=newFiName
-                            ENDFOR
+                            fileList=getListOpenFiles(structImgs,0,marked, markedMulti);update with new path
+                            WIDGET_CONTROL, listFiles, YSIZE=n_elements(fileList), SET_VALUE=fileList, SET_LIST_SELECT=0, SET_LIST_TOP=0
+                            WIDGET_CONTROL, listFiles, SCR_YSIZE=listFilesYsize
+                            WIDGET_CONTROL, lblLoadedN, SET_VALUE=STRING(n_elements(fileList), FORMAT='(i0)')+' )'
+                          ENDIF;move files to 'Archive'
 
-                            ;IF infoLogg2 EQ '' THEN infoLogg2='Moved files to "Archive" in '+STRJOIN(STRSPLIT(thisTemp.path,','),'')+newline;remove comma to not create error with CW_FORM later
-                            testLog=testLog+newline+ tab+tab+'Moved files to Archive.'
-                          ENDIF
-                          fileList=getListOpenFiles(structImgs,0,marked, markedMulti);update with new path
-                          WIDGET_CONTROL, listFiles, YSIZE=n_elements(fileList), SET_VALUE=fileList, SET_LIST_SELECT=0, SET_LIST_TOP=0
-                          WIDGET_CONTROL, listFiles, SCR_YSIZE=listFilesYsize
-                          WIDGET_CONTROL, lblLoadedN, SET_VALUE=STRING(n_elements(fileList), FORMAT='(i0)')+' )'
-                        ENDIF;move files to 'Archive'
+                        ENDIF; results GT 0
+                        ;***********************
+                        ;******************
+                        ;********************
+                      ENDIF;images to work with for this date (autostop =0 and found images and skipToNext not triggered by updateMulti)
+                    ENDIF;autostop flag before multi-tested
 
-                      ENDIF; results GT 0
-                      ;***********************
-                      ;******************
-                      ;********************
-                    ENDIF;images to work with for this date (autostop =0 and found images and skipToNext not triggered by updateMulti)
-                  ENDIF;autostop flag before multi-tested
+                  ENDIF ELSE BEGIN;skipAlready
+                    testLog=testLog+newline+tab+datelist(q)+': Analysis skipped - images with this name already in Archive'
+                  ENDELSE
 
                 ENDIF ELSE BEGIN; datelist(q) NE '', e.g. not aquired images like 'Patient Protocol' overview
                   noAcqIds=WHERE(dates EQ '')
@@ -583,7 +604,7 @@ pro autoTempRun, thisTemp, thisModality, LOOP=loop, PICKFILES=pickfiles, TEMPNAM
         IF adrTempTemp(0) NE '' THEN BEGIN
           errArr=STRARR(nAdr) & nCols=INTARR(nAdr)
         ENDIF
-        waitSec=configS.(1).WAIT
+        waitSec=configS.(0).AUTOCOMMON.WAIT
         nnWritten=0
         archivePaths=!Null
 
@@ -722,7 +743,7 @@ pro autoTempRun, thisTemp, thisModality, LOOP=loop, PICKFILES=pickfiles, TEMPNAM
           'GE_QAP': BEGIN
             msgThis=''
             WIDGET_CONTROL, /HOURGLASS
-            readQAPreport, adrTempTemp, thisTemp.pathApp, msgThis, deciMarkDefault
+            readQAPreport, adrTempTemp, thisTemp.pathApp, msgThis, deciMarkDefault; readQAPreport in a7_readVendorFiles.pro
 
             CASE msgThis OF
               'clipboard': BEGIN

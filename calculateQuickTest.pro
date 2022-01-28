@@ -104,6 +104,7 @@ pro calculateQuickTest
                 6:HUwater
                 7:getHeaderInfo
                 8:ROI
+                9:ringArt
                 ELSE:
               ENDCASE
             END

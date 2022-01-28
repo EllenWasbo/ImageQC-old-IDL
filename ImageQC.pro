@@ -37,11 +37,12 @@ pro ImageQC,  GROUP_LEADER=bMain
     CTlinRes, CTlinROIs, CTlinROIpos, txtLinROIrad, txtLinROIradS, tblLin, linTabEdit, btnLinAvoidSearch, $
     HUwaterRes, HUwaterROI, txtHUwaterROIsz, $
     sliceThickRes, sliceThickResTab,  ramps, txtRampDist, txtRampLen, txtRampBackG, txtRampSearch, txtRampAverage, cw_ramptype, cw_rampDens,  $
-    homogRes, homogROIs, txtHomogROIsz, txtHomogROIszPET, txtHomogROIszX, cw_HomogAltX, txtHomogROIdist, txtHomogROIdistPET, $
+    homogRes, homogROIs, txtHomogROIsz, txtHomogROIszPET, txtHomogROIszX, cw_HomogAltX, txtHomogROIdist, txtHomogROIdistX, txtHomogROIdistPET, txtHomogROIrot,txtHomogROIrotX,$
     noiseRes, noiseROI, txtNoiseROIsz, txtNoiseX ,$
     ROIres, ROIroi, typeROI, txtROIrad, txtROIx, txtROIy, txtROIa, offxyROI,lblDeltaO_ROI, unitDeltaO_ROI_CT,$
     typeROIX, txtROIXrad, txtROIXx, txtROIXy, txtROIXa, offxyROIX,lblDeltaO_ROIX, unitDeltaO_ROI_X,$
     typeROIMR, txtROIMRrad, txtROIMRx, txtROIMRy, txtROIMRa, offxyROIMR,lblDeltaO_ROIMR, unitDeltaO_ROI_MR,$
+    ringArtRes, ringArtProf, txtRingMedian, txtRingSmooth, txtRingStart, txtRingStop, cw_ringArtTrend,$
     fwhmRes, dimRes, energyRes, expRes,$
     stpRes, txtStpROIsz, stpROI, txtRQA, Qvals, $
     NPSres, NPSrois, $
@@ -58,12 +59,12 @@ pro ImageQC,  GROUP_LEADER=bMain
     crossRes, crossROI, txtCrossROIsz, txtCrossMeasAct,txtCrossMeasActT, txtCrossMeasRest, txtCrossMeasRT, txtCrossScanAct, txtCrossScanStart,$
     txtCrossVol, txtCrossConc, txtCrossFactorPrev, txtCrossFactor,$
     rcRes, rcROIs, btnRCrev, cwRCexclude, cw_rcType,$
-    SNRres, SNR_ROI, txtSNR_MR_ROI, PIUres, PIU_ROI, txtPIU_MR_ROI, GeomDistRes, txtGD_MR_act,$
-    ghostMRres, ghostMR_ROI, ghost_MR_optC, txtGhost_MR_ROIszC, txtGhost_MR_ROIszW, txtGhost_MR_ROIszH, txtGhost_MR_ROIszD, $
+    SNRres, SNR_ROI, txtSNR_MR_ROI, txtSNR_MR_ROIcut, PIUres, PIU_ROI, txtPIU_MR_ROI, txtPIU_MR_ROIcut, GeomDistRes, txtGD_MR_act,$
+    ghostMRres, ghostMR_ROI, ghost_MR_optC, txtGhost_MR_ROIszC, txtGhost_MR_ROIcut, txtGhost_MR_ROIszW, txtGhost_MR_ROIszH, txtGhost_MR_ROIszD, $
     sliceMR_ROI, slice_MR_optC, txtSlice_MR_TANA, txtSlice_MR_ROIszW, txtSlice_MR_ROIszH, txtSlice_MR_ROIszD, txtSlice_MR_ROIszD2
 
   !EXCEPT=0;2 to see all errors
-  currVersion='2.01'
+  currVersion='2.04'
   thisPath=FILE_DIRNAME(ROUTINE_FILEPATH('ImageQC'))+'\'
   xoffset=100
   yoffset=50
@@ -73,7 +74,7 @@ pro ImageQC,  GROUP_LEADER=bMain
   if (!D.NAME eq 'WIN') then pathsep = '\' else pathsep = '/'
   tab=STRING(9B)
 
-  analyseStringsCT=['HOMOG', 'NOISE', 'SLICETHICK', 'MTF', 'CTLIN', 'HUWATER', 'EXP','ROI','NPS','DIM', 'FWHM']
+  analyseStringsCT=['HOMOG', 'NOISE', 'SLICETHICK', 'MTF', 'CTLIN', 'HUWATER', 'EXP','ROI','RING','NPS','DIM', 'FWHM']
   analyseStringsXray=['STP','HOMOG','NOISE','EXP','MTF','ROI','NPS','VARI']
   analyseStringsNM=['UNIF','SNI','ACQ','BAR', 'ENERGYSPEC','SCANSPEED','MTF','GEOMMEAN'];,'TIMEACTCURVE']
   analyseStringsSPECT=['MTF','RADIAL','CONTRAST']
@@ -83,19 +84,20 @@ pro ImageQC,  GROUP_LEADER=bMain
   analyseStringsDCM=CREATE_STRUCT('CT','EXP','Xray','EXP','NM','ACQ','SPECT','','PET','','MR','DCM')
 
   ;options regarding QuickTest
-  multiOpt=CREATE_STRUCT('CT',[1,2,3,4,5,6,7,8,0,0],'Xray',[1,2,3,4,5,6,0,0],'NM',[1,2,3,4,0,0,0],'SPECT', INTARR(3),'PET',[1,0,0],'MR',[1,2,3,4,5,6,7]); structure of arrays corresponding to analyseStrings that have the option of being a numbered test for multimark/quicktest, number or 0 if not an option
+  multiOpt=CREATE_STRUCT('CT',[1,2,3,4,5,6,7,8,9,0,0,0],'Xray',[1,2,3,4,5,6,0,0],'NM',[1,2,3,4,0,0,0,0],'SPECT', INTARR(3),'PET',[1,0,0],'MR',[1,2,3,4,5,6,7]); structure of arrays corresponding to analyseStrings that have the option of being a numbered test for multimark/quicktest, number or 0 if not an option
 
   saveOK=1; 0=blocked by other user, 1=ok, -1= blocked by writing permissions
   configPath=''
   userinfo=get_login_info()
   tempPath='C:\Users\'+userinfo.user_name+'\Documents\';'C:\temp\'
   tempPathLocateConfig=tempPath+'configImageQC_Path.txt'
-
+  restored=0
+  
   ;assume config.dat is in ImageQC/data folder. If not found there - look for configImageQC_Path.txt in C:\temp - else ask to locate or create new
   ;for testing: IF thisPath EQ 'rubbish' THEN configPath='rubbish' ELSE BEGIN;
   IF FILE_TEST(thisPath+'data\config.dat') THEN configPath=thisPath+'data\config.dat' ELSE BEGIN
-
     fi=FILE_INFO(tempPathLocateConfig)
+    
     IF fi.exists THEN BEGIN
       ;read adr
       OPENR, filenhet, tempPathLocateConfig, /GET_LUN
@@ -144,8 +146,9 @@ pro ImageQC,  GROUP_LEADER=bMain
                   sv=DIALOG_MESSAGE('A config file already exist (ImageQC\data\config.dat). Overwrite?',/QUESTION)
                   IF sv EQ 'Yes' THEN FILE_COPY, adr, configPath, /OVERWRITE
                 ENDIF ELSE FILE_COPY, adr, configPath
-              ENDIF             
+              ENDIF
             ENDIF ELSE restoreFailed=1
+            IF restoreFailed NE 1 THEN restored=1
           ENDIF
         ENDIF; restore
 
@@ -161,11 +164,11 @@ pro ImageQC,  GROUP_LEADER=bMain
             sv=DIALOG_MESSAGE(msg)
           ENDIF
         ENDIF; locate
-        
+
       ENDIF; Else no write permission, continue to configPath=''
     ENDELSE;fi.exist tempPath
   ENDELSE;data\config.dat
-  
+
   IF configPath NE '' THEN BEGIN
     fi=FILE_INFO(configPath)
     IF fi.write EQ 0 THEN BEGIN
@@ -177,6 +180,10 @@ pro ImageQC,  GROUP_LEADER=bMain
 
     ;update functions in a0_functionsMini.pro
     configS=updateConfigS(configPath)
+    IF restored THEN BEGIN;always reset blocking if restored (copy of file)
+      configS.(0).SAVEBLOCKED=0
+      IF saveOK NE -1 THEN saveOK=1
+    ENDIF
     quickTemp=updateQuickT(configPath, multiOpt, TEMPPA=tempPath)
     IF N_ELEMENTS(quickTemp) EQ 0 THEN quickTemp=0
     loadTemp=updateLoadT(configPath, multiOpt, TEMPPA=tempPath)
@@ -211,7 +218,7 @@ pro ImageQC,  GROUP_LEADER=bMain
       ENDIF
     ENDIF
   ENDIF ELSE BEGIN
-    
+
     configS=updateConfigS('')
     quickTemp=updateQuickT('', TEMPPA=tempPath)
     loadTemp=updateLoadT('', TEMPPA=tempPath)
@@ -219,7 +226,7 @@ pro ImageQC,  GROUP_LEADER=bMain
     renameTemp=updateRenameTemp('')
 
     fi=FILE_INFO(thisPath+'data\')
-    ;for testing; IF thisPath EQ 'rubbish' THEN print, 'rubbish' ELSE BEGIN; 
+    ;for testing; IF thisPath EQ 'rubbish' THEN print, 'rubbish' ELSE BEGIN;
     IF fi.write THEN configPath=thisPath+'data\config.dat' ELSE BEGIN
       fi=FILE_INFO(tempPath)
       IF fi.write THEN BEGIN
@@ -247,12 +254,12 @@ pro ImageQC,  GROUP_LEADER=bMain
   defPath='C:\'
 
   testVisualQTNames=CREATE_STRUCT($
-    'CT',['1. Homogeneity','2. Noise','3. Slice thickness','4. MTF','5. CT Number', '6. HU water','7. Header info','8. ROI'],$
+    'CT',['1. Homogeneity','2. Noise','3. Slice thickness','4. MTF','5. CT Number', '6. HU water','7. Header info','8. ROI','9. Ring Artifact'],$
     'Xray',['1. STP','2. Homogeneity','3. Noise','4. Header info','5. MTF','6. ROI'],$
     'NM',['1. Uniformity','2. SNI','3. Header info','4. BarPhantom'],$
     'PET', ['1. Uniformity'],$
     'MR',['1. Header info','2. SNR','3. PIU','4. Ghosting','5. GeomDist','6. Slice thickness','7. ROI'])
-  
+
   CT_headers=CREATE_STRUCT($
     'HOMOG',CREATE_STRUCT('Alt1',['12oClock','15oClock','18oClock','21oClock','Center HU','Diff C 12','Diff C 15','Diff C 18','Diff C 21']),$
     'NOISE',CREATE_STRUCT('Alt1',['CT number (HU)','Noise=Stdev (HU)','Diff avg noise(%)', 'Avg noise (HU)']),$
@@ -266,13 +273,14 @@ pro ImageQC,  GROUP_LEADER=bMain
     'CTLIN', CREATE_STRUCT('Alt1',TRANSPOSE(config.LINTAB.Materials)),$
     'HUWATER', CREATE_STRUCT('Alt1',['CT number (HU)','Noise=Stdev']),$
     'EXP',CREATE_STRUCT('Alt1',['kVp','mAs','CTDIvol','Software']),$
-    'ROI',CREATE_STRUCT('Alt1',['CT number (HU)','Stdev (HU)']))
+    'ROI',CREATE_STRUCT('Alt1',['CT number (HU)','Stdev (HU)']),$
+    'RING',CREATE_STRUCT('Alt1',['Min diff from trend (HU)','Max diff from trend (HU)']))
   ;updated when materialtable is updated or parameterset is updated (function updateMaterialHeaders, currTableHeaders, newMaterialHeaders)
   Xray_headers=CREATE_STRUCT($
     'STP',CREATE_STRUCT('Alt1',['Dose','Q','Mean pix','Stdev pix']),$
-    'HOMOG',CREATE_STRUCT('Alt1',['Center','UpperLeft','LowerLeft','UpperRight','LowerRight','Std center', 'Std UL','Std LL','Std UR','Std LR'],$
-    'Alt2',['Center','UpperLeft','LowerLeft','UpperRight','LowerRight','C - avg', 'UL - avg','LL - avg','UR - avg','LR - avg'],$
-    'Alt3',['Center','UpperLeft','LowerLeft','UpperRight','LowerRight','C-avg %', 'UL-avg %','LL-avg %','UR-avg %','LR-avg %']),$
+    'HOMOG',CREATE_STRUCT('Alt1',['Center','ROI1 UL','ROI2 LL','ROI3 UR','ROI4 LR','Std center', 'Std ROI1','Std ROI2','Std ROI3','Std ROI4'],$
+    'Alt2',['Center','ROI1 UL','ROI2 LL','ROI3 UR','ROI4 LR','C - avg', 'ROI1 - avg','ROI2 - avg','ROI3 - avg','ROI4 - avg'],$
+    'Alt3',['Center','ROI1 UL','ROI2 LL','ROI3 UR','ROI4 LR','C-avg %', 'ROI1-avg %','ROI2-avg %','ROI3-avg %','ROI4-avg %']),$
     'NOISE',CREATE_STRUCT('Alt1',['Mean pixel value','Stdev']),$
     'EXP',CREATE_STRUCT('Alt1',['kVp','mAs','EI','DAP','SDD','DetID']),$
     'MTF',CREATE_STRUCT('Alt1',['MTF @ 0.5/mm','MTF @ 1.0/mm','MTF @ 1.5/mm','MTF @ 2.0/mm','MTF @ 2.5/mm','Freq @ MTF 0.5']),$
@@ -310,7 +318,7 @@ pro ImageQC,  GROUP_LEADER=bMain
   marked=-1; indexes of marked files (-1 = all marked)
   markedMulti=-1; matrix of marked images for numbered tests (number of tests x number of images) -1 if useMuliMark is not set
   multiExpTable=-1
-  results=INTARR(10); set to 1 when analyse performed and results is available, keep analyseString and tab-order equal
+  results=INTARR(12); set to 1 when analyse performed and results is available, keep analyseString and tab-order equal
   dxya=[0,0,0.0,1]; [deltax,deltay,delta,show] for positioning of center/angle. Difference from imgSz/2 in pixels. Show (last param) used for redrawCT to overplot crosshair
   IF TOTAL(WHERE(configTags EQ 'OFFXYMTF')) NE -1 THEN offxyMTF=config.OFFXYMTF ELSE offxyMTF=[0,0]
   IF TOTAL(WHERE(configTags EQ 'OFFXYMTF_X')) NE -1 THEN offxyMTF_X=config.OFFXYMTF_X ELSE offxyMTF_X=[0,0]
@@ -472,11 +480,11 @@ pro ImageQC,  GROUP_LEADER=bMain
   bCursorValue= WIDGET_BASE(bCursor, /ROW)
   lbl=WIDGET_LABEL(bCursorValue, VALUE='Value: ',FONT=font1, /NO_COPY)
   lblCursorValue=WIDGET_LABEL(bCursorValue, VALUE='-', XSIZE=50, FONT=font1)
- 
+
   bZoom = WIDGET_BASE(bDrawLft, /ROW)
   lbl=WIDGET_LABEL(bZoom, VALUE='Zoom: ',FONT=font1, /NO_COPY)
   zoomSlider=CW_FSLIDER(bZoom, /DRAG, MINIMUM=1., MAXIMUM=4., VALUE=1.,FORMAT='(f0.1)', UVALUE='zoom')
-  
+
   bCenterAngle = WIDGET_BASE(bDrawLft, /COLUMN)
   bTitCA=WIDGET_BASE(bCenterAngle, /ROW)
   lbl = WIDGET_LABEL(bTitCA, VALUE='Center / rotation ',/ALIGN_LEFT, FONT=font0, /NO_COPY)
@@ -568,11 +576,11 @@ pro ImageQC,  GROUP_LEADER=bMain
   bIncFilename=WIDGET_BASE(bMulti, /NONEXCLUSIVE)
   btnIncFilename=WIDGET_BUTTON(bIncFilename, VALUE='Include filename', YSIZE=15, TOOLTIP='Include list of filenames in the QuickTest export', FONT=font1)
 
-  lbl=WIDGET_LABEL(bRgt, VALUE='', YSIZE=5, /NO_COPY)
+  ;lbl=WIDGET_LABEL(bRgt, VALUE='', YSIZE=5, /NO_COPY)
 
   ;Analysis tabs
   bAnalysis=WIDGET_BASE(bRgt, /COLUMN)
-  wtabModes=WIDGET_TAB(bAnalysis, XSIZE=660, YSIZE=260, UVALUE='tabModes')
+  wtabModes=WIDGET_TAB(bAnalysis, XSIZE=660, YSIZE=265, UVALUE='tabModes')
   bCT=WIDGET_BASE(wtabModes, TITLE='CT', /COLUMN, UVALUE='tabCT')
   bX=WIDGET_BASE(wtabModes,TITLE='Xray', /COLUMN, UVALUE='tabXray')
   bNM=WIDGET_BASE(wtabModes, TITLE='NM planar',/COLUMN, UVALUE='tabNM')
@@ -596,6 +604,7 @@ pro ImageQC,  GROUP_LEADER=bMain
   bHUwater=WIDGET_BASE(wtabAnalysisCT, Title='6. HU water', /COLUMN)
   bExp=WIDGET_BASE(wtabAnalysisCT, Title='7. Header info', /COLUMN)
   bROI=WIDGET_BASE(wtabAnalysisCT, Title='8. ROI', /COLUMN)
+  bRingArt=WIDGET_BASE(wtabAnalysisCT, Title='9. Ring Artifact', /COLUMN)
   bNPS=WIDGET_BASE(wtabAnalysisCT, TITLE='NPS',/Column)
   bDim=WIDGET_BASE(wtabAnalysisCT, TITLE='Dim', /COLUMN)
   bFwhm=WIDGET_BASE(wtabAnalysisCT, Title='FWHM', /COLUMN)
@@ -616,6 +625,12 @@ pro ImageQC,  GROUP_LEADER=bMain
   lbl=WIDGET_LABEL(bHomogSize, VALUE='', XSIZE=20, FONT=font1, /NO_COPY)
   lbl = WIDGET_LABEL(bHomogSize, VALUE='Radius to ROIs (mm)',FONT=font1, /NO_COPY)
   txtHomogROIdist = WIDGET_TEXT(bHomogSize, VALUE='', /EDITABLE, XSIZE=4, SCR_YSIZE=20, /KBRD_FOCUS_EVENTS, FONT=font1)
+  lbl=WIDGET_LABEL(bHomogSize, VALUE='', XSIZE=20, FONT=font1, /NO_COPY)
+  lbl = WIDGET_LABEL(bHomogSize, VALUE='Rotate ROI positions by (degrees)',FONT=font1, /NO_COPY)
+  txtHomogROIrot = WIDGET_TEXT(bHomogSize, VALUE='', /EDITABLE, XSIZE=4, SCR_YSIZE=20, /KBRD_FOCUS_EVENTS, FONT=font1)
+  lbl=WIDGET_LABEL(bHomog, VALUE='', SCR_YSIZE=20, /NO_COPY)
+  lbl = WIDGET_LABEL(bHomog, VALUE='NB - if rotated ROI positions headers of results still refer to 12,15,18,21 oClock',FONT=font1, /NO_COPY)
+  lbl=WIDGET_LABEL(bHomog, VALUE='', SCR_YSIZE=20, /NO_COPY)
   bHomogBtns=WIDGET_BASE(bHomog, /ROW)
   btnHomog=WIDGET_BUTTON(bHomogBtns, VALUE='Calculate homogeneity', UVALUE='homog',FONT=font1)
 
@@ -651,6 +666,26 @@ pro ImageQC,  GROUP_LEADER=bMain
   ;typeROI=CW_BGROUP(bROI, ['Define new','Load saved ROI (.sav)'], /EXCLUSIVE, LABEL_TOP='Define ROI and get min/max/avg/stdev', /FRAME, UVALUE='typeROI',FONT=font1)
   typeROI=CW_BGROUP(bROIlft, ['Circular','Rectangluar','Rectangular rotated'], /EXCLUSIVE, LABEL_TOP='ROI shape', /FRAME, UVALUE='typeROI',FONT=font1)
   ;btnDefROI =WIDGET_BUTTON(bROI, VALUE = 'Define ROI', UVALUE='ROI',FONT=font1)
+
+  ;----------Radial profiles - ring artifact detection---------------
+  lbl=WIDGET_LABEL(bRingArt, VALUE='', SCR_YSIZE=2, /NO_COPY)
+  lbl = WIDGET_LABEL(bRingArt, VALUE='Extract radial profile to quantify ring artifacts. Image center is assumed to be at center of scanner.',FONT=font1, /NO_COPY, /ALIGN_LEFT)
+  lbl = WIDGET_LABEL(bRingArt, VALUE='The radial profile is extracted by sorting pixels by distance from center and rebin/interpolate to 0.1*pix size.',FONT=font1, /NO_COPY, /ALIGN_LEFT)
+  lbl = WIDGET_LABEL(bRingArt, VALUE='Linear trend (or mean signal) is removed from the profile to calculate min/max as a measure of ring artifacts.',FONT=font1, /NO_COPY, /ALIGN_LEFT)
+  bRingMedian=WIDGET_BASE(bRingArt, /ROW)
+  lbl=WIDGET_LABEL(bRingMedian, VALUE='Median filter on image before extracting radial profile. Filter width (pix)',FONT=font1, /NO_COPY)
+  txtRingMedian=WIDGET_TEXT(bRingMedian, VALUE='', /EDITABLE, XSIZE=4, SCR_YSIZE=20, /KBRD_FOCUS_EVENTS, FONT=font1)
+  bRingSmooth=WIDGET_BASE(bRingArt, /ROW)
+  lbl=WIDGET_LABEL(bRingSmooth, VALUE='Smooth radial profile before calculating trendremoval and min/max calculation. Filter width (mm)',FONT=font1, /NO_COPY)
+  txtRingSmooth=WIDGET_TEXT(bRingSmooth, VALUE='', /EDITABLE, XSIZE=4, SCR_YSIZE=20, /KBRD_FOCUS_EVENTS, FONT=font1)
+  bRingStop=WIDGET_BASE(bRingArt,/ROW)
+  lbl=WIDGET_LABEL(bRingStop, VALUE='Analyse in range from ',FONT=font1, /NO_COPY)
+  txtRingStart=WIDGET_TEXT(bRingStop, VALUE='', /EDITABLE, XSIZE=4, SCR_YSIZE=20, /KBRD_FOCUS_EVENTS, FONT=font1)
+  lbl=WIDGET_LABEL(bRingStop, VALUE=' to ',FONT=font1, /NO_COPY)
+  txtRingStop=WIDGET_TEXT(bRingStop, VALUE='', /EDITABLE, XSIZE=4, SCR_YSIZE=20, /KBRD_FOCUS_EVENTS, FONT=font1)
+  lbl=WIDGET_LABEL(bRingStop, VALUE=' mm from center.',FONT=font1, /NO_COPY)
+  cw_ringArtTrend=CW_BGROUP(bRingArt, ['linear trend from the profile','mean value within ROI (circle with radius = stop distance)'], /EXCLUSIVE, LABEL_LEFT='Subtract ', /FRAME, UVALUE='ringArtTrend',FONT=font1)
+  btnRingArt=WIDGET_BUTTON(bRingArt, VALUE='Calculate radial profile', UVALUE='ringArt',FONT=font1)
 
   bOffsetROI=WIDGET_BASE(bROIlft, /COLUMN)
   bTitOffsetROI=WIDGET_BASE(bOffsetROI, /ROW)
@@ -841,11 +876,21 @@ pro ImageQC,  GROUP_LEADER=bMain
   lbl=WIDGET_LABEL(bSTP, VALUE='     Only linear fit implemented for STP, beam quality and Qvalue might not be used correctly',FONT=font1, /NO_COPY)
 
   ;---------------Homogeneity--------
-  lbl=WIDGET_LABEL(bHomogX, VALUE='', SCR_YSIZE=20, /NO_COPY)
+  lbl=WIDGET_LABEL(bHomogX, VALUE='', SCR_YSIZE=2, /NO_COPY)
   bHomogXtop=WIDGET_BASE(bHomogX, /COLUMN)
   bHomogSizeX=WIDGET_BASE(bHomogXtop, /ROW)
   lbl = WIDGET_LABEL(bHomogSizeX, VALUE='ROI radius (mm)',FONT=font1, /NO_COPY)
   txtHomogROIszX = WIDGET_TEXT(bHomogSizeX, VALUE='', /EDITABLE, XSIZE=4, SCR_YSIZE=20, /KBRD_FOCUS_EVENTS, FONT=font1)
+  bHomogRotX=WIDGET_BASE(bHomogXtop, /ROW)
+  lbl = WIDGET_LABEL(bHomogRotX, VALUE='Rotate ROI positions by (degrees)',FONT=font1, /NO_COPY)
+  txtHomogROIrotX = WIDGET_TEXT(bHomogRotX, VALUE='', /EDITABLE, XSIZE=4, SCR_YSIZE=20, /KBRD_FOCUS_EVENTS, FONT=font1)
+  bHomogDistX=WIDGET_BASE(bHomogXtop, /ROW)
+  lbl = WIDGET_LABEL(bHomogDistX, VALUE='Set distance to ROIs (% from shortest center distance)',FONT=font1, /NO_COPY)
+  txtHomogROIdistX = WIDGET_TEXT(bHomogDistX, VALUE='', /EDITABLE, XSIZE=4, SCR_YSIZE=20, /KBRD_FOCUS_EVENTS, FONT=font1)
+  lbl = WIDGET_LABEL(bHomogDistX, VALUE=' (leave empty to use center of quadrants)',FONT=font1, /NO_COPY)
+
+  lbl=WIDGET_LABEL(bHomogX, VALUE='', SCR_YSIZE=10, /NO_COPY)
+
   cw_HomogAltX=CW_BGROUP(bHomogXtop, ['Avg and stdev for each ROI','Avg for each ROI + difference from average of all ROIs','Avg for each ROI + % difference from average of all ROIs'], UVALUE='cw_HomogAltX', /EXCLUSIVE, LABEL_TOP='Output to table...', /FRAME, FONT=font1, COLUMN=1, SPACE=-2, YPAD=0)
   bHomogBtnsX=WIDGET_BASE(bHomogX, /ROW)
   btnHomogX=WIDGET_BUTTON(bHomogBtnsX, VALUE='Calculate homogeneity', UVALUE='homog',FONT=font1)
@@ -981,20 +1026,20 @@ pro ImageQC,  GROUP_LEADER=bMain
   lbl=WIDGET_LABEL(bUniformity, VALUE='', SCR_YSIZE=5,/NO_COPY)
   lbl=WIDGET_LABEL(bUniformity, VALUE='Based on NEMA NU-1 2007',FONT=font1, /ALIGN_LEFT,/NO_COPY)
   lbl=WIDGET_LABEL(bUniformity, VALUE='', SCR_YSIZE=5)
-  
+
   bUniformity_row=WIDGET_BASE(bUniformity,/ROW)
   bUniformity_lft=WIDGET_BASE(bUniformity_row,/COLUMN)
 
   bUnifAreaRatio=WIDGET_BASE(bUniformity_lft, /ROW)
   lbl=WIDGET_LABEL(bUnifAreaRatio, VALUE='UFOV ratio of image (nonzero part of image)', FONT=font1, /NO_COPY)
   txtUnifAreaRatio=WIDGET_TEXT(bUnifAreaRatio, VALUE='', XSIZE=5, /EDITABLE, /KBRD_FOCUS_EVENTS, FONT=font1)
-  
+
   ;distance correction
   bUnifDistCorr=WIDGET_BASE(bUniformity_lft, /COLUMN, /FRAME)
   bSetUnifCorr=WIDGET_BASE(bUnifDistCorr, /NONEXCLUSIVE, /COLUMN, YSIZE=22)
   btnUnifCorr=WIDGET_BUTTON(bSetUnifCorr, VALUE='Correct for point-source curvature', UVALUE='unifCorrSet', FONT=font1)
   bposfitUnifCorr=WIDGET_BASE(bUnifDistCorr, /ROW)
-  lbl=WIDGET_LABEL(bposfitUnifCorr, VALUE='', XSIZE=20, /NO_COPY) 
+  lbl=WIDGET_LABEL(bposfitUnifCorr, VALUE='', XSIZE=20, /NO_COPY)
   cw_posfitUnifCorr=CW_BGROUP(bposfitUnifCorr, ['x','y'],/NONEXCLUSIVE, UVALUE='cw_posfitUnifCorr', SET_VALUE=[0,0],  LABEL_LEFT='Avoid fitting source position in', /FRAME, FONT=font1, COLUMN=2, SPACE=-2, YPAD=0)
   bradfitUnifCorr=WIDGET_BASE(bUnifDistCorr, /ROW)
   lbl=WIDGET_LABEL(bradfitUnifCorr, VALUE='', XSIZE=20, /NO_COPY)
@@ -1110,6 +1155,8 @@ pro ImageQC,  GROUP_LEADER=bMain
   btnBar=WIDGET_BUTTON(bBar, VALUE='Get results', UVALUE='BarNM',FONT=font1)
 
   ;------------energy spectrum--------------------
+  lbl=WIDGET_LABEL(bEnergySpec, VALUE='', SCR_YSIZE=20, /NO_COPY)
+  lbl=WIDGET_LABEL(bEnergySpec, VALUE='Read exported curve from Analytics tab on Siemens gamma cameras' ,FONT=font1, /NO_COPY)
   lbl=WIDGET_LABEL(bEnergySpec, VALUE='', SCR_YSIZE=20, /NO_COPY)
   bEnergySpecBtns=WIDGET_BASE(bEnergySpec, /ROW)
   btnLoadSpec=WIDGET_BUTTON(bEnergySpecBtns, VALUE='Load spectrum', UVALUE='loadSpectrum',FONT=font1)
@@ -1331,23 +1378,27 @@ pro ImageQC,  GROUP_LEADER=bMain
   lbl = WIDGET_LABEL(bDcmMR, VALUE='',FONT=font1, /NO_COPY)
   lbl = WIDGET_LABEL(bDcmMR, VALUE='More DICOM elements can be added to output when using QuickTest and defining additional DICOM output.',FONT=font1, /NO_COPY, /ALIGN_LEFT)
   lbl = WIDGET_LABEL(bDcmMR, VALUE='Define output in Setting->QuickTest Output template and then connect the output template to a parameter set.',FONT=font1, /NO_COPY, /ALIGN_LEFT)
-  
-  ;--------------------- SNR ------------------------------------  
+
+  ;--------------------- SNR ------------------------------------
   lbl = WIDGET_LABEL(bSNR_MR, VALUE='', SCR_YSIZE=20, /NO_COPY)
   lbl = WIDGET_LABEL(bSNR_MR, VALUE='Based on NEMA MS-1 2008 (SNR = S mean * sqrt(2) / stdev difference image) ',FONT=font1, /NO_COPY, /ALIGN_LEFT)
   lbl = WIDGET_LABEL(bSNR_MR, VALUE='Difference image is calculated from image2-image1, image4-image3 ... If some images are marked, only marked images will be counted.',FONT=font1, /NO_COPY, /ALIGN_LEFT)
   lbl = WIDGET_LABEL(bSNR_MR, VALUE='If odd number of images, the last image will be ignored.',FONT=font1, /NO_COPY, /ALIGN_LEFT)
   lbl = WIDGET_LABEL(bSNR_MR, VALUE='Results in table and result image will be linked to the first of each two images.',FONT=font1, /NO_COPY, /ALIGN_LEFT)
   lbl = WIDGET_LABEL(bSNR_MR, VALUE='Center and size of phantom will be found from maximum x and y profiles.',FONT=font1, /NO_COPY, /ALIGN_LEFT)
-  
+
   lbl = WIDGET_LABEL(bSNR_MR, VALUE='', SCR_YSIZE=20, /NO_COPY)
   bSNR_MR_ROI=WIDGET_BASE(bSNR_MR, /ROW)
   lbl = WIDGET_LABEL(bSNR_MR_ROI, VALUE='ROI % of circular phantom ',FONT=font1, /NO_COPY)
   txtSNR_MR_ROI  = WIDGET_TEXT(bSNR_MR_ROI, VALUE='', /EDITABLE, XSIZE=4, SCR_YSIZE=20, /KBRD_FOCUS_EVENTS, FONT=font1)
+  lbl = WIDGET_LABEL(bSNR_MR_ROI, VALUE='', SCR_XSIZE=20, FONT=font1, /NO_COPY)
+  lbl = WIDGET_LABEL(bSNR_MR_ROI, VALUE='Cut top of ROI by ',FONT=font1, /NO_COPY)
+  txtSNR_MR_ROIcut  = WIDGET_TEXT(bSNR_MR_ROI, VALUE='', /EDITABLE, XSIZE=4, SCR_YSIZE=20, /KBRD_FOCUS_EVENTS, FONT=font1)
+  lbl = WIDGET_LABEL(bSNR_MR_ROI, VALUE=' mm',FONT=font1, /NO_COPY)
 
   bSNR_MR_btn=WIDGET_BASE(bSNR_MR, /ROW)
   btnSNR_MR=WIDGET_BUTTON(bSNR_MR_btn, VALUE='Calculate SNR', UVALUE='SNR_MR',FONT=font1)
-  
+
   ;--------------------- PIU ------------------------------------
   lbl = WIDGET_LABEL(bPIU_MR, VALUE='', SCR_YSIZE=20, /NO_COPY)
   lbl = WIDGET_LABEL(bPIU_MR, VALUE='Based on NEMA MS-3 2008',FONT=font1, /NO_COPY, /ALIGN_LEFT)
@@ -1357,11 +1408,15 @@ pro ImageQC,  GROUP_LEADER=bMain
   bPIU_MR_ROI=WIDGET_BASE(bPIU_MR, /ROW)
   lbl = WIDGET_LABEL(bPIU_MR_ROI, VALUE='ROI % of circular phantom ',FONT=font1, /NO_COPY)
   txtPIU_MR_ROI  = WIDGET_TEXT(bPIU_MR_ROI, VALUE='', /EDITABLE, XSIZE=4, SCR_YSIZE=20, /KBRD_FOCUS_EVENTS, FONT=font1)
+  lbl = WIDGET_LABEL(bPIU_MR_ROI, VALUE='', SCR_XSIZE=20, FONT=font1, /NO_COPY)
+  lbl = WIDGET_LABEL(bPIU_MR_ROI, VALUE='Cut top of ROI by ',FONT=font1, /NO_COPY)
+  txtPIU_MR_ROIcut  = WIDGET_TEXT(bPIU_MR_ROI, VALUE='', /EDITABLE, XSIZE=4, SCR_YSIZE=20, /KBRD_FOCUS_EVENTS, FONT=font1)
+  lbl = WIDGET_LABEL(bPIU_MR_ROI, VALUE=' mm',FONT=font1, /NO_COPY)
 
   bPIU_MR_btn=WIDGET_BASE(bPIU_MR, /ROW)
   btnPIU_MR=WIDGET_BUTTON(bPIU_MR_btn, VALUE='Calculate PIU', UVALUE='PIU_MR',FONT=font1)
   btnPIU_MR_setMinMax=WIDGET_BUTTON(bPIU_MR_btn, VALUE='Set window level to [min,max] for this current image', UVALUE='PIU_MR_setMinMax',FONT=font1)
-  
+
   ;--------------------- Ghosting Ratio ------------------------------------
   lbl = WIDGET_LABEL(bGhost_MR, VALUE='', SCR_YSIZE=20, /NO_COPY)
   lbl = WIDGET_LABEL(bGhost_MR, VALUE='Based on ACR MR Quality Control Manual, 2015',FONT=font1, /NO_COPY, /ALIGN_LEFT)
@@ -1374,6 +1429,11 @@ pro ImageQC,  GROUP_LEADER=bMain
   lbl = WIDGET_LABEL(bGhost_MR_ROI1, VALUE='', XSIZE=20, /NO_COPY)
   bGhost_MR_optC=WIDGET_BASE(bGhost_MR_ROI1, /ROW, /NONEXCLUSIVE)
   ghost_MR_optC=WIDGET_BUTTON(bGhost_MR_optC, VALUE='Optimize center', UVALUE='ghost_MR_optC',FONT=font1)
+  lbl = WIDGET_LABEL(bGhost_MR_ROI1, VALUE='', SCR_XSIZE=20, FONT=font1, /NO_COPY)
+  lbl = WIDGET_LABEL(bGhost_MR_ROI1, VALUE='Cut top of ROI by ',FONT=font1, /NO_COPY)
+  txtGhost_MR_ROIcut  = WIDGET_TEXT(bGhost_MR_ROI1, VALUE='', /EDITABLE, XSIZE=4, SCR_YSIZE=20, /KBRD_FOCUS_EVENTS, FONT=font1)
+  lbl = WIDGET_LABEL(bGhost_MR_ROI1, VALUE=' mm',FONT=font1, /NO_COPY)
+
   bGhost_MR_ROI2=WIDGET_BASE(bGhost_MR, /ROW)
   lbl = WIDGET_LABEL(bGhost_MR_ROI2, VALUE='Width and height of outer ROI (mm) ',FONT=font1, /NO_COPY)
   txtGhost_MR_ROIszW  = WIDGET_TEXT(bGhost_MR_ROI2, VALUE='', /EDITABLE, XSIZE=4, SCR_YSIZE=20, /KBRD_FOCUS_EVENTS, FONT=font1)
@@ -1384,7 +1444,7 @@ pro ImageQC,  GROUP_LEADER=bMain
 
   bGhost_MR_btn=WIDGET_BASE(bGhost_MR, /ROW)
   btnGhost_MR=WIDGET_BUTTON(bGhost_MR_btn, VALUE='Calculate Percent Signal Ghosting', UVALUE='Ghost_MR',FONT=font1)
-  
+
   ;--------------------- Geometric Distortion ------------------------------------
   lbl = WIDGET_LABEL(bGD_MR, VALUE='', SCR_YSIZE=20, /NO_COPY)
   lbl = WIDGET_LABEL(bGD_MR, VALUE='Based on NEMA MS-2 2008',FONT=font1, /NO_COPY, /ALIGN_LEFT)
@@ -1401,7 +1461,7 @@ pro ImageQC,  GROUP_LEADER=bMain
 
   bGD_MR_btn=WIDGET_BASE(bGD_MR, /ROW)
   btnGD_MR=WIDGET_BUTTON(bGD_MR_btn, VALUE='Calculate geometric distortion', UVALUE='GD_MR',FONT=font1)
-  
+
   ;--------------------- Slice thickness MR ------------------------------------
   lbl = WIDGET_LABEL(bSlice_MR, VALUE='', SCR_YSIZE=5, /NO_COPY)
   lbl = WIDGET_LABEL(bSlice_MR, VALUE='Based on NEMA MS-5 2018 and ACR MR Quality Control Manual, 2015',FONT=font1, /NO_COPY, /ALIGN_LEFT)
@@ -1429,7 +1489,7 @@ pro ImageQC,  GROUP_LEADER=bMain
   bSlice_MR_btn=WIDGET_BASE(bSlice_MR, /ROW)
   btnSlice_MR=WIDGET_BUTTON(bSlice_MR_btn, VALUE='Calculate slice thickness', UVALUE='Slice_MR',FONT=font1)
   btnSlice_MR_WL=WIDGET_BUTTON(bSlice_MR_btn, VALUE='Set window level to [min,max] in ROIs', UVALUE='Slice_MR_WL',FONT=font1)
-  
+
   ;----------------User defined ROI------------
   bROIMRsett=WIDGET_BASE(bROIMR, /ROW)
   bROIMRlft=WIDGET_BASE(bROIMRsett, /COLUMN)
@@ -1459,7 +1519,7 @@ pro ImageQC,  GROUP_LEADER=bMain
   txtROIMRa = WIDGET_TEXT(bROIMRa, VALUE='' , /EDITABLE, XSIZE=4, SCR_YSIZE=20, /KBRD_FOCUS_EVENTS, FONT=font1)
 
   btnROIMR=WIDGET_BUTTON(bROIMRrgt, VALUE='Get ROI values', UVALUE='ROI_MR',FONT=font1)
-  
+
   ;******************************************************************************************
   ;********************* Result panel *********************************************************
   bPlot = WIDGET_BASE(bRgt, /COLUMN)

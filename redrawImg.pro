@@ -39,6 +39,7 @@ pro redrawImg, viewpl, newActive
 
     nImg=N_TAGS(structImgs)
     sizeAct=SIZE(activeImg, /DIMENSIONS)
+    IF N_ELEMENTS(sizeAct) EQ 2 THEN BEGIN
     tempAct=activeImg
     
     markedArr=INTARR(nImg)
@@ -138,6 +139,17 @@ pro redrawImg, viewpl, newActive
             IF szROIs(2) GT 4 THEN BEGIN
               contour4=OBJ_NEW('IDLgrContour',ROIs[*,*,4],COLOR=colors[*,4], C_VALUE=0.5, N_LEVELS=1) & oModel->Add, Contour4
             ENDIF
+          ENDIF
+          
+          IF analyse EQ 'HOMOG' AND modality EQ 1 THEN BEGIN
+            poss=INTARR(2,4)
+            FOR ir=0, 3 DO poss[*,ir]=ROUND(centroid(ROIs[*,*,ir+1],0.5))
+            poss[1,*]=poss[1,*]-7
+            oText1 = OBJ_NEW('IDLgrText', ['1'], LOCATIONS =poss[*,0], COLOR = colors[*,1], ALIGNMENT=0.5)
+            oText2 = OBJ_NEW('IDLgrText', ['2'], LOCATIONS =poss[*,1], COLOR = colors[*,2], ALIGNMENT=0.5)
+            oText3 = OBJ_NEW('IDLgrText', ['3'], LOCATIONS =poss[*,2], COLOR = colors[*,3], ALIGNMENT=0.5)
+            oText4 = OBJ_NEW('IDLgrText', ['4'], LOCATIONS =poss[*,3], COLOR = colors[*,4], ALIGNMENT=0.5)
+            oModel->Add, oText1 & oModel->Add, oText2 & oModel->Add, oText3 & oModel->Add, oText4  
           ENDIF
           
           IF analyse EQ 'SNI' THEN BEGIN
@@ -328,15 +340,20 @@ pro redrawImg, viewpl, newActive
       ENDIF
       
       halfSz=sizeAct/2
-;      IF analyse EQ 'POS' THEN BEGIN;phantom pos MR      
-;        IF N_ELEMENTS(MRposRes) GT 0 THEN BEGIN
-;          szPos=SIZE(MRposRes,/DIMENSIONS)
-;          IF N_ELEMENTS(szPos) EQ 1 THEN posRes=MRposRes ELSE posRes=MRposRes[*,sel]
-;          posLineX=OBJ_NEW('IDLgrPolyline', [[0,halfSz(1)+posRes(1)],[sizeAct(0),halfSz(1)+posRes(1)]], COLOR = 255*([0,1,0]), /DOUBLE, LINESTYLE=0)
-;          posLineY=OBJ_NEW('IDLgrPolyline', [[halfSz(0)+posRes(0),0],[halfSz(0)+posRes(0),sizeAct(1)]], COLOR = 255*([0,1,0]), /DOUBLE, LINESTYLE=0)
-;          oModel->Add, posLineX & oModel->Add, posLineY
-;        ENDIF
-;      ENDIF
+
+      IF analyse EQ 'RING' THEN BEGIN; ring artifact analysis - crosshair at image center and circular ring with radius equal to ringStop
+        lineX2= OBJ_NEW('IDLgrPolyline', COLOR = 255*([1,0,0]), LINESTYLE=0)
+        lineY2= OBJ_NEW('IDLgrPolyline', COLOR = 255*([1,0,0]), LINESTYLE=0)
+        lineX2->SetProperty, DATA=[[0,halfSz(1)],[sizeAct(0),halfSz(1)]]
+        lineY2->SetProperty, DATA=[[halfSz(0),0],[halfSz(0),sizeAct(1)]]
+        oModel->Add, lineX2 & oModel->Add, lineY2
+        WIDGET_CONTROL, txtRingStart, GET_VALUE=ringStart
+        WIDGET_CONTROL, txtRingStop, GET_VALUE=ringStop
+        circStartStop=getROIcircle(sizeAct, halfSz, FLOAT(ringStop(0))/tempStruct.pix(0))-getROIcircle(sizeAct, halfSz, FLOAT(ringStart(0))/tempStruct.pix(0))
+        contour0=OBJ_NEW('IDLgrContour',circStartStop,COLOR=255*([1,0,0]), C_VALUE=0.5, N_LEVELS=1)
+        oModel->Add, Contour0
+      ENDIF
+
    
       IF dxya(3) EQ 1 THEN BEGIN
         tana=TAN(dxya(2)*!DtoR)
@@ -569,6 +586,7 @@ pro redrawImg, viewpl, newActive
       ENDIF
     ENDIF;annot
     OBJ_DESTROY, oView & OBJ_DESTROY, oModel & OBJ_DESTROY, oImageCT
+    ENDIF ELSE iDrawLarge.erase;N_ELEMENTS(sizeAct) NE 2 - rgb?
   ENDIF ELSE iDrawLarge.erase
 
 end

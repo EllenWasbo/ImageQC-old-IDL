@@ -69,6 +69,10 @@ pro closeImgs, imgIds
               'CTLIN': CTlinres=CTlinres[*,remain]
               'HUWATER': HUwaterRes=HUwaterRes[*,remain]
               'ROI': ROIres=ROIres[*,remain]
+              'RING': BEGIN
+                ringArtProf=removeIDstructstruct(ringArtProf,sel)
+                ringArtRes=ringArtRes[*,remain]
+                END
               'SLICETHICK': BEGIN
                 sliceThickRes=removeIDstructstruct(sliceThickRes,sel)
                 sliceThickResTab=sliceThickResTab[*,remain]
@@ -89,6 +93,7 @@ pro closeImgs, imgIds
               'SNR': clearRes, 'SNR'
               'PIU': PIUres=PIUres[*,remain]
               'GHOST': ghostMRres=ghostMRres[*,remain]
+              'GEOMDIST': GeomDistRes=GeomDistRes[*,remain]
             ENDCASE
           ENDIF
         ENDFOR

@@ -897,6 +897,129 @@ pro ctlin; CT
   ENDIF
 end
 
+;----------------
+pro ringArt
+  COMPILE_OPT hidden
+  COMMON VARI
+
+  WIDGET_CONTROL, /HOURGLASS
+  nImg=N_TAGS(structImgs)
+  resArr=FLTARR(2,nImg)-1
+
+  testNmb=getResNmb(modality,'RING',analyseStringsAll)
+  markedArr=INTARR(nImg)
+  IF marked(0) EQ -1 THEN BEGIN
+    IF markedMulti(0) EQ -1 THEN markedArr=markedArr+1 ELSE markedArr=markedMulti[testNmb,*]
+  ENDIF ELSE markedArr(marked)=1
+  markedTemp=WHERE(markedArr EQ 1)
+
+  IF TOTAL(markedArr) GT 0 THEN BEGIN
+    WIDGET_CONTROL, txtRingMedian, GET_VALUE=medfilt
+    medfilt=LONG(medfilt(0))
+    WIDGET_CONTROL, txtRingSmooth, GET_VALUE=smfilt
+    smfilt=LONG(smfilt(0))
+    WIDGET_CONTROL, txtRingStart, GET_VALUE=startDist
+    startDist=FLOAT(startDist(0))
+    WIDGET_CONTROL, txtRingStop, GET_VALUE=stopDist
+    stopDist=FLOAT(stopDist(0))
+    WIDGET_CONTROL, cw_ringArtTrend, GET_VALUE=subType
+
+    szMprev=[0,0]
+    pixPrev=0
+    sorting=!Null
+    smoothSz=!Null
+    ringArtProf=!Null
+    ringROI=!Null
+    FOR i=0, nImg-1 DO BEGIN
+      IF markedArr(i) THEN BEGIN
+        tempImg=readImg(structImgs.(i).filename, structImgs.(i).frameNo)
+        pix=structImgs.(i).pix(0)
+        szM=SIZE(tempImg, /DIMENSIONS)
+        ringROI=getROIcircle(szM, szM/2, stopDist/pix)-getROIcircle(szM, szM/2, startDist/pix)
+        
+        IF medfilt GT 0 THEN tempImg=MEDIAN(tempImg, medfilt)
+
+        IF ~ARRAY_EQUAL(szMprev,szM) OR pix NE pixPrev THEN BEGIN;calculate sorting and distances
+          distCenter=tempImg*0.0
+          IF szM(0) MOD 2 EQ 0 THEN centerPos=0.5*szM[0:1]-0.5 ELSE centerPos=FLOOR(0.5*szM[0:1]); even numbered size - center between pixels
+          FOR ii=0, szM(0)-1 DO BEGIN
+            FOR jj=0, szM(1)-1 DO BEGIN
+              distCenter(ii,jj)=SQRT((ii-centerPos(0))^2+(jj-centerPos(1))^2)
+            ENDFOR
+          ENDFOR
+          sorting=SORT(distCenter)
+          dists=distCenter(sorting)
+
+          ;rebin to equally spaced resolution pix/10
+          radius=MIN([centerPos(0),szM(0)-centerPos(0),centerPos(1), szM(1)-centerPos(1)])-1; maximim radius with full dataset
+          newdists=FINDGEN(radius*10)*0.1*pix(0); regular x axis, cuts data at position where start to lose info due to less data in perpendicular directions
+          pixNew=.1*pix(0)
+          ;smooth by ~the new pix size if possible
+          test=WHERE(dists*pix(0) LT max(newdists))
+          smoothSz=ROUND(N_ELEMENTS(test)/N_ELEMENTS(newdists))
+        ENDIF
+        IF smoothSz GT 2 THEN pixVals=SMOOTH(tempImg(sorting),smoothSz) ELSE pixVals=tempImg(sorting)
+        ;average over same dist close to center
+        IF szM(0) MOD 2 EQ 0 THEN uEnd=21*21-1 ELSE uEnd=20*20-1;all different dists up to 7x7 matrix =0..48 when odd number sized matrix, up to 8x8 matrix when even numbered matrix     
+        uniq_dists=dists(UNIQ(dists[0:uEnd]))
+        radProf=FLTARR(N_ELEMENTS(uniq_dists))
+        FOR r=0, N_ELEMENTS(uniq_dists)-1 DO BEGIN
+          ids=WHERE(dists[0:uEnd] EQ uniq_dists(r), nIDs)
+          radProf(r)=1./nIDS*TOTAL(pixVals(ids))
+        ENDFOR
+        distsComb=[uniq_dists,dists[uEnd+1:-1]]
+        pixVals=[radProf,pixVals[uEnd+1:-1]]
+        radialProf=INTERPOL(pixVals, distsComb*pix(0), newdists); linear interpolation
+        IF smfilt GT 0 THEN radialProf=SMOOTH(radialProf, smfilt/pixNew, /EDGE_MIRROR)
+        IF startDist GT 0 THEN BEGIN
+          firstPixNo=WHERE(newdists GT startDist)
+          radialProfShort=radialProf[firstPixNo(0):-1]
+          newdistsShort=newdists[firstPixNo(0):-1]
+          radialProf=radialProfShort
+          newdists=newdistsShort
+        ENDIF
+        IF stopDist LT MAX(newdists) THEN BEGIN
+          stopPixNo=WHERE(newdists GT stopDist)
+          radialProfShort=radialProf[0:stopPixNo(0)-1]
+          newdistsShort=newdists[0:stopPixNo(0)-1]
+          radialProf=radialProfShort
+          newdists=newdistsShort
+        ENDIF
+        
+        yfit=!Null
+        CASE subType OF
+          0: a0=LINFIT(newdists, radialProf, YFIT=yfit)
+          1: BEGIN
+            IMAGE_STATISTICS, tempImg, MEAN=meanROI, MASK=ringROI
+            yfit=radialProf*0.+meanROI
+            END
+        ENDCASE
+          
+
+        radialProfTrendRem=radialProf-yfit
+
+        arr=FLTARR(N_ELEMENTS(radialProf),4)
+        arr[*,0]=newdists
+        arr[*,1]=radialProf
+        arr[*,2]=yfit
+
+        ringArtProf=CREATE_STRUCT(ringArtProf,'P'+STRING(i,FORMAT='(i0)'),arr)
+
+        resArr(0,i)=MIN(radialProfTrendRem)
+        resArr(1,i)=MAX(radialProfTrendRem)
+        szMprev=szM
+        pixPrev=pix(0)
+      ENDIF ELSE ringArtProf=CREATE_STRUCT(ringArtProf,'P'+STRING(i,FORMAT='(i0)'),-1)
+      WIDGET_CONTROL, lblProgress, SET_VALUE='Radial profile progress: '+STRING(i*100./TOTAL(markedArr), FORMAT='(i0)')+' %'
+    ENDFOR
+    WIDGET_CONTROL, lblProgress, SET_VALUE=''
+    ringArtRes=resArr
+    results(testNmb)=1
+  ENDIF
+END
+;-----------
+
+
 pro uniformityNM
   COMPILE_OPT hidden
   COMMON VARI
@@ -1354,14 +1477,16 @@ pro GD_MR;geometric distortion
 
         nPixXfwhm=widthX(0)
         nPixDiag2=CEIL(nPixXfwhm/2*1.1)
-        prof45=FLTARR(nPixDiag2*2+1)
+        prof45=FLTARR(nPixDiag2*2+1)+MIN(activeImg)
         prof45[nPixDiag2]=activeImg[cent[0],cent[1]]
         prof135=prof45
         FOR nn=1,nPixDiag2 DO BEGIN
-          prof45[nPixDiag2+nn]=activeImg[cent[0]+nn,cent[1]+nn]
-          prof45[nPixDiag2-nn]=activeImg[cent[0]-nn,cent[1]-nn]
-          prof135[nPixDiag2+nn]=activeImg[cent[0]+nn,cent[1]-nn]
-          prof135[nPixDiag2-nn]=activeImg[cent[0]-nn,cent[1]+nn]
+          IF cent[0]-nn GE 0 AND cent[1]-nn GE 0 AND cent[0]+nn LT sz(0) AND cent[1]+nn LT sz(1) THEN BEGIN
+            prof45[nPixDiag2+nn]=activeImg[cent[0]+nn,cent[1]+nn]
+            prof45[nPixDiag2-nn]=activeImg[cent[0]-nn,cent[1]-nn]
+            prof135[nPixDiag2+nn]=activeImg[cent[0]+nn,cent[1]-nn]
+            prof135[nPixDiag2-nn]=activeImg[cent[0]-nn,cent[1]+nn]
+          ENDIF
         ENDFOR
         width45=getWidthAtThreshold(prof45, halfmax)
         width135=getWidthAtThreshold(prof135, halfmax)
@@ -1429,7 +1554,7 @@ pro Slice_MR
         bg=0.5*(MEAN(subUpper[0:4,*])+MEAN(subLower[0:4,*]))
         halfmaxU=0.5*(maxUpper+bg)
         halfmaxL=0.5*(maxLower+bg)
-        
+
         wU=getWidthAtThreshold(profUpper, halfmaxU)
         wL=getWidthAtThreshold(profLower, halfmaxL)
 

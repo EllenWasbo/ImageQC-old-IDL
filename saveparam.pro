@@ -47,6 +47,7 @@ pro getParam, configTemp
   WIDGET_CONTROL, cw_rampDens, GET_VALUE=rampdens
   WIDGET_CONTROL, txtHomogROIsz, GET_VALUE=homogROIsz
   WIDGET_CONTROL, txtHomogROIdist, GET_VALUE=homogROIdist
+  WIDGET_CONTROL, txtHomogROIrot, GET_VALUE=homogROIrot
   WIDGET_CONTROL, txtNoiseROIsz, GET_VALUE=noiseROIsz
   WIDGET_CONTROL, txtHUwaterROIsz, GET_VALUE=HUwaterROIsz
   WIDGET_CONTROL, txtNPSroiSz, GET_VALUE=NPSroiSz
@@ -57,6 +58,11 @@ pro getParam, configTemp
   WIDGET_CONTROL, txtROIx, GET_VALUE=ROIx
   WIDGET_CONTROL, txtROIy, GET_VALUE=ROIy
   WIDGET_CONTROL, txtROIa, GET_VALUE=ROIa
+  WIDGET_CONTROL, txtRingStart, GET_VALUE=ringStart
+  WIDGET_CONTROL, txtRingStop, GET_VALUE=ringStop
+  WIDGET_CONTROL, txtRingMedian, GET_VALUE=ringMedian
+  WIDGET_CONTROL, txtRingSmooth, GET_VALUE=ringSmooth
+  WIDGET_CONTROL, cw_ringArtTrend, GET_VALUE=ringArtTrend
   ;Xray tests
   WIDGET_CONTROL, txtStpROIsz, GET_VALUE=STProiSz
   WIDGET_CONTROL, txtNoiseX, GET_VALUE=NoiseXpercent
@@ -67,6 +73,8 @@ pro getParam, configTemp
   WIDGET_CONTROL, txtMTFroiSzX, GET_VALUE=MTFroiSzX
   WIDGET_CONTROL, txtMTFroiSzY, GET_VALUE=MTFroiSzY
   WIDGET_CONTROL, txtHomogROIszX, GET_VALUE=homogROIszX
+  WIDGET_CONTROL, txtHomogROIdistX, GET_VALUE=homogROIdistX
+  WIDGET_CONTROL, txtHomogROIrotX, GET_VALUE=homogROIrotX
   WIDGET_CONTROL, cw_HomogAltX, GET_VALUE=altHomogX
   WIDGET_CONTROL, typeROIX, GET_VALUE=ROIXtype
   WIDGET_CONTROL, txtROIXrad, GET_VALUE=ROIXrad
@@ -112,8 +120,11 @@ pro getParam, configTemp
   WIDGET_CONTROL, txtHomogROIdistPET, GET_VALUE=homogROIdistPET
   ;MR tests
   WIDGET_CONTROL, txtSNR_MR_ROI, GET_VALUE=SNR_MR_ROI
+  WIDGET_CONTROL, txtSNR_MR_ROIcut, GET_VALUE=SNR_MR_ROIcut
   WIDGET_CONTROL, txtPIU_MR_ROI, GET_VALUE=PIU_MR_ROI
+  WIDGET_CONTROL, txtPIU_MR_ROIcut, GET_VALUE=PIU_MR_ROIcut
   WIDGET_CONTROL, txtGhost_MR_ROIszC, GET_VALUE=GHOST_MR_ROI_C
+  WIDGET_CONTROL, txtGhost_MR_ROIcut, GET_VALUE=GHOST_MR_ROIcut
   WIDGET_CONTROL, txtGhost_MR_ROIszW, GET_VALUE=GHOST_MR_ROI_W
   WIDGET_CONTROL, txtGhost_MR_ROIszH, GET_VALUE=GHOST_MR_ROI_H
   WIDGET_CONTROL, txtGhost_MR_ROIszD, GET_VALUE=GHOST_MR_ROI_D
@@ -129,7 +140,10 @@ pro getParam, configTemp
   WIDGET_CONTROL, txtROIMRy, GET_VALUE=ROIMRy
   WIDGET_CONTROL, txtROIMRa, GET_VALUE=ROIMRa
 
-  configTemp=CREATE_STRUCT('copyHeader', copyHeader, 'transposeTable', transposeTable, 'deciMark', deciMark, 'includeFilename', WIDGET_INFO(btnIncFilename,/BUTTON_SET),'append', WIDGET_INFO(btnAppend, /BUTTON_SET),'autoImportPath','', 'autoContinue',0,'wait',[5,2],'qtOutTemps',['DEFAULT','DEFAULT','DEFAULT','DEFAULT','DEFAULT','DEFAULT'],$
+  configTemp=CREATE_STRUCT($
+    'copyHeader', copyHeader, 'transposeTable', transposeTable, 'deciMark', deciMark, $
+    'includeFilename', WIDGET_INFO(btnIncFilename,/BUTTON_SET),'append', WIDGET_INFO(btnAppend, /BUTTON_SET),$
+    'qtOutTemps',['DEFAULT','DEFAULT','DEFAULT','DEFAULT','DEFAULT','DEFAULT'],$
     'MTFtype',typeMTF,'MTFtypeX', typeMTFX, 'MTFtypeNM', typeMTFNM,'MTFtypeSPECT', typeMTFSPECT, 'plotMTF',plotWhich,'plotMTFX',plotWhichX,'plotMTFNM', plotWhichNM,'plotMTFSPECT', plotWhichSPECT,$
     'tableMTF',tableWhich,'cyclMTF',MTFcyclWhich,'tableMTFX', tableWhichX, $
     'MTFroiSz',FLOAT(MTFroiSz(0)),'MTFroiSzX',[FLOAT(MTFroiSzX(0)),FLOAT(MTFroiSzY(0))],'MTFroiSzNM',[FLOAT(MTFroiSzXNM(0)),FLOAT(MTFroiSzYNM(0))],'MTFroiSzSPECT',FLOAT(MTFroiSzSPECT(0)),'MTF3dSPECT',WIDGET_INFO(MTF3dSPECT, /BUTTON_SET),$
@@ -137,11 +151,12 @@ pro getParam, configTemp
     'searchMaxMTF_ROI',WIDGET_INFO(btnSearchMaxMTF,/BUTTON_SET),$
     'LinROIrad',FLOAT(rad1(0)),'LinROIradS',FLOAT(radS(0)), 'LinTab', lintab, $
     'RampDist',FLOAT(rampDist(0)),'RampLen',FLOAT(rampLen(0)),'RampBackG',FLOAT(rampBackG(0)),'RampSearch',LONG(RampSearch(0)),'RampAvg',LONG(rampAvg(0)),'RampType',ramptype,'RampDens',rampdens,$
-    'HomogROIsz',FLOAT(homogROIsz(0)), 'HomogROIszX',FLOAT(homogROIszX(0)),'altHomogX', altHomogX,'HomogROIszPET',FLOAT(homogROIszPET(0)),'HomogROIdist',FLOAT(homogROIdist(0)), 'HomogROIdistPET',FLOAT(homogROIdistPET(0)),$
+    'HomogROIsz',FLOAT(homogROIsz(0)), 'HomogROIszX',FLOAT(homogROIszX(0)),'altHomogX', altHomogX,'HomogROIszPET',FLOAT(homogROIszPET(0)),'HomogROIdist',FLOAT(homogROIdist(0)),'HomogROIdistX',FLOAT(homogROIdistX(0)), 'HomogROIdistPET',FLOAT(homogROIdistPET(0)),'HomogROIrot',FLOAT(homogROIrot(0)),'HomogROIrotX',FLOAT(homogROIrotX(0)), $
     'NoiseROIsz',FLOAT(noiseROIsz(0)), 'NoiseXpercent',FLOAT(NoiseXpercent(0)), 'HUwaterROIsz', FLOAT(HUwaterROIsz(0)),$
     'typeROI',ROItype,'ROIrad',FLOAT(ROIrad(0)),'ROIx',FLOAT(ROIx(0)),'ROIy',FLOAT(ROIy(0)),'ROIa',FLOAT(ROIa(0)),'offxyROI', offxyROI,'offxyROI_unit',offxyROI_unit,$
     'typeROIX',ROIXtype,'ROIXrad',FLOAT(ROIXrad(0)),'ROIXx',FLOAT(ROIXx(0)),'ROIXy',FLOAT(ROIXy(0)),'ROIXa',FLOAT(ROIXa(0)),'offxyROIX', offxyROIX,'offxyROIX_unit',offxyROIX_unit,$
     'typeROIMR',ROIMRtype,'ROIMRrad',FLOAT(ROIMRrad(0)),'ROIMRx',FLOAT(ROIMRx(0)),'ROIMRy',FLOAT(ROIMRy(0)),'ROIMRa',FLOAT(ROIMRa(0)),'offxyROIMR', offxyROIMR, 'offxyROIMR_unit', offxyROIMR_unit,$
+    'ringMedian',LONG(ringMedian(0)),'ringSmooth',FlOAT(ringSmooth(0)),'ringStop',[FLOAT(ringStart(0)),FLOAT(ringStop(0))],'ringArtTrend',ringArtTrend,$
     'NPSroiSz', LONG(NPSroiSz(0)), 'NPSroiDist', FLOAT(NPSroiDist(0)),'NPSsubNN', LONG(NPSsubNN(0)), 'NPSroiSzX', LONG(NPSroiSzX(0)), 'NPSsubSzX', LONG(NPSsubSzX(0)), 'NPSavg',WIDGET_INFO(btnNPSavg, /BUTTON_SET),$
     'STProiSz', FLOAT(STProiSz(0)), $
     'unifAreaRatio', FLOAT(unifAreaRatio(0)),'SNIAreaRatio', FLOAT(SNIAreaRatio(0)),'unifCorr',WIDGET_INFO(btnUnifCorr,/BUTTON_SET),'unifCorrPos',unifCorrPos,'unifCorrRad',unifCorrRad,'SNIcorr',WIDGET_INFO(btnSNICorr,/BUTTON_SET), 'SNIcorrPos',SNIcorrPos,'SNIcorrRad',SNIcorrRad,$
@@ -150,11 +165,12 @@ pro getParam, configTemp
     'scanSpeedAvg',LONG(scanSpeedAvg(0)), 'scanSpeedHeight', FLOAT(scanSpeedHeight(0)), 'scanSpeedFiltW', LONG(scanSpeedFiltW(0)), $
     'contrastRad1', FLOAT(contrastRad1(0)), 'contrastRad2', FLOAT(contrastRad2(0)),$
     'CrossROIsz', FLOAT(crossROIsz(0)), 'CrossVol', FLOAT(crossVol(0)),$
-    'SNR_MR_ROI', FLOAT(SNR_MR_ROI(0)), 'PIU_MR_ROI', FLOAT(PIU_MR_ROI(0)), $
-    'Ghost_MR_ROI', [FLOAT(GHOST_MR_ROI_C(0)),FLOAT(GHOST_MR_ROI_W(0)),FLOAT(GHOST_MR_ROI_H(0)),FLOAT(GHOST_MR_ROI_D(0)),WIDGET_INFO(ghost_MR_optC, /BUTTON_SET)],$
+    'SNR_MR_ROI', FLOAT(SNR_MR_ROI(0)), 'SNR_MR_ROIcut', LONG(SNR_MR_ROIcut(0)), 'PIU_MR_ROI', FLOAT(PIU_MR_ROI(0)),'PIU_MR_ROIcut', LONG(PIU_MR_ROIcut(0)), $
+    'Ghost_MR_ROI', [FLOAT(GHOST_MR_ROI_C(0)), FLOAT(GHOST_MR_ROI_W(0)),FLOAT(GHOST_MR_ROI_H(0)),FLOAT(GHOST_MR_ROI_D(0)),WIDGET_INFO(ghost_MR_optC, /BUTTON_SET)],'Ghost_MR_ROIcut',LONG(GHOST_MR_ROIcut(0)),$
     'GD_MR_act', FLOAT(GD_MR_act(0)),$
     'Slice_MR_ROI', [FLOAT(Slice_MR_TANA(0)),FLOAT(Slice_MR_ROI_W(0)),FLOAT(Slice_MR_ROI_H(0)),FLOAT(Slice_MR_ROI_D(0)),FLOAT(Slice_MR_ROI_D2(0)),WIDGET_INFO(slice_MR_optC, /BUTTON_SET)])
 ;'distCorr',FLOAT(distCorr(0)),'attCoeff',FLOAT(attCorr(0)),'detThick',FLOAT(thickCorr(0)),
+;    'autoImportPath','', 'autoContinue',0,'wait',[5,2],
   RETURN
 end
 
@@ -187,8 +203,8 @@ pro saveParam, overWriteNo, newName
   IF overWriteNo NE -1 THEN BEGIN
     
     configS=replaceStructStruct(configS, config, overWriteNo)
-    configS.(overWriteNo).AUTOIMPORTPATH=configS.(1).AUTOIMPORTPATH;all same
-    configS.(overWriteNo).AUTOCONTINUE=configS.(1).AUTOCONTINUE;all same
+    ;configS.(overWriteNo).AUTOIMPORTPATH=configS.(1).AUTOIMPORTPATH;all same
+    ;configS.(overWriteNo).AUTOCONTINUE=configS.(1).AUTOCONTINUE;all same
     SAVEIF, saveOK, configS, quickTemp, quickTout, loadTemp, renameTemp, FILENAME=configPath
     selConfig=overWriteNo
     ;current parameterset is active - just change name of parameter set label
