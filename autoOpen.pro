@@ -149,7 +149,7 @@ pro autoOpen_event, event
         adr=DIALOG_PICKFILE(TITLE='Locate folder with all new incoming images', DIALOG_PARENT=event.Top, /DIRECTORY, PATH=defImpPath)
         IF adr NE '' THEN WIDGET_CONTROL, txtAutoImpPath_ao, SET_VALUE=adr(0)
       END
-      'au_import_Save':BEGIN
+      'au_import_save':BEGIN
         WIDGET_CONTROL, txtAutoImpPath_ao, GET_VALUE=adr
         ;for each config update adr
         IF FILE_TEST(configPath, /READ) THEN BEGIN
@@ -226,10 +226,12 @@ pro autoOpen_event, event
               igS=-1
               WIDGET_CONTROL, txtIgnoreOld, GET_VALUE=igSt
               IF igSt NE '' and igSt NE '-' THEN igS=LONG(igSt)
-              todayLong=0
+              ;todayLong=0
+              todayMDY = [0,0,0]
               IF igS GT -1 THEN BEGIN
                 caldat, SYSTIME(/JULIAN, /UTC), m, d, y
-                todayLong = ULONG(STRING(y,FORMAT='(i0)') + STRING(m, FORMAT='(i02)') + STRING(d, FORMAT='(i02)'))
+                ;todayLong = ULONG(STRING(y,FORMAT='(i0)') + STRING(m, FORMAT='(i02)') + STRING(d, FORMAT='(i02)'))
+                todayMDY = [m,d,y]
               ENDIF
 
 
@@ -268,8 +270,9 @@ pro autoOpen_event, event
                   test=o->GetReference('0008'x,'0022'x)
                   test_peker=o->GetValue(REFERENCE=test[0],/NO_COPY)
                   IF test(0) NE -1 THEN acqDate=*(test_peker[0]) ELSE acqDate=''
-                  IF acqDate NE '' AND todayLong GT 0 THEN BEGIN
-                    IF todayLong-ULONG(acqDate) GT igS THEN BEGIN
+                  IF acqDate NE '' AND TOTAL(todayMDY) GT 0 THEN BEGIN
+                    acqDateMDY = LONG([strmid(acqDate,4,2),strmid(acqDate,6,2),strmid(acqDate,0,4)])
+                    IF greg2jul(todayMDY(0),todayMDY(1),todayMDY(2))-greg2jul(acqDateMDY(0),acqDateMDY(1),acqDateMDY(2)) GT igS THEN BEGIN
                       ignoreThis=1
                       acqDatesIgnored=[acqDatesIgnored,acqDate]
                       statnamesIgnored=[statnamesIgnored,stationName]
@@ -372,8 +375,10 @@ pro autoOpen_event, event
                   ENDIF ELSE BEGIN
                     nNoImg=nNoImg+1; acqdate and acqtime not empty (not regarded as image)
 
-                    basename=stationName+'_'+patid+'_'+contentDate+'_'+contentTime+'_'+serDesc
+                    basename=modalityStr+'-'+stationName+'_'+patid+'_'+contentDate+'_'+contentTime+'_'+serDesc
+                    basename=IDL_VALIDNAME(basename.compress(),/CONVERT_ALL)
                     newAdr=adr(0);do not move, just rename
+                    IF STRMID(newAdr(0), 0, /REVERSE_OFFSET) NE PATH_SEP() THEN newAdr=newAdr(0)+PATH_SEP();make sure folder ends with separator
                     adrNoImg=[adrNoImg,newAdr+basename+'.dcm']
                   ENDELSE
 

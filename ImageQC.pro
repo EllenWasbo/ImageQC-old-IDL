@@ -64,7 +64,7 @@ pro ImageQC,  GROUP_LEADER=bMain
     sliceMR_ROI, slice_MR_optC, txtSlice_MR_TANA, txtSlice_MR_ROIszW, txtSlice_MR_ROIszH, txtSlice_MR_ROIszD, txtSlice_MR_ROIszD2
 
   !EXCEPT=0;2 to see all errors
-  currVersion='2.04'
+  currVersion='2.05'
   thisPath=FILE_DIRNAME(ROUTINE_FILEPATH('ImageQC'))+'\'
   xoffset=100
   yoffset=50

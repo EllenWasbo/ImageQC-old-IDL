@@ -195,7 +195,7 @@ function readPETdailyQC, clipres, configGetSiemensQC
       phantomPos=[phantomPosx,phantomPosy]
     ENDIF ELSE BEGIN; from VG80a / VG76B at least (possibly older too)
       rowno=WHERE(shortres EQ 'Phantom P')
-      IF rowno(0) NE -1 THEN BEGIN
+      IF rowno(0) NE -1 AND N_ELEMENTS(rowno) GE 2 THEN BEGIN
         clipSplit=STRSPLIT(clipres(rowno(1)+1),' ',/EXTRACT)
         IF N_ELEMENTS(clipSplit) EQ 9 THEN BEGIN
           phantomPosx=FLOAT(clipSplit(-3))

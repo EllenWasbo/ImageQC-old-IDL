@@ -54,7 +54,7 @@ pro writeResToFile, headL, resL, wpath, inputPath, toClipb, errArr, nn, nAdr, ar
         CLOSE, resfile & FREE_LUN, resfile
         archivePaths=[archivePaths, inputPath]
         nnWritten=nnWritten+1
-      ENDIF ELSE errArr(nn)=errArr(nn)+' Failed to write results to file. Writingprotection?'
+      ENDIF ELSE errArr(nn)=errArr(nn)+' Failed to write results to file. Writing protection?'
     ENDIF
   ENDIF ELSE BEGIN
     CLIPBOARD.set, headL + resL

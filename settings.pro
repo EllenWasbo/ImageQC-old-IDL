@@ -492,7 +492,7 @@ pro settings, GROUP_LEADER = mainbase, xoff, yoff, tabString;tabString = 'PARAM'
   txtBrowseApp=WIDGET_TEXT(bBrowseApp, VALUE=pathApp, /EDITABLE, XSIZE=73, FONT=font1, UVALUE='txtBrowseApp',/KBRD_FOCUS_EVENTS)
   btnBrowseApp=WIDGET_BUTTON(bBrowseApp, VALUE=thisPath+'images\open.bmp',/BITMAP, TOOLTIP='Browse to locate output file', UVALUE='a_BrowseApp', FONT=font1)
   btnClearApp=WIDGET_BUTTON(bBrowseApp, VALUE=thisPath+'images\delete.bmp',/BITMAP, UVALUE='a_ClearApp', TOOLTIP='Clear output file address', FONT=font1)
-  btnShowApp=WIDGET_BUTTON(bBrowseApp, VALUE=thisPath+'images\open.bmp',/BITMAP, UVALUE='a_OpenApp', TOOLTIP='Open result file', FONT=font1)
+  btnShowApp=WIDGET_BUTTON(bBrowseApp, VALUE=thisPath+'images\document.bmp',/BITMAP, UVALUE='a_OpenApp', TOOLTIP='Open result file', FONT=font1)
 
   selecTemp_a=0
   a_currMod=defModality
